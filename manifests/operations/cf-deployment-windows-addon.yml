@@ -1,0 +1,16 @@
+- type: replace
+  path: /instance_groups/name=windows-cell/jobs/name=metron_agent_windows
+  value:
+    name: loggregator_agent_windows
+    release: loggregator-agent
+    properties:
+      loggregator:
+        tls:
+          ca_cert: ((loggregator_tls_metron.ca))
+          agent:
+            cert: ((loggregator_tls_metron.certificate))
+            key: ((loggregator_tls_metron.private_key))
+      loggregator_agent:
+        deployment: ((system_domain))
+      syslog_daemon_config:
+        enable: false
