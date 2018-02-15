@@ -22,5 +22,6 @@
 
 - type: replace
   path: /releases/-
+  value:
     name: loggregator-agent
     version: latest
