@@ -19,3 +19,8 @@
             agent:
               cert: "((loggregator_tls_metron.certificate))"
               key: "((loggregator_tls_metron.private_key))"
+
+- type: replace
+  path: /releases/-
+    name: loggregator-agent
+    version: latest
