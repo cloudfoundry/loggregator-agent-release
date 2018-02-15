@@ -1,0 +1,5 @@
+check process loggregator_agent
+  with pidfile /var/vcap/sys/run/loggregator_agent/loggregator_agent.pid
+  start program "/var/vcap/jobs/loggregator_agent/bin/loggregator_agent_ctl start"
+  stop program "/var/vcap/jobs/loggregator_agent/bin/loggregator_agent_ctl stop"
+  group vcap

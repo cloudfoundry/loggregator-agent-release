@@ -1,0 +1,5 @@
+name: loggregator-agent
+blobstore:
+  provider: s3
+  options:
+    bucket_name: loggregator-agent-release-blobs

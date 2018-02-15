@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -ex
+
+readlink() {
+  (
+    cd $(dirname $1)
+    echo $PWD/$(basename $1)
+  )
+}
+
+# Place keys and certificates here
+depot_path=$(readlink ./test-certs)
+mkdir -p ${depot_path}
+
+# Install certstrap
+go get -v github.com/square/certstrap
+
+# CA to distribute to loggregator certs
+certstrap --depot-path ${depot_path} init --passphrase '' --common-name loggregatorCA
+mv -f ${depot_path}/loggregatorCA.crt ${depot_path}/loggregator-ca.crt
+mv -f ${depot_path}/loggregatorCA.key ${depot_path}/loggregator-ca.key
+mv -f ${depot_path}/loggregatorCA.crl ${depot_path}/loggregator-ca.crl
+
+# Agent certificate
+certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name agent
+certstrap --depot-path ${depot_path} sign agent --CA loggregator-ca
+
+# Router certificate
+certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name router
+certstrap --depot-path ${depot_path} sign router --CA loggregator-ca
