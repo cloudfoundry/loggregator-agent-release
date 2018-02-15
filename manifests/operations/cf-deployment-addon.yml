@@ -11,7 +11,7 @@
         release: cf-smoke-tests
     jobs:
     - name: loggregator_agent
-      release: loggregator
+      release: loggregator-agent
       properties:
         loggregator:
           tls:
