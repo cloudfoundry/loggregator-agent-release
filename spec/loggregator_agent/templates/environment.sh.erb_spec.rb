@@ -8,22 +8,22 @@ RSpec.describe "Agent Environment" do
         name: "some-job",
     )
     properties = {
+      "zone" => "some-az",
+      "deployment" => "some-deployment",
+      "grpc_port" => 4444,
+      "listening_port" => 1111,
+      "disable_udp" => false,
+      "pprof_port" => 2222,
+      "health_port" => 3333,
+      "tags" => {
+          "some-key" => "some-value"
+      },
+
       "doppler" => {
           "addr" => "10.0.0.1",
           "grpc_port" => 5555,
       },
-      "loggregator_agent" => {
-        "zone" => "some-az",
-        "deployment" => "some-deployment",
-        "grpc_port" => 4444,
-        "listening_port" => 1111,
-        "disable_udp" => false,
-        "pprof_port" => 2222,
-        "health_port" => 3333,
-        "tags" => {
-            "some-key" => "some-value"
-        }
-      },
+
       "loggregator" => {
           "tls" => {
               "cipher_suites" => "a:b"
@@ -113,9 +113,7 @@ RSpec.describe "Agent Environment" do
     it "uses the provided property" do
       spec = InstanceSpec.new(az: "some-az")
       prop = {
-        "loggregator_agent" => {
-          "zone" => "other-az",
-        },
+        "zone" => "other-az",
       }
       config = render_template(
         prop,
@@ -144,9 +142,7 @@ RSpec.describe "Agent Environment" do
     it "uses the provided property" do
       spec = InstanceSpec.new(deployment: "some-deployment")
       properties = {
-        "loggregator_agent" => {
-          "deployment" => "other-deployment",
-        },
+        "deployment" => "other-deployment",
       }
       config = render_template(
         properties,
@@ -187,10 +183,8 @@ RSpec.describe "Agent Environment" do
         ip: "127.0.0.1",
       )
       properties = {
-        "loggregator_agent" => {
-          "tags" => {
-            "other-tag" => "other-value",
-          },
+        "tags" => {
+          "other-tag" => "other-value",
         },
       }
       config = render_template(

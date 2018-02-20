@@ -1,12 +1,12 @@
 <%
   job_name = spec.job.name || name
   instance_id = spec.id || spec.index.to_s
-  instance_zone = p("loggregator_agent.zone").empty? ? spec.az : p("loggregator_agent.zone")
-  deployment = p("loggregator_agent.deployment").empty? ? spec.deployment : p("loggregator_agent.deployment")
-  router_addr = p("loggregator_agent.bosh_dns") ? link("doppler").address : p("doppler.addr")
+  instance_zone = p("zone").empty? ? spec.az : p("zone")
+  deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+  router_addr = p("bosh_dns") ? link("doppler").address : p("doppler.addr")
 
   router_addr_with_az = "#{instance_zone}.#{p("doppler.addr")}"
-  if p("loggregator_agent.bosh_dns")
+  if p("bosh_dns")
       router_addr_with_az = link("doppler").address(azs: [spec.az])
   end
 
@@ -16,13 +16,13 @@
       index: instance_id,
       ip: spec.ip,
   }
-  tags.merge!(p("loggregator_agent.tags"))
+  tags.merge!(p("tags"))
 
   env = {
     "__PIPE_SYSLOG_HOST" => p('syslog_daemon_config.address'),
     "__PIPE_SYSLOG_PORT" => p('syslog_daemon_config.port'),
     "__PIPE_SYSLOG_TRANSPORT" => p('syslog_daemon_config.transport'),
-    "AGENT_PORT" => "#{p("loggregator_agent.grpc_port")}",
+    "AGENT_PORT" => "#{p("grpc_port")}",
     "AGENT_CA_FILE" => "/var/vcap/jobs/loggregator_agent_windows/config/certs/loggregator_ca.crt",
     "AGENT_CERT_FILE" => "/var/vcap/jobs/loggregator_agent_windows/config/certs/loggregator_agent.crt",
     "AGENT_KEY_FILE" => "/var/vcap/jobs/loggregator_agent_windows/config/certs/loggregator_agent.key",
@@ -33,10 +33,10 @@
     "AGENT_INDEX" => instance_id,
     "AGENT_IP" => spec.ip,
     "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
-    "AGENT_DISABLE_UDP" => "#{p("loggregator_agent.disable_udp")}",
-    "AGENT_INCOMING_UDP_PORT" => "#{p("loggregator_agent.listening_port")}",
-    "AGENT_HEALTH_ENDPOINT_PORT" => "#{p("loggregator_agent.health_port")}",
-    "AGENT_PPROF_PORT" => "#{p("loggregator_agent.pprof_port")}",
+    "AGENT_DISABLE_UDP" => "#{p("disable_udp")}",
+    "AGENT_INCOMING_UDP_PORT" => "#{p("listening_port")}",
+    "AGENT_HEALTH_ENDPOINT_PORT" => "#{p("health_port")}",
+    "AGENT_PPROF_PORT" => "#{p("pprof_port")}",
     "ROUTER_ADDR" => "#{router_addr}:#{p('doppler.grpc_port')}",
     "ROUTER_ADDR_WITH_AZ" => "#{router_addr_with_az}:#{p('doppler.grpc_port')}",
   }

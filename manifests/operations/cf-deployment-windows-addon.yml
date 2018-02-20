@@ -10,7 +10,5 @@
           agent:
             cert: ((loggregator_tls_metron.certificate))
             key: ((loggregator_tls_metron.private_key))
-      loggregator_agent:
-        deployment: ((system_domain))
       syslog_daemon_config:
         enable: false
