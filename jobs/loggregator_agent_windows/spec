@@ -5,8 +5,8 @@ provides:
 - name: loggregator_agent_windows
   type: loggregator_agent
   properties:
-  - loggregator_agent.listening_address
-  - loggregator_agent.listening_port
+  - listening_address
+  - listening_port
 
 consumes:
 - name: doppler
