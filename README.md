@@ -58,7 +58,7 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 
 [slack-badge]:         https://slack.cloudfoundry.org/badge.svg
 [loggregator-slack]:   https://cloudfoundry.slack.com/archives/loggregator
-[ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/loggregator/jobs/loggregator-agent-tests/badge
+[ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/products/jobs/loggregator-agent-tests/badge
 [ci-pipeline]:         https://loggregator.ci.cf-app.com/
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
 [loggregator-roadmap]: https://github.com/cloudfoundry/loggregator-release/projects/1
