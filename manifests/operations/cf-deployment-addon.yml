@@ -1,5 +1,5 @@
 - type: remove
-  path: /addons/name=metron_agent
+  path: /addons/name=metron_agent?
   
 - type: replace
   path: /addons/name=loggregator_agent?
