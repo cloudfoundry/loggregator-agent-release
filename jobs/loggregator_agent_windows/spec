@@ -7,6 +7,7 @@ provides:
   properties:
   - listening_address
   - listening_port
+  - grpc_port
 
 consumes:
 - name: doppler
