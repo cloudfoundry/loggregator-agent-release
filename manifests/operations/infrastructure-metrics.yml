@@ -1,0 +1,22 @@
+- type: replace
+  path: /releases/-
+  value:
+    name: "node-exporter"
+    version: "4.0.0"
+    url: "https://bosh.io/d/github.com/cloudfoundry-community/node-exporter-boshrelease?v=4.0.0"
+    sha1: "e247348d50efce97229adbd0f140c91255b04f3e"
+
+- type: replace
+  path: /addons/-
+  value:
+    name: node_exporter
+    jobs:
+    - name: node_exporter
+      release: node-exporter
+    include:
+      stemcell:
+      - os: ubuntu-trusty
+    exclude:
+      jobs:
+      - name: smoke_tests
+      release: cf-smoke-tests
