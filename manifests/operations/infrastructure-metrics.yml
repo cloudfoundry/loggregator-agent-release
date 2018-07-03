@@ -19,4 +19,4 @@
     exclude:
       jobs:
       - name: smoke_tests
-      release: cf-smoke-tests
+        release: cf-smoke-tests
