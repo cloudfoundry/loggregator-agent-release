@@ -1,0 +1,5 @@
+check process prom_scraper
+  with pidfile /var/vcap/sys/run/prom_scraper/prom_scraper.pid
+  start program "/var/vcap/jobs/prom_scraper/bin/prom_scraper_ctl start"
+  stop program "/var/vcap/jobs/prom_scraper/bin/prom_scraper_ctl stop"
+  group vcap
