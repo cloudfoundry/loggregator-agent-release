@@ -70,3 +70,9 @@
 [submodule "src/google.golang.org/genproto"]
 	path = src/google.golang.org/genproto
 	url = https://github.com/google/go-genproto
+[submodule "src/github.com/jteeuwen/go-bindata"]
+	path = src/github.com/jteeuwen/go-bindata
+	url = https://github.com/jteeuwen/go-bindata
+[submodule "src/github.com/wfernandes/app-metrics-plugin"]
+	path = src/github.com/wfernandes/app-metrics-plugin
+	url = https://github.com/wfernandes/app-metrics-plugin
