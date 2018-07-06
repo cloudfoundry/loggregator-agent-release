@@ -1,0 +1,40 @@
+name: loggregator-agent
+version: "2.0"
+commit_hash: 2382c90
+uncommitted_changes: false
+jobs:
+- name: loggregator_agent
+  version: ce10143c308b392b0c9ebc88498e8675188aad8d6038666d0f43d0b16d7e46d2
+  fingerprint: ce10143c308b392b0c9ebc88498e8675188aad8d6038666d0f43d0b16d7e46d2
+  sha1: sha256:3b90246a26f25f1fae8820330c74261c61f64331dd4e1e60d11d787b6a64a87b
+- name: loggregator_agent_windows
+  version: 34815a5f725fa288a79be77a67d55b7ce95da5d236a25becead2e2b63c194e3b
+  fingerprint: 34815a5f725fa288a79be77a67d55b7ce95da5d236a25becead2e2b63c194e3b
+  sha1: sha256:d299c89f55b904bcde71c553361262e5fec5a93f433e09bffb30d3e87cb55dfc
+packages:
+- name: golang1.9.6
+  version: 492fce63ab236ec3d01949398623824641c8ffbd02a04d952e90b33b4359a62b
+  fingerprint: 492fce63ab236ec3d01949398623824641c8ffbd02a04d952e90b33b4359a62b
+  sha1: sha256:cbada293981f8fecc4d14d4355cc3f207f5897040fe8f9940947948eed5691dd
+  dependencies: []
+- name: golang1.9.6-windows
+  version: 5d245acf3512e8ac59dedc7fc817692dda814e1898e537c639728d1936616735
+  fingerprint: 5d245acf3512e8ac59dedc7fc817692dda814e1898e537c639728d1936616735
+  sha1: sha256:88209fcfcd6bbe0a8ea3e337251a0b64403423ae3b63c64bba5651fb4d039ae7
+  dependencies: []
+- name: loggregator_agent
+  version: 901a5b3ab5e4ce788d3cdf9c846c94cf40cdcecc80f7e024fd78fcd569fb1afe
+  fingerprint: 901a5b3ab5e4ce788d3cdf9c846c94cf40cdcecc80f7e024fd78fcd569fb1afe
+  sha1: sha256:9548b4c4c7e9776656924be93af0c110a35b7ed82758ccf301fdf6cc6ea05588
+  dependencies:
+  - golang1.9.6
+- name: loggregator_agent_windows
+  version: a0aee73402725df0d3a891166e2cd9ef86804ae4f4c0fbb4bf19d32b4d31035a
+  fingerprint: a0aee73402725df0d3a891166e2cd9ef86804ae4f4c0fbb4bf19d32b4d31035a
+  sha1: sha256:0c730d5667e383ecc885a0a16e0869e5cc211d44830135c50d02d94b55d1b055
+  dependencies:
+  - golang1.9.6-windows
+license:
+  version: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  fingerprint: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  sha1: sha256:423bf4b0d11566b04fbc7cb32949a149a83a7ffc79b5a5437bff4216463fca67
