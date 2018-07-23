@@ -2,9 +2,9 @@
   path: /releases/-
   value:
     name: "node-exporter"
-    version: "4.0.0"
-    url: "https://bosh.io/d/github.com/cloudfoundry-community/node-exporter-boshrelease?v=4.0.0"
-    sha1: "e247348d50efce97229adbd0f140c91255b04f3e"
+    version: "4.0.1"
+    url: "https://bosh.io/d/github.com/cloudfoundry-community/node-exporter-boshrelease?v=4.0.1"
+    sha1: "ade04174f6eaf14173f204cc46a629fe6cd07c63"
 
 - type: replace
   path: /addons/-
