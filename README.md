@@ -42,6 +42,20 @@ There is Go client library: [go-loggregator][go-loggregator]. The client
 library has several useful patterns along with examples to interact with a
 Loggregator Agent.
 
+### VM Metrics
+
+When the Loggregator Agent is deployed with the `prom_scraper` job, it will
+emit the following metrics about the VM where it is deployed:
+1. cpu
+1. diskstats
+1. meminfo
+1. netstat
+
+The emitted metrics can be controlled via the `infrastructure-metrics.yml`
+operations file. For more information about the emitted metrics see the
+[Prometheus Node Exporter][prom-node-exporter] documentation
+
+
 ## More Resources and Documentation
 
 ### Roadmap
@@ -56,6 +70,7 @@ suggestions you'd like to see added.
 Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [Pivotal Tracker][loggregator-tracker].
 
+
 [slack-badge]:         https://slack.cloudfoundry.org/badge.svg
 [loggregator-slack]:   https://cloudfoundry.slack.com/archives/loggregator
 [ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/loggregator/jobs/loggregator-tests/badge
@@ -63,3 +78,4 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
 [loggregator-roadmap]: https://github.com/cloudfoundry/loggregator-release/projects/1
 [go-loggregator]:      https://code.cloudfoundry.org/go-loggregator
+[prom-node-exporter]:  https://github.com/prometheus/node_exporter#enabled-by-default
