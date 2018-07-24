@@ -5,7 +5,6 @@ provides:
 - name: loggregator_agent
   type: loggregator_agent
   properties:
-  - listening_address
   - listening_port
   - grpc_port
 
@@ -31,9 +30,6 @@ properties:
   listening_port:
     description: "Port the agent is listening on to receive dropsonde log messages"
     default: 3457
-  listening_address:
-    description: "Address the agent is listening on to receive dropsonde log messages provided for BOSH links and should not be overwritten"
-    default: "127.0.0.1"
   grpc_port:
     description: "Port the agent is listening on to receive gRPC log envelopes"
     default: 3458
