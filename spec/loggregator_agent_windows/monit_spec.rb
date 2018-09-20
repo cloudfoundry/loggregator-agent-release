@@ -50,7 +50,7 @@ RSpec.describe "Agent Windows Environment" do
       "AGENT_HEALTH_ENDPOINT_PORT" => "3333",
       "AGENT_PPROF_PORT" => "2222",
       "ROUTER_ADDR" => "10.0.0.1:5555",
-      "ROUTER_ADDR_WITH_AZ" => "some-az.10.0.0.1:5555",
+      "ROUTER_ADDR_WITH_AZ" => "'some-az.10.0.0.1:5555'",
     }
     expect(config).to eq(expected_config)
   end
@@ -187,7 +187,7 @@ RSpec.describe "Agent Windows Environment" do
       config = render_monit_config(properties, links: [link])
 
       expect(config["ROUTER_ADDR"]).to eq("some-router-addr:8082")
-      expect(config["ROUTER_ADDR_WITH_AZ"]).to eq("az1.some-router-addr:8082")
+      expect(config["ROUTER_ADDR_WITH_AZ"]).to eq("'az1.some-router-addr:8082'")
     end
   end
 
