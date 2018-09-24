@@ -1,7 +1,0 @@
-export LOGGREGATOR_AGENT_ADDR="<%= "localhost:#{link('loggregator').p('metron_endpoint.grpc_port')}" %>"
-export CA_CERT_PATH="/var/vcap/jobs/prom_scraper/config/certs/loggregator_ca.crt"
-export CLIENT_CERT_PATH="/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.crt"
-export CLIENT_KEY_PATH="/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.key"
-export METRICS_URL="<%= p('metrics_url') %>"
-export SCRAPE_INTERVAL="<%= p('scrape_interval') %>"
-export SOURCE_ID="<%= "infra_#{spec.job.name}" %>"

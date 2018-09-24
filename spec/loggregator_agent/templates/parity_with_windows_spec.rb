@@ -6,13 +6,13 @@ RSpec.describe "Parity with Windows" do
       properties,
       spec: spec,
       job: "loggregator_agent",
-      template: "bin/environment.sh"
+      template: "config/bpm.yml"
     )
     windows_config = render_monit_config(properties, spec: spec)
 
     remove_known_difference!(windows_config)
 
-    expect(linux_config).to eq(windows_config)
+    expect(linux_config['processes'].first['env']).to eq(windows_config)
   end
 
   DIFFERENT_KEYS = [

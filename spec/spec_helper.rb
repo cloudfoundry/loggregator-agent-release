@@ -11,12 +11,7 @@ def render_template(props, job:, template:, spec: InstanceSpec.new, links: [])
   template = job.template(template)
   rendered = template.render(props, spec: spec, consumes: links)
 
-  rendered.split("\n").each_with_object({}) do |str, h|
-    if str != ""
-      k, v = str.split("=")
-      h[k.gsub("export ", "")] = v.gsub("\"", "")
-    end
-  end
+  YAML.parse(rendered).to_ruby
 end
 
 def render_monit_config(properties, spec: InstanceSpec.new, links: [])

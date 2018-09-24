@@ -34,7 +34,7 @@ RSpec.describe "Agent Environment" do
       properties,
       spec: spec,
       job: "loggregator_agent",
-      template: "bin/environment.sh"
+      template: "config/bpm.yml"
     )
 
     expected_config = {
@@ -54,9 +54,9 @@ RSpec.describe "Agent Environment" do
       "AGENT_HEALTH_ENDPOINT_PORT" => "3333",
       "AGENT_PPROF_PORT" => "2222",
       "ROUTER_ADDR" => "10.0.0.1:5555",
-      "ROUTER_ADDR_WITH_AZ" => "'some-az.10.0.0.1:5555'",
+      "ROUTER_ADDR_WITH_AZ" => "some-az.10.0.0.1:5555",
     }
-    expect(config).to eq(expected_config)
+    expect(config['processes'].first['env']).to eq(expected_config)
   end
 
   it "defaults to the job name of the spec" do
@@ -65,10 +65,10 @@ RSpec.describe "Agent Environment" do
       {},
       spec: spec,
       job: "loggregator_agent",
-      template: "bin/environment.sh"
+      template: "config/bpm.yml"
     )
 
-    expect(config["AGENT_JOB"]).to eq("some-name")
+    expect(config['processes'].first['env']["AGENT_JOB"]).to eq("some-name")
   end
 
   describe "Index" do
@@ -78,10 +78,10 @@ RSpec.describe "Agent Environment" do
         {},
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_INDEX"]).to eq("some-id")
+      expect(config['processes'].first['env']["AGENT_INDEX"]).to eq("some-id")
     end
 
     it "uses the spec's index when there is no ID" do
@@ -90,10 +90,10 @@ RSpec.describe "Agent Environment" do
         {},
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_INDEX"]).to eq("0")
+      expect(config['processes'].first['env']["AGENT_INDEX"]).to eq("0")
     end
   end
 
@@ -104,10 +104,10 @@ RSpec.describe "Agent Environment" do
         {},
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_ZONE"]).to eq("some-az")
+      expect(config['processes'].first['env']["AGENT_ZONE"]).to eq("some-az")
     end
 
     it "uses the provided property" do
@@ -119,10 +119,10 @@ RSpec.describe "Agent Environment" do
         prop,
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_ZONE"]).to eq("other-az")
+      expect(config['processes'].first['env']["AGENT_ZONE"]).to eq("other-az")
     end
   end
 
@@ -133,10 +133,10 @@ RSpec.describe "Agent Environment" do
         {},
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_DEPLOYMENT"]).to eq("some-deployment")
+      expect(config['processes'].first['env']["AGENT_DEPLOYMENT"]).to eq("some-deployment")
     end
 
     it "uses the provided property" do
@@ -148,10 +148,10 @@ RSpec.describe "Agent Environment" do
         properties,
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_DEPLOYMENT"]).to eq("other-deployment")
+      expect(config['processes'].first['env']["AGENT_DEPLOYMENT"]).to eq("other-deployment")
     end
   end
 
@@ -167,10 +167,10 @@ RSpec.describe "Agent Environment" do
       config = render_template(
         properties,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["AGENT_CIPHER_SUITES"]).to eq("a,b")
+      expect(config['processes'].first['env']["AGENT_CIPHER_SUITES"]).to eq("a,b")
     end
   end
 
@@ -191,11 +191,11 @@ RSpec.describe "Agent Environment" do
         properties,
         spec: spec,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
       expected_tags_str = "deployment:some-deployment,job:some-job,index:some-id,ip:127.0.0.1,other-tag:other-value"
-      expect(config["AGENT_TAGS"]).to eq(expected_tags_str)
+      expect(config['processes'].first['env']["AGENT_TAGS"]).to eq(expected_tags_str)
     end
   end
 
@@ -211,10 +211,10 @@ RSpec.describe "Agent Environment" do
       config = render_template(
         properties,
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["ROUTER_ADDR"]).to eq("127.0.0.1:9999")
+      expect(config['processes'].first['env']["ROUTER_ADDR"]).to eq("127.0.0.1:9999")
     end
   end
 
@@ -240,11 +240,11 @@ RSpec.describe "Agent Environment" do
         properties,
         links: [link],
         job: "loggregator_agent",
-        template: "bin/environment.sh"
+        template: "config/bpm.yml"
       )
 
-      expect(config["ROUTER_ADDR"]).to eq("some-router-addr:8082")
-      expect(config["ROUTER_ADDR_WITH_AZ"]).to eq("'az1.some-router-addr:8082'")
+      expect(config['processes'].first['env']["ROUTER_ADDR"]).to eq("some-router-addr:8082")
+      expect(config['processes'].first['env']["ROUTER_ADDR_WITH_AZ"]).to eq("az1.some-router-addr:8082")
     end
   end
 end

@@ -1,0 +1,43 @@
+<%
+    job_name = spec.job.name || name
+    instance_id = spec.id || spec.index.to_s
+    instance_zone = p("zone").empty? ? spec.az : p("zone")
+    deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+    router_addr = p("bosh_dns") ? link("doppler").address : p("doppler.addr")
+
+    router_addr_with_az = "#{instance_zone}.#{p("doppler.addr")}"
+    if p("bosh_dns")
+        router_addr_with_az = link("doppler").address(azs: [spec.az])
+    end
+
+    tags = {
+        deployment: deployment,
+        job: job_name,
+        index: instance_id,
+        ip: spec.ip,
+    }
+    tags.merge!(p("tags"))
+
+    tag_str = tags.map { |k, v| "#{k}:#{v}" }.join(",")
+%>
+processes:
+  - name: loggregator_agent
+    executable: /var/vcap/packages/loggregator_agent/loggregator-agent
+    env:
+      AGENT_PORT: "<%= p("grpc_port") %>"
+      AGENT_CA_FILE: "/var/vcap/jobs/loggregator_agent/config/certs/loggregator_ca.crt"
+      AGENT_CERT_FILE: "/var/vcap/jobs/loggregator_agent/config/certs/loggregator_agent.crt"
+      AGENT_KEY_FILE: "/var/vcap/jobs/loggregator_agent/config/certs/loggregator_agent.key"
+      AGENT_CIPHER_SUITES: "<%= p("loggregator.tls.cipher_suites").split(":").join(",") %>"
+      AGENT_DEPLOYMENT: "<%= deployment %>"
+      AGENT_ZONE: '<%= instance_zone %>'
+      AGENT_JOB: "<%= job_name %>"
+      AGENT_INDEX: "<%= instance_id %>"
+      AGENT_IP: "<%= spec.ip %>"
+      AGENT_TAGS: "<%= tag_str %>"
+      AGENT_DISABLE_UDP: "<%= p("disable_udp") %>"
+      AGENT_INCOMING_UDP_PORT: "<%= p("listening_port") %>"
+      AGENT_HEALTH_ENDPOINT_PORT: "<%= p("health_port") %>"
+      AGENT_PPROF_PORT: "<%= p("pprof_port") %>"
+      ROUTER_ADDR: "<%= "#{router_addr}:#{p('doppler.grpc_port')}" %>"
+      ROUTER_ADDR_WITH_AZ: '<%= "#{router_addr_with_az}:#{p('doppler.grpc_port')}" %>'

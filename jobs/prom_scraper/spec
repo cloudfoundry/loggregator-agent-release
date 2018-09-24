@@ -7,8 +7,7 @@ consumes:
   optional: false
 
 templates:
-  prom_scraper_ctl.erb: bin/prom_scraper_ctl
-  environment.sh.erb: bin/environment.sh
+  bpm.yml.erb: config/bpm.yml
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
