@@ -3,12 +3,9 @@
   instance_id = spec.id || spec.index.to_s
   instance_zone = p("zone").empty? ? spec.az : p("zone")
   deployment = p("deployment").empty? ? spec.deployment : p("deployment")
-  router_addr = p("bosh_dns") ? link("doppler").address : p("doppler.addr")
 
-  router_addr_with_az = "#{instance_zone}.#{p("doppler.addr")}"
-  if p("bosh_dns")
-      router_addr_with_az = link("doppler").address(azs: [spec.az])
-  end
+  router_addr = link("doppler").address
+  router_addr_with_az = link("doppler").address(azs: [spec.az])
 
   tags = {
       deployment: deployment,

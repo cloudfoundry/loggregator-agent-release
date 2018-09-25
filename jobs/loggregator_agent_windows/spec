@@ -55,9 +55,6 @@ properties:
   grpc_port:
     description: "Port the agent is listening on to receive gRPC log envelopes"
     default: 3458
-  bosh_dns:
-    description: Enable Bosh DNS. Disabling this implies Consul DNS.
-    default: false
   zone:
     description: "Availability zone where this agent is running"
     default: ""
@@ -75,9 +72,6 @@ properties:
     description: "The port for the health endpoint"
     default: 14824
 
-  doppler.addr:
-    description: DNS name for doppler. This needs to be round robbin DNS if you want the agent to communicate with multiple dopplers.
-    default: "doppler.service.cf.internal"
   doppler.grpc_port:
     description: Port for outgoing log messages via GRPC
     default: 8082
