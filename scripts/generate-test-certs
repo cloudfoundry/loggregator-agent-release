@@ -30,6 +30,10 @@ certstrap --depot-path ${depot_path} sign metron --CA loggregator-ca --expires "
 certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name router
 certstrap --depot-path ${depot_path} sign router --CA loggregator-ca --expires "25 years"
 
+# Doppler certificate
+certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name doppler
+certstrap --depot-path ${depot_path} sign doppler --CA loggregator-ca --expires "25 years"
+
 # Prom Scraper
 certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name prom-scraper
 certstrap --depot-path ${depot_path} sign prom-scraper --CA loggregator-ca --expires "25 years"
