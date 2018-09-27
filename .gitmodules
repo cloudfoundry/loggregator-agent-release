@@ -76,3 +76,6 @@
 [submodule "src/github.com/wfernandes/app-metrics-plugin"]
 	path = src/github.com/wfernandes/app-metrics-plugin
 	url = https://github.com/wfernandes/app-metrics-plugin
+[submodule "src/github.com/cloudfoundry/dropsonde"]
+	path = src/github.com/cloudfoundry/dropsonde
+	url = https://github.com/cloudfoundry/dropsonde
