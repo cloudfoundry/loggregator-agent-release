@@ -44,6 +44,8 @@ instance_groups:
           agent:
             cert: "((loggregator_agent.certificate))"
             key: "((loggregator_agent.private_key))"
+  - name: syslog_agent
+    release: loggregator-agent
 
 variables:
 - name: loggregator_ca

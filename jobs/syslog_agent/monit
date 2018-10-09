@@ -1,0 +1,5 @@
+check process syslog_agent
+  with pidfile /var/vcap/sys/run/bpm/syslog_agent/syslog_agent.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start syslog_agent"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop syslog_agent"
+  group vcap

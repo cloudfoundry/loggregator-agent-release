@@ -1,0 +1,8 @@
+---
+name: syslog_agent
+
+templates:
+  bpm.yml.erb: config/bpm.yml
+
+packages:
+- syslog_agent
