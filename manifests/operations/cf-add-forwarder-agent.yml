@@ -1,7 +1,7 @@
 - type: replace
   path: /addons/-
   value:
-    name: syslog_agent
+    name: forwarder_agent
     include:
       stemcell:
       - os: ubuntu-trusty
@@ -10,5 +10,5 @@
       - name: smoke_tests
         release: cf-smoke-tests
     jobs:
-    - name: syslog_agent
+    - name: forwarder_agent
       release: loggregator-agent

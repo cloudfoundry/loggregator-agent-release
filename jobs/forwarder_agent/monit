@@ -1,0 +1,5 @@
+check process forwarder_agent
+  with pidfile /var/vcap/sys/run/bpm/forwarder_agent/forwarder_agent.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start forwarder_agent"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop forwarder_agent"
+  group vcap

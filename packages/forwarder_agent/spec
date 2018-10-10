@@ -1,0 +1,10 @@
+---
+name: forwarder_agent
+
+dependencies:
+- golang1.10.3
+
+files:
+- code.cloudfoundry.org/go-envstruct/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app/*.go # gosub

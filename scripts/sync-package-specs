@@ -33,6 +33,6 @@ function sync_package() {
 sync_package loggregator_agent          -app  code.cloudfoundry.org/loggregator-agent/cmd/agent &
 sync_package loggregator_agent_windows  -app  code.cloudfoundry.org/loggregator-agent/cmd/agent &
 sync_package prom_scraper               -app  code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper &
-sync_package syslog_agent               -app  code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent &
+sync_package forwarder_agent            -app  code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent &
 
 wait
