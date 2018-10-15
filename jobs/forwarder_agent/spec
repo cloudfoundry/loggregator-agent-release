@@ -3,6 +3,46 @@ name: forwarder_agent
 
 templates:
   bpm.yml.erb: config/bpm.yml
+  api_ca.crt.erb: config/certs/api_ca.crt
+  api_client.crt.erb: config/certs/api_client.crt
+  api_client.key.erb: config/certs/api_client.key
 
 packages:
 - forwarder_agent
+
+consumes:
+- name: cloud_controller
+  type: cloud_controller
+
+properties:
+  api.tls.ca:
+    description: |
+      When the forwarder communicates with the Cloud Controller it must
+      validate the Cloud Controller's certificate was signed by a trusted CA.
+      This is the CA trusted by the forwarder for that communication.
+  api.tls.cert:
+    description: |
+      This certificate is sent to the Cloud Controller when initiating a
+      connection. It must be signed by a CA that is trusted by the Cloud
+      Controller.
+  api.tls.key:
+    description: |
+      This is the private key for the certificate sent to the Cloud Controller
+      when initiating a connection.
+  api.tls.cn:
+    description: |
+      When the forwarder communicates with the Cloud Controller it must
+      validate the Cloud Controller's common name (CN) or subject alternative
+      names (SANs) against the hostname or IP address used to initiate the
+      connection. Most of the time this should be the hostname defined in
+      api.url.
+  api.polling_interval:
+    description: |
+      The interval at which the forwarder will poll the Cloud Controller for
+      bindings.
+    default: 15s
+  api.batch_size:
+    description: |
+      The batch size the forwarder will request the Cloud Controller for
+      bindings.
+    default: 1000

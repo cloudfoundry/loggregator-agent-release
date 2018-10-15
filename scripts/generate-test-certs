@@ -37,3 +37,13 @@ certstrap --depot-path ${depot_path} sign doppler --CA loggregator-ca --expires 
 # Prom Scraper
 certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name prom-scraper
 certstrap --depot-path ${depot_path} sign prom-scraper --CA loggregator-ca --expires "25 years"
+
+# CA to communicate with CAPI
+certstrap --depot-path ${depot_path} init --passphrase '' --common-name capiCA --expires "25 years"
+mv -f ${depot_path}/capiCA.crt ${depot_path}/capi-ca.crt
+mv -f ${depot_path}/capiCA.key ${depot_path}/capi-ca.key
+mv -f ${depot_path}/capiCA.crl ${depot_path}/capi-ca.crl
+
+# Forwarder agent to CAPI certificate
+certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name forwarder
+certstrap --depot-path ${depot_path} sign forwarder --CA capi-ca --expires "25 years"
