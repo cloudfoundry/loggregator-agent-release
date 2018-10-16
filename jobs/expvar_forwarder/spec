@@ -19,10 +19,10 @@ properties:
   log_agent.ca_cert:
     description: |
       The Loggregator CA certificate in PEM format.
-  log_agent.client_cert
+  log_agent.client_cert:
     description: |
       The client certificate used to connect to the Loggregator Agent.
-  log_agent.client_key
+  log_agent.client_key:
     description: |
       The client private key used to connect to the Loggregator Agent.
 

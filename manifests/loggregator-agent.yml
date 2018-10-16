@@ -57,35 +57,35 @@ instance_groups:
       counters:
       - addr: http://127.0.0.1:14824/debug/vars
         name: dropped
-        template: "{.Agent.Dropped}"
+        template: "{{.Agent.Dropped}}"
       - addr: http://127.0.0.1:14824/debug/vars
         name: dropped
-        template: "{.Agent.DroppedEgressV2}"
+        template: "{{.Agent.DroppedEgressV2}}"
         tags:
           direction: egress
           metric_version: "2.0"
       - addr: http://127.0.0.1:14824/debug/vars
         name: dropped
-        template: "{.Agent.DroppedIngressV2}"
+        template: "{{.Agent.DroppedIngressV2}}"
         tags:
           direction: ingress
           metric_version: "2.0"
 
       - addr: http://127.0.0.1:14824/debug/vars
         name: egress
-        template: "{.Agent.Egress}"
+        template: "{{.Agent.Egress}}"
       - addr: http://127.0.0.1:14824/debug/vars
         name: egress
-        template: "{.Agent.EgressV2}"
+        template: "{{.Agent.EgressV2}}"
         tags:
           metric_version: "2.0"
 
       - addr: http://127.0.0.1:14824/debug/vars
         name: ingress
-        template: "{.Agent.Ingress}"
+        template: "{{.Agent.Ingress}}"
       - addr: http://127.0.0.1:14824/debug/vars
         name: ingress
-        template: "{.Agent.IngressV2}"
+        template: "{{.Agent.IngressV2}}"
         tags:
           metric_version: "2.0"
 
@@ -93,16 +93,23 @@ instance_groups:
       - addr: http://127.0.0.1:14824/debug/vars
         name: average_envelopes
         unit: bytes/minute
-        template: "{.Agent.AgeraveEnvelopeV1}"
+        template: "{{.Agent.AverageEnvelope}}"
         tags:
           loggregator: v1
       - addr: http://127.0.0.1:14824/debug/vars
         name: average_envelopes
         unit: bytes/minute
-        template: "{.Agent.AgeraveEnvelopeV2}"
+        template: "{{.Agent.AverageEnvelopeV2}}"
         tags:
           metric_version: "2.0"
           loggregator: v2
+
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: origin_mappings
+        unit: bytes/minute
+        template: "{{.Agent.OriginMappingsV2}}"
+        tags:
+          metric_version: "2.0"
 
 variables:
 - name: loggregator_ca

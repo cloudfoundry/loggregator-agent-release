@@ -8,6 +8,6 @@ processes:
       LOGGREGATOR_ADDR: <%= p('log_agent.addr') %>
       DEFAULT_SOURCE_ID: <%= p('default_source_id') %>
       INTERVAL: <%= p('interval') %>
-      COUNTERS_JSON: <%= p('counters').to_json %>
-      GAUGES_JSON: <%= p('gauges').to_json %>
+      COUNTERS_JSON: '<%= p('counters').to_json %>'
+      GAUGES_JSON: '<%= p('gauges').to_json %>'
 
