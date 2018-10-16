@@ -46,6 +46,63 @@ instance_groups:
             key: "((loggregator_agent.private_key))"
   - name: forwarder_agent
     release: loggregator-agent
+  - name: expvar_forwarder
+    release: loggregator-agent
+    properties:
+      log_agent:
+        ca_cert: "((expvar_forwarder.ca))"
+        client_cert: "((expvar_forwarder.certificate))"
+        client_key: "((expvar_forwarder.private_key))"
+      default_source_id: metron
+      counters:
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: dropped
+        template: "{.Agent.Dropped}"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: dropped
+        template: "{.Agent.DroppedEgressV2}"
+        tags:
+          direction: egress
+          metric_version: "2.0"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: dropped
+        template: "{.Agent.DroppedIngressV2}"
+        tags:
+          direction: ingress
+          metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: egress
+        template: "{.Agent.Egress}"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: egress
+        template: "{.Agent.EgressV2}"
+        tags:
+          metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: ingress
+        template: "{.Agent.Ingress}"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: ingress
+        template: "{.Agent.IngressV2}"
+        tags:
+          metric_version: "2.0"
+
+      gauges:
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: average_envelopes
+        unit: bytes/minute
+        template: "{.Agent.AgeraveEnvelopeV1}"
+        tags:
+          loggregator: v1
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: average_envelopes
+        unit: bytes/minute
+        template: "{.Agent.AgeraveEnvelopeV2}"
+        tags:
+          metric_version: "2.0"
+          loggregator: v2
 
 variables:
 - name: loggregator_ca
@@ -58,6 +115,21 @@ variables:
   options:
     ca: loggregator_ca
     common_name: agent
+    alternative_names:
+    - metron
+    - agent
+    - localhost
+    - 127.0.0.1
+    - ip6-localhost
+    - ::1
+    extended_key_usage:
+    - client_auth
+    - server_auth
+- name: expvar_forwarder
+  type: certificate
+  options:
+    ca: loggregator_ca
+    common_name: expvar_forwarder
     alternative_names:
     - metron
     - agent

@@ -1,0 +1,13 @@
+processes:
+  - name: expvar_forwarder
+    executable: /var/vcap/packages/expvar_forwarder/expvar-forwarder
+    env:
+      CA_PATH: "/var/vcap/jobs/expvar_forwarder/config/certs/ca.crt"
+      CERT_PATH: "/var/vcap/jobs/expvar_forwarder/config/certs/forwarder.crt"
+      KEY_PATH: "/var/vcap/jobs/expvar_forwarder/config/certs/forwarder.key"
+      LOGGREGATOR_ADDR: <%= p('log_agent.addr') %>
+      DEFAULT_SOURCE_ID: <%= p('default_source_id') %>
+      INTERVAL: <%= p('interval') %>
+      COUNTERS_JSON: <%= p('counters').to_json %>
+      GAUGES_JSON: <%= p('gauges').to_json %>
+
