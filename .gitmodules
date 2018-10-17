@@ -82,3 +82,6 @@
 [submodule "src/code.cloudfoundry.org/loggregator"]
 	path = src/code.cloudfoundry.org/loggregator
 	url = https://github.com/cloudfoundry/loggregator
+[submodule "src/code.cloudfoundry.org/rfc5424"]
+	path = src/code.cloudfoundry.org/rfc5424
+	url = https://github.com/cloudfoundry-incubator/rfc5424
