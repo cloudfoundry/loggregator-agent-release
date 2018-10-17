@@ -1,0 +1,39 @@
+---
+name: udp_forwarder
+
+templates:
+  bpm.yml.erb: config/bpm.yml
+  loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
+  loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
+  loggregator_agent.key.erb: config/certs/loggregator_agent.key
+
+packages:
+- udp_forwarder
+
+consumes:
+- name: cloud_controller
+  type: cloud_controller
+
+properties:
+  loggregator.tls.ca:
+    description: |
+      When the forwarder communicates with the Loggregator Agent it must
+      validate the Loggregator Agent's certificate was signed by a trusted CA.
+      This is the CA trusted by the forwarder for that communication.
+  loggregator.tls.cert:
+    description: |
+      This certificate is sent to the Loggregator Agent when initiating a
+      connection. It must be signed by a CA that is trusted by the Loggregator
+      Agent.
+  loggregator.tls.key:
+    description: |
+      This is the private key for the certificate sent to the Loggregator Agent
+      when initiating a connection.
+  loggregator.ingress_port:
+    description: |
+      The gRPC port to forward the converted v2 envelopes to.
+    default: 3458
+  udp_port:
+    description: |
+      The port to listen for incoming v1 (dropsonde) envelopes via UDP.
+    default: 3457
