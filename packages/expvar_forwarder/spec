@@ -10,6 +10,7 @@ files:
 - code.cloudfoundry.org/loggregator-agent/cmd/expvar-forwarder/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/plumbing/*.go # gosub
+- code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/golang/protobuf/proto/*.go # gosub
 - github.com/golang/protobuf/ptypes/*.go # gosub
 - github.com/golang/protobuf/ptypes/any/*.go # gosub

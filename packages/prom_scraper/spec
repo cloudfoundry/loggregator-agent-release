@@ -9,10 +9,13 @@ files:
 - code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/scraper/*.go # gosub
+- code.cloudfoundry.org/rfc5424/*.go # gosub
+- github.com/golang/protobuf/jsonpb/*.go # gosub
 - github.com/golang/protobuf/proto/*.go # gosub
 - github.com/golang/protobuf/ptypes/*.go # gosub
 - github.com/golang/protobuf/ptypes/any/*.go # gosub
 - github.com/golang/protobuf/ptypes/duration/*.go # gosub
+- github.com/golang/protobuf/ptypes/struct/*.go # gosub
 - github.com/golang/protobuf/ptypes/timestamp/*.go # gosub
 - github.com/matttproud/golang_protobuf_extensions/pbutil/*.go # gosub
 - github.com/prometheus/client_model/go/*.go # gosub
