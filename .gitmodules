@@ -79,3 +79,6 @@
 [submodule "src/github.com/cloudfoundry/dropsonde"]
 	path = src/github.com/cloudfoundry/dropsonde
 	url = https://github.com/cloudfoundry/dropsonde
+[submodule "src/code.cloudfoundry.org/loggregator"]
+	path = src/code.cloudfoundry.org/loggregator
+	url = https://github.com/cloudfoundry/loggregator
