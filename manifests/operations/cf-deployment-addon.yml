@@ -14,7 +14,6 @@
     - name: loggregator_agent
       release: loggregator-agent
       properties:
-        disable_udp: true
         loggregator:
           tls:
             ca_cert: "((loggregator_ca.certificate))"
