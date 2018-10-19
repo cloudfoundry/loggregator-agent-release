@@ -47,20 +47,6 @@
 - type: replace
   path: /instance_groups/name=api/jobs/-
   value:
-    name: loggregator_agent
-    release: loggregator-agent
-    properties:
-      disable_udp: true
-      loggregator:
-        tls:
-          ca_cert: "((loggregator_ca.certificate))"
-          agent:
-            cert: "((loggregator_tls_agent.certificate))"
-            key: "((loggregator_tls_agent.private_key))"
-
-- type: replace
-  path: /instance_groups/name=api/jobs/-
-  value:
     name: udp_forwarder
     release: loggregator-agent
     properties:
