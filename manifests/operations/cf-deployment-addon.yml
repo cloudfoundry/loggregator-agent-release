@@ -1,6 +1,3 @@
-- type: remove
-  path: /addons/name=metron_agent?
-
 - type: replace
   path: /addons/name=loggregator_agent?
   value:
@@ -90,7 +87,7 @@
             metric_version: "2.0"
 
 - type: replace
-  path: /releases/-
+  path: /releases/name=loggregator-agent
   value:
     name: loggregator-agent
     version: latest
