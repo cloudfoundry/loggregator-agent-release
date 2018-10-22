@@ -1,0 +1,3 @@
+- type: replace
+  path: /addons/name=forwarder_agent/jobs/forwarder_agent/properties/drain_skip_cert_verfiy?
+  value: true
