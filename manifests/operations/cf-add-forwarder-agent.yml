@@ -61,6 +61,7 @@
     name: loggregator_agent
     release: loggregator-agent
     properties:
+      grpc_port: 3459
       disable_udp: true
       loggregator:
         tls:
