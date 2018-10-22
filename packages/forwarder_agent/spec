@@ -11,9 +11,15 @@ files:
 - code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/binding/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/diodes/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/api/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/ingress/v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/plumbing/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/timeoutwaitgroup/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/golang/protobuf/jsonpb/*.go # gosub
 - github.com/golang/protobuf/proto/*.go # gosub
