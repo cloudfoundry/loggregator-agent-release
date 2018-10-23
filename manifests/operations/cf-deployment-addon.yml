@@ -21,7 +21,7 @@
               cert: "((loggregator_tls_agent.certificate))"
               key: "((loggregator_tls_agent.private_key))"
 
-    - name: expvar_forwarder
+    - name: loggr-expvar-forwarder
       release: loggregator-agent
       properties:
         log_agent:

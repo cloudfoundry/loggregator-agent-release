@@ -1,5 +1,5 @@
 ---
-name: forwarder_agent
+name: loggr-forwarder-agent
 
 templates:
   bpm.yml.erb: config/bpm.yml
@@ -11,7 +11,7 @@ templates:
   forwarder.key.erb: config/certs/forwarder.key
 
 packages:
-- forwarder_agent
+- forwarder-agent
 
 consumes:
 - name: cloud_controller

@@ -44,9 +44,9 @@ instance_groups:
           agent:
             cert: "((loggregator_agent.certificate))"
             key: "((loggregator_agent.private_key))"
-  - name: forwarder_agent
+  - name: loggr-forwarder-agent
     release: loggregator-agent
-  - name: expvar_forwarder
+  - name: loggr-expvar-forwarder
     release: loggregator-agent
     properties:
       log_agent:

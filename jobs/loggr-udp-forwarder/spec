@@ -1,5 +1,5 @@
 ---
-name: udp_forwarder
+name: loggr-udp-forwarder
 
 templates:
   bpm.yml.erb: config/bpm.yml
@@ -8,7 +8,7 @@ templates:
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
 
 packages:
-- udp_forwarder
+- udp-forwarder
 
 consumes:
 - name: cloud_controller

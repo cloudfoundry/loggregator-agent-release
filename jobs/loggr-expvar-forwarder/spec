@@ -1,5 +1,5 @@
 ---
-name: expvar_forwarder
+name: loggr-expvar-forwarder
 
 templates:
   bpm.yml.erb: config/bpm.yml
@@ -8,7 +8,7 @@ templates:
   forwarder.key.erb: config/certs/forwarder.key
 
 packages:
-- expvar_forwarder
+- expvar-forwarder
 
 properties:
   log_agent.addr:

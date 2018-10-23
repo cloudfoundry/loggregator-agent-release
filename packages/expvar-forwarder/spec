@@ -1,5 +1,5 @@
 ---
-name: expvar_forwarder
+name: expvar-forwarder
 
 dependencies:
 - golang1.11.1
