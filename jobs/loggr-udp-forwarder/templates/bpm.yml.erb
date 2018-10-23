@@ -1,5 +1,5 @@
 processes:
-  - name: udp-forwarder
+  - name: loggr-udp-forwarder
     executable: /var/vcap/packages/udp-forwarder/udp-forwarder
     env:
       LOGGREGATOR_AGENT_CA_FILE_PATH: "/var/vcap/jobs/udp-forwarder/config/certs/loggregator_ca.crt"

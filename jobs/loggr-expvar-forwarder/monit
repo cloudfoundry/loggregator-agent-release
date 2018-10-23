@@ -1,5 +1,5 @@
 check process loggr-expvar-forwarder
-  with pidfile /var/vcap/sys/run/bpm/expvar-forwarder/expvar-forwarder.pid
-  start program "/var/vcap/jobs/bpm/bin/bpm start expvar-forwarder"
-  stop program "/var/vcap/jobs/bpm/bin/bpm stop expvar-forwarder"
+  with pidfile /var/vcap/sys/run/bpm/loggr-expvar-forwarder/loggr-expvar-forwarder.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start loggr-expvar-forwarder"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-expvar-forwarder"
   group vcap

@@ -1,5 +1,5 @@
 check process loggr-udp-forwarder
-  with pidfile /var/vcap/sys/run/bpm/udp-forwarder/udp-forwarder.pid
-  start program "/var/vcap/jobs/bpm/bin/bpm start udp-forwarder"
-  stop program "/var/vcap/jobs/bpm/bin/bpm stop udp-forwarder"
+  with pidfile /var/vcap/sys/run/bpm/loggr-udp-forwarder/loggr-udp-forwarder.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start loggr-udp-forwarder"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-udp-forwarder"
   group vcap
