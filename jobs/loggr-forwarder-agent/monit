@@ -1,4 +1,4 @@
-check process forwarder-agent
+check process loggr-forwarder-agent
   with pidfile /var/vcap/sys/run/bpm/forwarder-agent/forwarder-agent.pid
   start program "/var/vcap/jobs/bpm/bin/bpm start forwarder-agent"
   stop program "/var/vcap/jobs/bpm/bin/bpm stop forwarder-agent"

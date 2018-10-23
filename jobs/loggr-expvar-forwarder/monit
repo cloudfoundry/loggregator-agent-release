@@ -1,4 +1,4 @@
-check process expvar-forwarder
+check process loggr-expvar-forwarder
   with pidfile /var/vcap/sys/run/bpm/expvar-forwarder/expvar-forwarder.pid
   start program "/var/vcap/jobs/bpm/bin/bpm start expvar-forwarder"
   stop program "/var/vcap/jobs/bpm/bin/bpm stop expvar-forwarder"
