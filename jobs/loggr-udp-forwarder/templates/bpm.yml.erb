@@ -2,8 +2,8 @@ processes:
   - name: loggr-udp-forwarder
     executable: /var/vcap/packages/udp-forwarder/udp-forwarder
     env:
-      LOGGREGATOR_AGENT_CA_FILE_PATH: "/var/vcap/jobs/udp-forwarder/config/certs/loggregator_ca.crt"
-      LOGGREGATOR_AGENT_CERT_FILE_PATH: "/var/vcap/jobs/udp-forwarder/config/certs/loggregator_agent.crt"
-      LOGGREGATOR_AGENT_KEY_FILE_PATH: "/var/vcap/jobs/udp-forwarder/config/certs/loggregator_agent.key"
+      LOGGREGATOR_AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_ca.crt"
+      LOGGREGATOR_AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_agent.crt"
+      LOGGREGATOR_AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_agent.key"
       LOGGREGATOR_AGENT_ADDR: <%= "localhost:#{p('loggregator.ingress_port')}" %>
       UDP_PORT: <%= p('udp_port') %>

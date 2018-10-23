@@ -2,9 +2,9 @@ processes:
   - name: loggr-expvar-forwarder
     executable: /var/vcap/packages/expvar-forwarder/expvar-forwarder
     env:
-      CA_PATH: "/var/vcap/jobs/expvar-forwarder/config/certs/ca.crt"
-      CERT_PATH: "/var/vcap/jobs/expvar-forwarder/config/certs/forwarder.crt"
-      KEY_PATH: "/var/vcap/jobs/expvar-forwarder/config/certs/forwarder.key"
+      CA_PATH: "/var/vcap/jobs/loggr-expvar-forwarder/config/certs/ca.crt"
+      CERT_PATH: "/var/vcap/jobs/loggr-expvar-forwarder/config/certs/forwarder.crt"
+      KEY_PATH: "/var/vcap/jobs/loggr-expvar-forwarder/config/certs/forwarder.key"
       LOGGREGATOR_ADDR: <%= p('log_agent.addr') %>
       DEFAULT_SOURCE_ID: <%= p('default_source_id') %>
       INTERVAL: <%= p('interval') %>
