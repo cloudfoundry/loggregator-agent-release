@@ -34,7 +34,6 @@ processes:
       AGENT_TAGS: "<%= tag_str %>"
       AGENT_DISABLE_UDP: "<%= p("disable_udp") %>"
       AGENT_INCOMING_UDP_PORT: "<%= p("listening_port") %>"
-      AGENT_HEALTH_ENDPOINT_PORT: "<%= p("health_port") %>"
       AGENT_PPROF_PORT: "<%= p("pprof_port") %>"
       ROUTER_ADDR: "<%= "#{router_addr}:#{p('doppler.grpc_port')}" %>"
       ROUTER_ADDR_WITH_AZ: '<%= "#{router_addr_with_az}:#{p('doppler.grpc_port')}" %>'
