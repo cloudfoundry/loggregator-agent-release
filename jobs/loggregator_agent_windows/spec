@@ -67,9 +67,6 @@ properties:
     example: {"deployment": "cf"}
   pprof_port:
     description: "The pprof port for runtime profiling data"
-    default: 0
-  health_port:
-    description: "The port for the health endpoint"
     default: 14824
 
   doppler.grpc_port:
