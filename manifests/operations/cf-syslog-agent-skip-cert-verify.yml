@@ -1,0 +1,3 @@
+- type: replace
+  path: /addons/name=loggr-syslog-agent/jobs/name=loggr-syslog-agent/properties/drain_skip_cert_verify?
+  value: true
