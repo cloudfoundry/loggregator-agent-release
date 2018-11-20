@@ -1,0 +1,5 @@
+check process loggr-syslog-agent
+  with pidfile /var/vcap/sys/run/bpm/loggr-syslog-agent/loggr-syslog-agent.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start loggr-syslog-agent"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-syslog-agent"
+  group vcap
