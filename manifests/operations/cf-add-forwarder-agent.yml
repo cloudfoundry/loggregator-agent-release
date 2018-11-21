@@ -67,7 +67,7 @@
     release: capi
 
 - type: replace
-  path: /instance_groups/name=api/jobs/-
+  path: /instance_groups/name=api/jobs?/-
   value:
     name: loggregator_agent
     release: loggregator-agent
