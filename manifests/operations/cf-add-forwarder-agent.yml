@@ -69,6 +69,7 @@
 - type: replace
   path: /instance_groups/name=api/jobs/name=loggregator_agent?
   value:
+    name: loggregator_agent
     release: loggregator-agent
     properties:
       grpc_port: 3459
