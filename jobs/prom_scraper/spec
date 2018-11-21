@@ -16,8 +16,8 @@ packages:
 - prom_scraper
 
 properties:
-  metrics_url:
-    description: "The URL of the local endpoint that provides prometheus metrics"
+  metrics_urls:
+    description: "The URL(s) of the local endpoint(s) that provide prometheus metrics, comma delimited."
     default: http://localhost:9100/metrics
   scrape_interval:
     description: "The interval to scrape the metrics URL (golang duration)"
