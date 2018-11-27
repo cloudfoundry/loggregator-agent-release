@@ -18,6 +18,9 @@ properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458
+  debug_port:
+    description: "Port the agent uses to serve debug information"
+    default: 14823
   downstream_ingress_ports:
     description: |
       Each port will be bound to (via 127.0.0.1:{port}) with the provided mTLS

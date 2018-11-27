@@ -12,5 +12,6 @@ processes:
       AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-forwarder-agent/config/certs/forwarder.key"
       AGENT_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
       AGENT_PORT: <%= p("port") %>
+      DEBUG_PORT: <%= p("debug_port") %>
 
       DOWNSTREAM_INGRESS_ADDRS: "<%= downstream_ingress_addrs %>"
