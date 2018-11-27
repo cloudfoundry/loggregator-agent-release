@@ -1,111 +1,78 @@
 - type: replace
-  path: /addons/name=loggregator_agent?
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
   value:
-    name: loggregator_agent
-    include:
-      stemcell:
-      - os: ubuntu-trusty
-      - os: ubuntu-xenial
-    exclude:
-      jobs:
-      - name: smoke_tests
-        release: cf-smoke-tests
-    jobs:
-    - name: loggregator_agent
-      release: loggregator-agent
-      properties:
-        loggregator:
-          tls:
-            ca_cert: "((loggregator_ca.certificate))"
-            agent:
-              cert: "((loggregator_tls_agent.certificate))"
-              key: "((loggregator_tls_agent.private_key))"
+    addr: http://127.0.0.1:14823/debug/vars
+    name: ingress
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.IngressV2}}"
+    tags:
+      metric_version: "2.0"
 
-    - name: loggr-expvar-forwarder
-      release: loggregator-agent
-      properties:
-        log_agent:
-          ca_cert: "((expvar_forwarder.ca))"
-          client_cert: "((expvar_forwarder.certificate))"
-          client_key: "((expvar_forwarder.private_key))"
-        default_source_id: metron
-        counters:
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: dropped
-          template: "{{.Agent.Dropped}}"
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: dropped
-          template: "{{.Agent.DroppedEgressV2}}"
-          tags:
-            direction: egress
-            metric_version: "2.0"
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: dropped
-          template: "{{.Agent.DroppedIngressV2}}"
-          tags:
-            direction: ingress
-            metric_version: "2.0"
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: origin_mappings
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.OriginMappingsV2}}"
+    tags:
+      metric_version: "2.0"
 
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: egress
-          template: "{{.Agent.Egress}}"
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: egress
-          template: "{{.Agent.EgressV2}}"
-          tags:
-            metric_version: "2.0"
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: dropped
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.IngressDropped}}"
+    tags:
+      direction: ingress
 
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: ingress
-          template: "{{.Agent.Ingress}}"
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: ingress
-          template: "{{.Agent.IngressV2}}"
-          tags:
-            metric_version: "2.0"
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: binding_refresh_count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.BindingRefreshCount}}"
 
-        gauges:
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: average_envelopes
-          unit: bytes/minute
-          template: "{{.Agent.AverageEnvelope}}"
-          tags:
-            loggregator: v1
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: average_envelopes
-          unit: bytes/minute
-          template: "{{.Agent.AverageEnvelopeV2}}"
-          tags:
-            metric_version: "2.0"
-            loggregator: v2
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: binding_refresh_failure_count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
 
-        - addr: http://127.0.0.1:14824/debug/vars
-          name: origin_mappings
-          unit: bytes/minute
-          template: "{{.Agent.OriginMappingsV2}}"
-          tags:
-            metric_version: "2.0"
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: drains
+    unit: count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.DrainCount}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: request_count_for_last_binding_refresh
+    unit: requests
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.RequestCountForLastBindingRefresh}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: max_latency_for_last_binding_refresh
+    unit: ms
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
 
 - type: replace
   path: /releases/name=loggregator-agent
   value:
     name: loggregator-agent
     version: latest
-
-- type: replace
-  path: /variables/-
-  value:
-    name: expvar_forwarder
-    type: certificate
-    options:
-      ca: loggregator_ca
-      common_name: expvar_forwarder
-      alternative_names:
-      - metron
-      - agent
-      - localhost
-      - 127.0.0.1
-      - ip6-localhost
-      extended_key_usage:
-      - client_auth
-      - server_auth

@@ -89,6 +89,37 @@ instance_groups:
         tags:
           metric_version: "2.0"
 
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: ingress
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.IngressV2}}"
+        tags:
+          metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: origin_mappings
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.OriginMappingsV2}}"
+        tags:
+          metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: dropped
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.IngressDropped}}"
+        tags:
+          direction: ingress
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: binding_refresh_count
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.BindingRefreshCount}}"
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: binding_refresh_failure_count
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
+
       gauges:
       - addr: http://127.0.0.1:14824/debug/vars
         name: average_envelopes
@@ -110,6 +141,24 @@ instance_groups:
         template: "{{.Agent.OriginMappingsV2}}"
         tags:
           metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: drains
+        unit: count
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.DrainCount}}"
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: request_count_for_last_binding_refresh
+        unit: requests
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.RequestCountForLastBindingRefresh}}"
+
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: max_latency_for_last_binding_refresh
+        unit: ms
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
 
 variables:
 - name: loggregator_ca
