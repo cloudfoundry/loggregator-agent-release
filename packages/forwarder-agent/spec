@@ -2,7 +2,7 @@
 name: forwarder-agent
 
 dependencies:
-- golang1.11.1
+- golang1.11.2
 
 files:
 - code.cloudfoundry.org/go-diodes/*.go # gosub
