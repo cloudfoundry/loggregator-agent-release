@@ -4,6 +4,16 @@
     addr: http://127.0.0.1:14823/debug/vars
     name: ingress
     source_id: syslog_agent
+    template: "{{.ForwarderAgent.IngressV2}}"
+    tags:
+      metric_version: "2.0"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: ingress
+    source_id: syslog_agent
     template: "{{.SyslogAgent.IngressV2}}"
     tags:
       metric_version: "2.0"
@@ -11,7 +21,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: origin_mappings
     source_id: syslog_agent
     template: "{{.SyslogAgent.OriginMappingsV2}}"
@@ -21,7 +31,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: dropped
     source_id: syslog_agent
     template: "{{.SyslogAgent.IngressDropped}}"
@@ -31,7 +41,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: binding_refresh_count
     source_id: syslog_agent
     template: "{{.SyslogAgent.BindingRefreshCount}}"
@@ -39,7 +49,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: binding_refresh_failure_count
     source_id: syslog_agent
     template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
@@ -47,7 +57,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: drains
     unit: count
     source_id: syslog_agent
@@ -56,7 +66,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: request_count_for_last_binding_refresh
     unit: requests
     source_id: syslog_agent
@@ -65,7 +75,7 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
   value:
-    addr: http://127.0.0.1:14823/debug/vars
+    addr: http://127.0.0.1:14822/debug/vars
     name: max_latency_for_last_binding_refresh
     unit: ms
     source_id: syslog_agent
