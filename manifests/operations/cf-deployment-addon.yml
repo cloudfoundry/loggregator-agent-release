@@ -3,7 +3,7 @@
   value:
     addr: http://127.0.0.1:14823/debug/vars
     name: ingress
-    source_id: syslog_agent
+    source_id: forwarder_agent
     template: "{{.ForwarderAgent.IngressV2}}"
     tags:
       metric_version: "2.0"
