@@ -17,6 +17,7 @@
     template: "{{.SyslogAgent.IngressV2}}"
     tags:
       metric_version: "2.0"
+      scope: agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -80,6 +81,37 @@
     unit: ms
     source_id: syslog_agent
     template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: ingress
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.DrainIngress}}"
+    tags:
+      metric_version: "2.0"
+      scope: all_drains
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: egress
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.Egress}}"
+    tags:
+      metric_version: "2.0"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: dropped
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.EgressDropped}}"
+    tags:
+      metric_version: "2.0"
 
 - type: replace
   path: /releases/name=loggregator-agent
