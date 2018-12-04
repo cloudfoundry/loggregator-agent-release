@@ -3,6 +3,8 @@
   value:
     name: loggregator_agent_windows
     release: loggregator-agent
+    consumes:
+      doppler: {from: doppler, deployment: loggregator}
     properties:
       loggregator:
         tls:
