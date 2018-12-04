@@ -6,6 +6,7 @@
     source_id: forwarder_agent
     template: "{{.ForwarderAgent.IngressV2}}"
     tags:
+      origin: loggregator.forwarder_agent
       metric_version: "2.0"
 
 - type: replace
@@ -16,6 +17,7 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.IngressV2}}"
     tags:
+      origin: loggregator.syslog_agent
       metric_version: "2.0"
       scope: agent
 
@@ -27,6 +29,7 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.OriginMappingsV2}}"
     tags:
+      origin: loggregator.syslog_agent
       metric_version: "2.0"
 
 - type: replace
@@ -37,6 +40,7 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.IngressDropped}}"
     tags:
+      origin: loggregator.syslog_agent
       direction: ingress
 
 - type: replace
@@ -46,6 +50,8 @@
     name: binding_refresh_count
     source_id: syslog_agent
     template: "{{.SyslogAgent.BindingRefreshCount}}"
+    tags:
+      origin: loggregator.syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -54,6 +60,8 @@
     name: binding_refresh_failure_count
     source_id: syslog_agent
     template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
+    tags:
+      origin: loggregator.syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
@@ -63,6 +71,8 @@
     unit: count
     source_id: syslog_agent
     template: "{{.SyslogAgent.DrainCount}}"
+    tags:
+      origin: loggregator.syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
@@ -72,6 +82,8 @@
     unit: requests
     source_id: syslog_agent
     template: "{{.SyslogAgent.RequestCountForLastBindingRefresh}}"
+    tags:
+      origin: loggregator.syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
@@ -81,6 +93,8 @@
     unit: ms
     source_id: syslog_agent
     template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
+    tags:
+      origin: loggregator.syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -90,6 +104,7 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.DrainIngress}}"
     tags:
+      origin: loggregator.syslog_agent
       metric_version: "2.0"
       scope: all_drains
 
@@ -101,6 +116,7 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.Egress}}"
     tags:
+      origin: loggregator.syslog_agent
       metric_version: "2.0"
 
 - type: replace
@@ -111,6 +127,7 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.EgressDropped}}"
     tags:
+      origin: loggregator.syslog_agent
       metric_version: "2.0"
 
 - type: replace
