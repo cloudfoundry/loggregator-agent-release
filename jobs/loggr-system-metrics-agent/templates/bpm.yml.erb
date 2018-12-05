@@ -1,0 +1,10 @@
+processes:
+  - name: loggr-system-metrics-agent
+    executable: /var/vcap/packages/system-metrics-agent/system-metrics-agent
+    env:
+      CA_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/ca.crt"
+      CERT_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/agent.crt"
+      KEY_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/agent.key"
+      LOGGREGATOR_ADDR: <%= p('log_agent.addr') %>
+      SAMPLE_INTERVAL: <%= p('sample_interval') %>
+
