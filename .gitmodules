@@ -85,3 +85,9 @@
 [submodule "src/code.cloudfoundry.org/rfc5424"]
 	path = src/code.cloudfoundry.org/rfc5424
 	url = https://github.com/cloudfoundry-incubator/rfc5424
+[submodule "src/github.com/shirou/gopsutil"]
+	path = src/github.com/shirou/gopsutil
+	url = https://github.com/shirou/gopsutil
+[submodule "src/golang.org/x/sys"]
+	path = src/golang.org/x/sys
+	url = https://go.googlesource.com/sys
