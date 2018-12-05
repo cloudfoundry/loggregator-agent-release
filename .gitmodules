@@ -91,3 +91,6 @@
 [submodule "src/golang.org/x/sys"]
 	path = src/golang.org/x/sys
 	url = https://go.googlesource.com/sys
+[submodule "src/github.com/StackExchange/wmi"]
+	path = src/github.com/StackExchange/wmi
+	url = https://github.com/StackExchange/wmi
