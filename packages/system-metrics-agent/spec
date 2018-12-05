@@ -5,6 +5,10 @@ dependencies:
 - golang1.11.2
 
 files:
+# We need all the files from these directories. Not just Go source files.
+- golang.org/x/sys/unix/*
+- golang.org/x/sys/windows/*
+
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
