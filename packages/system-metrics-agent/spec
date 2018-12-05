@@ -14,6 +14,8 @@ files:
 - code.cloudfoundry.org/loggregator-agent/pkg/collector/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/StackExchange/wmi/*.go # gosub
+- github.com/go-ole/go-ole/*.go # gosub
+- github.com/go-ole/go-ole/oleutil/*.go # gosub
 - github.com/golang/protobuf/jsonpb/*.go # gosub
 - github.com/golang/protobuf/proto/*.go # gosub
 - github.com/golang/protobuf/ptypes/*.go # gosub
