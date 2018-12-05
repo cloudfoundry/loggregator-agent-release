@@ -94,3 +94,6 @@
 [submodule "src/github.com/StackExchange/wmi"]
 	path = src/github.com/StackExchange/wmi
 	url = https://github.com/StackExchange/wmi
+[submodule "src/github.com/go-ole/go-ole"]
+	path = src/github.com/go-ole/go-ole
+	url = https://github.com/go-ole/go-ole
