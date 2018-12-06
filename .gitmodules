@@ -97,3 +97,6 @@
 [submodule "src/github.com/go-ole/go-ole"]
 	path = src/github.com/go-ole/go-ole
 	url = https://github.com/go-ole/go-ole
+[submodule "src/github.com/gorilla/mux"]
+	path = src/github.com/gorilla/mux
+	url = https://github.com/gorilla/mux
