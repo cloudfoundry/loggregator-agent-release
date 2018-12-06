@@ -35,6 +35,8 @@ properties:
     description: "TLS certificate for binding-cache signed by the loggregator CA"
   tls.key:
     description: "TLS private key for binfing-cache signed by the loggregator CA"
+  tls.cn:
+    description: "The common name the cache will use to validate certs"
   tls.cipher_suites:
     description: |
       An ordered list of supported SSL cipher suites. Allowed cipher suites are

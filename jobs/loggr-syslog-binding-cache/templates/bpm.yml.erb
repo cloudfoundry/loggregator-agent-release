@@ -14,6 +14,7 @@ processes:
       CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs/syslog_agent.crt"
       CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs/syslog_agent.key"
       CACHE_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
+      CACHE_COMMON_NAME: "<%= p("tls.cn") %>"
 
       HTTP_ADDR: <%= p("external_addr") %>
 

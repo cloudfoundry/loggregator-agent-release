@@ -71,6 +71,7 @@
         ca_cert: "((loggregator_ca.certificate))"
         cert: "((binding_cache_tls.certificate))"
         key: "((binding_cache_tls.private_key))"
+        cn: "binding-cache"
       api:
         tls:
           ca_cert: "((service_cf_internal_ca.certificate))"
