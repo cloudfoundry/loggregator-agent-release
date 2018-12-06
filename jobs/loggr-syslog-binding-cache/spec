@@ -21,7 +21,7 @@ provides:
 - name: binding_cache
   type: binding_cache
   properties:
-    - external_address
+    - external_addr
 
 properties:
   external_addr:
