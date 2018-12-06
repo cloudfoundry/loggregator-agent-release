@@ -2,9 +2,9 @@ processes:
   - name: loggr-syslog-agent
     executable: /var/vcap/packages/syslog-agent/syslog-agent
     env:
-      CACHE_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_ca.crt"
-      CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.crt"
-      CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.key"
+      CACHE_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_ca.crt"
+      CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_client.crt"
+      CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_client.key"
       CACHE_COMMON_NAME: <%= p("cache.tls.cn") %>
       CACHE_URL: <%= "https://#{link("binding_cache").p("external_addr")}" %>
       CACHE_POLLING_INTERVAL: "<%= p("cache.polling_interval") %>"
