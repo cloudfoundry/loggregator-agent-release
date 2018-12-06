@@ -1,0 +1,5 @@
+check process loggr-syslog-binding-cache
+  with pidfile /var/vcap/sys/run/bpm/loggr-syslog-binding-cache/loggr-syslog-binding-cache.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start loggr-syslog-binding-cache"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-syslog-binding-cache"
+  group vcap

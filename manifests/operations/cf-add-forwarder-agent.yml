@@ -39,23 +39,66 @@
           ca_cert: "((loggregator_ca.certificate))"
           cert: "((loggregator_tls_agent.certificate))"
           key: "((loggregator_tls_agent.private_key))"
-        api:
+        cache:
           tls:
-            ca_cert: "((service_cf_internal_ca.certificate))"
-            cert: "((forwarder_agent_api_tls.certificate))"
-            key: "((forwarder_agent_api_tls.private_key))"
-            cn: "cloud-controller-ng.service.cf.internal"
+            ca_cert: "((loggregator_ca.certificate))"
+            cert: "((syslog_agent_api_tls.certificate))"
+            key: "((syslog_agent_api_tls.private_key))"
+            cn: "binding-cache"
 
 - type: replace
   path: /variables/-
   value:
-    name: forwarder_agent_api_tls
+    name: syslog_agent_api_tls
+    type: certificate
+    options:
+      ca: loggregator_ca
+      common_name: syslog-agent
+      extended_key_usage:
+      - client_auth
+
+#################
+# Binding Cache #
+#################
+- type: replace
+  path: /instanc_groups/name=scheduler/-
+  value:
+    name: loggr-syslog-binding-cache
+    release: loggregator-agent
+    properties:
+      external_addr: ":9000"
+      tls:
+        ca_cert: "((loggregator_ca.certificate))"
+        cert: "((binding_cache_tls.certificate))"
+        key: "((binding_cache_tls.private_key))"
+      api:
+        tls:
+          ca_cert: "((service_cf_internal_ca.certificate))"
+          cert: "((binding_cache_api_tls.certificate))"
+          key: "((binding_cache_api_tls.private_key))"
+          cn: "cloud-controller-ng.service.cf.internal"
+
+- type: replace
+  path: /variables/-
+  value:
+    name: binding_cache_api_tls
     type: certificate
     options:
       ca: service_cf_internal_ca
-      common_name: forwarder-agent
+      common_name: binding-cache
       extended_key_usage:
       - client_auth
+
+- type: replace
+  path: /variables/-
+  value:
+    name: binding_cache_tls
+    type: certificate
+    options:
+      ca: loggregator_ca
+      common_name: binding-cache
+      extended_key_usage:
+      - server_auth
 
 #################
 # UDP Forwarder #
@@ -93,3 +136,121 @@
           cert: "((loggregator_tls_agent.certificate))"
           key: "((loggregator_tls_agent.private_key))"
           cn: "cloud-controller-ng.service.cf.internal"
+
+#################
+#    Metrics    #
+#################
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14823/debug/vars
+    name: ingress
+    source_id: forwarder_agent
+    template: "{{.ForwarderAgent.IngressV2}}"
+    tags:
+      metric_version: "2.0"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: ingress
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.IngressV2}}"
+    tags:
+      metric_version: "2.0"
+      scope: agent
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: origin_mappings
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.OriginMappingsV2}}"
+    tags:
+      metric_version: "2.0"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: dropped
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.IngressDropped}}"
+    tags:
+      direction: ingress
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: binding_refresh_count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.BindingRefreshCount}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: binding_refresh_failure_count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: drains
+    unit: count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.DrainCount}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: request_count_for_last_binding_refresh
+    unit: requests
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.RequestCountForLastBindingRefresh}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: max_latency_for_last_binding_refresh
+    unit: ms
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: ingress
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.DrainIngress}}"
+    tags:
+      metric_version: "2.0"
+      scope: all_drains
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: egress
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.Egress}}"
+    tags:
+      metric_version: "2.0"
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: dropped
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.EgressDropped}}"
+    tags:
+      metric_version: "2.0"

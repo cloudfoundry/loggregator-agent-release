@@ -51,3 +51,13 @@ mv -f ${depot_path}/capiCA.crl ${depot_path}/capi-ca.crl
 # Forwarder agent to CAPI certificate
 certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name forwarder
 certstrap --depot-path ${depot_path} sign forwarder --CA capi-ca --expires "25 years"
+
+# CA to communicate with binding-cache
+certstrap --depot-path ${depot_path} init --passphrase '' --common-name bindingCacheCA --expires "25 years"
+mv -f ${depot_path}/bindingCacheCA.crt ${depot_path}/binding-cache-ca.crt
+mv -f ${depot_path}/bindingCacheCA.key ${depot_path}/binding-cache-ca.key
+mv -f ${depot_path}/bindingCacheCA.crl ${depot_path}/binding-cache-ca.crl
+
+# Syslog agent to binding-cache certificate
+certstrap --depot-path ${depot_path} request-cert --passphrase '' --common-name syslog-agent
+certstrap --depot-path ${depot_path} sign syslog-agent --CA binding-cache-ca --expires "25 years"

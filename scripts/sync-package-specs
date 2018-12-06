@@ -37,5 +37,6 @@ sync_package prom_scraper              -app code.cloudfoundry.org/loggregator-ag
 sync_package syslog-agent              -app code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent &
 sync_package system-metrics-agent      -app code.cloudfoundry.org/loggregator-agent/cmd/system-metrics-agent &
 sync_package udp-forwarder             -app code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder &
+sync_package binding-cache             -app  code.cloudfoundry.org/loggregator-agent/cmd/syslog-binding-cache &
 
 wait

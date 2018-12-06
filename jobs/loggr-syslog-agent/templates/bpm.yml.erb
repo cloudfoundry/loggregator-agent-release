@@ -2,13 +2,12 @@ processes:
   - name: loggr-syslog-agent
     executable: /var/vcap/packages/syslog-agent/syslog-agent
     env:
-      API_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_ca.crt"
-      API_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.crt"
-      API_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.key"
-      API_COMMON_NAME: <%= p("api.tls.cn") %>
-      API_URL: <%= "https://#{link("cloud_controller").address}:9023" %>
-      API_POLLING_INTERVAL: "<%= p("api.polling_interval") %>"
-      API_BATCH_SIZE: "<%= p("api.batch_size") %>"
+      CACHE_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_ca.crt"
+      CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.crt"
+      CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.key"
+      CACHE_COMMON_NAME: <%= p("cache.tls.cn") %>
+      CACHE_URL: <%= "https://#{link("biniding_cache").external_address}" %>
+      CACHE_POLLING_INTERVAL: "<%= p("cache.polling_interval") %>"
 
       AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/loggregator_ca.crt"
       AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.crt"
