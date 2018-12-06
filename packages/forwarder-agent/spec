@@ -13,7 +13,6 @@ files:
 - code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/diodes/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog/*.go # gosub
-- code.cloudfoundry.org/loggregator-agent/pkg/ingress/api/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/plumbing/*.go # gosub

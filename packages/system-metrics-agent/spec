@@ -27,6 +27,7 @@ files:
 - github.com/golang/protobuf/ptypes/duration/*.go # gosub
 - github.com/golang/protobuf/ptypes/struct/*.go # gosub
 - github.com/golang/protobuf/ptypes/timestamp/*.go # gosub
+- github.com/shirou/gopsutil/cpu/*.go # gosub
 - github.com/shirou/gopsutil/internal/common/*.go # gosub
 - github.com/shirou/gopsutil/load/*.go # gosub
 - github.com/shirou/gopsutil/mem/*.go # gosub

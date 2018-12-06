@@ -12,9 +12,9 @@ files:
 - code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/binding/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/cache/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/diodes/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog/*.go # gosub
-- code.cloudfoundry.org/loggregator-agent/pkg/ingress/api/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
