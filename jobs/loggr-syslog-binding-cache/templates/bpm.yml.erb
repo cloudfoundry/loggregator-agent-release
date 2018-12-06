@@ -14,9 +14,6 @@ processes:
       CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.crt"
       CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.key"
       CACHE_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
-      CACHE_PORT: <%= p("port") %>
-      DEBUG_PORT: <%= p("debug_port") %>
 
       HTTP_ADDR: <%= p("external_addr") %>
 
-      DRAIN_SKIP_CERT_VERIFY: "<%= p("drain_skip_cert_verify") %>"
