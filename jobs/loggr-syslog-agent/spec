@@ -60,7 +60,7 @@ properties:
       when initiating a connection.
   cache.tls.cn:
     description: |
-      When the syslog communicates with the Cloud Controller it must
+      When the syslog communicates with the cache it must
       validate the Cloud Controller's common name (CN) or subject alternative
       names (SANs) against the hostname or IP address used to initiate the
       connection. Most of the time this should be the hostname defined in

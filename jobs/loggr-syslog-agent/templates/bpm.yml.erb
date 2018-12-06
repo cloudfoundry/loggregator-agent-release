@@ -6,7 +6,7 @@ processes:
       CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.crt"
       CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/api_client.key"
       CACHE_COMMON_NAME: <%= p("cache.tls.cn") %>
-      CACHE_URL: <%= "https://#{link("biniding_cache").external_address}" %>
+      CACHE_URL: <%= "https://#{link("binding_cache").external_address}" %>
       CACHE_POLLING_INTERVAL: "<%= p("cache.polling_interval") %>"
 
       AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/loggregator_ca.crt"
