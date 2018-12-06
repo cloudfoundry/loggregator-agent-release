@@ -61,7 +61,7 @@
 # Binding Cache #
 #################
 - type: replace
-  path: /instanc_groups/name=scheduler/-
+  path: /instance_groups/name=scheduler/-
   value:
     name: loggr-syslog-binding-cache
     release: loggregator-agent
