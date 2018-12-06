@@ -1,6 +1,6 @@
 processes:
   - name: loggr-syslog-binding-cache
-    executable: /var/vcap/packages/syslog-agent/syslog-agent
+    executable: /var/vcap/packages/binding-cache/binding-cache
     env:
       API_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs/api_ca.crt"
       API_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs/api_client.crt"
