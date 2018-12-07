@@ -1,3 +1,6 @@
+<%
+b = link("binding_cache")
+%>
 processes:
   - name: loggr-syslog-agent
     executable: /var/vcap/packages/syslog-agent/syslog-agent
@@ -6,7 +9,7 @@ processes:
       CACHE_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_client.crt"
       CACHE_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_client.key"
       CACHE_COMMON_NAME: <%= p("cache.tls.cn") %>
-      CACHE_URL: <%= "https://#{link("binding_cache").p("external_addr")}" %>
+      CACHE_URL: <%= "https://#{b.address}:#{b.p("external_port")}" %>
       CACHE_POLLING_INTERVAL: "<%= p("cache.polling_interval") %>"
 
       AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/loggregator_ca.crt"

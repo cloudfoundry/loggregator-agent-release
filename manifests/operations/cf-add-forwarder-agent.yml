@@ -66,7 +66,7 @@
     name: loggr-syslog-binding-cache
     release: loggregator-agent
     properties:
-      external_addr: ":9000"
+      external_port: 9000
       tls:
         ca_cert: "((loggregator_ca.certificate))"
         cert: "((binding_cache_tls.certificate))"

@@ -21,12 +21,12 @@ provides:
 - name: binding_cache
   type: binding_cache
   properties:
-    - external_addr
+    - external_port
 
 properties:
-  external_addr:
+  external_port:
     description: |
-      The address where the cache serves bindings
+      The port where the cache serves bindings
   tls.ca_cert:
     description: |
       TLS loggregator root CA certificate. It is required for key/cert
