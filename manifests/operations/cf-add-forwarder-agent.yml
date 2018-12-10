@@ -191,14 +191,6 @@
     template: "{{.SyslogAgent.BindingRefreshCount}}"
 
 - type: replace
-  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
-  value:
-    addr: http://127.0.0.1:14822/debug/vars
-    name: binding_refresh_failure_count
-    source_id: syslog_agent
-    template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
-
-- type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
   value:
     addr: http://127.0.0.1:14822/debug/vars
@@ -211,19 +203,10 @@
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
   value:
     addr: http://127.0.0.1:14822/debug/vars
-    name: request_count_for_last_binding_refresh
-    unit: requests
-    source_id: syslog_agent
-    template: "{{.SyslogAgent.RequestCountForLastBindingRefresh}}"
-
-- type: replace
-  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
-  value:
-    addr: http://127.0.0.1:14822/debug/vars
-    name: max_latency_for_last_binding_refresh
+    name: latency_for_last_binding_refresh
     unit: ms
     source_id: syslog_agent
-    template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
+    template: "{{.SyslogAgent.LatencyForLastBindingRefreshMS}}"
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
