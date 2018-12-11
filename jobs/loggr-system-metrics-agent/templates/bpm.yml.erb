@@ -1,10 +1,10 @@
 processes:
   - name: loggr-system-metrics-agent
     executable: /var/vcap/packages/system-metrics-agent/system-metrics-agent
-    unrestricted_volumes:
-      - path: /
-        mount_only: true
-
+    unsafe:
+     unrestricted_volumes:
+       - path: /
+         mount_only: true
     env:
       CA_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/ca.crt"
       CERT_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/agent.crt"
