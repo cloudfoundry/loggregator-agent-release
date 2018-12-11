@@ -32,6 +32,7 @@ files:
 - github.com/shirou/gopsutil/internal/common/*.go # gosub
 - github.com/shirou/gopsutil/load/*.go # gosub
 - github.com/shirou/gopsutil/mem/*.go # gosub
+- github.com/shirou/gopsutil/net/*.go # gosub
 - golang.org/x/net/context/*.go # gosub
 - golang.org/x/net/http2/*.go # gosub
 - golang.org/x/net/http2/hpack/*.go # gosub
