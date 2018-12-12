@@ -14,6 +14,7 @@ files:
 - code.cloudfoundry.org/loggregator-agent/pkg/binding/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/cache/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/diodes/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/egress/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/v2/*.go # gosub
