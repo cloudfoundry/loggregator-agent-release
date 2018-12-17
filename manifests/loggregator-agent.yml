@@ -2,7 +2,7 @@ name: loggregator-agent
 
 stemcells:
 - alias: default
-  os: ubuntu-xenial
+  os: ubuntu-trusty
   version: latest
 
 releases:
@@ -15,7 +15,7 @@ addons:
 - name: bpm
   include:
     stemcell:
-    - os: ubuntu-xenial
+    - os: ubuntu-trusty
   jobs:
   - name: bpm
     release: bpm
