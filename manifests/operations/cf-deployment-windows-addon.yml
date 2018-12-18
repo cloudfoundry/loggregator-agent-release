@@ -1,16 +1,33 @@
 - type: replace
-  path: /instance_groups/name=windows-cell/jobs/name=metron_agent_windows
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-forwarder-agent-windows?
+  value:
+    name: loggr-forwarder-agent-windows
+    release: loggregator-agent
+    properties:
+      tls:
+        ca_cert: "((loggregator_ca.certificate))"
+        cert: "((loggregator_tls_agent.certificate))"
+        key: "((loggregator_tls_agent.private_key))"
+
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggregator_agent_windows?
   value:
     name: loggregator_agent_windows
     release: loggregator-agent
-    consumes:
-      doppler: {from: doppler, deployment: loggregator}
     properties:
+      grpc_port: 3459
       loggregator:
         tls:
-          ca_cert: ((loggregator_tls_metron.ca))
+          ca_cert: "((loggregator_ca.certificate))"
           agent:
-            cert: ((loggregator_tls_metron.certificate))
-            key: ((loggregator_tls_metron.private_key))
+            cert: "((loggregator_tls_agent.certificate))"
+            key: "((loggregator_tls_agent.private_key))"
       syslog_daemon_config:
         enable: false
+
+#Delete ME
+- type: replace
+  path: /releases/name=loggregator-agent
+  value:
+    name: loggregator-agent
+    version: latest

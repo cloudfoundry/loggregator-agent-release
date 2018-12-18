@@ -1,14 +1,14 @@
 ---
-name: loggr-forwarder-agent
+name: loggr-forwarder-agent-windows
 
 templates:
-  bpm.yml.erb: config/bpm.yml
+  pre-start.ps1.erb: bin/pre-start.ps1
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   forwarder.crt.erb: config/certs/forwarder.crt
   forwarder.key.erb: config/certs/forwarder.key
 
 packages:
-- forwarder-agent
+- forwarder-agent-windows
 
 properties:
   port:
@@ -39,4 +39,3 @@ properties:
       An ordered list of supported SSL cipher suites. Allowed cipher suites are
       TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
     default: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
-
