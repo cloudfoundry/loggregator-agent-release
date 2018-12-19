@@ -150,6 +150,7 @@
     template: "{{.ForwarderAgent.IngressV2}}"
     tags:
       metric_version: "2.0"
+      origin: forwarder_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -161,6 +162,7 @@
     tags:
       metric_version: "2.0"
       scope: agent
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -171,6 +173,7 @@
     template: "{{.SyslogAgent.OriginMappingsV2}}"
     tags:
       metric_version: "2.0"
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -181,6 +184,7 @@
     template: "{{.SyslogAgent.IngressDropped}}"
     tags:
       direction: ingress
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -189,6 +193,8 @@
     name: binding_refresh_count
     source_id: syslog_agent
     template: "{{.SyslogAgent.BindingRefreshCount}}"
+    tags:
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
@@ -198,6 +204,8 @@
     unit: count
     source_id: syslog_agent
     template: "{{.SyslogAgent.DrainCount}}"
+    tags:
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
@@ -207,6 +215,8 @@
     unit: ms
     source_id: syslog_agent
     template: "{{.SyslogAgent.LatencyForLastBindingRefreshMS}}"
+    tags:
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -218,6 +228,7 @@
     tags:
       metric_version: "2.0"
       scope: all_drains
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -228,6 +239,7 @@
     template: "{{.SyslogAgent.Egress}}"
     tags:
       metric_version: "2.0"
+      origin: syslog_agent
 
 - type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
@@ -238,3 +250,4 @@
     template: "{{.SyslogAgent.EgressDropped}}"
     tags:
       metric_version: "2.0"
+      origin: syslog_agent
