@@ -3,6 +3,10 @@
         "127.0.0.1:#{port}"
     end.join(",")
 
+    job_name = spec.job.name || name
+    instance_id = spec.id || spec.index.to_s
+    deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+
     tags = {
         deployment: deployment,
         job: job_name,
