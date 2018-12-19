@@ -5,6 +5,7 @@ dependencies:
 - golang1.11.2
 
 files:
+- code.cloudfoundry.org/go-batching/*.go # gosub
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
@@ -14,9 +15,11 @@ files:
 - code.cloudfoundry.org/loggregator-agent/pkg/diodes/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/egress/v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/plumbing/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/pkg/plumbing/batching/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/timeoutwaitgroup/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/golang/protobuf/jsonpb/*.go # gosub
