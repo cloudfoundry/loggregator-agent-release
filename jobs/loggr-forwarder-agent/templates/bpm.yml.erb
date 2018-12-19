@@ -2,6 +2,16 @@
     downstream_ingress_addrs = p("downstream_ingress_ports").map do |port|
         "127.0.0.1:#{port}"
     end.join(",")
+
+    tags = {
+        deployment: deployment,
+        job: job_name,
+        index: instance_id,
+        ip: spec.ip,
+    }
+    tags.merge!(p("tags"))
+
+    tag_str = tags.map { |k, v| "#{k}:#{v}" }.join(",")
 %>
 processes:
   - name: loggr-forwarder-agent
@@ -11,6 +21,7 @@ processes:
       AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-forwarder-agent/config/certs/forwarder.crt"
       AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-forwarder-agent/config/certs/forwarder.key"
       AGENT_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
+      AGENT_TAGS: "<%= tag_str %>"
       AGENT_PORT: <%= p("port") %>
       DEBUG_PORT: <%= p("debug_port") %>
 
