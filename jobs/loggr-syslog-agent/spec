@@ -29,6 +29,9 @@ properties:
   drain_skip_cert_verify:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
+  binding_per_app_limit:
+    description: The maximum number of drains we allow per app
+    default: 5
 
   tls.ca_cert:
     description: |
