@@ -25,6 +25,17 @@
       syslog_daemon_config:
         enable: false
 
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-system-metrics-agent-windows?
+  value:
+    name: loggr-system-metrics-agent-windows
+    release: loggregator-agent
+    properties:
+      log_agent:
+        ca_cert: "((loggregator_ca.certificate))"
+        client_cert: "((system_metrics_agent.certificate))"
+        client_key: "((system_metrics_agent.private_key))"
+
 #Delete ME
 - type: replace
   path: /releases/name=loggregator-agent
