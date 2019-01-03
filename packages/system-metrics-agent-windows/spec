@@ -1,0 +1,6 @@
+---
+name: system-metrics-agent-windows
+dependencies:
+- golang1.11.2-windows
+files:
+- exiter.ps1

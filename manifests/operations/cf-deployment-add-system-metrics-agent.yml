@@ -19,6 +19,26 @@
           client_key: "((system_metrics_agent.private_key))"
 
 - type: replace
+  path: /addons/-
+  value:
+    name: loggr-system-metrics-agent-windows
+    include:
+      stemcell:
+      - os: windows1803
+    exclude:
+      jobs:
+      - name: smoke_tests
+        release: cf-smoke-tests
+    jobs:
+    - name: loggr-system-metrics-agent-windows
+      release: loggregator-agent
+      properties:
+        log_agent:
+          ca_cert: "((loggregator_ca.certificate))"
+          client_cert: "((system_metrics_agent.certificate))"
+          client_key: "((system_metrics_agent.private_key))"
+
+- type: replace
   path: /variables/-
   value:
     name: system_metrics_agent

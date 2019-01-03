@@ -1,0 +1,32 @@
+---
+name: loggr-system-metrics-agent-windows
+
+templates:
+  pre-start.ps1.erb: bin/pre-start.ps1
+  ca.crt.erb: config/certs/ca.crt
+  agent.crt.erb: config/certs/agent.crt
+  agent.key.erb: config/certs/agent.key
+
+packages:
+- system-metrics-agent
+
+properties:
+  log_agent.addr:
+    description: |
+      The Loggregator ingress address. This is the gRPC host that metrics will
+      be written to.
+    default: 127.0.0.1:3458
+  log_agent.ca_cert:
+    description: |
+      The Loggregator CA certificate in PEM format.
+  log_agent.client_cert:
+    description: |
+      The client certificate used to connect to the Loggregator Agent.
+  log_agent.client_key:
+    description: |
+      The client private key used to connect to the Loggregator Agent.
+
+  sample_interval:
+    description: |
+      How often to record the system metrics
+    default: 1m
