@@ -2,7 +2,7 @@
 name: system-metrics-agent
 
 dependencies:
-- golang1.11.2
+- golang1.11.4
 
 files:
 # We need all the files from these directories. Not just Go source files.
