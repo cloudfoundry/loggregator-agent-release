@@ -26,15 +26,22 @@
         enable: false
 
 - type: replace
-  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-system-metrics-agent-windows?
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-syslog-agent-windows?
   value:
-    name: loggr-system-metrics-agent-windows
+    name: loggr-syslog-agent-windows
     release: loggregator-agent
     properties:
-      log_agent:
+      port: 3460
+      tls:
         ca_cert: "((loggregator_ca.certificate))"
-        client_cert: "((system_metrics_agent.certificate))"
-        client_key: "((system_metrics_agent.private_key))"
+        cert: "((loggregator_tls_agent.certificate))"
+        key: "((loggregator_tls_agent.private_key))"
+      cache:
+        tls:
+          ca_cert: "((loggregator_ca.certificate))"
+          cert: "((syslog_agent_api_tls.certificate))"
+          key: "((syslog_agent_api_tls.private_key))"
+          cn: "binding-cache"
 
 #Delete ME
 - type: replace
