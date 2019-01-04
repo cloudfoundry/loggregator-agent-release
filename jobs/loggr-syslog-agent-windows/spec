@@ -1,0 +1,77 @@
+---
+name: loggr-syslog-agent-windows
+
+templates:
+  pre-start.ps1.erb: bin/pre-start.ps1
+  cache_ca.crt.erb: config/certs/cache_ca.crt
+  cache_client.crt.erb: config/certs/cache_client.crt
+  cache_client.key.erb: config/certs/cache_client.key
+  loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
+  syslog_agent.crt.erb: config/certs/syslog_agent.crt
+  syslog_agent.key.erb: config/certs/syslog_agent.key
+
+packages:
+- syslog-agent-windows
+
+consumes:
+- name: cloud_controller
+  type: cloud_controller
+- name: binding_cache
+  type: binding_cache
+
+properties:
+  port:
+    description: "Port the agent is serving gRPC via mTLS"
+    default: 3458
+  debug_port:
+    description: "Port the agent uses to serve debug information"
+    default: 14822
+  drain_skip_cert_verify:
+    description: If set to true the SSL hostname validation will be disabled.
+    default: false
+
+  tls.ca_cert:
+    description: |
+      TLS loggregator root CA certificate. It is required for key/cert
+      verification.
+  tls.cert:
+    description: "TLS certificate for syslog signed by the loggregator CA"
+  tls.key:
+    description: "TLS private key for syslog signed by the loggregator CA"
+  tls.cipher_suites:
+    description: |
+      An ordered list of supported SSL cipher suites. Allowed cipher suites are
+      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
+    default: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+
+  cache.tls.ca_cert:
+    description: |
+      When the syslog communicates with the Cloud Controller it must
+      validate the Cloud Controller's certificate was signed by a trusted CA.
+      This is the CA trusted by the syslog for that communication.
+  cache.tls.cert:
+    description: |
+      This certificate is sent to the Cloud Controller when initiating a
+      connection. It must be signed by a CA that is trusted by the Cloud
+      Controller.
+  cache.tls.key:
+    description: |
+      This is the private key for the certificate sent to the Cloud Controller
+      when initiating a connection.
+  cache.tls.cn:
+    description: |
+      When the syslog communicates with the cache it must
+      validate the Cloud Controller's common name (CN) or subject alternative
+      names (SANs) against the hostname or IP address used to initiate the
+      connection. Most of the time this should be the hostname defined in
+      api.url.
+  cache.polling_interval:
+    description: |
+      The interval at which the syslog will poll the Cloud Controller for
+      bindings.
+    default: 15s
+  cache.batch_size:
+    description: |
+      The batch size the syslog will request the Cloud Controller for
+      bindings.
+    default: 1000
