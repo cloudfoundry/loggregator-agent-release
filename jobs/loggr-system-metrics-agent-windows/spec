@@ -8,7 +8,7 @@ templates:
   agent.key.erb: config/certs/agent.key
 
 packages:
-- system-metrics-agent
+- system-metrics-agent-windows
 
 properties:
   log_agent.addr:
