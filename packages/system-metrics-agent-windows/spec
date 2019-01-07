@@ -3,7 +3,9 @@ name: system-metrics-agent-windows
 dependencies:
 - golang1.11.4-windows
 files:
+- golang.org/x/sys/windows/*
 - exiter.ps1
+
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
