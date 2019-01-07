@@ -211,6 +211,17 @@
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
   value:
     addr: http://127.0.0.1:14822/debug/vars
+    name: active_drains
+    unit: count
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.ActiveDrainCount}}"
+    tags:
+      origin: syslog_agent
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
     name: latency_for_last_binding_refresh
     unit: ms
     source_id: syslog_agent
