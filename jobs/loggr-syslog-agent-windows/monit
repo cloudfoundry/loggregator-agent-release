@@ -2,15 +2,15 @@
   b = link("binding_cache")
 
   env = {
-      "CACHE_CA_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_ca.crt",
-      "CACHE_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_client.crt",
-      "CACHE_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent/config/certs/cache_client.key",
+      "CACHE_CA_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/cache_ca.crt",
+      "CACHE_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/cache_client.crt",
+      "CACHE_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/cache_client.key",
       "CACHE_COMMON_NAME" => p("cache.tls.cn"),
       "CACHE_URL" => "https://#{b.address}:#{b.p("external_port")}",
       "CACHE_POLLING_INTERVAL" => p("cache.polling_interval"),
-      "AGENT_CA_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent/config/certs/loggregator_ca.crt",
-      "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.crt",
-      "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.key",
+      "AGENT_CA_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/loggregator_ca.crt",
+      "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/syslog_agent.crt",
+      "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/syslog_agent.key",
       "AGENT_CIPHER_SUITES" => p("tls.cipher_suites").split(":").join(","),
       "AGENT_PORT" => "#{p("port")}",
       "DEBUG_PORT" => "#{p("debug_port")}",
