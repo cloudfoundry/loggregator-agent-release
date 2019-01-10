@@ -14,6 +14,7 @@ files:
 - code.cloudfoundry.org/loggregator-agent/cmd/system-metrics-agent/app/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/collector/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/stats/*.go # gosub
+- code.cloudfoundry.org/loggregator/healthendpoint/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/StackExchange/wmi/*.go # gosub
 - github.com/beorn7/perks/quantile/*.go # gosub
