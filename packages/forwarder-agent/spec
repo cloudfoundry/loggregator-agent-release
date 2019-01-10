@@ -5,7 +5,7 @@ dependencies:
 - golang1.11.4
 
 files:
-- github.com/klauspost/cpuid/**/*.go
+- github.com/klauspost/cpuid/*
 - code.cloudfoundry.org/go-batching/*.go # gosub
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
