@@ -1,5 +1,7 @@
+<% if p("enabled") %>
 check process loggr-system-metrics-agent
   with pidfile /var/vcap/sys/run/bpm/loggr-system-metrics-agent/loggr-system-metrics-agent.pid
   start program "/var/vcap/jobs/bpm/bin/bpm start loggr-system-metrics-agent"
   stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-system-metrics-agent"
   group vcap
+<% end %>
