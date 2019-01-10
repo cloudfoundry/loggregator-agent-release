@@ -5,6 +5,7 @@ dependencies:
 - golang1.11.4
 
 files:
+- github.com/klauspost/cpuid/**/*.go
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
@@ -30,7 +31,6 @@ files:
 - github.com/klauspost/compress/flate/*.go # gosub
 - github.com/klauspost/compress/gzip/*.go # gosub
 - github.com/klauspost/compress/zlib/*.go # gosub
-- github.com/klauspost/cpuid/*.go # gosub
 - github.com/valyala/bytebufferpool/*.go # gosub
 - github.com/valyala/fasthttp/*.go # gosub
 - github.com/valyala/fasthttp/fasthttputil/*.go # gosub
