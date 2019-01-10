@@ -100,3 +100,15 @@
 [submodule "src/github.com/gorilla/mux"]
 	path = src/github.com/gorilla/mux
 	url = https://github.com/gorilla/mux
+[submodule "src/github.com/klauspost/compress"]
+	path = src/github.com/klauspost/compress
+	url = https://github.com/klauspost/compress
+[submodule "src/github.com/klauspost/cpuid"]
+	path = src/github.com/klauspost/cpuid
+	url = https://github.com/klauspost/cpuid
+[submodule "src/github.com/valyala/bytebufferpool"]
+	path = src/github.com/valyala/bytebufferpool
+	url = https://github.com/valyala/bytebufferpool
+[submodule "src/github.com/valyala/fasthttp"]
+	path = src/github.com/valyala/fasthttp
+	url = https://github.com/valyala/fasthttp
