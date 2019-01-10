@@ -11,6 +11,11 @@ packages:
 - system-metrics-agent-windows
 
 properties:
+  enabled:
+    description: |
+      Enables the system metrics agent
+    default: true
+
   log_agent.addr:
     description: |
       The Loggregator ingress address. This is the gRPC host that metrics will

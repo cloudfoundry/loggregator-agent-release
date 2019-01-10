@@ -16,7 +16,9 @@
         "env" => env
       }
     ]
-  }
+ }
 %>
 
+<% if p("enabled") %>
 <%= JSON.pretty_generate(monit) %>
+<% end %>
