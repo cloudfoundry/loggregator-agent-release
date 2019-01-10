@@ -33,6 +33,7 @@ files:
 - github.com/klauspost/compress/flate/*.go # gosub
 - github.com/klauspost/compress/gzip/*.go # gosub
 - github.com/klauspost/compress/zlib/*.go # gosub
+- github.com/klauspost/cpuid/*.go # gosub
 - github.com/valyala/bytebufferpool/*.go # gosub
 - github.com/valyala/fasthttp/*.go # gosub
 - github.com/valyala/fasthttp/fasthttputil/*.go # gosub
