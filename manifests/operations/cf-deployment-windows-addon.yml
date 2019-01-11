@@ -45,9 +45,3 @@
           key: "((syslog_agent_api_tls.private_key))"
           cn: "binding-cache"
 
-#Delete ME
-- type: replace
-  path: /releases/name=loggregator-agent
-  value:
-    name: loggregator-agent
-    version: latest
