@@ -24,6 +24,10 @@ provides:
     - external_port
 
 properties:
+  enabled:
+    description: "Syslog binding cache is enabled on VM"
+    default: true
+
   external_port:
     description: |
       The port where the cache serves bindings
