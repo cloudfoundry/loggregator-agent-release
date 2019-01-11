@@ -34,7 +34,6 @@
     release: loggregator-agent
     properties:
       port: 3460
-      drain_skip_cert_verify: true
       tls:
         ca_cert: "((loggregator_ca.certificate))"
         cert: "((loggregator_tls_agent.certificate))"
