@@ -20,6 +20,10 @@ consumes:
   type: binding_cache
 
 properties:
+  enabled:
+    description: "Syslog agent is enabled on VM"
+    default: true
+
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458

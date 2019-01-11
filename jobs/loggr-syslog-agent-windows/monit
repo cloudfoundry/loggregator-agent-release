@@ -1,3 +1,4 @@
+<% if p("enabled") %>
 <%
   b = link("binding_cache")
 
@@ -30,3 +31,4 @@
 %>
 
 <%= JSON.pretty_generate(monit) %>
+<% end %>
