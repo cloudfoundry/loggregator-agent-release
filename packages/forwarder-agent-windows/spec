@@ -4,6 +4,7 @@ dependencies:
 - golang1.11.4-windows
 files:
 - github.com/klauspost/cpuid/*
+- github.com/klauspost/compress/*
 - exiter.ps1
 - code.cloudfoundry.org/go-batching/*.go # gosub
 - code.cloudfoundry.org/go-diodes/*.go # gosub
