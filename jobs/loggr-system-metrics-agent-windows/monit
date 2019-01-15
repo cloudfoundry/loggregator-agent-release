@@ -5,6 +5,7 @@
     "KEY_PATH" => "/var/vcap/jobs/loggr-system-metrics-agent-windows/config/certs/agent.key",
     "LOGGREGATOR_ADDR" => p('log_agent.addr'),
     "SAMPLE_INTERVAL" => p('sample_interval'),
+    "METRIC_PORT" => p('metrics_port'),
   }
 
   monit = {
