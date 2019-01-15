@@ -1,5 +1,5 @@
 ---
-name: prom_scraper
+name: metric-scraper
 dependencies:
 - golang1.11.4
 files:
@@ -7,7 +7,7 @@ files:
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2/*.go # gosub
-- code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/*.go # gosub
+- code.cloudfoundry.org/loggregator-agent/cmd/metric-scraper/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/scraper/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/golang/protobuf/jsonpb/*.go # gosub

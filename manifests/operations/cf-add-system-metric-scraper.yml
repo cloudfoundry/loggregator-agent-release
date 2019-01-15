@@ -1,0 +1,5 @@
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/-
+  value:
+    name: loggr-metric-scraper
+    release: loggregator-agent

@@ -15,6 +15,10 @@ properties:
     description: |
       Enables the system metrics agent
     default: true
+  metrics_port:
+    description: |
+      Port where the /metrics endpoint is served
+    default: 9100
 
   log_agent.addr:
     description: |
