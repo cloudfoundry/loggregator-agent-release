@@ -1,3 +1,9 @@
+<%
+    deployment      = spec.deployment
+    job             = spec.job.name
+    index           = spec.id || spec.index.to_s
+    ip              = spec.ip
+%>
 processes:
   - name: loggr-system-metrics-agent
     executable: /var/vcap/packages/system-metrics-agent/system-metrics-agent
@@ -12,4 +18,8 @@ processes:
       LOGGREGATOR_ADDR: <%= p('log_agent.addr') %>
       SAMPLE_INTERVAL: <%= p('sample_interval') %>
       METRIC_PORT: <%= p('metrics_port') %>
+      DEPLOYMENT: <%= deployment %>
+      JOB: <%= job %>
+      INDEX: <%= index %>
+      IP: <%= ip %>
 
