@@ -12,10 +12,6 @@ processes:
        - path: /
          mount_only: true
     env:
-      CA_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/ca.crt"
-      CERT_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/agent.crt"
-      KEY_PATH: "/var/vcap/jobs/loggr-system-metrics-agent/config/certs/agent.key"
-      LOGGREGATOR_ADDR: <%= p('log_agent.addr') %>
       SAMPLE_INTERVAL: <%= p('sample_interval') %>
       METRIC_PORT: <%= p('metrics_port') %>
       DEPLOYMENT: <%= deployment %>
