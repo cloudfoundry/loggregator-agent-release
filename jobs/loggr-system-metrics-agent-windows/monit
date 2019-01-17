@@ -6,7 +6,7 @@
 
   env = {
     "SAMPLE_INTERVAL" => p('sample_interval'),
-    "METRIC_PORT" => p('metrics_port'),
+    "METRIC_PORT" => p('metrics_port').to_s,
     "DEPLOYMENT" => deployment,
     "JOB" => job,
     "INDEX" => index,
