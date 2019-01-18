@@ -8,4 +8,4 @@ processes:
       CLIENT_KEY_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.key"
       METRICS_URLS: "<%= p('metrics_urls') %>"
       SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
-      SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
+      DEFAULT_SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
