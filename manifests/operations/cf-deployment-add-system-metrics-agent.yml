@@ -15,17 +15,28 @@
       properties:
         log_agent:
           ca_cert: "((loggregator_ca.certificate))"
+<<<<<<< HEAD
           client_cert: "((system_metrics_agent.certificate))"
           client_key: "((system_metrics_agent.private_key))"
+=======
+          cert: "((system_metrics_agent.certificate))"
+          key: "((system_metrics_agent.private_key))"
+        system_metrics:
+          tls:
+            ca_cert: "((system_metrics.ca))"
+            cert: "((system_metrics.certificate))"
+            key: "((system_metrics.private_key))"
+>>>>>>> 851dfd2... system-metrics-agent, system-metrics-scraper: add mTLS
 
 - type: replace
   path: /variables/-
   value:
-    name: system_metrics_agent
+    name: system_metrics
     type: certificate
     options:
       ca: loggregator_ca
-      common_name: forwarder-agent
+      common_name: system-metrics
       extended_key_usage:
       - client_auth
+      - server_auth
 

@@ -11,6 +11,10 @@ processes:
       DEFAULT_SOURCE_ID: "<%= "#{spec.job.name}" %>"
       DNS_FILE: "/var/vcap/instance/dns/records.json"
       SHOULD_SCRAPE: "<%= "#{spec.bootstrap}" %>"
+      METRICS_CA_CN: <%= p('system_metrics.tls.common_name') %>
+      METRICS_CA_CERT_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics_ca.crt"
+      METRICS_CERT_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics.crt"
+      METRICS_KEY_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics.key"
     unsafe:
       unrestricted_volumes:
         - path: /var/vcap/instance/dns

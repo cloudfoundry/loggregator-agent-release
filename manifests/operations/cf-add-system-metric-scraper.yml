@@ -3,3 +3,9 @@
   value:
     name: loggr-metric-scraper
     release: loggregator-agent
+    properties:
+      system_metrics:
+        tls:
+          ca_cert: "((system_metrics.ca))"
+          cert: "((system_metrics.certificate))"
+          key: "((system_metrics.private_key))"

@@ -50,6 +50,7 @@ loggregator-certs
 # misc
 out/
 */**/test_assets/stdout.log
+test-certs/
 release/
 */bin
 *.iml
