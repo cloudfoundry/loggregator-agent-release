@@ -13,10 +13,10 @@
     - name: loggr-system-metrics-agent
       release: loggregator-agent
       properties:
-        log_agent:
+        tls:
           ca_cert: "((loggregator_ca.certificate))"
-          client_cert: "((system_metrics_agent.certificate))"
-          client_key: "((system_metrics_agent.private_key))"
+          cert: "((system_metrics_agent.certificate))"
+          key: "((system_metrics_agent.private_key))"
 
 - type: replace
   path: /variables/-

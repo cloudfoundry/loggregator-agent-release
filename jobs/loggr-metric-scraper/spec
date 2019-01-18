@@ -22,3 +22,13 @@ properties:
   scrape_port:
     description: "The port where the scraping endpoints are hosted"
     default: 9100
+
+  tls:
+    ca_cert:
+      description: |
+        TLS loggregator root CA certificate. It is required for key/cert
+        verification.
+    cert:
+      description: "TLS certificate for system metrics agent signed by the loggregator CA"
+    key:
+      description: "TLS private key for system metrics agent signed by the loggregator CA"
