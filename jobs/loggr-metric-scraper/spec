@@ -11,6 +11,9 @@ templates:
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
+  system_metrics.crt.erb: config/certs/system_metrics.crt
+  system_metrics.key.erb: config/certs/system_metrics.key
+  system_metrics_ca.crt.erb: config/certs/system_metrics_ca.crt
 
 packages:
 - metric-scraper
@@ -23,12 +26,14 @@ properties:
     description: "The port where the scraping endpoints are hosted"
     default: 9100
 
-  tls:
-    ca_cert:
-      description: |
-        TLS loggregator root CA certificate. It is required for key/cert
-        verification.
-    cert:
-      description: "TLS certificate for system metrics agent signed by the loggregator CA"
-    key:
-      description: "TLS private key for system metrics agent signed by the loggregator CA"
+  system_metrics.tls.common_name:
+    description: "Common name for system metrics agent CA"
+    default: "system-metrics"
+  system_metrics.tls.ca_cert:
+    description: |
+      TLS loggregator root CA certificate. It is required for key/cert
+      verification.
+  system_metrics.tls.cert:
+    description: "TLS certificate for system metrics agent signed by the loggregator CA"
+  system_metrics.tls.key:
+    description: "TLS private key for system metrics agent signed by the loggregator CA"

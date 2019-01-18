@@ -8,10 +8,15 @@ processes:
       CLIENT_KEY_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/loggregator_agent.key"
       SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
       SCRAPE_PORT: "<%= p('scrape_port') %>"
-      SOURCE_ID: "<%= "#{spec.job.name}" %>"
-
-      METRICS_CA_CN:
-      METRICS_CA_CERT_PATH:
-      METRICS_CERT_PATH:
-      METRICS_KEY_PATH:
-
+      DEFAULT_SOURCE_ID: "<%= "#{spec.job.name}" %>"
+      DNS_FILE: "/var/vcap/instance/dns/records.json"
+      METRICS_CA_CN: <%= p('system_metrics.tls.common_name') %>
+      METRICS_CA_CERT_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics_ca.crt"
+      METRICS_CERT_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics.crt"
+      METRICS_KEY_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics.key"
+    unsafe:
+      unrestricted_volumes:
+        - path: /var/vcap/instance/dns
+          writable: false
+          allow_executions: false
+          mount_only: true

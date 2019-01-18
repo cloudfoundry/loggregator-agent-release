@@ -3,9 +3,9 @@ name: loggr-system-metrics-agent
 
 templates:
   bpm.yml.erb: config/bpm.yml
-  loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
-  system-metrics-agent.crt.erb: config/certs/system-metrics-agent.crt
-  system-metrics-agent.key.erb: config/certs/system-metrics-agent.key
+  system_metrics_agent_ca.crt.erb: config/certs/system_metrics_agent_ca.crt
+  system_metrics_agent.crt.erb: config/certs/system_metrics_agent.crt
+  system_metrics_agent.key.erb: config/certs/system_metrics_agent.key
 
 packages:
 - system-metrics-agent
@@ -25,12 +25,13 @@ properties:
       How often to record the system metrics
     default: 1m
 
-  tls:
-    ca_cert:
-      description: |
-        TLS loggregator root CA certificate. It is required for key/cert
-        verification.
-    cert:
-      description: "TLS certificate for system metrics agent signed by the loggregator CA"
-    key:
-      description: "TLS private key for system metrics agent signed by the loggregator CA"
+  system_metrics:
+    tls:
+      ca_cert:
+        description: |
+          TLS loggregator root CA certificate. It is required for key/cert
+          verification.
+      cert:
+        description: "TLS certificate for system metrics agent signed by the loggregator CA"
+      key:
+        description: "TLS private key for system metrics agent signed by the loggregator CA"
