@@ -10,6 +10,7 @@ processes:
       SCRAPE_PORT: "<%= p('scrape_port') %>"
       DEFAULT_SOURCE_ID: "<%= "#{spec.job.name}" %>"
       DNS_FILE: "/var/vcap/instance/dns/records.json"
+      SHOULD_SCRAPE: "<%= "#{spec.bootstrap}" %>"
     unsafe:
       unrestricted_volumes:
         - path: /var/vcap/instance/dns
