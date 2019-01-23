@@ -10,7 +10,6 @@ files:
 - code.cloudfoundry.org/loggregator-agent/cmd/metric-scraper/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/metric-scraper/app/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/plumbing/*.go # gosub
-- code.cloudfoundry.org/loggregator-agent/cmd/metric-scraper/app/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/scraper/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/golang/protobuf/jsonpb/*.go # gosub
