@@ -1,5 +1,5 @@
 - type: replace
-  path: /addons/-
+  path: /addons/name=loggr-system-metrics-agent?
   value:
     name: loggr-system-metrics-agent
     include:
@@ -13,23 +13,14 @@
     - name: loggr-system-metrics-agent
       release: loggregator-agent
       properties:
-        log_agent:
-          ca_cert: "((loggregator_ca.certificate))"
-<<<<<<< HEAD
-          client_cert: "((system_metrics_agent.certificate))"
-          client_key: "((system_metrics_agent.private_key))"
-=======
-          cert: "((system_metrics_agent.certificate))"
-          key: "((system_metrics_agent.private_key))"
         system_metrics:
           tls:
             ca_cert: "((system_metrics.ca))"
             cert: "((system_metrics.certificate))"
             key: "((system_metrics.private_key))"
->>>>>>> 851dfd2... system-metrics-agent, system-metrics-scraper: add mTLS
 
 - type: replace
-  path: /variables/-
+  path: /variables/name=system_metrics?
   value:
     name: system_metrics
     type: certificate
