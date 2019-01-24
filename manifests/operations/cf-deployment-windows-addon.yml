@@ -22,10 +22,11 @@
     name: loggr-system-metrics-agent-windows
     release: loggregator-agent
     properties:
-      log_agent:
-        ca_cert: "((loggregator_ca.certificate))"
-        client_cert: "((system_metrics_agent.certificate))"
-        client_key: "((system_metrics_agent.private_key))"
+      system_metrics:
+        tls:
+          ca_cert: "((system_metrics.ca))"
+          cert: "((system_metrics.certificate))"
+          key: "((system_metrics.private_key))"
 
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=loggr-syslog-agent-windows?
