@@ -230,6 +230,17 @@
       origin: syslog_agent
 
 - type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/gauges/-
+  value:
+    addr: http://127.0.0.1:14822/debug/vars
+    name: invalid_drains
+    unit: ms
+    source_id: syslog_agent
+    template: "{{.SyslogAgent.InvalidDrains}}"
+    tags:
+      origin: syslog_agent
+
+- type: replace
   path: /addons/name=loggregator_agent/jobs/name=loggr-expvar-forwarder/properties/counters/-
   value:
     addr: http://127.0.0.1:14822/debug/vars
