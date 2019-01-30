@@ -3,6 +3,9 @@ name: loggr-system-metrics-agent-windows
 
 templates:
   pre-start.ps1.erb: bin/pre-start.ps1
+  system_metrics_agent_ca.crt.erb: config/certs/system_metrics_agent_ca.crt
+  system_metrics_agent.crt.erb: config/certs/system_metrics_agent.crt
+  system_metrics_agent.key.erb: config/certs/system_metrics_agent.key
 
 packages:
 - system-metrics-agent-windows

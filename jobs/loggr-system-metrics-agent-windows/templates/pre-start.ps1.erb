@@ -1,8 +1,19 @@
 <%=
 RUN_DIR="/var/vcap/sys/run/loggr-system-metrics-agent-windows"
 LOG_DIR="/var/vcap/sys/log/loggr-system-metrics-agent-windows"
+
+
 <<-POWERSHELL
 New-Item -Path #{RUN_DIR} -ItemType directory -Force
 New-Item -Path #{LOG_DIR} -ItemType directory -Force
+
+$port="#{p("metrics_port")}"
+
+if (-Not (Get-NetFirewallRule | Where-Object { $_.DisplayName -eq "MetricsPort" })) {
+  New-NetFirewallRule -DisplayName "MetricsPort" -Action Allow -Direction Inbound -Enabled True -LocalPort $port -Protocol TCP
+  if (-Not (Get-NetFirewallRule | Where-Object { $_.DisplayName -eq "MetricsPort" })) {
+    Write-Error "Unable to add RepPort firewall rule"
+  }
+}
 POWERSHELL
  %>
