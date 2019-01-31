@@ -10,6 +10,7 @@
     "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-forwarder-agent-windows/config/certs/forwarder.key",
     "AGENT_CIPHER_SUITES" => p("tls.cipher_suites").split(":").join(","),
     "DOWNSTREAM_INGRESS_ADDRS" => downstream_ingress_addrs,
+    "DEBUG_PORT" => "#{p("debug_port")}",
   }
 
   monit = {

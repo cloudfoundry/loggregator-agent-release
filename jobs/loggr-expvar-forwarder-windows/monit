@@ -1,0 +1,25 @@
+<%
+  env = {
+      "CA_PATH" =>  "/var/vcap/jobs/loggr-expvar-forwarder-windows/config/certs/ca.crt",
+      "CERT_PATH" =>  "/var/vcap/jobs/loggr-expvar-forwarder-windows/config/certs/forwarder.crt",
+      "KEY_PATH" =>  "/var/vcap/jobs/loggr-expvar-forwarder-windows/config/certs/forwarder.key",
+      "LOGGREGATOR_ADDR" =>  p("log_agent.addr"),
+      "DEFAULT_SOURCE_ID" =>  p("default_source_id"),
+      "INTERVAL" =>  p("interval"),
+      "COUNTERS_JSON" =>  p("counters").to_json,
+      "GAUGES_JSON" =>  p("gauges").to_json,
+  }
+
+  monit = {
+    "processes" => [
+      {
+        "name" => "expvar-forwarder",
+        "executable" => "/var/vcap/packages/expvar-forwarder-windows/expvar-forwarder.exe",
+        "args" => [],
+        "env" => env
+      }
+    ]
+  }
+%>
+
+<%= JSON.pretty_generate(monit) %>

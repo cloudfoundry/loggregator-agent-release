@@ -46,3 +46,187 @@
           key: "((syslog_agent_api_tls.private_key))"
           cn: "binding-cache"
 
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-expvar-forwarder-windows?
+  value:
+    name: loggr-syslog-agent-windows
+    release: loggregator-agent
+    properties:
+      log_agent:
+        ca_cert: "((loggregator_ca.certificate))"
+        client_cert: "((loggregator_tls_agent.certificate))"
+        client_key: "((loggregator_tls_agent.private_key))"
+      default_source_id: metron
+      counters:
+     #Loggregator Agent
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: dropped
+        template: "{{.Agent.Dropped}}"
+        tags:
+          origin: loggregator.metron
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: dropped
+        template: "{{.Agent.DroppedEgressV2}}"
+        tags:
+          origin: loggregator.metron
+          direction: egress
+          metric_version: "2.0"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: dropped
+        template: "{{.Agent.DroppedIngressV2}}"
+        tags:
+          origin: loggregator.metron
+          direction: ingress
+          metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: egress
+        template: "{{.Agent.Egress}}"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: egress
+        template: "{{.Agent.EgressV2}}"
+        tags:
+          origin: loggregator.metron
+          metric_version: "2.0"
+
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: ingress
+        template: "{{.Agent.Ingress}}"
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: ingress
+        template: "{{.Agent.IngressV2}}"
+        tags:
+          origin: loggregator.metron
+          metric_version: "2.0"
+      
+      #Forwarder Agent
+      - addr: http://127.0.0.1:14823/debug/vars
+        name: ingress
+        source_id: forwarder_agent
+        template: "{{.ForwarderAgent.IngressV2}}"
+        tags:
+          metric_version: "2.0"
+          origin: forwarder_agent
+
+      #Syslog Agent
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: ingress
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.IngressV2}}"
+        tags:
+          metric_version: "2.0"
+          scope: agent
+        origin: syslog_agent
+
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: origin_mappings
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.OriginMappingsV2}}"
+        tags:
+          metric_version: "2.0"
+          origin: syslog_agent
+
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: dropped
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.IngressDropped}}"
+        tags:
+          direction: ingress
+          origin: syslog_agent
+
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: binding_refresh_count
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.BindingRefreshCount}}"
+        tags:
+          origin: syslog_agent
+    
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: ingress
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.DrainIngress}}"
+        tags:
+          metric_version: "2.0"
+          scope: all_drains
+        origin: syslog_agent
+
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: egress
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.Egress}}"
+        tags:
+          metric_version: "2.0"
+          origin: syslog_agent
+
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: dropped
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.EgressDropped}}"
+        tags:
+          metric_version: "2.0"
+          origin: syslog_agent
+
+      gauges:
+      #Loggregator Agnet
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: average_envelopes
+        unit: bytes/minute
+        template: "{{.Agent.AverageEnvelope}}"
+        tags:
+          origin: loggregator.metron
+          loggregator: v1
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: average_envelopes
+        unit: bytes/minute
+        template: "{{.Agent.AverageEnvelopeV2}}"
+        tags:
+          origin: loggregator.metron
+          metric_version: "2.0"
+          loggregator: v2
+
+      - addr: http://127.0.0.1:14824/debug/vars
+        name: origin_mappings
+        unit: bytes/minute
+        template: "{{.Agent.OriginMappingsV2}}"
+        tags:
+          origin: loggregator.metron
+          metric_version: "2.0"
+
+      #Syslog Agent
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: drains
+        unit: count
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.DrainCount}}"
+        tags:
+          origin: syslog_agent
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: active_drains
+        unit: count
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.ActiveDrainCount}}"
+        tags:
+          origin: syslog_agent
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: latency_for_last_binding_refresh
+        unit: ms
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.LatencyForLastBindingRefreshMS}}"
+        tags:
+          origin: syslog_agent
+
+      - addr: http://127.0.0.1:14822/debug/vars
+        name: invalid_drains
+        unit: ms
+        source_id: syslog_agent
+        template: "{{.SyslogAgent.InvalidDrains}}"
+        tags:
+          origin: syslog_agent
