@@ -44,8 +44,6 @@ instance_groups:
           agent:
             cert: "((loggregator_agent.certificate))"
             key: "((loggregator_agent.private_key))"
-  - name: loggr-forwarder-agent
-    release: loggregator-agent
   - name: loggr-expvar-forwarder
     release: loggregator-agent
     properties:
@@ -95,44 +93,6 @@ instance_groups:
           origin: loggregator.metron
           metric_version: "2.0"
 
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: ingress
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.IngressV2}}"
-        tags:
-          origin: loggregator.syslog_agent
-          metric_version: "2.0"
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: origin_mappings
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.OriginMappingsV2}}"
-        tags:
-          origin: loggregator.syslog_agent
-          metric_version: "2.0"
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: dropped
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.IngressDropped}}"
-        tags:
-          origin: loggregator.syslog_agent
-          direction: ingress
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: binding_refresh_count
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.BindingRefreshCount}}"
-        tags:
-          origin: loggregator.syslog_agent
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: binding_refresh_failure_count
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.BindingRefreshFailureCount}}"
-        tags:
-          origin: loggregator.syslog_agent
-
       gauges:
       - addr: http://127.0.0.1:14824/debug/vars
         name: average_envelopes
@@ -157,30 +117,6 @@ instance_groups:
         tags:
           origin: loggregator.metron
           metric_version: "2.0"
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: drains
-        unit: count
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.DrainCount}}"
-        tags:
-          origin: loggregator.syslog_agent
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: request_count_for_last_binding_refresh
-        unit: requests
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.RequestCountForLastBindingRefresh}}"
-        tags:
-          origin: loggregator.syslog_agent
-
-      - addr: http://127.0.0.1:14823/debug/vars
-        name: max_latency_for_last_binding_refresh
-        unit: ms
-        source_id: syslog_agent
-        template: "{{.SyslogAgent.MaxLatencyForLastBindingRefreshMS}}"
-        tags:
-          origin: loggregator.syslog_agent
 
 variables:
 - name: loggregator_ca
