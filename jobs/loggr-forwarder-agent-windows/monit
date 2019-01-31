@@ -1,5 +1,5 @@
 <%
-  downstream_ingress_addrs = p("downstream_ingress_ports").map do |port|
+  downstream_ingress_addrs = p("downstream_ingress_ports").flatten.map do |port|
       "127.0.0.1:#{port}"
   end.join(",")
 
