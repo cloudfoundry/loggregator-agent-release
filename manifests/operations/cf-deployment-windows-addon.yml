@@ -173,7 +173,7 @@
           origin: syslog_agent
 
       gauges:
-      #Loggregator Agnet
+      #Loggregator Agent
       - addr: http://127.0.0.1:14824/debug/vars
         name: average_envelopes
         unit: bytes/minute
