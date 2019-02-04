@@ -2,7 +2,7 @@
 name: syslog-agent
 
 dependencies:
-- golang1.11.4
+- golang1.11.5
 
 files:
 - github.com/klauspost/cpuid/*
