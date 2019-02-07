@@ -17,14 +17,14 @@ properties:
   debug_port:
     description: "Port the agent uses to serve debug information"
     default: 14823
-  downstream_ingress_ports:
+  downstream_ingress_port_glob:
     description: |
-      Each port will be bound to (via 127.0.0.1:{port}) with the provided mTLS
-      configuration. The forwarder assumes the downstream server is serving
-      Loggregator's V2 IngressService.
-      See code.cloudfoundry.org/loggregator-api.
-    default:
-    - 3459
+      Files matching the glob are expected to contain ports of downstream 
+      consumers that will be bound to 127.0.0.1:{port} with the provided 
+      mTLS configuration. The forwarder assumes the downstream server is 
+      serving Loggregator's V2 IngressService. See code.cloudfoundry.org/loggregator-api.
+    default: /var/vcap/jobs/*/config/ingress_port.yml
+      
   deployment:
     description: "Name of deployment (added as tag on all outgoing v1 envelopes)"
     default: ""

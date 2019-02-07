@@ -14,6 +14,7 @@ consumes:
 
 templates:
   pre-start.ps1.erb: bin/pre-start.ps1
+  ingress_port.yml.erb: config/ingress_port.yml
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt

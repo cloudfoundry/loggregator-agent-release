@@ -3,6 +3,7 @@ name: loggr-syslog-agent
 
 templates:
   bpm.yml.erb: config/bpm.yml
+  ingress_port.yml.erb: config/ingress_port.yml
   cache_ca.crt.erb: config/certs/cache_ca.crt
   cache_client.crt.erb: config/certs/cache_client.crt
   cache_client.key.erb: config/certs/cache_client.key
