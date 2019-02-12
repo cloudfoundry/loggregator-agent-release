@@ -8,9 +8,16 @@ processes:
   - name: loggr-system-metrics-agent
     executable: /var/vcap/packages/system-metrics-agent/system-metrics-agent
     unsafe:
+     privileged: true
      unrestricted_volumes:
-       - path: /
-         mount_only: true
+     - path: /proc
+       mount_only: true
+     - path: /sys
+       mount_only: true
+     - path: /etc
+       mount_only: true
+     - path: /var
+       mount_only: true
     env:
       SAMPLE_INTERVAL: <%= p('sample_interval') %>
       METRIC_PORT: <%= p('metrics_port') %>
