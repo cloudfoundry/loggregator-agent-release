@@ -1,3 +1,7 @@
+<%
+  leader_addr = "http://127.0.0.1:#{link("leader-election-agent").p("port")}/v1/leader"
+%>
+
 processes:
   - name: loggr-metric-scraper
     executable: /var/vcap/packages/metric-scraper/metric-scraper
@@ -10,7 +14,7 @@ processes:
       SCRAPE_PORT: "<%= p('scrape_port') %>"
       DEFAULT_SOURCE_ID: "<%= "#{spec.job.name}" %>"
       DNS_FILE: "/var/vcap/instance/dns/records.json"
-      SHOULD_SCRAPE: "<%= "#{spec.bootstrap}" %>"
+      LEADERSHIP_SERVER_ADDR: "<%= leader_addr %>"
       METRICS_CA_CN: <%= p('system_metrics.tls.common_name') %>
       METRICS_CA_CERT_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics_ca.crt"
       METRICS_CERT_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/system_metrics.crt"

@@ -9,3 +9,17 @@
           ca_cert: "((system_metrics.ca))"
           cert: "((system_metrics.certificate))"
           key: "((system_metrics.private_key))"
+
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/name=leadership-election?
+  value:
+    name: leadership-election
+    release: leadership-election
+    properties:
+      port: 7100
+
+- type: replace
+  path: /releases/name=leadership-election?
+  value:
+    name: leadership-election
+    version: latest

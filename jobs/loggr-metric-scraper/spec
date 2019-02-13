@@ -5,6 +5,8 @@ consumes:
 - name: loggregator
   type: loggregator
   optional: false
+- name: leader-election-agent
+  type: leader-election-agent
 
 templates:
   bpm.yml.erb: config/bpm.yml
