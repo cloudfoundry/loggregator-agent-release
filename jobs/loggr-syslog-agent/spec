@@ -35,6 +35,13 @@ properties:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
 
+  blacklisted_syslog_ranges:
+    description: |
+      A list of IP address ranges that are not allowed to be specified in
+      syslog drain binding URLs.
+    default: []
+    example: [{start: 10.10.10.1, end: 10.10.10.10}]
+
   tls.ca_cert:
     description: |
       TLS loggregator root CA certificate. It is required for key/cert

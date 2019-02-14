@@ -1,5 +1,9 @@
 <%
-b = link("binding_cache")
+  b = link("binding_cache")
+  blacklisted_ranges = p("blacklisted_syslog_ranges")
+  blacklisted_ips = blacklisted_ranges.map do |range|
+    "#{range['start']}-#{range['end']}"
+  end.join(",")
 %>
 processes:
   - name: loggr-syslog-agent
@@ -20,3 +24,4 @@ processes:
       DEBUG_PORT: <%= p("debug_port") %>
 
       DRAIN_SKIP_CERT_VERIFY: "<%= p("drain_skip_cert_verify") %>"
+      BLACKLISTED_SYSLOG_RANGES: "<%= blacklisted_ips %>"
