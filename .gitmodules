@@ -109,3 +109,6 @@
 [submodule "src/github.com/valyala/fasthttp"]
 	path = src/github.com/valyala/fasthttp
 	url = https://github.com/valyala/fasthttp
+[submodule "src/github.com/loggregator/go-bindata"]
+	path = src/github.com/loggregator/go-bindata
+	url = https://github.com/loggregator/go-bindata
