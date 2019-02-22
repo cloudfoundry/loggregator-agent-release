@@ -2,7 +2,28 @@ Loggregator Agent Release
 [![slack.cloudfoundry.org][slack-badge]][loggregator-slack]
 [![CI Badge][ci-badge]][ci-pipeline]
 ===================================================
+A collection of composable agents used for interacting with Loggregator and Syslog
 
+## Agents
+
+### UDP Forwarder
+Accepts the Loggregator v1 api over UDP and forwards it to a downstream Loggregator v2 consumer. 
+This is available for backwards compatibility between the v1 API and the Forwarder, Syslog, or Loggregator agents.
+
+### Forwarder Agent
+A Loggregator v2 api multiplexer. This Agent Accepts Loggregator v2 and forwards to other agents colocated on the same VM
+that accept Loggregator v2. To configure downstream agents, simply place a file named `ingress_port.yml` in the job's config
+directory. [example][ingress-port]
+
+### Syslog Agent
+An agent that forwards app logs to a syslog drain. Drains are registered by binding User Provided Services to apps. 
+Any logs coming from a registered app are forwarded to the configured endpoint. 
+
+#### Syslog Binding Cache
+Syslog Agents can overwhelm CAPI when querying for existing bindings. This component acts a a proxy for the CAPI Binding
+query.
+
+### Loggregator Agent
 Loggregator Agent is a Cloud Foundry component that forwards logs and metrics
 into the Loggregator subsystem by taking traffic from the various emitter
 sources (diego, router, etc) and routing that traffic to one or more dopplers.
@@ -22,27 +43,23 @@ man-in-the-middle attacks and ensures data integrity.
 * [Usage](#using-loggregator-agent)
 * [More Resources and Documentation](#more-resources-and-documentation)
 
-## Compatability
+#### Compatability
 
 The Loggregator Agent is compatable with Loggregator v96+.
 
-## Example bosh lite deploy
+#### Using Loggregator Agent
 
-```
-bosh -e lite deploy -d loggregator-agent manifests/loggregator-agent.yml \
-    --vars-file /tmp/loggregator-vars.yml \
-    --vars-store=/tmp/agent-vars.yml
-```
-
-## Using Loggregator Agent
-
-### go-loggregator
+##### go-loggregator
 
 There is Go client library: [go-loggregator][go-loggregator]. The client
 library has several useful patterns along with examples to interact with a
 Loggregator Agent.
 
-### VM Metrics
+
+### System Metrics Agent
+A standalone agent to provide VM system metrics via a prometheus-scrapable endpoint.
+
+#### VM Metrics
 
 When the Loggregator System Metrics Agent is deployed along with the Loggregator Agent, 
 it will emit the following metrics about the VM where it is deployed:
@@ -100,6 +117,19 @@ it will emit the following metrics about the VM where it is deployed:
 
 Note: these metrics are also available via HTTP in Prometheus format.
 
+#### Metric Scraper
+A central component for scraping `system-metrics-agents` and forwarding the metrics to the firehose. Metric Scraper
+attempts to scrape the configured port across all vms deployed to the director. If present, this job can be configured to
+communicate with the [Leadership Election Release][leadership-election] so duplicate
+scrapes are avoided in an HA environment.
+
+### Prom Scraper
+A simple agent that reads from any local premetheus-scrapable endpoint and forwards the results.
+
+### Expvar Forwarder
+A simple agent that reads from any local expvar-formatted endpoint and forwards the results.
+
+
 ## More Resources and Documentation
 
 ### Roadmap
@@ -122,3 +152,5 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
 [loggregator-roadmap]: https://github.com/cloudfoundry/loggregator-release/projects/1
 [go-loggregator]:      https://code.cloudfoundry.org/go-loggregator
+[leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
+[ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
