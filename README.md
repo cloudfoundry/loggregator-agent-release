@@ -127,15 +127,14 @@ scrapes are avoided in an HA environment.
 A simple agent that reads from any local premetheus-scrapable endpoint and forwards the results.
 
 ### Expvar Forwarder
-A simple agent that reads from any local expvar-formatted endpoint and forwards the results.
+A simple agent that reads from any local [expvar][expvar]-formatted endpoint and forwards the results.
 
 
 ## More Resources and Documentation
 
-### Roadmap
+### Feedabck
 
-We communicate our long term planning using a [Product Road
-Map][loggregator-roadmap], and are always looking to gather feedback and input
+We are always looking to gather feedback and input
 from Loggregator operators. Get in touch or file an issue if you have feature
 suggestions you'd like to see added.
 
@@ -150,7 +149,7 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/loggregator/jobs/loggregator-tests/badge
 [ci-pipeline]:         https://loggregator.ci.cf-app.com/teams/main/pipelines/loggregator
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
-[loggregator-roadmap]: https://github.com/cloudfoundry/loggregator-release/projects/1
 [go-loggregator]:      https://code.cloudfoundry.org/go-loggregator
 [leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
+[expvar]:              https://golang.org/pkg/expvar/
