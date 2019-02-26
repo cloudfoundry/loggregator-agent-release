@@ -5,6 +5,10 @@
   path: /addons/name=loggregator_agent/jobs/name=loggregator_agent/properties/grpc_port?
   value: 3459
 
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggregator_agent/properties/disable_udp?
+  value: true
+
 ###################
 # Forwarder Agent #
 ###################
@@ -105,27 +109,6 @@
 # UDP Forwarder #
 #################
 - type: replace
-  path: /addons/name=loggregator_agent/exclude/jobs?/-
-  value:
-    name: cloud_controller_ng
-    release: capi
-
-- type: replace
-  path: /instance_groups/name=api/jobs/name=loggregator_agent?
-  value:
-    name: loggregator_agent
-    release: loggregator-agent
-    properties:
-      grpc_port: 3459
-      disable_udp: true
-      loggregator:
-        tls:
-          ca_cert: "((loggregator_ca.certificate))"
-          agent:
-            cert: "((loggregator_tls_agent.certificate))"
-            key: "((loggregator_tls_agent.private_key))"
-
-- type: replace
   path: /instance_groups/name=api/jobs/-
   value:
     name: loggr-udp-forwarder
@@ -136,7 +119,30 @@
           ca: "((loggregator_ca.certificate))"
           cert: "((loggregator_tls_agent.certificate))"
           key: "((loggregator_tls_agent.private_key))"
-          cn: "cloud-controller-ng.service.cf.internal"
+
+- type: replace
+  path: /instance_groups/name=router/jobs/-
+  value:
+    name: loggr-udp-forwarder
+    release: loggregator-agent
+    properties:
+      loggregator:
+        tls:
+          ca: "((loggregator_ca.certificate))"
+          cert: "((loggregator_tls_agent.certificate))"
+          key: "((loggregator_tls_agent.private_key))"
+
+- type: replace
+  path: /instance_groups/name=tcp-router/jobs/-
+  value:
+    name: loggr-udp-forwarder
+    release: loggregator-agent
+    properties:
+      loggregator:
+        tls:
+          ca: "((loggregator_ca.certificate))"
+          cert: "((loggregator_tls_agent.certificate))"
+          key: "((loggregator_tls_agent.private_key))"
 
 #################
 #    Metrics    #
