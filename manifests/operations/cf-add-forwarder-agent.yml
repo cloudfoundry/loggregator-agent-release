@@ -190,6 +190,7 @@
     template: "{{.SyslogAgent.IngressDropped}}"
     tags:
       direction: ingress
+      metric_version: "2.0"
       origin: syslog_agent
 
 - type: replace
@@ -288,5 +289,6 @@
     source_id: syslog_agent
     template: "{{.SyslogAgent.EgressDropped}}"
     tags:
+      direction: egress
       metric_version: "2.0"
       origin: syslog_agent
