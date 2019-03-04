@@ -11,7 +11,7 @@ metadata:
 
 indicators:
 - name: syslog_adapter_loss_ksi
-  promql: rate(dropped{source_id="syslog_agent"}[5m]) / rate(ingress{source_id="syslog_agent"}[5m])
+  promql: rate(dropped{direction="egress",source_id="syslog_agent"}[5m]) / on(ip,deployment,job,origin) rate(ingress{scope="all_drains",source_id="syslog_agent"}[5m])
   thresholds:
   - level: warning
     gte: 0.01
@@ -28,10 +28,10 @@ indicators:
       The recommended scaling indicator is to look at the maximum per minute
       loss rate over a 5-minute window and scale if the derived loss rate
       value grows greater than `0.1`.
-  recommended_response: |
-    Performance test your syslog server, review the logs of the syslog
-    consuming system for intake and other performance issues that indicate a
-    need to scale the consuming system.
+    recommended_response: |
+      Performance test your syslog server, review the logs of the syslog
+      consuming system for intake and other performance issues that indicate a
+      need to scale the consuming system.
 
 layout:
   owner: Loggregator Team
