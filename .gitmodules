@@ -112,3 +112,6 @@
 [submodule "src/github.com/loggregator/go-bindata"]
 	path = src/github.com/loggregator/go-bindata
 	url = https://github.com/loggregator/go-bindata
+[submodule "src/github.com/vito/gosub"]
+	path = src/github.com/vito/gosub
+	url = https://github.com/vito/gosub
