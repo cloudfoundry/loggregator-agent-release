@@ -4,9 +4,6 @@
     name: loggr-forwarder-agent-windows
     release: loggregator-agent
     properties:
-      downstream_ingress_ports:
-      - 3459
-      - 3460
       tls:
         ca_cert: "((loggregator_ca.certificate))"
         cert: "((loggregator_tls_agent.certificate))"
