@@ -1,7 +1,7 @@
 ---
 name: expvar-forwarder-windows
 dependencies:
-- golang1.11.5-windows
+- golang1.12.1-windows
 files:
 - github.com/klauspost/cpuid/*
 - github.com/klauspost/compress/flate/*

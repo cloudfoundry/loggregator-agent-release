@@ -2,7 +2,7 @@
 name: udp-forwarder
 
 dependencies:
-- golang1.11.5
+- golang1.12.1
 
 files:
 - code.cloudfoundry.org/go-diodes/*.go # gosub
