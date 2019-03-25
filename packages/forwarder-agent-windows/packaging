@@ -11,6 +11,7 @@ if ((Get-Item $BOSH_INSTALL_TARGET).LinkType -ne "") {
 $env:GOROOT="C:\var\vcap\packages\golang1.12.1-windows\go"
 $env:GOPATH="${BOSH_INSTALL_TARGET}"
 $env:PATH="${env:GOROOT}\bin;${env:PATH}"
+$env:HOME="C:\var\vcap"
 $pkg_name="forwarder-agent"
 $pkg_path="code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent"
 
