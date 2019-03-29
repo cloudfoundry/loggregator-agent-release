@@ -223,7 +223,7 @@
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=prom_scraper_windows?
   value:
-  - name: prom_scraper_windows
+    name: prom_scraper_windows
     release: loggregator-agent
     properties:
       metrics_urls: http://localhost:14823/metrics
