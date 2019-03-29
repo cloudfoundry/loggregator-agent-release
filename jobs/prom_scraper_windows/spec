@@ -1,0 +1,24 @@
+---
+name: prom_scraper_windows
+
+consumes:
+- name: loggregator
+  type: loggregator
+  optional: false
+
+templates:
+  pre-start.ps1.erb: bin/pre-start.ps1
+  loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
+  loggregator_agent.key.erb: config/certs/loggregator_agent.key
+  loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
+
+packages:
+- prom_scraper_windows
+
+properties:
+  metrics_urls:
+    description: "The URL(s) of the local endpoint(s) that provide prometheus metrics, comma delimited."
+    default: http://localhost:9100/metrics
+  scrape_interval:
+    description: "The interval to scrape the metrics URL (golang duration)"
+    default: 15s
