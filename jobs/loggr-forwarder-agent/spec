@@ -19,7 +19,7 @@ properties:
     default: 14823
   metrics_port:
     description: "Port the agent uses to serve metrics"
-    default: 14824
+    default: 14825
   downstream_ingress_port_glob:
     description: |
       Files matching the glob are expected to contain ports of downstream
