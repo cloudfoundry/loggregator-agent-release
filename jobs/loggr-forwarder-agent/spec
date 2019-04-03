@@ -14,14 +14,17 @@ properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458
-  debug_port:
+  pprof_port:
     description: "Port the agent uses to serve debug information"
     default: 14823
+  metrics_port:
+    description: "Port the agent uses to serve metrics"
+    default: 14824
   downstream_ingress_port_glob:
     description: |
-      Files matching the glob are expected to contain ports of downstream 
-      consumers that will be bound to 127.0.0.1:{port} with the provided 
-      mTLS configuration. The forwarder assumes the downstream server is 
+      Files matching the glob are expected to contain ports of downstream
+      consumers that will be bound to 127.0.0.1:{port} with the provided
+      mTLS configuration. The forwarder assumes the downstream server is
       serving Loggregator's V2 IngressService. See code.cloudfoundry.org/loggregator-api.
     default: /var/vcap/jobs/*/config/ingress_port.yml
       
