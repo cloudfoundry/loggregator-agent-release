@@ -9,6 +9,14 @@
   path: /addons/name=loggregator_agent/jobs/name=loggregator_agent/properties/disable_udp?
   value: true
 
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/-
+  value:
+    - name: prom_scraper
+      release: loggregator-agent
+      properties:
+        metrics_urls: http://localhost:14824/metrics
+
 ###################
 # Forwarder Agent #
 ###################
