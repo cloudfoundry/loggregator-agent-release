@@ -12,10 +12,10 @@
 - type: replace
   path: /addons/name=loggregator_agent/jobs/-
   value:
-    - name: prom_scraper
-      release: loggregator-agent
-      properties:
-        metrics_urls: http://localhost:14824/metrics
+    name: prom_scraper
+    release: loggregator-agent
+    properties:
+      metrics_urls: http://localhost:14824/metrics
 
 ###################
 # Forwarder Agent #
