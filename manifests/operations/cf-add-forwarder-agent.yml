@@ -15,7 +15,7 @@
     name: prom_scraper
     release: loggregator-agent
     properties:
-      metrics_urls: http://localhost:14824/metrics
+      metrics_urls: http://localhost:14822/metrics,http://localhost:14823/metrics,http://localhost:14824/metrics
 
 ###################
 # Forwarder Agent #
@@ -54,10 +54,6 @@
             cert: "((syslog_agent_api_tls.certificate))"
             key: "((syslog_agent_api_tls.private_key))"
             cn: "binding-cache"
-    - name: prom_scraper
-      release: loggregator-agent
-      properties:
-        metrics_urls: http://localhost:14822/metrics,http://localhost:14823/metrics
 
 - type: replace
   path: /variables/-
