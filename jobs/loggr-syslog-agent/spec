@@ -31,9 +31,6 @@ properties:
   pprof_port:
     description: "Port the agent uses to serve debug information"
     default: 14822
-  metrics_port:
-    description: "Port the agent uses to serve debug information"
-    default: 14821
   drain_skip_cert_verify:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
