@@ -1,7 +1,7 @@
 ---
 name: syslog-agent-windows
 dependencies:
-- golang1.12.1-windows
+- golang1.12.3-windows
 files:
 - exiter.ps1
 - github.com/klauspost/cpuid/*

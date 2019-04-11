@@ -2,7 +2,7 @@
 name: expvar-forwarder
 
 dependencies:
-- golang1.12.1
+- golang1.12.3
 
 files:
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
