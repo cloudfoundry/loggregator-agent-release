@@ -1,7 +1,7 @@
 ---
 name: forwarder-agent-windows
 dependencies:
-- golang1.12.3-windows
+- golang1.12.4-windows
 files:
 - github.com/klauspost/cpuid/*
 - github.com/klauspost/compress/flate/*
