@@ -37,3 +37,6 @@ properties:
     description: |
       The port to listen for incoming v1 (dropsonde) envelopes via UDP.
     default: 3457
+  deployment:
+    description: "Name of deployment (added as tag on all outgoing v2 envelopes)"
+    default: ""
