@@ -12,7 +12,6 @@ files:
 - code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/app/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/diodes/*.go # gosub
-- code.cloudfoundry.org/loggregator-agent/pkg/egress/v1/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/v1/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
 - code.cloudfoundry.org/loggregator/plumbing/conversion/*.go # gosub
