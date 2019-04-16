@@ -3,6 +3,8 @@ name: prom_scraper_windows
 dependencies:
 - golang1.12.4-windows
 files:
+- exiter.ps1
+
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
