@@ -32,7 +32,7 @@
     "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
     "AGENT_DISABLE_UDP" => "#{p("disable_udp")}",
     "AGENT_INCOMING_UDP_PORT" => "#{p("listening_port")}",
-    "AGENT_PPROF_PORT" => "#{p("pprof_port")}",
+    "AGENT_DEBUG_PORT" => "#{p("debug_port")}",
     "ROUTER_ADDR" => "#{router_addr}:#{p('doppler.grpc_port')}",
     "ROUTER_ADDR_WITH_AZ" => "#{router_addr_with_az}:#{p('doppler.grpc_port')}",
   }

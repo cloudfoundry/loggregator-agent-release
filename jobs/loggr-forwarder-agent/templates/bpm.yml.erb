@@ -24,7 +24,7 @@ processes:
       AGENT_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
       AGENT_TAGS: "<%= tag_str %>"
       AGENT_PORT: <%= p("port") %>
-      PPROF_PORT: <%= p("pprof_port") %>
+      DEBUG_PORT: <%= p("debug_port") %>
       DOWNSTREAM_INGRESS_PORT_GLOB: "<%= p("downstream_ingress_port_glob") %>"
     unsafe:
       unrestricted_volumes:

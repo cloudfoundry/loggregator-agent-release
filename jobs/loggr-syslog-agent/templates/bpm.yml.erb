@@ -21,7 +21,7 @@ processes:
       AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.key"
       AGENT_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
       AGENT_PORT: <%= p("port") %>
-      PPROF_PORT: <%= p("pprof_port") %>
+      DEBUG_PORT: <%= p("debug_port") %>
 
       DRAIN_SKIP_CERT_VERIFY: "<%= p("drain_skip_cert_verify") %>"
       BLACKLISTED_SYSLOG_RANGES: "<%= blacklisted_ips %>"

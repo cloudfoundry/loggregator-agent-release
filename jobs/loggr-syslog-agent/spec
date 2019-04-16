@@ -28,7 +28,7 @@ properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458
-  pprof_port:
+  debug_port:
     description: "Port the agent uses to serve debug information"
     default: 14822
   drain_skip_cert_verify:
