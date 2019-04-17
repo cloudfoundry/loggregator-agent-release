@@ -16,9 +16,11 @@ packages:
 - prom_scraper
 
 properties:
-  metrics_urls:
-    description: "The URL(s) of the local endpoint(s) that provide prometheus metrics, comma delimited."
-    default: http://localhost:9100/metrics
   scrape_interval:
     description: "The interval to scrape the metrics URL (golang duration)"
     default: 15s
+  debug_port_glob:
+    description: |
+      Files matching the glob are expected to contain ports that provide prometheus metrics
+      that will be bound to http://localhost:{port}/metrics.
+    default: /var/vcap/jobs/*/config/debug_port.yml

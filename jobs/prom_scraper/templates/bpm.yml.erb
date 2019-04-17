@@ -6,6 +6,6 @@ processes:
       CA_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_ca.crt"
       CLIENT_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.crt"
       CLIENT_KEY_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.key"
-      METRICS_URLS: "<%= p('metrics_urls') %>"
+      DEBUG_PORT_GLOB: "<%= p('debug_port_glob') %>"
       SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
       DEFAULT_SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
