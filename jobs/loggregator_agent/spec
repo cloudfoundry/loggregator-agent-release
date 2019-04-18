@@ -15,6 +15,7 @@ consumes:
 templates:
   bpm.yml.erb: config/bpm.yml
   ingress_port.yml.erb: config/ingress_port.yml
+  debug_port.yml.erb: config/debug_port.yml
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
