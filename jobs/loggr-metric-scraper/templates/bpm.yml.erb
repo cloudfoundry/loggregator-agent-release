@@ -12,6 +12,7 @@ processes:
       CLIENT_KEY_PATH: "/var/vcap/jobs/loggr-metric-scraper/config/certs/loggregator_agent.key"
       SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
       SCRAPE_PORT: "<%= p('scrape_port') %>"
+      DEBUG_PORT: <%= p("debug_port") %>
       DEFAULT_SOURCE_ID: "<%= "#{spec.job.name}" %>"
       DNS_FILE: "/var/vcap/instance/dns/records.json"
       LEADERSHIP_SERVER_ADDR: "<%= leader_addr %>"
