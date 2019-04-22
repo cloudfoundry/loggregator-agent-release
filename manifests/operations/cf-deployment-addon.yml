@@ -8,10 +8,6 @@
   path: /addons/-
   value:
     name: prom_scraper
-    exclude:
-      instance_groups:
-      - metric-store
-      - doppler
     include:
       stemcell:
       - os: ubuntu-trusty
