@@ -126,10 +126,6 @@ scrapes are avoided in an HA environment.
 ### Prom Scraper
 A simple agent that reads from any local premetheus-scrapable endpoint and forwards the results.
 
-### Expvar Forwarder
-A simple agent that reads from any local [expvar][expvar]-formatted endpoint and forwards the results.
-
-
 ## More Resources and Documentation
 
 ### Feedabck
@@ -152,4 +148,3 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [go-loggregator]:      https://code.cloudfoundry.org/go-loggregator
 [leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
-[expvar]:              https://golang.org/pkg/expvar/

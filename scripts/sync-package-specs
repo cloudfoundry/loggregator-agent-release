@@ -29,8 +29,6 @@ function sync_package() {
   )
 }
 
-sync_package expvar-forwarder                  -app code.cloudfoundry.org/loggregator-agent/cmd/expvar-forwarder &
-sync_package expvar-forwarder-windows          -app code.cloudfoundry.org/loggregator-agent/cmd/expvar-forwarder &
 sync_package forwarder-agent                   -app code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent &
 sync_package forwarder-agent-windows           -app code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent &
 sync_package loggregator_agent                 -app code.cloudfoundry.org/loggregator-agent/cmd/agent &
