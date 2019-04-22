@@ -9,3 +9,9 @@ processes:
       DEBUG_PORT_GLOB: "<%= p('debug_port_glob') %>"
       SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
       DEFAULT_SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
+    unsafe:
+      unrestricted_volumes:
+      - path: /var/vcap/jobs
+        mount_only: true
+      - path: /var/vcap/data/jobs
+        mount_only: true
