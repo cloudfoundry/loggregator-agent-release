@@ -3,7 +3,7 @@ name: loggr-forwarder-agent
 
 templates:
   bpm.yml.erb: config/bpm.yml
-  debug_port.yml.erb: config/debug_port.yml
+  metric_port.yml.erb: config/metric_port.yml
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   forwarder.crt.erb: config/certs/forwarder.crt
   forwarder.key.erb: config/certs/forwarder.key

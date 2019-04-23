@@ -6,6 +6,7 @@ templates:
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   forwarder.crt.erb: config/certs/forwarder.crt
   forwarder.key.erb: config/certs/forwarder.key
+  metric_port.yml.erb: config/metric_port.yml
 
 packages:
 - forwarder-agent-windows

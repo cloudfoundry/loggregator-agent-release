@@ -10,6 +10,7 @@ templates:
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   syslog_agent.crt.erb: config/certs/syslog_agent.crt
   syslog_agent.key.erb: config/certs/syslog_agent.key
+  metric_port.yml.erb: config/metric_port.yml
 
 packages:
 - syslog-agent-windows
