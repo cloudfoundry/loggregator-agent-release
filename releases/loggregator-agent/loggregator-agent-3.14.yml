@@ -1,0 +1,150 @@
+name: loggregator-agent
+version: "3.14"
+commit_hash: 5fd84d9
+uncommitted_changes: false
+jobs:
+- name: loggr-forwarder-agent
+  version: 2c4659198bbd68ef0c5ade51f377164feac7b65b558464e9202364246e1ba2a2
+  fingerprint: 2c4659198bbd68ef0c5ade51f377164feac7b65b558464e9202364246e1ba2a2
+  sha1: sha256:642b72e2a2816356647d907cb591b02f74706b34bca60c335a76e70aeb34ef73
+- name: loggr-forwarder-agent-windows
+  version: 270779e4207910a13631dccd16f54959cf548daf0c0d35299016ba40132d2dcf
+  fingerprint: 270779e4207910a13631dccd16f54959cf548daf0c0d35299016ba40132d2dcf
+  sha1: sha256:08be3b9b25f4d0c3f44f559577a5739637cbb23ca661e3f160d9be4b52c11ea0
+- name: loggr-metric-scraper
+  version: bd1028b76b8e989e53154e3124e3837ad44abd02f735b4cc2ba6c1cf000a7b24
+  fingerprint: bd1028b76b8e989e53154e3124e3837ad44abd02f735b4cc2ba6c1cf000a7b24
+  sha1: sha256:7b7c83ced8bc234801d51b050bcc22eb99e909af1a04969bd18ea0b568aaadb6
+- name: loggr-syslog-agent
+  version: 4f7b8ae002c36f534e580cef383d9ff06bad32252a51e27c2f98538e6cb681af
+  fingerprint: 4f7b8ae002c36f534e580cef383d9ff06bad32252a51e27c2f98538e6cb681af
+  sha1: sha256:e28acdd2cdbdc82695848022cc98a6332f0312d456877a67084078736b9e8d0b
+- name: loggr-syslog-agent-windows
+  version: 78342a5f30c727132f8917c37e2542bf3816c0c204b57981e957b116f55196ef
+  fingerprint: 78342a5f30c727132f8917c37e2542bf3816c0c204b57981e957b116f55196ef
+  sha1: sha256:e6a03be9dc374689f7c2b8f38c5b794da6ae2ed32b863fd58f2eee760f7b3dbe
+- name: loggr-syslog-binding-cache
+  version: 22edf2c3d9c707926688c9cb0a54578434ce57743c1a340b6b2270a57b5bcc6c
+  fingerprint: 22edf2c3d9c707926688c9cb0a54578434ce57743c1a340b6b2270a57b5bcc6c
+  sha1: sha256:113cd71237b4a3058472baba3e004516696a1d720459fcd984e7bad6eef3d4e5
+- name: loggr-system-metrics-agent
+  version: af5a2ef6a4153c7cb6296c8d252c28cee492e1a3fdd2608cb20965cbe960931b
+  fingerprint: af5a2ef6a4153c7cb6296c8d252c28cee492e1a3fdd2608cb20965cbe960931b
+  sha1: sha256:d1d35c153165d0fd3fa972468005f23bab398a6f2e31d0034617cdd6a12c878d
+- name: loggr-system-metrics-agent-windows
+  version: ed189ed9ec86d82d50051d753e09a398d673e1cb8dd9f313c44d1c69e1d4f0b1
+  fingerprint: ed189ed9ec86d82d50051d753e09a398d673e1cb8dd9f313c44d1c69e1d4f0b1
+  sha1: sha256:cc474f7049314743f1d6ca83b76d2cfa31beac39c3528f59911bedb1d977481f
+- name: loggr-udp-forwarder
+  version: f07d36093179d5030174ec7c5dd962a18423d4dc6a1051d5fced9140753cf49a
+  fingerprint: f07d36093179d5030174ec7c5dd962a18423d4dc6a1051d5fced9140753cf49a
+  sha1: sha256:c6765d5f15d6f1b9d3b9985f14681735c2ebbbb7e8d7c560e2f5be7d18c3581d
+- name: loggregator_agent
+  version: a8ce465a56cabe0d1837031b1ed834af02c2ea19c402cf19c505ee4d0459a324
+  fingerprint: a8ce465a56cabe0d1837031b1ed834af02c2ea19c402cf19c505ee4d0459a324
+  sha1: sha256:00c474b864c3badef8a600df169548a8496fd1d7327cb44b0b4d9e6c1d1d893e
+- name: loggregator_agent_windows
+  version: 64bfce9e1bc71bde6c4c243d720cc05d7f572478f99d3e445e86b07f452cd4cf
+  fingerprint: 64bfce9e1bc71bde6c4c243d720cc05d7f572478f99d3e445e86b07f452cd4cf
+  sha1: sha256:1bdeb1d52cd8e83d4a7473a98c508e33bf2de097e03396469712deefedbc53d1
+- name: prom_scraper
+  version: 9f28be18176c3f427d72be696127ad1fceea5bff82b656b307848205ab326849
+  fingerprint: 9f28be18176c3f427d72be696127ad1fceea5bff82b656b307848205ab326849
+  sha1: sha256:ba7ed4eeeb8fa7044b1831834c88b09043f6e5c52ef8d28cb7410732ff497555
+- name: prom_scraper_windows
+  version: af8cc3c83f623f8f86b8d989626df68c74f946d2cdb2b79013ad2ec99cb641d3
+  fingerprint: af8cc3c83f623f8f86b8d989626df68c74f946d2cdb2b79013ad2ec99cb641d3
+  sha1: sha256:2fc83e87614f0e3ceefd0295c5812af90359f11ddade2a82b64c369878562567
+packages:
+- name: binding-cache
+  version: 73980fdbdb235f4465db4ab1b8f3956d74ca573fe44ded3739bf287c0d9c4a2f
+  fingerprint: 73980fdbdb235f4465db4ab1b8f3956d74ca573fe44ded3739bf287c0d9c4a2f
+  sha1: sha256:41a3d1eea65b3a2e485af641b6fd3112f0394b3840ea3aaf1ebbdcfbc0a999dd
+  dependencies:
+  - golang1.12.4
+- name: forwarder-agent
+  version: 0906bdaa6ec815e5d0f99d738fa718691ad5a3a0cedc02484b0bc34853866712
+  fingerprint: 0906bdaa6ec815e5d0f99d738fa718691ad5a3a0cedc02484b0bc34853866712
+  sha1: sha256:6609d472dc1d52086110e2ada6e49ccecb74fb609ff53bb22615377788db6ffa
+  dependencies:
+  - golang1.12.4
+- name: forwarder-agent-windows
+  version: 1270b06846f8feadd689f68c58374008a84dae6d6c822767eb3d1c630fc1e04a
+  fingerprint: 1270b06846f8feadd689f68c58374008a84dae6d6c822767eb3d1c630fc1e04a
+  sha1: sha256:338e0300c3e6e56c7e379f8d40ea3c000d2b9ba5445e2da2f38dcf6bac231756
+  dependencies:
+  - golang1.12.4-windows
+- name: golang1.12.4
+  version: 5ab93820e249a0923bda5ac6394074c0b8fef3b35a65a876b0eaeca879a68912
+  fingerprint: 5ab93820e249a0923bda5ac6394074c0b8fef3b35a65a876b0eaeca879a68912
+  sha1: sha256:4005eff7d1ff3eb9efd6c841b7276da4cde7cf54c76d519fb6a814b4d9b0a8a5
+  dependencies: []
+- name: golang1.12.4-windows
+  version: 55579b3880395987713f92294bb35c8b21817a3db4ff4eeb1069e8ffca0a956a
+  fingerprint: 55579b3880395987713f92294bb35c8b21817a3db4ff4eeb1069e8ffca0a956a
+  sha1: sha256:c1e80905728261e1b402e02c68826a8632b98ce7c89d43069e4e7a960fcc6a96
+  dependencies: []
+- name: loggregator_agent
+  version: 0b27538627b66a70c65bf1b2e4c117aba148b210bc687356561fa7be9cfc49d9
+  fingerprint: 0b27538627b66a70c65bf1b2e4c117aba148b210bc687356561fa7be9cfc49d9
+  sha1: sha256:5b325389e9b310b36a1d235334f54ed6afdee6ad0c60d70422f20a1a445e38b0
+  dependencies:
+  - golang1.12.4
+- name: loggregator_agent_windows
+  version: 8ae056c8a9298bfe02f221a5100be6329af67950705e9482feff6186b076de51
+  fingerprint: 8ae056c8a9298bfe02f221a5100be6329af67950705e9482feff6186b076de51
+  sha1: sha256:6214d16a0edc087ef8e3148c6cda392b223c36c26ecefb940b30f1a4119b4a6d
+  dependencies:
+  - golang1.12.4-windows
+- name: metric-scraper
+  version: 1e4d42aee986158781515e0a3119936e362b3a90a9dea8e13ee001c603e86d81
+  fingerprint: 1e4d42aee986158781515e0a3119936e362b3a90a9dea8e13ee001c603e86d81
+  sha1: sha256:141a327ee6314302348511d975e110d3dc047694038545e9cef2adcaa891c1fc
+  dependencies:
+  - golang1.12.4
+- name: prom_scraper
+  version: 07f1b4a3bb126abc22d76bb1a5d777585214a677826cb4aba2fb1f731949dcc4
+  fingerprint: 07f1b4a3bb126abc22d76bb1a5d777585214a677826cb4aba2fb1f731949dcc4
+  sha1: sha256:ab666d96e4161f280828d8431a4475e6d111a012e73ae763843b560953ab4839
+  dependencies:
+  - golang1.12.4
+- name: prom_scraper_windows
+  version: 86a90f37d047edee907fc442002407ae6a8f6c943bae453b85473a1b434bb488
+  fingerprint: 86a90f37d047edee907fc442002407ae6a8f6c943bae453b85473a1b434bb488
+  sha1: sha256:3accfdf762cd58e391b2e5d1b88f75d4876389250637ea88be995752d5875019
+  dependencies:
+  - golang1.12.4-windows
+- name: syslog-agent
+  version: 9d9019f78bd54db83dfe684744b404d85eef1021ab3af8bffe29fd542742454e
+  fingerprint: 9d9019f78bd54db83dfe684744b404d85eef1021ab3af8bffe29fd542742454e
+  sha1: sha256:8dde1cf1cbea5ff889a4199a4c1e915a64a55f97aad8e79daa122c49b36c9e60
+  dependencies:
+  - golang1.12.4
+- name: syslog-agent-windows
+  version: 0525e9991643a0433f9f4eb91e70cea14a83554ae7777f5f3a1338871de5ba9c
+  fingerprint: 0525e9991643a0433f9f4eb91e70cea14a83554ae7777f5f3a1338871de5ba9c
+  sha1: sha256:09017b7bb6734ceeb20433346c3f04583cf98ff15748cc7f431918c97582283f
+  dependencies:
+  - golang1.12.4-windows
+- name: system-metrics-agent
+  version: 4883fb6121df6367670ba4385720d91b94309ee99bda581b24f2ebbc362fd4a9
+  fingerprint: 4883fb6121df6367670ba4385720d91b94309ee99bda581b24f2ebbc362fd4a9
+  sha1: sha256:527d433b50ce60d80756ae1a16f994b3b071cd4c261b50352a8f459b425c9fd8
+  dependencies:
+  - golang1.12.4
+- name: system-metrics-agent-windows
+  version: 0e321efa0f94e11c863242fba06d2e5c50933dd326e2cce58be62d62a2f1018c
+  fingerprint: 0e321efa0f94e11c863242fba06d2e5c50933dd326e2cce58be62d62a2f1018c
+  sha1: sha256:c9397852410599658c1751e5e84120b034e7e079582efbb72058a6a77caac591
+  dependencies:
+  - golang1.12.4-windows
+- name: udp-forwarder
+  version: 9668a1d1e993d5e469e495c382c13b2c510a471e7a34abad8d7f4f379b01a8ec
+  fingerprint: 9668a1d1e993d5e469e495c382c13b2c510a471e7a34abad8d7f4f379b01a8ec
+  sha1: sha256:fc51001d968fb78f3d16ae4ab55131c82c13ec1a8dfa31beaaf60566886dc46e
+  dependencies:
+  - golang1.12.4
+license:
+  version: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  fingerprint: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  sha1: sha256:423bf4b0d11566b04fbc7cb32949a149a83a7ffc79b5a5437bff4216463fca67
