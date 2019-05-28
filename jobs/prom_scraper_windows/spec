@@ -4,7 +4,7 @@ name: prom_scraper_windows
 consumes:
 - name: loggregator
   type: loggregator
-  optional: false
+  optional: true
 
 templates:
   pre-start.ps1.erb: bin/pre-start.ps1
@@ -24,3 +24,12 @@ properties:
       Files matching the glob are expected to contain ports that provide prometheus metrics
       that will be bound to http://localhost:{port}/metrics.
     default: /var/vcap/jobs/*/config/metric_port.yml
+
+  loggregator_agent.grpc_port:
+    description: "The gRPC port used to connect to loggregator agent. Can come from loggregator link"
+  loggregator_agent.tls.cert:
+    description: "The cert used to communicate with loggregator agent. Can come from loggregator link"
+  loggregator_agent.tls.key:
+    description: "The key used to communicate with loggregator agent. Can come from loggregator link"
+  loggregator_agent.ca_cert:
+    description: "The CA used to communicate with loggregator agent. Can come from loggregator link"
