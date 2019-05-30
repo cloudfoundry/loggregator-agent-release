@@ -77,6 +77,10 @@ it will emit the following metrics about the VM where it is deployed:
 | system_cpu_sys                       |   ✔️   |    ✔️    |
 | system_cpu_idle                      |   ✔️   |    ✔️    |
 | system_cpu_wait                      |   ✔️   |    ✔️    |
+| system_cpu_core_user                 |   ✔️   |    ✔️    |
+| system_cpu_core_sys                  |   ✔️   |    ✔️    |
+| system_cpu_core_idle                 |   ✔️   |    ✔️    |
+| system_cpu_core_wait                 |   ✔️   |    ✔️    |
 | system_disk_system_percent           |   ✔️   |    ✔️    |
 | system_disk_system_inode_percent     |   ✔️   |    ✔️    |
 | system_disk_system_read_bytes        |   ✔️   |    ✔️    |
