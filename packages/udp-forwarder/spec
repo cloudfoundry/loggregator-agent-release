@@ -8,6 +8,7 @@ files:
 - code.cloudfoundry.org/go-diodes/*.go # gosub
 - code.cloudfoundry.org/go-envstruct/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/*.go # gosub
+- code.cloudfoundry.org/go-loggregator/conversion/*.go # gosub
 - code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/app/*.go # gosub
@@ -15,7 +16,6 @@ files:
 - code.cloudfoundry.org/loggregator-agent/pkg/egress/v1/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/ingress/v1/*.go # gosub
 - code.cloudfoundry.org/loggregator-agent/pkg/metrics/*.go # gosub
-- code.cloudfoundry.org/loggregator/plumbing/conversion/*.go # gosub
 - code.cloudfoundry.org/rfc5424/*.go # gosub
 - github.com/beorn7/perks/quantile/*.go # gosub
 - github.com/cloudfoundry/sonde-go/events/*.go # gosub
