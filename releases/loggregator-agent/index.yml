@@ -23,6 +23,8 @@ builds:
     version: "3.14"
   7b7b56c0-c8cb-4be1-69c7-ad9e0782b3a1:
     version: "3.12"
+  8fe6621d-accb-4649-65e6-301eceeeeb63:
+    version: v3.15
   932d54b6-e027-4356-69d1-b5dbcce44182:
     version: "2.3"
   95f22223-da2b-464d-47d6-94146b41d9bd:
