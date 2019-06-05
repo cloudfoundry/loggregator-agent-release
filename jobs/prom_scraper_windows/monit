@@ -1,6 +1,6 @@
 <%
   env = {
-    "LOGGREGATOR_AGENT_ADDR" => "localhost:#{p('loggregator.agent.grpc_port', link('loggregator').p('metron_endpoint.grpc_port'))}",
+    "LOGGREGATOR_AGENT_ADDR" => "localhost:#{p('loggregator_agent.grpc_port', link('loggregator').p('metron_endpoint.grpc_port'))}",
     "CA_CERT_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_ca.crt",
     "CLIENT_CERT_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_agent.crt",
     "CLIENT_KEY_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_agent.key",
