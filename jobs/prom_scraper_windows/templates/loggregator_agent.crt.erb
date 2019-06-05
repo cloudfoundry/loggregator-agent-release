@@ -1,1 +1,7 @@
-<%= p('loggregator_agent.tls.cert', link("loggregator").p("loggregator.tls.doppler.cert")) %>
+<%=
+  if_link("loggregator") { |loggregator|
+    loggregator.p("loggregator.tls.doppler.cert")
+  }.else {
+    p('loggregator_agent.tls.cert')
+  }
+%>

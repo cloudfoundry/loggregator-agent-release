@@ -1,8 +1,17 @@
+<%
+  loggregator_agent_port = nil
+  if_link("loggregator") { |loggregator|
+    loggregator_agent_port = loggregator.p("metron_endpoint.grpc_port")
+  }.else {
+    loggregator_agent_port = p('loggregator_agent.grpc_port')
+  }
+%>
+
 processes:
   - name: prom_scraper
     executable: /var/vcap/packages/prom_scraper/prom-scraper
     env:
-      LOGGREGATOR_AGENT_ADDR: "<%= "localhost:#{p('loggregator_agent.grpc_port', link('loggregator').p('metron_endpoint.grpc_port'))}" %>"
+      LOGGREGATOR_AGENT_ADDR: "<%= "localhost:#{loggregator_agent_port}" %>"
       CA_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_ca.crt"
       CLIENT_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.crt"
       CLIENT_KEY_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.key"
