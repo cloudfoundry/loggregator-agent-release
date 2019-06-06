@@ -1,9 +1,12 @@
 <%
   loggregator_agent_port = nil
-  if_link("loggregator") { |loggregator|
-    loggregator_agent_port = loggregator.p("metron_endpoint.grpc_port")
+
+  if_p('loggregator_agent.grpc_port') { |agent_port|
+    loggregator_agent_port = agent_port
   }.else {
-    loggregator_agent_port = p('loggregator_agent.grpc_port')
+    if_link("loggregator") { |loggregator|
+      loggregator_agent_port = loggregator.p("metron_endpoint.grpc_port")
+    }
   }
 
   env = {
