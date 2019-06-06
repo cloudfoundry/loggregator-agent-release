@@ -3,10 +3,8 @@
 
   if_p('loggregator_agent.grpc_port') { |agent_port|
     loggregator_agent_port = agent_port
-  }.else {
-    if_link("loggregator") { |loggregator|
-      loggregator_agent_port = loggregator.p("metron_endpoint.grpc_port")
-    }
+  }.else_if_link("loggregator") { |loggregator|
+    loggregator_agent_port = loggregator.p("metron_endpoint.grpc_port")
   }
 %>
 

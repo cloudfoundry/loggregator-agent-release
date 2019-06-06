@@ -1,9 +1,9 @@
 <%=
+  cert = nil
   if_p('loggregator_agent.tls.ca_cert') { |agent_ca_cert|
-    agent_ca_cert
-  }.else {
-    if_link("loggregator") { |loggregator|
-      loggregator.p("loggregator.tls.ca_cert")
-    }
+    cert = agent_ca_cert
+  }.else_if_link("loggregator") { |loggregator|
+    cert = loggregator.p("loggregator.tls.ca_cert")
   }
+  cert
 %>
