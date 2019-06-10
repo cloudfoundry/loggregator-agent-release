@@ -14,9 +14,6 @@
       - os: ubuntu-xenial
     jobs:
     - name: prom_scraper
-      consumes:
-        loggregator:
-          from: loggregator
       release: loggregator-agent
 
 - type: replace
