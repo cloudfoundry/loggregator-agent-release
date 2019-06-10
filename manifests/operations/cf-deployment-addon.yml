@@ -23,4 +23,3 @@
   path: /instance_groups/name=doppler/jobs/name=doppler/provides/loggregator?
   value:
     as: loggregator
-    shared: true
