@@ -84,8 +84,13 @@ var _ = Describe("SyslogBindingCache", func() {
 		)
 
 		addr := fmt.Sprintf("https://localhost:%d/bindings", cachePort)
-		resp, err := client.Get(addr)
-		Expect(err).ToNot(HaveOccurred())
+
+		var resp *http.Response
+		Eventually(func() error {
+			var err error
+			resp, err = client.Get(addr)
+			return err
+		}).Should(Succeed())
 
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
