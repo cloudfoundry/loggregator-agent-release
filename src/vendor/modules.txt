@@ -4,7 +4,7 @@ code.cloudfoundry.org/go-batching
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.4.0
 code.cloudfoundry.org/go-envstruct
-# code.cloudfoundry.org/go-loggregator v7.3.1-0.20190507205056-cd9df093b3b1+incompatible
+# code.cloudfoundry.org/go-loggregator v7.4.0+incompatible
 code.cloudfoundry.org/go-loggregator
 code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
@@ -50,7 +50,7 @@ github.com/klauspost/compress/gzip
 github.com/klauspost/compress/zlib
 # github.com/klauspost/cpuid v1.2.1
 github.com/klauspost/cpuid
-# github.com/mailru/easyjson v0.0.0-20190614124828-94de47d64c63
+# github.com/mailru/easyjson v0.0.0-20190620125010-da37f6c1e481
 github.com/mailru/easyjson
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
@@ -131,7 +131,7 @@ golang.org/x/net/html/charset
 golang.org/x/net/http/httpguts
 golang.org/x/net/html
 golang.org/x/net/html/atom
-# golang.org/x/sys v0.0.0-20190618155005-516e3c20635f
+# golang.org/x/sys v0.0.0-20190620070143-6f217b454f45
 golang.org/x/sys/windows
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
@@ -155,7 +155,7 @@ golang.org/x/text/runes
 golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
-# google.golang.org/genproto v0.0.0-20190611190212-a7e196e89fd3
+# google.golang.org/genproto v0.0.0-20190620144150-6af8c5fc6601
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.21.1
 google.golang.org/grpc/grpclog
