@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -45,24 +46,17 @@ var _ = Describe("SyslogAgent", func() {
 		cupsProvider = &fakeBindingCache{
 			results: []binding.Binding{
 				{
-					AppID:    "v2-drain",
+					AppID:    "some-id",
 					Hostname: "org.space.name",
 					Drains: []string{
 						syslogHTTPS.server.URL,
 					},
 				},
 				{
-					AppID:    "some-id",
-					Hostname: "org.space.name",
-					Drains: []string{
-						strings.Replace(syslogHTTPS.server.URL, "https", "https-v3", 1),
-					},
-				},
-				{
 					AppID:    "some-id-tls",
 					Hostname: "org.space.name",
 					Drains: []string{
-						fmt.Sprintf("syslog-tls-v3://localhost:%s", syslogTLS.port()),
+						fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
 					},
 				},
 			},
@@ -110,7 +104,7 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 	})
 
-	It("should not send logs to blacklisted IPs", func() {
+	var setupTestWithBlacklist = func(blacklist cups.BlacklistRanges) context.CancelFunc{
 		mc := testhelper.NewMetricClient()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
@@ -124,14 +118,7 @@ var _ = Describe("SyslogAgent", func() {
 				KeyFile:         testhelper.Cert("binding-cache-ca.key"),
 				CommonName:      "bindingCacheCA",
 				PollingInterval: 10 * time.Millisecond,
-				Blacklist: cups.BlacklistRanges{
-					Ranges: []cups.BlacklistRange{
-						{
-							Start: "127.0.0.1",
-							End:   "127.0.0.1",
-						},
-					},
-				},
+				Blacklist:       blacklist,
 			},
 			GRPC: app.GRPC{
 				Port:     grpcPort,
@@ -141,13 +128,34 @@ var _ = Describe("SyslogAgent", func() {
 			},
 		}
 		go app.NewSyslogAgent(cfg, mc, testLogger).Run()
-
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		emitLogs(ctx, grpcPort)
 
-		var msg *rfc5424.Message
-		Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive(&msg))
+		return cancel
+	}
+
+	It("egresses logs", func() {
+		cancel := setupTestWithBlacklist(cups.BlacklistRanges{})
+		defer cancel()
+
+		Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
+	})
+
+	It("should not send logs to blacklisted IPs", func() {
+		url, err := url.Parse(syslogHTTPS.server.URL)
+		Expect(err).ToNot(HaveOccurred())
+
+		cancel := setupTestWithBlacklist(cups.BlacklistRanges{
+			Ranges: []cups.BlacklistRange{
+				{
+					Start: url.Hostname(),
+					End:   url.Hostname(),
+				},
+			},
+		})
+		defer cancel()
+
+		Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
 	})
 })
 

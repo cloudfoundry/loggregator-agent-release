@@ -102,23 +102,11 @@ func (s *SyslogAgent) Run() {
 	diode := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))
 	}))
+	go s.bindingManager.Run()
 
 	drainIngress := s.metrics.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"scope": "all_drains"}))
-	go s.bindingManager.Run()
-	go func() {
-		for {
-			e := diode.Next()
-
-			drainWriters := s.bindingManager.GetDrains(e.SourceId)
-			for _, w := range drainWriters {
-				drainIngress.Add(1)
-
-				// Ignore this because we typically wrap everything in a diode
-				// writer which doesn't return an error
-				_ = w.Write(e)
-			}
-		}
-	}()
+	envelopeWriter := syslog.NewEnvelopeWriter(s.bindingManager.GetDrains, diode.Next, drainIngress, s.log)
+	go envelopeWriter.Run()
 
 	var opts []plumbing.ConfigOption
 	if len(s.grpc.CipherSuites) > 0 {
@@ -137,8 +125,8 @@ func (s *SyslogAgent) Run() {
 
 	im := s.metrics.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"scope": "agent"}))
 	omm := s.metrics.NewCounter("origin_mappings")
-	rx := v2.NewReceiver(diode, im, omm)
 
+	rx := v2.NewReceiver(diode, im, omm)
 	srv := v2.NewServer(
 		fmt.Sprintf("127.0.0.1:%d", s.grpc.Port),
 		rx,

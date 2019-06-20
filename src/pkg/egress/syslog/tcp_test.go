@@ -282,23 +282,23 @@ func buildGaugeEnvelope(srcInstance string) *loggregator_v2.Envelope {
 		Message: &loggregator_v2.Envelope_Gauge{
 			Gauge: &loggregator_v2.Gauge{
 				Metrics: map[string]*loggregator_v2.GaugeValue{
-					"cpu": &loggregator_v2.GaugeValue{
+					"cpu": {
 						Unit:  "percentage",
 						Value: 0.23,
 					},
-					"disk": &loggregator_v2.GaugeValue{
+					"disk": {
 						Unit:  "bytes",
 						Value: 1234.0,
 					},
-					"disk_quota": &loggregator_v2.GaugeValue{
+					"disk_quota": {
 						Unit:  "bytes",
 						Value: 1024.0,
 					},
-					"memory": &loggregator_v2.GaugeValue{
+					"memory": {
 						Unit:  "bytes",
 						Value: 5423.0,
 					},
-					"memory_quota": &loggregator_v2.GaugeValue{
+					"memory_quota": {
 						Unit:  "bytes",
 						Value: 8000.0,
 					},

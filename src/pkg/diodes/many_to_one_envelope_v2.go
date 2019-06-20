@@ -36,7 +36,7 @@ func (d *ManyToOneEnvelopeV2) TryNext() (*loggregator_v2.Envelope, bool) {
 }
 
 // Next will return the next V2 envelope to be read from the diode. If the
-// diode is empty this method will block until anenvelope is available to be
+// diode is empty this method will block until an envelope is available to be
 // read.
 func (d *ManyToOneEnvelopeV2) Next() *loggregator_v2.Envelope {
 	data := d.d.Next()
