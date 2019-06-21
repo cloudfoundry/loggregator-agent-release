@@ -76,7 +76,7 @@ func (w *TCPWriter) Write(env *loggregator_v2.Envelope) error {
 		return err
 	}
 
-	msgs, err := ToRFC5424(env, w.hostname, w.appID)
+	msgs, err := ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}

@@ -32,8 +32,11 @@ import (
 var _ = Describe("SyslogAgent", func() {
 	var (
 		syslogHTTPS  *syslogHTTPSServer
+		universalSyslogTLS *syslogTCPServer
+		universalAddr string
 		syslogTLS    *syslogTCPServer
 		cupsProvider *fakeBindingCache
+		metricClient *testhelper.SpyMetricClient
 
 		grpcPort   = 30000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
@@ -42,6 +45,9 @@ var _ = Describe("SyslogAgent", func() {
 	BeforeEach(func() {
 		syslogHTTPS = newSyslogHTTPSServer()
 		syslogTLS = newSyslogTLSServer()
+
+		universalSyslogTLS = newSyslogTLSServer()
+		universalAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", universalSyslogTLS.port())
 
 		cupsProvider = &fakeBindingCache{
 			results: []binding.Binding{
@@ -95,6 +101,7 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "agent"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "drains", map[string]string{"unit": "count"})).Should(BeTrue())
+		Eventually(hasMetric(mc, "non_app_drains", map[string]string{"unit": "count"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "binding_refresh_count", nil)).Should(BeTrue())
 		Eventually(hasMetric(mc, "latency_for_last_binding_refresh", map[string]string{"unit": "ms"})).Should(BeTrue())
@@ -104,8 +111,8 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 	})
 
-	var setupTestWithBlacklist = func(blacklist cups.BlacklistRanges) context.CancelFunc{
-		mc := testhelper.NewMetricClient()
+	var setupTestAgent = func(blacklist cups.BlacklistRanges, universalDrains []string) context.CancelFunc{
+		metricClient = testhelper.NewMetricClient()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
 			DebugPort:           7392,
@@ -126,36 +133,47 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: testhelper.Cert("metron.crt"),
 				KeyFile:  testhelper.Cert("metron.key"),
 			},
+			UniversalDrainURLs: universalDrains,
 		}
-		go app.NewSyslogAgent(cfg, mc, testLogger).Run()
+		go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
 		ctx, cancel := context.WithCancel(context.Background())
 		emitLogs(ctx, grpcPort)
 
 		return cancel
 	}
 
-	It("egresses logs", func() {
-		cancel := setupTestWithBlacklist(cups.BlacklistRanges{})
-		defer cancel()
-
-		Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
-	})
-
 	It("should not send logs to blacklisted IPs", func() {
 		url, err := url.Parse(syslogHTTPS.server.URL)
 		Expect(err).ToNot(HaveOccurred())
 
-		cancel := setupTestWithBlacklist(cups.BlacklistRanges{
+		cancel := setupTestAgent(cups.BlacklistRanges{
 			Ranges: []cups.BlacklistRange{
 				{
 					Start: url.Hostname(),
 					End:   url.Hostname(),
 				},
 			},
-		})
+		}, nil)
 		defer cancel()
 
 		Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
+	})
+
+	It("should create connections to universal drains", func() {
+		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{universalAddr})
+		defer cancel()
+
+		Eventually(hasMetric(metricClient, "non_app_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+		Expect(metricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+		Expect(metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+	})
+
+	It("egresses logs", func() {
+		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{universalAddr})
+		defer cancel()
+
+		Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
+		Eventually(universalSyslogTLS.receivedMessages, 5).Should(Receive())
 	})
 })
 

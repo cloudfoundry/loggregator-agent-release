@@ -25,7 +25,7 @@ type Cache struct {
 	KeyFile         string               `env:"CACHE_KEY_FILE_PATH,    required, report"`
 	CommonName      string               `env:"CACHE_COMMON_NAME,      required, report"`
 	PollingInterval time.Duration        `env:"CACHE_POLLING_INTERVAL, report"`
-	Blacklist       cups.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES", report`
+	Blacklist       cups.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 }
 
 // Config holds the configuration for the syslog agent
@@ -34,10 +34,12 @@ type Config struct {
 	DrainSkipCertVerify bool          `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
 	IdleDrainTimeout    time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
 
-	DebugPort   uint16 `env:"DEBUG_PORT, report"`
+	DebugPort uint16 `env:"DEBUG_PORT, report"`
 
 	GRPC  GRPC
 	Cache Cache
+
+	UniversalDrainURLs []string `env:"UNIVERSAL_DRAIN_URLS, report"`
 }
 
 // LoadConfig will load the configuration for the syslog agent from the

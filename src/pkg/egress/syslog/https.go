@@ -41,7 +41,7 @@ func NewHTTPSWriter(
 }
 
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
-	msgs, err := ToRFC5424(env, w.hostname, w.appID)
+	msgs, err := ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}

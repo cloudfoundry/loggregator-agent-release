@@ -264,7 +264,7 @@ func buildLogEnvelope(srcType, srcInstance, payload string, logType loggregator_
 		},
 		InstanceId: srcInstance,
 		Timestamp:  12345678,
-		SourceId:   "source-id",
+		SourceId:   "test-app-id",
 		Message: &loggregator_v2.Envelope_Log{
 			Log: &loggregator_v2.Log{
 				Payload: []byte(payload),
@@ -278,7 +278,7 @@ func buildGaugeEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		InstanceId: srcInstance,
 		Timestamp:  12345678,
-		SourceId:   "source-id",
+		SourceId:   "test-app-id",
 		Message: &loggregator_v2.Envelope_Gauge{
 			Gauge: &loggregator_v2.Gauge{
 				Metrics: map[string]*loggregator_v2.GaugeValue{
@@ -311,7 +311,7 @@ func buildGaugeEnvelope(srcInstance string) *loggregator_v2.Envelope {
 func buildTimerEnvelope() *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		Timestamp: 12345678,
-		SourceId:  "source-id",
+		SourceId:  "test-app-id",
 		Message: &loggregator_v2.Envelope_Timer{
 			Timer: &loggregator_v2.Timer{},
 		},
@@ -321,7 +321,7 @@ func buildTimerEnvelope() *loggregator_v2.Envelope {
 func buildCounterEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		Timestamp:  12345678,
-		SourceId:   "source-id",
+		SourceId:   "test-app-id",
 		InstanceId: srcInstance,
 		Message: &loggregator_v2.Envelope_Counter{
 			Counter: &loggregator_v2.Counter{

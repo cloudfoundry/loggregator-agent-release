@@ -12,7 +12,7 @@ var _ = Describe("RFC5424", func() {
 	It("converts a log envelope to a slice of slice of byte in RFC5424 format", func() {
 		env := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_OUT)
 
-		Expect(syslog.ToRFC5424(env, "test-hostname", "test-app-id")).To(Equal([][]byte{
+		Expect(syslog.ToRFC5424(env, "test-hostname")).To(Equal([][]byte{
 			[]byte("<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - - just a test\n"),
 		}))
 	})
@@ -20,7 +20,7 @@ var _ = Describe("RFC5424", func() {
 	It("uses the correct priority for STDERR", func() {
 		env := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_ERR)
 
-		Expect(syslog.ToRFC5424(env, "test-hostname", "test-app-id")).To(Equal([][]byte{
+		Expect(syslog.ToRFC5424(env, "test-hostname")).To(Equal([][]byte{
 			[]byte("<11>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - - just a test\n"),
 		}))
 	})
@@ -28,7 +28,7 @@ var _ = Describe("RFC5424", func() {
 	It("uses the correct priority for unknown log type", func() {
 		env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
 
-		Expect(syslog.ToRFC5424(env, "test-hostname", "test-app-id")).To(Equal([][]byte{
+		Expect(syslog.ToRFC5424(env, "test-hostname")).To(Equal([][]byte{
 			[]byte("<-1>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - - just a test\n"),
 		}))
 	})
@@ -36,7 +36,7 @@ var _ = Describe("RFC5424", func() {
 	It("converts a gauge envelope to a slice of slice of byte in RFC5424 format", func() {
 		env := buildGaugeEnvelope("1")
 
-		result, err := syslog.ToRFC5424(env, "test-hostname", "test-app-id")
+		result, err := syslog.ToRFC5424(env, "test-hostname")
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(ConsistOf(
@@ -51,7 +51,7 @@ var _ = Describe("RFC5424", func() {
 	It("converts a counter envelope to a slice of slice of byte in RFC5424 format", func() {
 		env := buildCounterEnvelope("1")
 
-		Expect(syslog.ToRFC5424(env, "test-hostname", "test-app-id")).To(Equal([][]byte{
+		Expect(syslog.ToRFC5424(env, "test-hostname")).To(Equal([][]byte{
 			[]byte("<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [counter@47450 name=\"some-counter\" total=\"99\" delta=\"1\"] \n"),
 		}))
 	})
@@ -59,19 +59,20 @@ var _ = Describe("RFC5424", func() {
 	Describe("validation", func() {
 		It("returns an error if hostname is longer than 255", func() {
 			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
-			_, err := syslog.ToRFC5424(env, invalidHostname, "test-app-id")
+			_, err := syslog.ToRFC5424(env, invalidHostname)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("returns an error if app name is longer than 48", func() {
 			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
-			_, err := syslog.ToRFC5424(env, "test-hostname", invalidAppName)
+			env.SourceId = invalidAppName
+			_, err := syslog.ToRFC5424(env, "test-hostname")
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("returns an error if process ID is longer than 128", func() {
 			env := buildLogEnvelope("MY TASK", invalidProcessID, "just a test", 20)
-			_, err := syslog.ToRFC5424(env, "test-hostname", "test-app-id")
+			_, err := syslog.ToRFC5424(env, "test-hostname")
 			Expect(err).To(HaveOccurred())
 		})
 	})

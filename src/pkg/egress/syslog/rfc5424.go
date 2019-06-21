@@ -10,11 +10,12 @@ import (
 
 const RFC5424TimeOffsetNum = "2006-01-02T15:04:05.999999-07:00"
 
-func ToRFC5424(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
+func ToRFC5424(env *loggregator_v2.Envelope, hostname string) ([][]byte, error) {
 	if len(hostname) > 255 {
 		return nil, invalidValue("Hostname", hostname)
 	}
 
+	appID := env.GetSourceId()
 	if len(appID) > 48 {
 		return nil, invalidValue("AppName", appID)
 	}

@@ -27,26 +27,29 @@ type Connector interface {
 }
 
 type Manager struct {
-	mu        sync.Mutex
-	bf        Fetcher
-	bfLimit   int
-	connector Connector
-	log       *log.Logger
+	bf              Fetcher
+	connector       Connector
+	universalDrains []egress.Writer
 
 	pollingInterval time.Duration
 	idleTimeout     time.Duration
 
-	drainCountMetric       metrics.Gauge
-	activeDrainCountMetric metrics.Gauge
-	activeDrainCount       int64
+	drainCountMetric          metrics.Gauge
+	universalDrainCountMetric metrics.Gauge
+	activeDrainCountMetric    metrics.Gauge
+	activeDrainCount          int64
 
 	sourceDrainMap    map[string]map[syslog.Binding]drainHolder
 	sourceAccessTimes map[string]time.Time
+
+	log *log.Logger
+	mu  sync.Mutex
 }
 
 func NewManager(
 	bf Fetcher,
 	c Connector,
+	universalDrainURLs []string,
 	m Metrics,
 	pollingInterval time.Duration,
 	idleTimeout time.Duration,
@@ -54,24 +57,45 @@ func NewManager(
 ) *Manager {
 	tagOpt := metrics.WithMetricTags(map[string]string{"unit": "count"})
 	drainCount := m.NewGauge("drains", tagOpt)
+	universalDrainCount := m.NewGauge("non_app_drains", tagOpt)
 	activeDrains := m.NewGauge("active_drains", tagOpt)
 
 	manager := &Manager{
-		bf:                     bf,
-		bfLimit:                bf.DrainLimit(),
-		pollingInterval:        pollingInterval,
-		idleTimeout:            idleTimeout,
-		connector:              c,
-		drainCountMetric:       drainCount,
-		activeDrainCountMetric: activeDrains,
-		sourceDrainMap:         make(map[string]map[syslog.Binding]drainHolder),
-		sourceAccessTimes:      make(map[string]time.Time),
-		log:                    log,
+		bf:                        bf,
+		connector:                 c,
+		pollingInterval:           pollingInterval,
+		idleTimeout:               idleTimeout,
+		drainCountMetric:          drainCount,
+		universalDrainCountMetric: universalDrainCount,
+		activeDrainCountMetric:    activeDrains,
+		sourceDrainMap:            make(map[string]map[syslog.Binding]drainHolder),
+		sourceAccessTimes:         make(map[string]time.Time),
+		log:                       log,
 	}
 
+	manager.addUniversalDrains(universalDrainURLs)
 	go manager.idleCleanupLoop()
 
 	return manager
+}
+
+func (m *Manager) addUniversalDrains(drains []string) {
+	for _, drain := range drains {
+		writer, err := m.connector.Connect(context.Background(), syslog.Binding{
+			AppId: "all",
+			Drain: drain,
+		})
+		if err != nil {
+			m.log.Printf("failed to connect to universal drain %s: %s", drain, err)
+			continue
+		}
+
+		m.universalDrains = append(m.universalDrains, writer)
+		m.universalDrainCountMetric.Add(1)
+
+		m.activeDrainCount++
+		m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+	}
 }
 
 func (m *Manager) Run() {
@@ -98,25 +122,27 @@ func (m *Manager) GetDrains(sourceID string) []egress.Writer {
 	defer m.mu.Unlock()
 
 	m.sourceAccessTimes[sourceID] = time.Now()
-	drains := make([]egress.Writer, 0, m.bfLimit)
-	for binding, dh := range m.sourceDrainMap[sourceID] {
+	var drains []egress.Writer
+	for binding, drainHolder := range m.sourceDrainMap[sourceID] {
 		// Create drain writer if one does not already exist
-		if dh.drainWriter == nil {
-			writer, err := m.connector.Connect(dh.ctx, binding)
+		if drainHolder.drainWriter == nil {
+			writer, err := m.connector.Connect(drainHolder.ctx, binding)
 			if err != nil {
 				m.log.Printf("failed to create binding: %s", err)
 				continue
 			}
 
-			dh.drainWriter = writer
-			m.sourceDrainMap[sourceID][binding] = dh
+			drainHolder.drainWriter = writer
+			m.sourceDrainMap[sourceID][binding] = drainHolder
 
 			m.activeDrainCount++
 			m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
 		}
 
-		drains = append(drains, dh.drainWriter)
+		drains = append(drains, drainHolder.drainWriter)
 	}
+
+	drains = append(drains, m.universalDrains...)
 
 	return drains
 }

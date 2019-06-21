@@ -20,126 +20,179 @@ import (
 
 var _ = Describe("Manager", func() {
 	var (
-		bf *stubBindingFetcher
-		sm *testhelper.SpyMetricClient
-		c  *spyConnector
+		stubBindingFetcher *stubBindingFetcher
+		spyMetricClient    *testhelper.SpyMetricClient
+		spyConnector       *spyConnector
+
+		binding1 = syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com"}
+		binding2 = syslog.Binding{AppId: "app-2", Hostname: "host-2", Drain: "syslog://drain.url.com"}
+		binding3 = syslog.Binding{AppId: "app-3", Hostname: "host-3", Drain: "syslog://drain.url.com"}
 	)
 
 	BeforeEach(func() {
-		bf = newStubBindingFetcher()
-		sm = testhelper.NewMetricClient()
-		c = newSpyConnector()
+		stubBindingFetcher = newStubBindingFetcher()
+		spyMetricClient = testhelper.NewMetricClient()
+		spyConnector = newSpyConnector()
 	})
 
-	It("reports the number of binding that come from the fetcher", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-2", "host-2", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
-		}
+	Describe("GetDrains()", func() {
+		It("returns drains for a sourceID", func() {
+			stubBindingFetcher.bindings <- []syslog.Binding{binding1, binding2, binding3}
 
-		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			100*time.Millisecond,
-			10*time.Minute,
-			log.New(GinkgoWriter, "", 0),
-		)
-		go m.Run()
+			m := binding.NewManager(
+				stubBindingFetcher,
+				spyConnector,
+				nil,
+				spyMetricClient, 10*time.Second,
+				10*time.Minute,
+				log.New(GinkgoWriter, "", 0),
+			)
+			go m.Run()
 
-		Eventually(func() float64 {
-			return sm.GetMetric("drains", map[string]string{"unit": "count"}).Value()
-		}).Should(BeNumerically("==", 3))
-	})
+			var appDrains []egress.Writer
+			Eventually(func() int {
+				appDrains = m.GetDrains("app-1")
+				return len(appDrains)
+			}).Should(Equal(1))
 
-	It("only creates connections when asked for them", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
-		}
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-2", "host-2", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
-		}
-
-		go func(bindings chan []syslog.Binding) {
-			for {
-				bindings <- []syslog.Binding{
-					{"app-2", "host-2", "syslog://drain.url.com"},
-					{"app-3", "host-3", "syslog://drain.url.com"},
-				}
+			e := &loggregator_v2.Envelope{
+				Timestamp: time.Now().UnixNano(),
+				SourceId:  "app-1",
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{
+						Payload: []byte("hello"),
+					},
+				},
 			}
-		}(bf.bindings)
 
-		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			100*time.Millisecond,
-			10*time.Minute,
-			log.New(GinkgoWriter, "", 0),
-		)
-		go m.Run()
+			appDrains[0].Write(e)
+			Eventually(appDrains[0].(*spyDrain).envelopes).Should(Receive(Equal(e)))
+		})
 
-		Eventually(func() []egress.Writer {
-			return m.GetDrains("app-1")
-		}).Should(HaveLen(1))
-		Expect(c.ConnectionCount()).To(BeNumerically("==", 1))
-		Expect(sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+		It("returns universal syslog drains for all sourceIDs", func() {
+			stubBindingFetcher.bindings <- []syslog.Binding{binding1}
 
-		Eventually(func() []egress.Writer {
-			return m.GetDrains("app-2")
-		}).Should(HaveLen(1))
-		Expect(c.ConnectionCount()).To(BeNumerically("==", 2))
-		Expect(sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(2.0))
+			m := binding.NewManager(
+				stubBindingFetcher,
+				spyConnector,
+				[]string{"syslog://universal-drain.url.com"},
+				spyMetricClient, 10*time.Second,
+				10*time.Minute,
+				log.New(GinkgoWriter, "", 0),
+			)
+			go m.Run()
 
-		Eventually(func() []egress.Writer {
-			return m.GetDrains("app-3")
-		}).Should(HaveLen(1))
-		Expect(c.ConnectionCount()).To(BeNumerically("==", 3))
-		Expect(sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(3.0))
+			var appDrains []egress.Writer
+			Eventually(func() int {
+				appDrains = m.GetDrains("app-1")
+				return len(appDrains)
+			}).Should(Equal(2))
+
+			e := &loggregator_v2.Envelope{
+				Timestamp: time.Now().UnixNano(),
+				SourceId:  "app-1",
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{
+						Payload: []byte("hello"),
+					},
+				},
+			}
+
+			appDrains[0].Write(e)
+			Eventually(appDrains[0].(*spyDrain).envelopes).Should(Receive(Equal(e)))
+
+			appDrains[1].Write(e)
+			Eventually(appDrains[1].(*spyDrain).envelopes).Should(Receive(Equal(e)))
+		})
+
+		It("creates connections when asked for them", func() {
+			stubBindingFetcher.bindings <- []syslog.Binding{
+				binding1,
+				binding3,
+			}
+			stubBindingFetcher.bindings <- []syslog.Binding{
+				binding1,
+				binding2,
+				binding3,
+			}
+
+			go func(bindings chan []syslog.Binding) {
+				for {
+					bindings <- []syslog.Binding{
+						binding2,
+						binding3,
+					}
+				}
+			}(stubBindingFetcher.bindings)
+
+			m := binding.NewManager(
+				stubBindingFetcher,
+				spyConnector,
+				nil,
+				spyMetricClient, 100*time.Millisecond,
+				10*time.Minute,
+				log.New(GinkgoWriter, "", 0),
+			)
+			go m.Run()
+
+			Eventually(func() []egress.Writer {
+				return m.GetDrains("app-1")
+			}).Should(HaveLen(1))
+			Expect(spyConnector.ConnectionCount()).To(BeNumerically("==", 1))
+			Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+
+			Eventually(func() []egress.Writer {
+				return m.GetDrains("app-2")
+			}).Should(HaveLen(1))
+			Expect(spyConnector.ConnectionCount()).To(BeNumerically("==", 2))
+			Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(2.0))
+
+			Eventually(func() []egress.Writer {
+				return m.GetDrains("app-3")
+			}).Should(HaveLen(1))
+			Expect(spyConnector.ConnectionCount()).To(BeNumerically("==", 3))
+			Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(3.0))
+		})
 	})
 
 	It("polls for updates from the binding fetcher", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
+			binding3,
 		}
 
 		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			100*time.Millisecond,
+			stubBindingFetcher,
+			spyConnector,
+			nil,
+			spyMetricClient, 100*time.Millisecond,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
 		go m.Run()
 
 		Eventually(func() float64 {
-			return sm.GetMetric("drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("drains", map[string]string{"unit": "count"}).Value()
 		}).Should(BeNumerically("==", 2))
 
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-2", "host-2", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
+			binding2,
+			binding3,
 		}
 
 		Eventually(func() float64 {
-			return sm.GetMetric("drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("drains", map[string]string{"unit": "count"}).Value()
 		}).Should(BeNumerically("==", 3))
 
 		go func(bindings chan []syslog.Binding) {
 			for {
 				bindings <- []syslog.Binding{
-					{"app-2", "host-2", "syslog://drain.url.com"},
-					{"app-3", "host-3", "syslog://drain.url.com"},
+					binding2,
+					binding3,
 				}
 			}
-		}(bf.bindings)
+		}(stubBindingFetcher.bindings)
 
 		Eventually(func() []egress.Writer {
 			return m.GetDrains("app-1")
@@ -150,30 +203,100 @@ var _ = Describe("Manager", func() {
 		Eventually(func() []egress.Writer {
 			return m.GetDrains("app-3")
 		}).Should(HaveLen(1))
-		Expect(c.ConnectionCount()).Should(BeNumerically("==", 3))
+		Expect(spyConnector.ConnectionCount()).Should(BeNumerically("==", 3))
 
 		// Also remove old drains when updating
 		Eventually(func() []egress.Writer {
 			return m.GetDrains("app-1")
 		}).Should(HaveLen(0))
 
-		closedBdg := syslog.Binding{"app-1", "host-1", "syslog://drain.url.com"}
-		closedCtx := c.bindingContextMap[closedBdg]
+		closedBdg := binding1
+		closedCtx := spyConnector.bindingContextMap[closedBdg]
 		Expect(closedCtx.Err()).To(Equal(errors.New("context canceled")))
 	})
 
-	It("removes deleted drains", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-2", "host-2", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
+	It("reports the number of bindings that come from the fetcher", func() {
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
+			binding2,
+			binding3,
 		}
 
 		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			100*time.Millisecond,
+			stubBindingFetcher,
+			spyConnector,
+			nil,
+			spyMetricClient, 100*time.Millisecond,
+			10*time.Minute,
+			log.New(GinkgoWriter, "", 0),
+		)
+		go m.Run()
+
+		Eventually(func() float64 {
+			return spyMetricClient.GetMetric("drains", map[string]string{"unit": "count"}).Value()
+		}).Should(BeNumerically("==", 3))
+	})
+
+	It("reports the number of universal drains", func() {
+		binding.NewManager(
+			stubBindingFetcher,
+			spyConnector,
+			[]string{
+				"syslog://universal-drain1.url.com",
+				"syslog://universal-drain2.url.com",
+			},
+			spyMetricClient, 100*time.Millisecond,
+			10*time.Minute,
+			log.New(GinkgoWriter, "", 0),
+		)
+
+		Expect(spyMetricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()).To(Equal(float64(2)))
+	})
+
+	It("includes universal drains in active drain count", func() {
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
+			binding2,
+			binding3,
+		}
+
+		m := binding.NewManager(
+			stubBindingFetcher,
+			spyConnector,
+			[]string{
+				"syslog://universal-drain1.url.com",
+			},
+			spyMetricClient, 100*time.Millisecond,
+			10*time.Minute,
+			log.New(GinkgoWriter, "", 0),
+		)
+		go m.Run()
+
+		Eventually(func() []egress.Writer {
+			return m.GetDrains("app-1")
+		}).Should(HaveLen(2))
+		Expect(spyConnector.ConnectionCount()).To(BeNumerically("==", 2))
+
+		Eventually(func() []egress.Writer {
+			return m.GetDrains("app-2")
+		}).Should(HaveLen(2))
+		Expect(spyConnector.ConnectionCount()).To(BeNumerically("==", 3))
+
+		Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(3.0))
+	})
+
+	It("removes deleted drains", func() {
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
+			binding2,
+			binding3,
+		}
+
+		m := binding.NewManager(
+			stubBindingFetcher,
+			spyConnector,
+			nil,
+			spyMetricClient, 100*time.Millisecond,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -182,34 +305,34 @@ var _ = Describe("Manager", func() {
 		Eventually(func() []egress.Writer {
 			return m.GetDrains("app-1")
 		}).Should(HaveLen(1))
-		Expect(sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+		Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
 
 		go func(bindings chan []syslog.Binding) {
 			for {
 				bindings <- []syslog.Binding{
-					{"app-2", "host-2", "syslog://drain.url.com"},
-					{"app-3", "host-3", "syslog://drain.url.com"},
+					binding2,
+					binding3,
 				}
 			}
-		}(bf.bindings)
+		}(stubBindingFetcher.bindings)
 
 		Eventually(func() []egress.Writer {
 			return m.GetDrains("app-1")
 		}).Should(HaveLen(0))
-		Expect(sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(0.0))
+		Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(0.0))
 	})
 
 	It("removes drain holders for inactive drains", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
 			{"app-2", "host-1", "syslog://drain.url.com"},
 		}
 
 		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			100*time.Millisecond,
+			stubBindingFetcher,
+			spyConnector,
+			nil,
+			spyMetricClient, 100*time.Millisecond,
 			100*time.Millisecond,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -228,17 +351,17 @@ var _ = Describe("Manager", func() {
 		}()
 
 		Eventually(func() float64 {
-			return sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 		}).Should(Equal(2.0))
 
 		// app-1 should eventually expire and be cleaned up.
 		Eventually(func() float64 {
-			return sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 		}).Should(Equal(1.0))
 
 		// The active drain count metric should only be decremented once.
 		Consistently(func() float64 {
-			return sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 		}).Should(Equal(1.0))
 
 		// It re-activates on another get drains.
@@ -247,60 +370,20 @@ var _ = Describe("Manager", func() {
 		}).Should(HaveLen(1))
 
 		Eventually(func() float64 {
-			return sm.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 		}).Should(Equal(2.0))
 	})
 
-	It("returns drains for a sourceID", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
-			{"app-2", "host-2", "syslog://drain.url.com"},
-			{"app-3", "host-3", "syslog://drain.url.com"},
-		}
-
-		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			10*time.Second,
-			10*time.Minute,
-			log.New(GinkgoWriter, "", 0),
-		)
-		go m.Run()
-
-		var appDrains []egress.Writer
-		Eventually(func() int {
-			appDrains = m.GetDrains("app-1")
-			return len(appDrains)
-		}).Should(Equal(1))
-
-		e := &loggregator_v2.Envelope{
-			Timestamp: time.Now().UnixNano(),
-			SourceId:  "app-1",
-			Message: &loggregator_v2.Envelope_Log{
-				Log: &loggregator_v2.Log{
-					Payload: []byte("hello"),
-				},
-			},
-		}
-
-		appDrains[0].Write(e)
-
-		var env *loggregator_v2.Envelope
-		Eventually(appDrains[0].(*spyDrain).envelopes).Should(Receive(&env))
-		Expect(env).To(Equal(e))
-	})
-
 	It("maintains current state on error", func() {
-		bf.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog://drain.url.com"},
+		stubBindingFetcher.bindings <- []syslog.Binding{
+			binding1,
 		}
 
 		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			10*time.Millisecond,
+			stubBindingFetcher,
+			spyConnector,
+			nil,
+			spyMetricClient, 10*time.Millisecond,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -310,7 +393,7 @@ var _ = Describe("Manager", func() {
 			return len(m.GetDrains("app-1"))
 		}).Should(Equal(1))
 
-		bf.errors <- errors.New("boom")
+		stubBindingFetcher.errors <- errors.New("boom")
 
 		Consistently(func() int {
 			return len(m.GetDrains("app-1"))
@@ -318,15 +401,15 @@ var _ = Describe("Manager", func() {
 	})
 
 	It("should not return a drain for binding to an invalid address", func() {
-		bf.bindings <- []syslog.Binding{
+		stubBindingFetcher.bindings <- []syslog.Binding{
 			{"app-1", "host-1", "syslog-v3-v3://drain.url.com"},
 		}
 
 		m := binding.NewManager(
-			bf,
-			c,
-			sm,
-			10*time.Millisecond,
+			stubBindingFetcher,
+			spyConnector,
+			nil,
+			spyMetricClient, 10*time.Millisecond,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
