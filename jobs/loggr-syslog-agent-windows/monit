@@ -16,6 +16,7 @@
       "AGENT_PORT" => "#{p("port")}",
       "DEBUG_PORT" => "#{p("debug_port")}",
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
+      "UNIVERSAL_DRAIN_URLS" => "#{p("non_app_drains")}",
   }
 
   monit = {

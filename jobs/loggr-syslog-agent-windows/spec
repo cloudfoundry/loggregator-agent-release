@@ -36,6 +36,9 @@ properties:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
 
+  non_app_drains:
+    description: "URLs to syslog drains that will receive all logs from all sources"
+
   tls.ca_cert:
     description: |
       TLS loggregator root CA certificate. It is required for key/cert

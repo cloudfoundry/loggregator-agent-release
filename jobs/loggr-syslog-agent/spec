@@ -36,6 +36,9 @@ properties:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
 
+  non_app_drains:
+    description: "URLs to syslog drains that will receive all logs from all sources"
+
   blacklisted_syslog_ranges:
     description: |
       A list of IP address ranges that are not allowed to be specified in
