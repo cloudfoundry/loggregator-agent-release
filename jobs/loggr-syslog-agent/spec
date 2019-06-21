@@ -38,6 +38,8 @@ properties:
 
   non_app_drains:
     description: "URLs to syslog drains that will receive all logs from all sources"
+    default: ""
+    example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
 
   blacklisted_syslog_ranges:
     description: |
