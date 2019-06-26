@@ -44,7 +44,7 @@ var _ = Describe("PromScraper", func() {
 			ClientCertPath:         testhelper.Cert("metron.crt"),
 			CACertPath:             testhelper.Cert("loggregator-ca.crt"),
 			LoggregatorIngressAddr: spyAgent.addr,
-			MetricPortCfg:          fmt.Sprintf("%s/*", metricConfigDir),
+			ConfigGlobs:            []string{fmt.Sprintf("%s/prom_scraper_config*", metricConfigDir)},
 			ScrapeInterval:         100 * time.Millisecond,
 		}
 	})
@@ -55,7 +55,7 @@ var _ = Describe("PromScraper", func() {
 	})
 
 	It("scrapes a prometheus endpoint and sends those metrics to a loggregator agent", func() {
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port))
+		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 		promServer.resp = promOutput
 
 		ps := app.NewPromScraper(cfg, testLogger)
@@ -72,12 +72,13 @@ var _ = Describe("PromScraper", func() {
 
 	It("scrapes multiple prometheus endpoints and sends those metrics to a loggregator agent", func() {
 		promServer2 := newStubPromServer()
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port))
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port))
+		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
+		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
 
 		promServer.resp = promOutput
 		promServer2.resp = promOutput2
 
+		cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
 		ps := app.NewPromScraper(cfg, testLogger)
 		go ps.Run()
 
@@ -92,7 +93,7 @@ var _ = Describe("PromScraper", func() {
 	})
 
 	It("scrapes with headers if provided", func() {
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port))
+		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 		promServer.resp = promOutput
 
 		ps := app.NewPromScraper(cfg, testLogger)
@@ -207,8 +208,8 @@ func metricPortConfigDir() string {
 	return dir
 }
 
-func writeScrapeConfig(metricConfigDir, config string) {
-	f, err := ioutil.TempFile(metricConfigDir, "metric_port.yml")
+func writeScrapeConfig(metricConfigDir, config, fileName string) {
+	f, err := ioutil.TempFile(metricConfigDir, fileName)
 	Expect(err).ToNot(HaveOccurred())
 
 	_, err = f.Write([]byte(config))

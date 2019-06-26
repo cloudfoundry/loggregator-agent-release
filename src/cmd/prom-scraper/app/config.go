@@ -15,7 +15,7 @@ type Config struct {
 
 	LoggregatorIngressAddr string        `env:"LOGGREGATOR_AGENT_ADDR, report, required"`
 	DefaultSourceID        string        `env:"DEFAULT_SOURCE_ID, report, required"`
-	MetricPortCfg          string        `env:"METRIC_PORT_GLOB, report"`
+	ConfigGlobs            []string      `env:"CONFIG_GLOBS, report"`
 	ScrapeInterval         time.Duration `env:"SCRAPE_INTERVAL, report"`
 }
 

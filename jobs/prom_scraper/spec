@@ -19,12 +19,9 @@ properties:
   scrape_interval:
     description: "The interval to scrape the metrics URL (golang duration)"
     default: 15s
-  metric_port_glob:
-    description: |
-      Files matching the glob are expected to contain ports that provide prometheus metrics
-      that will be bound to http://localhost:{port}/metrics.
-    default: /var/vcap/jobs/*/config/metric_port.yml
-
+  config_globs:
+    description: "Files matching the globs are expected to contain information to scrape a Prometheus metrics endpoint on localhost."
+    default: [/var/vcap/jobs/*/config/prom_scraper_config.yml, /var/vcap/jobs/*/config/metric_port.yml]
   loggregator_agent.grpc_port:
     description: "The gRPC port used to connect to loggregator agent. Can come from loggregator link"
   loggregator_agent.tls.cert:

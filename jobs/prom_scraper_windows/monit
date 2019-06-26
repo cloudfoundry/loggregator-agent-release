@@ -12,6 +12,7 @@
     "CA_CERT_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_ca.crt",
     "CLIENT_CERT_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_agent.crt",
     "CLIENT_KEY_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_agent.key",
+    "CONFIG_GLOBS" => p('config_globs'),
     "SCRAPE_INTERVAL" => p('scrape_interval'),
     "DEFAULT_SOURCE_ID" => "infra_#{spec.job.name}",
   }

@@ -45,7 +45,7 @@ func (p *PromScraper) Run() {
 	}
 
 	scrapeTargetProvider := func() []scraper.Target {
-		return scrapeTargetsFromFiles(p.cfg.MetricPortCfg, p.log)
+		return p.scrapeTargetsFromFiles(p.cfg.ConfigGlobs)
 	}
 
 	s := scraper.New(
@@ -61,40 +61,55 @@ func (p *PromScraper) Run() {
 	}
 }
 
-func scrapeTargetsFromFiles(glob string, l *log.Logger) []scraper.Target {
-	files, err := filepath.Glob(glob)
-	if err != nil {
-		l.Fatal("Unable to read metric port location")
-	}
+func (p *PromScraper) scrapeTargetsFromFiles(globs []string) []scraper.Target {
+	files := p.filesForGlobs(globs)
 
 	var targets []scraper.Target
-
 	for _, f := range files {
-		yamlFile, err := ioutil.ReadFile(f)
-		if err != nil {
-			l.Fatalf("cannot read file: %s", err)
-		}
-
-		var c struct {
-			Port       string            `yaml:"port"`
-			SourceID   string            `yaml:"source_id"`
-			InstanceID string            `yaml:"instance_id"`
-			Headers    map[string]string `yaml:"headers"`
-		}
-		err = yaml.Unmarshal(yamlFile, &c)
-		if err != nil {
-			l.Fatalf("Unmarshal: %v", err)
-		}
-
-		targets = append(targets, scraper.Target{
-			ID:         c.SourceID,
-			InstanceID: c.InstanceID,
-			MetricURL:  fmt.Sprintf("http://127.0.0.1:%s/metrics", c.Port),
-			Headers:    c.Headers,
-		})
+		targets = append(targets, p.parseConfig(f))
 	}
 
 	return targets
+}
+
+func (p *PromScraper) filesForGlobs(globs []string) []string {
+	var files []string
+
+	for _, glob := range globs {
+		globFiles, err := filepath.Glob(glob)
+		if err != nil {
+			p.log.Println("Unable to read config from glob:", glob)
+		}
+
+		files = append(files, globFiles...)
+	}
+
+	return files
+}
+
+func (p *PromScraper) parseConfig(file string) scraper.Target {
+	yamlFile, err := ioutil.ReadFile(file)
+	if err != nil {
+		p.log.Fatalf("cannot read file: %s", err)
+	}
+
+	var c struct {
+		Port       string            `yaml:"port"`
+		SourceID   string            `yaml:"source_id"`
+		InstanceID string            `yaml:"instance_id"`
+		Headers    map[string]string `yaml:"headers"`
+	}
+	err = yaml.Unmarshal(yamlFile, &c)
+	if err != nil {
+		p.log.Fatalf("Unmarshal: %v", err)
+	}
+
+	return scraper.Target{
+		ID:         c.SourceID,
+		InstanceID: c.InstanceID,
+		MetricURL:  fmt.Sprintf("http://127.0.0.1:%s/metrics", c.Port),
+		Headers:    c.Headers,
+	}
 }
 
 func scrape(addr string, headers map[string]string) (response *http.Response, e error) {
