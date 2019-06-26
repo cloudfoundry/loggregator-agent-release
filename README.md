@@ -128,7 +128,8 @@ communicate with the [Leadership Election Release][leadership-election] so dupli
 scrapes are avoided in an HA environment.
 
 ### Prom Scraper
-A simple agent that reads from any local premetheus-scrapable endpoint and forwards the results.
+A simple agent that reads from any local prometheus-scrapable endpoint and forwards the results to Loggregator.
+Configurable via files in colocated bosh jobs as described in the [docs][prom-scraper]
 
 ## More Resources and Documentation
 
@@ -152,3 +153,4 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [go-loggregator]:      https://code.cloudfoundry.org/go-loggregator
 [leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
+[prom-scraper]:        docs/prom-scraper.md
