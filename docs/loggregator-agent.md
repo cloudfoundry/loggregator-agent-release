@@ -24,3 +24,5 @@ The Loggregator Agent is compatable with Loggregator v96+.
 There is Go client library: [go-loggregator][go-loggregator]. The client
 library has several useful patterns along with examples to interact with a
 Loggregator Agent.
+
+[go-loggregator]: https://code.cloudfoundry.org/go-loggregator

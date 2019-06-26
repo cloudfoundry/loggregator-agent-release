@@ -60,7 +60,6 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/loggregator/jobs/loggregator-tests/badge
 [ci-pipeline]:         https://loggregator.ci.cf-app.com/teams/main/pipelines/loggregator
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
-[go-loggregator]:      https://code.cloudfoundry.org/go-loggregator
 [leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
 
