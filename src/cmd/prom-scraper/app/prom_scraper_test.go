@@ -104,30 +104,63 @@ var _ = Describe("PromScraper", func() {
 			HaveKeyWithValue("Header2", []string{"value2"}),
 		)))
 	})
+
+	Context("metrics path", func() {
+		It("defaults to /metrics", func() {
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
+			promServer.resp = promOutput
+
+			ps := app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Eventually(promServer.requestPaths).Should(Receive(Equal("/metrics")))
+		})
+
+		It("scrapes a different path if provided", func() {
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithPathTemplate, promServer.port, "/other/metrics/endpoint"),
+				"prom_scraper_config.yml",
+			)
+
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
+			promServer.resp = promOutput
+
+			ps := app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Eventually(promServer.requestPaths).Should(Receive(Equal("/other/metrics/endpoint")))
+		})
+	})
+
 })
-
-func newStubPromServer() *stubPromServer {
-	s := &stubPromServer{}
-
-	server := httptest.NewServer(s)
-
-	addr := server.Listener.Addr().String()
-	tokens := strings.Split(addr, ":")
-	s.port = tokens[len(tokens)-1]
-	s.requestHeaders = make(chan http.Header, 100)
-
-	return s
-}
 
 type stubPromServer struct {
 	resp string
 	port string
 
 	requestHeaders chan http.Header
+	requestPaths   chan string
+}
+
+func newStubPromServer() *stubPromServer {
+	s := &stubPromServer{
+		requestHeaders: make(chan http.Header, 100),
+		requestPaths:   make(chan string, 100),
+	}
+
+	server := httptest.NewServer(s)
+
+	addr := server.Listener.Addr().String()
+	tokens := strings.Split(addr, ":")
+	s.port = tokens[len(tokens)-1]
+
+	return s
 }
 
 func (s *stubPromServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.requestHeaders <- req.Header
+	s.requestPaths <- req.URL.Path
 	w.Write([]byte(s.resp))
 }
 
@@ -176,28 +209,32 @@ node_timex_pps_jitter_seconds 4
 # TYPE node_timex_pps_jitter_total counter
 node_timex_pps_jitter_total 5
 `
-)
 
-const (
 	promOutput2 = `
 # HELP node2_counter A second counter from another metrics url
 # TYPE node2_counter counter
 node2_counter 6
 `
-)
 
-const metricConfigTemplate = `---
+	metricConfigTemplate = `---
 port: %s
 source_id: some-id
 instance_id: some-instance-id`
 
-const metricConfigWithHeadersTemplate = `---
+	metricConfigWithPathTemplate = `---
+port: %s
+source_id: some-id
+instance_id: some-instance-id
+path: %s`
+
+	metricConfigWithHeadersTemplate = `---
 port: %s
 source_id: some-id
 instance_id: some-instance-id
 headers:
   Header1: value1
   Header2: value2`
+)
 
 func metricPortConfigDir() string {
 	dir, err := ioutil.TempDir(".", "")

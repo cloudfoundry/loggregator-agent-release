@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator"
@@ -87,18 +88,24 @@ func (p *PromScraper) filesForGlobs(globs []string) []string {
 	return files
 }
 
+type promScraperConfig struct {
+	Port       string            `yaml:"port"`
+	SourceID   string            `yaml:"source_id"`
+	InstanceID string            `yaml:"instance_id"`
+	Path       string            `yaml:"path"`
+	Headers    map[string]string `yaml:"headers"`
+}
+
 func (p *PromScraper) parseConfig(file string) scraper.Target {
 	yamlFile, err := ioutil.ReadFile(file)
 	if err != nil {
 		p.log.Fatalf("cannot read file: %s", err)
 	}
 
-	var c struct {
-		Port       string            `yaml:"port"`
-		SourceID   string            `yaml:"source_id"`
-		InstanceID string            `yaml:"instance_id"`
-		Headers    map[string]string `yaml:"headers"`
+	c := promScraperConfig{
+		Path: "/metrics",
 	}
+
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
 		p.log.Fatalf("Unmarshal: %v", err)
@@ -107,7 +114,7 @@ func (p *PromScraper) parseConfig(file string) scraper.Target {
 	return scraper.Target{
 		ID:         c.SourceID,
 		InstanceID: c.InstanceID,
-		MetricURL:  fmt.Sprintf("http://127.0.0.1:%s/metrics", c.Port),
+		MetricURL:  fmt.Sprintf("http://127.0.0.1:%s/%s", c.Port, strings.TrimPrefix(c.Path, "/")),
 		Headers:    c.Headers,
 	}
 }
