@@ -17,6 +17,7 @@ type Config struct {
 	DefaultSourceID        string        `env:"DEFAULT_SOURCE_ID, report, required"`
 	ConfigGlobs            []string      `env:"CONFIG_GLOBS, report"`
 	ScrapeInterval         time.Duration `env:"SCRAPE_INTERVAL, report"`
+	SkipSSLValidation      bool          `env:"SKIP_SSL_VALIDATION, report"`
 }
 
 func LoadConfig(log *log.Logger) Config {

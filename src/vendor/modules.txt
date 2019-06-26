@@ -10,6 +10,9 @@ code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
 # code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 code.cloudfoundry.org/rfc5424
+# code.cloudfoundry.org/tlsconfig v0.0.0-20190419002020-eb9396db5a71
+code.cloudfoundry.org/tlsconfig
+code.cloudfoundry.org/tlsconfig/certtest
 # github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d
 github.com/StackExchange/wmi
 # github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
@@ -114,6 +117,8 @@ github.com/shirou/gopsutil/load
 github.com/shirou/gopsutil/mem
 github.com/shirou/gopsutil/net
 github.com/shirou/gopsutil/internal/common
+# github.com/square/certstrap v1.1.2-0.20181030173000-b612375892a7
+github.com/square/certstrap/pkix
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
 # github.com/valyala/fasthttp v1.3.0

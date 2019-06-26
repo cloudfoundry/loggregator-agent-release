@@ -161,7 +161,7 @@ var _ = Describe("App", func() {
 			}).Should(BeTrue())
 
 			metric := spyMetricsClient.GetMetric("num_scrapes", nil)
-			Eventually(metric.Value, 200*time.Millisecond).Should(BeNumerically(">", 1))
+			Eventually(metric.Value).Should(BeNumerically(">", 1))
 		})
 
 		It("creates a metric for the last total number of attempted scrapes", func() {

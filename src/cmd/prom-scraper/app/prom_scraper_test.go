@@ -17,6 +17,8 @@ import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/tlsconfig"
+	"code.cloudfoundry.org/tlsconfig/certtest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"google.golang.org/grpc"
@@ -46,6 +48,7 @@ var _ = Describe("PromScraper", func() {
 			LoggregatorIngressAddr: spyAgent.addr,
 			ConfigGlobs:            []string{fmt.Sprintf("%s/prom_scraper_config*", metricConfigDir)},
 			ScrapeInterval:         100 * time.Millisecond,
+			SkipSSLValidation:      true,
 		}
 	})
 
@@ -133,6 +136,43 @@ var _ = Describe("PromScraper", func() {
 		})
 	})
 
+	Context("https", func() {
+		var promServer2 *stubPromServer
+
+		BeforeEach(func() {
+			promServer2 = newStubHttpsPromServer(testLogger)
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer2.port, "https"),
+				"prom_scraper_config.yml",
+			)
+
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
+			promServer2.resp = promOutput
+		})
+
+		It("scrapes https if provided", func() {
+			ps := app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Eventually(spyAgent.Envelopes).Should(And(
+				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
+				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
+				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
+				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+			))
+		})
+
+		It("respects skip SSL validation", func() {
+			cfg.SkipSSLValidation = false
+			ps := app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			// certs have an untrusted CA
+			Consistently(spyAgent.Envelopes, 1).Should(BeEmpty())
+		})
+	})
 })
 
 type stubPromServer struct {
@@ -150,6 +190,38 @@ func newStubPromServer() *stubPromServer {
 	}
 
 	server := httptest.NewServer(s)
+
+	addr := server.URL
+	tokens := strings.Split(addr, ":")
+	s.port = tokens[len(tokens)-1]
+
+	return s
+}
+
+func newStubHttpsPromServer(testLogger *log.Logger) *stubPromServer {
+	s := &stubPromServer{
+		requestHeaders: make(chan http.Header, 100),
+		requestPaths:   make(chan string, 100),
+	}
+
+	ca, err := certtest.BuildCA("tlsconfig")
+	Expect(err).ToNot(HaveOccurred())
+
+	serverCrt, err := ca.BuildSignedCertificate("server", certtest.WithDomains("tlsconfig"))
+	Expect(err).ToNot(HaveOccurred())
+
+	serverTLSCrt, err := serverCrt.TLSCertificate()
+	Expect(err).ToNot(HaveOccurred())
+
+	serverConf, err := tlsconfig.Build(
+		tlsconfig.WithIdentity(serverTLSCrt),
+	).Server()
+	Expect(err).ToNot(HaveOccurred())
+
+	server := httptest.NewUnstartedServer(s)
+	server.TLS = serverConf
+	server.Config.ErrorLog = testLogger
+	server.StartTLS()
 
 	addr := server.Listener.Addr().String()
 	tokens := strings.Split(addr, ":")
@@ -226,6 +298,12 @@ port: %s
 source_id: some-id
 instance_id: some-instance-id
 path: %s`
+
+	metricConfigWithSchemeTemplate = `---
+port: %s
+source_id: some-id
+instance_id: some-instance-id
+scheme: %s`
 
 	metricConfigWithHeadersTemplate = `---
 port: %s

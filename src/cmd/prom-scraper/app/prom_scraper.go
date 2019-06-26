@@ -1,6 +1,8 @@
 package app
 
 import (
+	"code.cloudfoundry.org/tlsconfig"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -52,7 +54,7 @@ func (p *PromScraper) Run() {
 	s := scraper.New(
 		scrapeTargetProvider,
 		client,
-		scrape,
+		p.scrape,
 	)
 
 	for range time.Tick(p.cfg.ScrapeInterval) {
@@ -79,7 +81,7 @@ func (p *PromScraper) filesForGlobs(globs []string) []string {
 	for _, glob := range globs {
 		globFiles, err := filepath.Glob(glob)
 		if err != nil {
-			p.log.Println("Unable to read config from glob:", glob)
+			p.log.Println("unable to read config from glob:", glob)
 		}
 
 		files = append(files, globFiles...)
@@ -92,6 +94,7 @@ type promScraperConfig struct {
 	Port       string            `yaml:"port"`
 	SourceID   string            `yaml:"source_id"`
 	InstanceID string            `yaml:"instance_id"`
+	Scheme     string            `yaml:"scheme"`
 	Path       string            `yaml:"path"`
 	Headers    map[string]string `yaml:"headers"`
 }
@@ -103,7 +106,8 @@ func (p *PromScraper) parseConfig(file string) scraper.Target {
 	}
 
 	c := promScraperConfig{
-		Path: "/metrics",
+		Scheme: "http",
+		Path:   "/metrics",
 	}
 
 	err = yaml.Unmarshal(yamlFile, &c)
@@ -114,12 +118,12 @@ func (p *PromScraper) parseConfig(file string) scraper.Target {
 	return scraper.Target{
 		ID:         c.SourceID,
 		InstanceID: c.InstanceID,
-		MetricURL:  fmt.Sprintf("http://127.0.0.1:%s/%s", c.Port, strings.TrimPrefix(c.Path, "/")),
+		MetricURL:  fmt.Sprintf("%s://127.0.0.1:%s/%s", c.Scheme, c.Port, strings.TrimPrefix(c.Path, "/")),
 		Headers:    c.Headers,
 	}
 }
 
-func scrape(addr string, headers map[string]string) (response *http.Response, e error) {
+func (p *PromScraper) scrape(addr string, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	if err != nil {
 		return nil, err
@@ -131,5 +135,27 @@ func scrape(addr string, headers map[string]string) (response *http.Response, e 
 	}
 	req.Header = requestHeader
 
-	return http.DefaultClient.Do(req)
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+	).Client(
+		withSkipSSLValidation(p.cfg.SkipSSLValidation),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+
+	return client.Do(req)
+}
+
+func withSkipSSLValidation(skipSSLValidation bool) tlsconfig.ClientOption {
+	return func(tlsConfig *tls.Config) error {
+		tlsConfig.InsecureSkipVerify = skipSSLValidation
+		return nil
+	}
 }
