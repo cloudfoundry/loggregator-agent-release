@@ -16,7 +16,7 @@ templates:
   system_metrics.crt.erb: config/certs/system_metrics.crt
   system_metrics.key.erb: config/certs/system_metrics.key
   system_metrics_ca.crt.erb: config/certs/system_metrics_ca.crt
-  metric_port.yml.erb: config/metric_port.yml
+  prom_scraper_config.yml.erb: config/prom_scraper_config.yml
 
 packages:
 - metric-scraper

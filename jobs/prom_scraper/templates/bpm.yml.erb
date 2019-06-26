@@ -9,19 +9,19 @@
 %>
 
 processes:
-  - name: prom_scraper
-    executable: /var/vcap/packages/prom_scraper/prom-scraper
-    env:
-      LOGGREGATOR_AGENT_ADDR: "<%= "localhost:#{loggregator_agent_port}" %>"
-      CA_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_ca.crt"
-      CLIENT_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.crt"
-      CLIENT_KEY_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.key"
-      CONFIG_GLOBS: "<%= p('config_globs') %>"
-      SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
-      DEFAULT_SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
-    unsafe:
-      unrestricted_volumes:
-      - path: /var/vcap/jobs
-        mount_only: true
-      - path: /var/vcap/data/jobs
-        mount_only: true
+- name: prom_scraper
+  executable: /var/vcap/packages/prom_scraper/prom-scraper
+  env:
+    LOGGREGATOR_AGENT_ADDR: "<%= "localhost:#{loggregator_agent_port}" %>"
+    CA_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_ca.crt"
+    CLIENT_CERT_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.crt"
+    CLIENT_KEY_PATH: "/var/vcap/jobs/prom_scraper/config/certs/loggregator_agent.key"
+    CONFIG_GLOBS: <%= p('config_globs').join(',') %>
+    SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
+    DEFAULT_SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
+  unsafe:
+    unrestricted_volumes:
+    - path: /var/vcap/jobs
+      mount_only: true
+    - path: /var/vcap/data/jobs
+      mount_only: true

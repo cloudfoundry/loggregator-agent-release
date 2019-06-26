@@ -18,7 +18,7 @@ templates:
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
-  metric_port.yml.erb: config/metric_port.yml
+  prom_scraper_config.yml.erb: config/prom_scraper_config.yml
 
 packages:
 - loggregator_agent_windows
