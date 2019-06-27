@@ -17,14 +17,18 @@ import (
 )
 
 type PromScraper struct {
-	cfg Config
-	log *log.Logger
+	cfg  Config
+	log  *log.Logger
+	stop chan struct{}
+	done chan struct{}
 }
 
 func NewPromScraper(cfg Config, log *log.Logger) *PromScraper {
 	return &PromScraper{
 		cfg: cfg,
 		log: log,
+		stop: make(chan struct{}),
+		done: make(chan struct{}),
 	}
 }
 
@@ -57,11 +61,23 @@ func (p *PromScraper) Run() {
 		p.scrape,
 	)
 
-	for range time.Tick(p.cfg.ScrapeInterval) {
-		if err := s.Scrape(); err != nil {
-			p.log.Printf("failed to scrape: %s", err)
+	for {
+		select {
+		case <-time.Tick(p.cfg.ScrapeInterval):
+			if err := s.Scrape(); err != nil {
+				p.log.Printf("failed to scrape: %s", err)
+			}
+		case <-p.stop:
+			close(p.done)
+			return
 		}
 	}
+}
+
+// Stops cancel future scrapes and wait for any current scrapes to complete
+func (p *PromScraper) Stop() {
+	close(p.stop)
+	<-p.done
 }
 
 func (p *PromScraper) scrapeTargetsFromFiles(globs []string) []scraper.Target {

@@ -29,6 +29,7 @@ var _ = Describe("PromScraper", func() {
 		spyAgent   *spyAgent
 		cfg        app.Config
 		promServer *stubPromServer
+		ps         *app.PromScraper
 
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
@@ -53,6 +54,8 @@ var _ = Describe("PromScraper", func() {
 	})
 
 	AfterEach(func() {
+		ps.Stop()
+
 		err := os.RemoveAll(metricConfigDir)
 		Expect(err).ToNot(HaveOccurred())
 		gexec.CleanupBuildArtifacts()
@@ -62,7 +65,7 @@ var _ = Describe("PromScraper", func() {
 		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 		promServer.resp = promOutput
 
-		ps := app.NewPromScraper(cfg, testLogger)
+		ps = app.NewPromScraper(cfg, testLogger)
 		go ps.Run()
 
 		Eventually(spyAgent.Envelopes).Should(And(
@@ -83,7 +86,7 @@ var _ = Describe("PromScraper", func() {
 		promServer2.resp = promOutput2
 
 		cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
-		ps := app.NewPromScraper(cfg, testLogger)
+		ps = app.NewPromScraper(cfg, testLogger)
 		go ps.Run()
 
 		Eventually(spyAgent.Envelopes).Should(And(
@@ -100,7 +103,7 @@ var _ = Describe("PromScraper", func() {
 		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 		promServer.resp = promOutput
 
-		ps := app.NewPromScraper(cfg, testLogger)
+		ps = app.NewPromScraper(cfg, testLogger)
 		go ps.Run()
 
 		Eventually(promServer.requestHeaders).Should(Receive(And(
@@ -114,7 +117,7 @@ var _ = Describe("PromScraper", func() {
 			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
 
-			ps := app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
 			Eventually(promServer.requestPaths).Should(Receive(Equal("/metrics")))
@@ -130,7 +133,7 @@ var _ = Describe("PromScraper", func() {
 			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
 
-			ps := app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
 			Eventually(promServer.requestPaths).Should(Receive(Equal("/other/metrics/endpoint")))
@@ -153,7 +156,7 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("scrapes https if provided", func() {
-			ps := app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -167,7 +170,7 @@ var _ = Describe("PromScraper", func() {
 
 		It("respects skip SSL validation", func() {
 			cfg.SkipSSLValidation = false
-			ps := app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
 			// certs have an untrusted CA
