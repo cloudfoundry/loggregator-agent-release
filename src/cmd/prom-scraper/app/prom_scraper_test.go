@@ -56,8 +56,10 @@ var _ = Describe("PromScraper", func() {
 	AfterEach(func() {
 		ps.Stop()
 
-		err := os.RemoveAll(metricConfigDir)
-		Expect(err).ToNot(HaveOccurred())
+		Eventually(func() error {
+			return os.RemoveAll(metricConfigDir)
+		}, 10).Should(Succeed())
+
 		gexec.CleanupBuildArtifacts()
 	})
 
