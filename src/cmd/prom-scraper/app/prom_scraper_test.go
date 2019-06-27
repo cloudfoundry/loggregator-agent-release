@@ -53,7 +53,8 @@ var _ = Describe("PromScraper", func() {
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(metricConfigDir)
+		err := os.RemoveAll(metricConfigDir)
+		Expect(err).ToNot(HaveOccurred())
 		gexec.CleanupBuildArtifacts()
 	})
 
@@ -325,10 +326,14 @@ func metricPortConfigDir() string {
 
 func writeScrapeConfig(metricConfigDir, config, fileName string) {
 	f, err := ioutil.TempFile(metricConfigDir, fileName)
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	_, err = f.Write([]byte(config))
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 type spyAgent struct {

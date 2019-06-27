@@ -1,0 +1,62 @@
+#!/bin/bash -e
+<%
+  deployment      = spec.deployment
+  job             = spec.job.name
+  index           = spec.id || spec.index.to_s
+  ip              = spec.ip
+%>
+
+RUN_DIR=/var/vcap/sys/run/system-metrics-agent
+LOG_DIR=/var/vcap/sys/log/system-metrics-agent
+PIDFILE=$RUN_DIR/system-metrics-agent.pid
+
+mkdir -p $RUN_DIR
+mkdir -p $LOG_DIR
+
+case $1 in
+
+  start)
+    set +e
+      killall -15 system-metrics-agent
+      killall -9 system-metrics-agent
+      killall -2 system-metrics-agent
+      killall -3 system-metrics-agent
+    set -e
+
+    exec >>$LOG_DIR/system-metrics-agent.stdout.log \
+        2>>$LOG_DIR/system-metrics-agent.stderr.log
+
+    chown -R vcap:vcap $LOG_DIR
+
+    SAMPLE_INTERVAL=<%= p('sample_interval') %> \
+    METRIC_PORT=<%= p('metrics_port') %> \
+    DEPLOYMENT=<%= deployment %> \
+    JOB=<%= job %> \
+    INDEX=<%= index %> \
+    IP=<%= ip %> \
+    CA_CERT_PATH="/var/vcap/jobs/loggr-system-metrics-agent/config/certs/system_metrics_agent_ca.crt" \
+    CERT_PATH="/var/vcap/jobs/loggr-system-metrics-agent/config/certs/system_metrics_agent.crt" \
+    KEY_PATH="/var/vcap/jobs/loggr-system-metrics-agent/config/certs/system_metrics_agent.key" \
+    chpst -u vcap:vcap /var/vcap/packages/system-metrics-agent/system-metrics-agent &
+
+    echo $! > $PIDFILE
+
+    ;;
+
+  stop)
+    kill "$(cat $PIDFILE)"
+    set +e
+      killall -15 system-metrics-agent
+      killall -9 system-metrics-agent
+      killall -2 system-metrics-agent
+      killall -3 system-metrics-agent
+    set -e
+
+    ;;
+
+  *)
+    echo "Usage: ctl {start|stop}"
+
+    ;;
+
+esac
