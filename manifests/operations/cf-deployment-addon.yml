@@ -12,6 +12,9 @@
       stemcell:
       - os: ubuntu-trusty
       - os: ubuntu-xenial
+    exclude:
+      instance_groups:
+      - name: doppler
     jobs:
     - name: prom_scraper
       release: loggregator-agent
