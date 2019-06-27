@@ -15,14 +15,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 )
 
-// gaugeStructuredDataID contains the registered enterprise ID for the Cloud
-// Foundry Foundation.
-// See: https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers
-const (
-	gaugeStructuredDataID   = "gauge@47450"
-	counterStructuredDataID = "counter@47450"
-)
-
 // DialFunc represents a method for creating a connection, either TCP or TLS.
 type DialFunc func(addr string) (net.Conn, error)
 

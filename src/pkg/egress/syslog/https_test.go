@@ -269,7 +269,7 @@ var _ = Describe("HTTPWriter", func() {
 			&testhelper.SpyMetric{},
 		)
 
-		counterEnv := buildTimerEnvelope()
+		counterEnv := buildTimerEnvelope("1")
 		logEnv := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
 
 		Expect(writer.Write(counterEnv)).To(Succeed())

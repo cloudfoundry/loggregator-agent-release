@@ -56,6 +56,22 @@ var _ = Describe("RFC5424", func() {
 		}))
 	})
 
+	It("converts a timer envelope to a slice of slice of byte in RFC5424 format", func() {
+		env := buildTimerEnvelope("1")
+
+		Expect(syslog.ToRFC5424(env, "test-hostname")).To(Equal([][]byte{
+			[]byte(`<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [timer@47450 name="http" start="10" stop="20"] `+ "\n"),
+		}))
+	})
+
+	It("converts an event envelope to a slice of slice of byte in RFC5424 format", func() {
+		env := buildEventEnvelope("1")
+
+		Expect(syslog.ToRFC5424(env, "test-hostname")).To(Equal([][]byte{
+			[]byte(`<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [event@47450 title="event-title" body="event-body"] `+ "\n"),
+		}))
+	})
+
 	Describe("validation", func() {
 		It("returns an error if hostname is longer than 255", func() {
 			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)

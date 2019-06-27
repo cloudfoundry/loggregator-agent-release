@@ -154,24 +154,6 @@ var _ = Describe("TCPWriter", func() {
 			Expect(actual).To(Equal(expected))
 		})
 
-		It("ignores non-log/gauge envelopes", func() {
-			counterEnv := buildTimerEnvelope()
-			logEnv := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
-
-			Expect(writer.Write(counterEnv)).To(Succeed())
-			Expect(writer.Write(logEnv)).To(Succeed())
-
-			conn, err := listener.Accept()
-			Expect(err).ToNot(HaveOccurred())
-			buf := bufio.NewReader(conn)
-
-			actual, err := buf.ReadString('\n')
-			Expect(err).ToNot(HaveOccurred())
-
-			expected := "89 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [APP/2] - - just a test\n"
-			Expect(actual).To(Equal(expected))
-		})
-
 		It("emits an egress metric for each message", func() {
 			env := buildLogEnvelope("OTHER", "1", "no null `\x00` please", loggregator_v2.Log_OUT)
 			writer.Write(env)
@@ -308,12 +290,31 @@ func buildGaugeEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	}
 }
 
-func buildTimerEnvelope() *loggregator_v2.Envelope {
+func buildTimerEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		Timestamp: 12345678,
 		SourceId:  "test-app-id",
+		InstanceId: srcInstance,
 		Message: &loggregator_v2.Envelope_Timer{
-			Timer: &loggregator_v2.Timer{},
+			Timer: &loggregator_v2.Timer{
+				Name:                 "http",
+				Start:                10,
+				Stop:                 20,
+			},
+		},
+	}
+}
+
+func buildEventEnvelope(srcInstance string) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		Timestamp: 12345678,
+		SourceId:  "test-app-id",
+		InstanceId: srcInstance,
+		Message: &loggregator_v2.Envelope_Event{
+			Event: &loggregator_v2.Event{
+				Title:                "event-title",
+				Body:                 "event-body",
+			},
 		},
 	}
 }
