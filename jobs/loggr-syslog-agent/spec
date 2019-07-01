@@ -37,7 +37,7 @@ properties:
     default: false
 
   non_app_drains:
-    description: "URLs to syslog drains that will receive all logs from all sources"
+    description: "Syslog server URLs that will receive the logs from all sources"
     default: ""
     example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
 
