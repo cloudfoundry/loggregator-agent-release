@@ -12,10 +12,6 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-type DopplerIngestorServer interface {
-	plumbing.DopplerIngestorServer
-}
-
 type Server struct {
 	port     int
 	server   *grpc.Server

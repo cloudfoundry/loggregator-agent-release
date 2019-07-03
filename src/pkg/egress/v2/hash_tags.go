@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-func hashTags(tags map[string]string) string {
+func HashTags(tags map[string]string) string {
 	hash := ""
 	elements := []mapElement{}
 	for k, v := range tags {

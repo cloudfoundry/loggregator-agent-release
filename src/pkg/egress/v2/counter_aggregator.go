@@ -32,7 +32,7 @@ func (ca *CounterAggregator) Process(env *loggregator_v2.Envelope) error {
 
 		id := counterID{
 			name:     c.Name,
-			tagsHash: hashTags(env.GetTags()),
+			tagsHash: HashTags(env.GetTags()),
 		}
 
 		if c.GetTotal() == 0 {

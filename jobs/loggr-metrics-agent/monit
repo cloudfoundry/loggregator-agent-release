@@ -1,0 +1,5 @@
+check process loggr-metrics-agent
+  with pidfile /var/vcap/sys/run/bpm/loggr-metrics-agent/loggr-metrics-agent.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start loggr-metrics-agent"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-metrics-agent"
+  group vcap

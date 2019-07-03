@@ -5,7 +5,7 @@
     "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-forwarder-agent-windows/config/certs/forwarder.crt",
     "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-forwarder-agent-windows/config/certs/forwarder.key",
     "AGENT_CIPHER_SUITES" => p("tls.cipher_suites").split(":").join(","),
-    DOWNSTREAM_INGRESS_PORT_GLOB: p("downstream_ingress_port_glob"),
+    "DOWNSTREAM_INGRESS_PORT_GLOB": p("downstream_ingress_port_glob"),
     "DEBUG_PORT" => "#{p("debug_port")}",
   }
 

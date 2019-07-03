@@ -1,0 +1,34 @@
+- type: replace
+  path: /addons/name=loggr-metrics-agent?
+  value:
+    name: loggr-metrics-agent
+    include:
+      stemcell:
+      - os: ubuntu-xenial
+    exclude:
+      jobs:
+      - name: smoke_tests
+        release: cf-smoke-tests
+    jobs:
+    - name: loggr-metrics-agent
+      release: loggregator-agent
+      properties:
+        grpc:
+          ca_cert: "((loggregator_tls_agent.ca))"
+          cert: "((loggregator_tls_agent.certificate))"
+          key: "((loggregator_tls_agent.private_key))"
+        metrics:
+          ca_cert: "((metrics_agent_tls.ca))"
+          cert: "((metrics_agent_tls.certificate))"
+          key: "((metrics_agent_tls.private_key))"
+
+- type: replace
+  path: /variables/name=metrics_agent_tls?
+  value:
+    name: metrics_agent_tls
+    type: certificate
+    options:
+      ca: loggregator_ca
+      common_name: metrics_agent
+      extended_key_usage:
+      - server_auth

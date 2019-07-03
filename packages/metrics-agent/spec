@@ -1,0 +1,12 @@
+---
+name: metrics-agent
+
+dependencies:
+- golang1.12.4
+
+files:
+- cmd/metrics-agent/**/*.go
+- pkg/**/*.go
+- vendor/**/*
+- go.mod
+- go.sum

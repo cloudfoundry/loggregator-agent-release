@@ -195,5 +195,6 @@ func ingressClients(downstreamAddrs []string,
 
 		ingressClients = append(ingressClients, ew)
 	}
+
 	return ingressClients
 }

@@ -1,0 +1,41 @@
+---
+name: loggr-metrics-agent
+
+templates:
+  bpm.yml.erb: config/bpm.yml
+  grpc_ca.crt.erb: config/certs/grpc_ca.crt
+  grpc.crt.erb: config/certs/grpc.crt
+  grpc.key.erb: config/certs/grpc.key
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
+
+packages:
+- metrics-agent
+
+properties:
+  port:
+    description: "Port the agent is serving gRPC via mTLS"
+    default: 3459
+  metrics_port:
+    description: "Port the agent uses to serve the Prometheus endpoint"
+    default: 14826
+  tags:
+    description: "Collection of tags to add on all outgoing v2 envelopes. Bosh deployment, job, index and IP will be merged with this property if they are not provided"
+    default: {}
+    example: {"deployment": "cf"}
+
+  grpc.ca_cert:
+    description: "TLS loggregator root CA certificate"
+  grpc.cert:
+    description: "TLS certificate for GRPC ingress server signed by the loggregator CA"
+  grpc.key:
+    description: "TLS private key for GRPC ingress server signed by the loggregator CA"
+
+  metrics.ca_cert:
+    description: "TLS CA cert to verify requests to metrics endpoint."
+  metrics.cert:
+    description: "TLS certificate for metrics server signed by the metrics CA"
+  metrics.key:
+    description: "TLS private key for metrics server signed by the metrics CA"
+

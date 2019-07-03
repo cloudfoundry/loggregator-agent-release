@@ -3,9 +3,6 @@ package agent_test
 import (
 	"context"
 	"fmt"
-	"net"
-	"strconv"
-	"strings"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
@@ -138,14 +135,6 @@ var _ = Describe("Agent", func() {
 		}))
 	})
 })
-
-func HomeAddrToPort(addr net.Addr) int {
-	port, err := strconv.Atoi(strings.Replace(addr.String(), "127.0.0.1:", "", 1))
-	if err != nil {
-		panic(err)
-	}
-	return port
-}
 
 func agentClient(port int) loggregator_v2.IngressClient {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)

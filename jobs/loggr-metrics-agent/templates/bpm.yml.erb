@@ -1,0 +1,29 @@
+<%
+    job_name = spec.job.name || name
+    instance_id = spec.id || spec.index.to_s
+    deployment = spec.deployment
+
+    tags = {
+        deployment: deployment,
+        job: job_name,
+        index: instance_id,
+        ip: spec.ip,
+    }
+    tags.merge!(p("tags"))
+
+    tag_str = tags.map { |k, v| "#{k}:#{v}" }.join(",")
+%>
+
+processes:
+  - name: loggr-metrics-agent
+    executable: /var/vcap/packages/metrics-agent/metrics-agent
+    env:
+      AGENT_PORT: <%= p("port") %>
+      AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-metrics-agent/config/certs/grpc_ca.crt"
+      AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-metrics-agent/config/certs/grpc.crt"
+      AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-metrics-agent/config/certs/grpc.key"
+      AGENT_TAGS: "<%= tag_str %>"
+      METRICS_PORT: <%= p("metrics_port") %>
+      METRICS_CA_FILE_PATH: "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics_ca.crt"
+      METRICS_CERT_FILE_PATH: "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics.crt"
+      METRICS_KEY_FILE_PATH: "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics.key"
