@@ -32,6 +32,7 @@ var _ = Describe("PromScraper", func() {
 		ps         *app.PromScraper
 
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
+		testCerts = testhelper.GenerateCerts("loggregatorCA")
 
 		metricConfigDir string
 	)
@@ -40,12 +41,12 @@ var _ = Describe("PromScraper", func() {
 		promServer = newStubPromServer()
 		metricConfigDir = metricPortConfigDir()
 
-		spyAgent = newSpyAgent()
+		spyAgent = newSpyAgent(testCerts)
 
 		cfg = app.Config{
-			ClientKeyPath:          testhelper.Cert("metron.key"),
-			ClientCertPath:         testhelper.Cert("metron.crt"),
-			CACertPath:             testhelper.Cert("loggregator-ca.crt"),
+			ClientKeyPath:          testCerts.Key("metron"),
+			ClientCertPath:         testCerts.Cert("metron"),
+			CACertPath:             testCerts.CA(),
 			LoggregatorIngressAddr: spyAgent.addr,
 			ConfigGlobs:            []string{fmt.Sprintf("%s/prom_scraper_config*", metricConfigDir)},
 			ScrapeInterval:         100 * time.Millisecond,
@@ -349,13 +350,13 @@ type spyAgent struct {
 	addr      string
 }
 
-func newSpyAgent() *spyAgent {
+func newSpyAgent(testCerts *testhelper.TestCerts) *spyAgent {
 	agent := &spyAgent{}
 
 	serverCreds, err := plumbing.NewServerCredentials(
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
+		testCerts.CA(),
 	)
 	if err != nil {
 		panic(err)

@@ -13,13 +13,15 @@ import (
 )
 
 var _ = Describe("v1 App", func() {
+	var testCerts = testhelper.GenerateCerts("loggregatorCA")
+
 	It("uses DopplerAddrWithAZ for AZ affinity", func() {
 		spyLookup := newSpyLookup()
 
 		clientCreds, err := plumbing.NewClientCredentials(
-			testhelper.Cert("metron.crt"),
-			testhelper.Cert("metron.key"),
-			testhelper.Cert("loggregator-ca.crt"),
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+			testCerts.CA(),
 			"doppler",
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -44,9 +46,9 @@ var _ = Describe("v1 App", func() {
 		spyLookup := newSpyLookup()
 
 		clientCreds, err := plumbing.NewClientCredentials(
-			testhelper.Cert("metron.crt"),
-			testhelper.Cert("metron.key"),
-			testhelper.Cert("loggregator-ca.crt"),
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+			testCerts.CA(),
 			"doppler",
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -113,6 +115,8 @@ func buildAgentConfig(dopplerURI string, dopplerGRPCPort int) app.Config {
 	jobName := "test-job-name"
 	jobIndex := "42"
 
+	testCerts := testhelper.GenerateCerts("loggregatorCA")
+
 	return app.Config{
 		Index: jobIndex,
 		Job:   jobName,
@@ -129,9 +133,9 @@ func buildAgentConfig(dopplerURI string, dopplerGRPCPort int) app.Config {
 		RouterAddrWithAZ: fmt.Sprintf("%s.%s:%d", availabilityZone, dopplerURI, dopplerGRPCPort),
 
 		GRPC: app.GRPC{
-			CertFile: testhelper.Cert("metron.crt"),
-			KeyFile:  testhelper.Cert("metron.key"),
-			CAFile:   testhelper.Cert("loggregator-ca.crt"),
+			CertFile: testCerts.Cert("metron"),
+			KeyFile:  testCerts.Key("metron"),
+			CAFile:   testCerts.CA(),
 		},
 
 		MetricBatchIntervalMilliseconds: 5000,

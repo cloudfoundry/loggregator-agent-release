@@ -35,15 +35,18 @@ var _ = Describe("App", func() {
 		leadership       *spyLeadership
 		promServer       *promServer
 		spyMetricsClient *testhelper.SpyMetricClient
+
+		metronTestCerts = testhelper.GenerateCerts("loggregatorCA")
+		systemMetricsTestCerts = testhelper.GenerateCerts("systemMetricsCA")
 	)
 
 	Describe("when configured with a single metrics_url", func() {
 		BeforeEach(func() {
-			spyAgent = newSpyAgent()
+			spyAgent = newSpyAgent(metronTestCerts)
 			leadership = newSpyLeadership()
 
 			promServer = newPromServer()
-			promServer.start()
+			promServer.start(systemMetricsTestCerts)
 
 			u, err := url.Parse(promServer.url())
 			Expect(err).ToNot(HaveOccurred())
@@ -54,13 +57,13 @@ var _ = Describe("App", func() {
 			dnsFilePath = createDNSFile(u.Hostname())
 
 			cfg = app.Config{
-				ClientKeyPath:          testhelper.Cert("metron.key"),
-				ClientCertPath:         testhelper.Cert("metron.crt"),
-				CACertPath:             testhelper.Cert("loggregator-ca.crt"),
-				MetricsKeyPath:         testhelper.Cert("system-metrics-agent-ca.key"),
-				MetricsCertPath:        testhelper.Cert("system-metrics-agent-ca.crt"),
-				MetricsCACertPath:      testhelper.Cert("system-metrics-agent-ca.crt"),
-				MetricsCN:              "systemMetricsCA",
+				ClientKeyPath:          metronTestCerts.Key("metron"),
+				ClientCertPath:         metronTestCerts.Cert("metron"),
+				CACertPath:             metronTestCerts.CA(),
+				MetricsKeyPath:         systemMetricsTestCerts.Key("system-metrics-agent"),
+				MetricsCertPath:        systemMetricsTestCerts.Cert("system-metrics-agent"),
+				MetricsCACertPath:      systemMetricsTestCerts.CA(),
+				MetricsCN:              "system-metrics-agent",
 				LoggregatorIngressAddr: spyAgent.addr,
 				ScrapeInterval:         100 * time.Millisecond,
 				ScrapePort:             scrapePort,
@@ -304,13 +307,13 @@ func (s *promServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(promOutput))
 }
 
-func (s *promServer) start() {
+func (s *promServer) start(testCerts *testhelper.TestCerts) {
 	s.server = httptest.NewUnstartedServer(http.HandlerFunc(s.handleRequest))
 
 	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testhelper.Cert("system-metrics-agent-ca.crt"),
-		testhelper.Cert("system-metrics-agent-ca.key"),
-		testhelper.Cert("system-metrics-agent-ca.crt"),
+		testCerts.Cert("system-metrics-agent"),
+		testCerts.Key("system-metrics-agent"),
+		testCerts.CA(),
 	)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -335,13 +338,13 @@ type spyAgent struct {
 	addr      string
 }
 
-func newSpyAgent() *spyAgent {
+func newSpyAgent(testCerts *testhelper.TestCerts) *spyAgent {
 	agent := &spyAgent{}
 
 	serverCreds, err := plumbing.NewServerCredentials(
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
+		testCerts.CA(),
 	)
 	if err != nil {
 		panic(err)

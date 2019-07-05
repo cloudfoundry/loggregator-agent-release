@@ -20,11 +20,11 @@ type Server struct {
 	V2       *mockIngressServerV2
 }
 
-func NewServer() (*Server, error) {
+func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
 	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testhelper.Cert("doppler.crt"),
-		testhelper.Cert("doppler.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("doppler"),
+		testCerts.Key("doppler"),
+		testCerts.CA(),
 	)
 	if err != nil {
 		return nil, err

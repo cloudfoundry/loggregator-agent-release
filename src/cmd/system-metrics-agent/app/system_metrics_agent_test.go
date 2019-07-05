@@ -19,7 +19,8 @@ import (
 
 var _ = Describe("SystemMetricsAgent", func() {
 	var (
-		agent *app.SystemMetricsAgent
+		agent     *app.SystemMetricsAgent
+		testCerts = testhelper.GenerateCerts("systemMetricsCA")
 	)
 
 	BeforeEach(func() {
@@ -35,9 +36,9 @@ var _ = Describe("SystemMetricsAgent", func() {
 				Job:            "some-job",
 				Index:          "some-index",
 				IP:             "some-ip",
-				CACertPath:     testhelper.Cert("system-metrics-agent-ca.crt"),
-				CertPath:       testhelper.Cert("system-metrics-agent-ca.crt"),
-				KeyPath:        testhelper.Cert("system-metrics-agent-ca.key"),
+				CACertPath:     testCerts.CA(),
+				CertPath:       testCerts.Cert("system-metrics-agent"),
+				KeyPath:        testCerts.Key("system-metrics-agent"),
 			},
 			log.New(GinkgoWriter, "", log.LstdFlags),
 		)
@@ -69,10 +70,10 @@ var _ = Describe("SystemMetricsAgent", func() {
 		}).ShouldNot(Equal(0))
 
 		client := plumbing.NewTLSHTTPClient(
-			testhelper.Cert("system-metrics-agent-ca.crt"),
-			testhelper.Cert("system-metrics-agent-ca.key"),
-			testhelper.Cert("system-metrics-agent-ca.crt"),
-			"systemMetricsCA",
+			testCerts.Cert("system-metrics-agent"),
+			testCerts.Key("system-metrics-agent"),
+			testCerts.CA(),
+			"system-metrics-agent",
 		)
 		resp, err := client.Get("https://" + addr + "/metrics")
 		Expect(err).ToNot(HaveOccurred())
@@ -89,17 +90,17 @@ var _ = Describe("SystemMetricsAgent", func() {
 			return len(addr)
 		}).ShouldNot(Equal(0))
 
-		Eventually(hasDefaultLabels(addr)).Should(BeTrue())
+		Eventually(hasDefaultLabels(addr, testCerts)).Should(BeTrue())
 	})
 })
 
-func hasDefaultLabels(addr string) func() bool {
+func hasDefaultLabels(addr string, testCerts *testhelper.TestCerts) func() bool {
 	return func() bool {
 		client := plumbing.NewTLSHTTPClient(
-			testhelper.Cert("system-metrics-agent-ca.crt"),
-			testhelper.Cert("system-metrics-agent-ca.key"),
-			testhelper.Cert("system-metrics-agent-ca.crt"),
-			"systemMetricsCA",
+			testCerts.Cert("system-metrics-agent"),
+			testCerts.Key("system-metrics-agent"),
+			testCerts.CA(),
+			"system-metrics-agent",
 		)
 		resp, err := client.Get("https://" + addr + "/metrics")
 		Expect(err).ToNot(HaveOccurred())

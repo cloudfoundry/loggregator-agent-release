@@ -12,21 +12,25 @@ import (
 )
 
 var _ = Describe("v2 App", func() {
+	var (
+		testCerts = testhelper.GenerateCerts("loggregatorCA")
+	)
+
 	It("uses DopplerAddrWithAZ for AZ affinity", func() {
 		spyLookup := newSpyLookup()
 
 		clientCreds, err := plumbing.NewClientCredentials(
-			testhelper.Cert("metron.crt"),
-			testhelper.Cert("metron.key"),
-			testhelper.Cert("loggregator-ca.crt"),
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+			testCerts.CA(),
 			"doppler",
 		)
 		Expect(err).ToNot(HaveOccurred())
 
 		serverCreds, err := plumbing.NewServerCredentials(
-			testhelper.Cert("router.crt"),
-			testhelper.Cert("router.key"),
-			testhelper.Cert("loggregator-ca.crt"),
+			testCerts.Cert("router"),
+			testCerts.Key("router"),
+			testCerts.CA(),
 		)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -51,17 +55,17 @@ var _ = Describe("v2 App", func() {
 		spyLookup := newSpyLookup()
 
 		clientCreds, err := plumbing.NewClientCredentials(
-			testhelper.Cert("metron.crt"),
-			testhelper.Cert("metron.key"),
-			testhelper.Cert("loggregator-ca.crt"),
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+			testCerts.CA(),
 			"doppler",
 		)
 		Expect(err).ToNot(HaveOccurred())
 
 		serverCreds, err := plumbing.NewServerCredentials(
-			testhelper.Cert("router.crt"),
-			testhelper.Cert("router.key"),
-			testhelper.Cert("loggregator-ca.crt"),
+			testCerts.Cert("router"),
+			testCerts.Key("router"),
+			testCerts.CA(),
 		)
 		Expect(err).ToNot(HaveOccurred())
 

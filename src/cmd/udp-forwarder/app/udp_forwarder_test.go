@@ -28,10 +28,11 @@ var _ = Describe("UDPForwarder", func() {
 		// udpPort will be incremented for each test
 		udpPort    = 10000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
+		testCerts = testhelper.GenerateCerts("loggregatorCA")
 	)
 
 	BeforeEach(func() {
-		spyLoggregatorV2Ingress = startSpyLoggregatorV2Ingress()
+		spyLoggregatorV2Ingress = startSpyLoggregatorV2Ingress(testCerts)
 	})
 
 	AfterEach(func() {
@@ -45,9 +46,9 @@ var _ = Describe("UDPForwarder", func() {
 			UDPPort: udpPort,
 			LoggregatorAgentGRPC: app.GRPC{
 				Addr:     spyLoggregatorV2Ingress.addr,
-				CAFile:   testhelper.Cert("loggregator-ca.crt"),
-				CertFile: testhelper.Cert("metron.crt"),
-				KeyFile:  testhelper.Cert("metron.key"),
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("metron"),
+				KeyFile:  testCerts.Key("metron"),
 			},
 			Deployment: "test-deployment",
 			Job: "test-job",
@@ -124,15 +125,15 @@ func (s *spyLoggregatorV2Ingress) BatchSender(srv loggregator_v2.Ingress_BatchSe
 	}
 }
 
-func startSpyLoggregatorV2Ingress() *spyLoggregatorV2Ingress {
+func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregatorV2Ingress {
 	s := &spyLoggregatorV2Ingress{
 		envelopes: make(chan *loggregator_v2.Envelope, 100),
 	}
 
 	serverCreds, err := plumbing.NewServerCredentials(
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
+		testCerts.CA(),
 	)
 
 	lis, err := net.Listen("tcp", ":0")

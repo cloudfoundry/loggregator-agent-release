@@ -21,12 +21,14 @@ import (
 )
 
 var _ = Describe("Agent", func() {
+	var testCerts = testhelper.GenerateCerts("loggregatorCA")
+
 	It("accepts connections on the v1 API", func() {
-		consumerServer, err := NewServer()
+		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop()
 		agentCleanup, agentPorts := testservers.StartAgent(
-			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port()),
+			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
 		defer agentCleanup()
 
@@ -68,11 +70,11 @@ var _ = Describe("Agent", func() {
 	})
 
 	It("accepts connections on the v2 API", func() {
-		consumerServer, err := NewServer()
+		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop()
 		agentCleanup, agentPorts := testservers.StartAgent(
-			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port()),
+			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
 		defer agentCleanup()
 
@@ -85,7 +87,7 @@ var _ = Describe("Agent", func() {
 			},
 		}
 
-		client := agentClient(agentPorts.GRPC)
+		client := agentClient(agentPorts.GRPC, testCerts)
 		sender, err := client.Sender(context.Background())
 		Expect(err).ToNot(HaveOccurred())
 
@@ -136,13 +138,13 @@ var _ = Describe("Agent", func() {
 	})
 })
 
-func agentClient(port int) loggregator_v2.IngressClient {
+func agentClient(port int, testCerts *testhelper.TestCerts) loggregator_v2.IngressClient {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
 	tlsConfig, err := plumbing.NewClientMutualTLSConfig(
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
+		testCerts.CA(),
 		"metron",
 	)
 	if err != nil {

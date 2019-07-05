@@ -27,6 +27,9 @@ var _ = Describe("SyslogBindingCache", func() {
 		sbc  *app.SyslogBindingCache
 
 		cachePort = 40000
+
+		capiTestCerts = testhelper.GenerateCerts("capiCA")
+		bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
 	)
 
 	BeforeEach(func() {
@@ -44,20 +47,20 @@ var _ = Describe("SyslogBindingCache", func() {
 		capi = &fakeCC{
 			results: r,
 		}
-		capi.startTLS()
+		capi.startTLS(capiTestCerts)
 
 		config := app.Config{
 			APIURL:             capi.URL,
 			APIPollingInterval: 10 * time.Millisecond,
 			APIBatchSize:       1000,
-			APICAFile:          testhelper.Cert("capi-ca.crt"),
-			APICertFile:        testhelper.Cert("capi-ca.crt"),
-			APIKeyFile:         testhelper.Cert("capi-ca.key"),
-			APICommonName:      "capiCA",
-			CacheCAFile:        testhelper.Cert("binding-cache-ca.crt"),
-			CacheCertFile:      testhelper.Cert("binding-cache-ca.crt"),
-			CacheKeyFile:       testhelper.Cert("binding-cache-ca.key"),
-			CacheCommonName:    "bindingCacheCA",
+			APICAFile:          capiTestCerts.CA(),
+			APICertFile:        capiTestCerts.Cert("capi"),
+			APIKeyFile:         capiTestCerts.Key("capi"),
+			APICommonName:      "capi",
+			CacheCAFile:        bindingCacheTestCerts.CA(),
+			CacheCertFile:      bindingCacheTestCerts.Cert("binding-cache"),
+			CacheKeyFile:       bindingCacheTestCerts.Key("binding-cache"),
+			CacheCommonName:    "binding-cache",
 			CachePort:          cachePort,
 		}
 		sbc = app.NewSyslogBindingCache(config, logger)
@@ -77,10 +80,10 @@ var _ = Describe("SyslogBindingCache", func() {
 
 	It("has an HTTP endpoint that returns bindings", func() {
 		client := plumbing.NewTLSHTTPClient(
-			testhelper.Cert("binding-cache-ca.crt"),
-			testhelper.Cert("binding-cache-ca.key"),
-			testhelper.Cert("binding-cache-ca.crt"),
-			"bindingCacheCA",
+			bindingCacheTestCerts.Cert("binding-cache"),
+			bindingCacheTestCerts.Key("binding-cache"),
+			bindingCacheTestCerts.CA(),
+			"binding-cache",
 		)
 
 		addr := fmt.Sprintf("https://localhost:%d/bindings", cachePort)
@@ -127,11 +130,11 @@ type fakeCC struct {
 	results         results
 }
 
-func (f *fakeCC) startTLS() {
+func (f *fakeCC) startTLS(testCerts *testhelper.TestCerts) {
 	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testhelper.Cert("capi-ca.crt"),
-		testhelper.Cert("capi-ca.key"),
-		testhelper.Cert("capi-ca.crt"),
+		testCerts.Cert("capi"),
+		testCerts.Key("capi"),
+		testCerts.CA(),
 	)
 	Expect(err).ToNot(HaveOccurred())
 

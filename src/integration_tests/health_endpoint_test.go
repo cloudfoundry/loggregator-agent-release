@@ -1,6 +1,7 @@
 package agent_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,11 +14,12 @@ import (
 
 var _ = Describe("Agent Health Endpoint", func() {
 	It("returns health metrics", func() {
-		consumerServer, err := NewServer()
+		testCerts := testhelper.GenerateCerts("loggregatorCA")
+		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop()
 		agentCleanup, agentPorts := testservers.StartAgent(
-			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port()),
+			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
 		defer agentCleanup()
 

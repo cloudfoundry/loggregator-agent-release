@@ -14,7 +14,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-func BuildAgentConfig(dopplerURI string, dopplerGRPCPort int) app.Config {
+func BuildAgentConfig(dopplerURI string, dopplerGRPCPort int, testCerts *testhelper.TestCerts) app.Config {
 	return app.Config{
 		Index: jobIndex,
 		Job:   jobName,
@@ -31,9 +31,9 @@ func BuildAgentConfig(dopplerURI string, dopplerGRPCPort int) app.Config {
 		RouterAddrWithAZ: fmt.Sprintf("%s.%s:%d", availabilityZone, dopplerURI, dopplerGRPCPort),
 
 		GRPC: app.GRPC{
-			CertFile: testhelper.Cert("metron.crt"),
-			KeyFile:  testhelper.Cert("metron.key"),
-			CAFile:   testhelper.Cert("loggregator-ca.crt"),
+			CertFile: testCerts.Cert("metron"),
+			KeyFile:  testCerts.Key("metron"),
+			CAFile:   testCerts.CA(),
 		},
 
 		MetricBatchIntervalMilliseconds: 5000,

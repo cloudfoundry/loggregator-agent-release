@@ -37,6 +37,7 @@ var _ = Describe("Main", func() {
 	var (
 		grpcPort   = 20000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
+		testCerts = testhelper.GenerateCerts("loggregatorCA")
 
 		forwarderAgent *app.ForwarderAgent
 		mc             *testhelper.SpyMetricClient
@@ -83,9 +84,9 @@ var _ = Describe("Main", func() {
 		cfg = app.Config{
 			GRPC: app.GRPC{
 				Port:     uint16(grpcPort),
-				CAFile:   testhelper.Cert("loggregator-ca.crt"),
-				CertFile: testhelper.Cert("metron.crt"),
-				KeyFile:  testhelper.Cert("metron.key"),
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("metron"),
+				KeyFile:  testCerts.Key("metron"),
 			},
 			DownstreamIngressPortCfg: fmt.Sprintf("%s/*/ingress_port.yml", fConfigDir),
 			DebugPort:                7392,
@@ -93,7 +94,7 @@ var _ = Describe("Main", func() {
 				"some-tag": "some-value",
 			},
 		}
-		ingressClient = newIngressClient(grpcPort)
+		ingressClient = newIngressClient(grpcPort, testCerts)
 	})
 
 	AfterEach(func() {
@@ -122,8 +123,8 @@ var _ = Describe("Main", func() {
 	})
 
 	It("forwards all envelopes downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress()
-		downstream2 := startSpyLoggregatorV2Ingress()
+		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
+		downstream2 := startSpyLoggregatorV2Ingress(testCerts)
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
@@ -145,7 +146,7 @@ var _ = Describe("Main", func() {
 	})
 
 	It("aggregates counter events before forwarding downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress()
+		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
@@ -165,7 +166,7 @@ var _ = Describe("Main", func() {
 	})
 
 	It("tags before forwarding downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress()
+		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
@@ -186,8 +187,8 @@ var _ = Describe("Main", func() {
 	})
 
 	It("continues writing to other consumers if one is slow", func() {
-		downstreamNormal := startSpyLoggregatorV2Ingress()
-		startSpyLoggregatorV2BlockingIngress()
+		downstreamNormal := startSpyLoggregatorV2Ingress(testCerts)
+		startSpyLoggregatorV2BlockingIngress(testCerts)
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
@@ -235,11 +236,11 @@ var sampleCounter = &loggregator_v2.Envelope{
 	},
 }
 
-func newIngressClient(port int) *loggregator.IngressClient {
+func newIngressClient(port int, testCerts *testhelper.TestCerts) *loggregator.IngressClient {
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
-		testhelper.Cert("loggregator-ca.crt"),
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
+		testCerts.CA(),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
 	)
 	Expect(err).ToNot(HaveOccurred())
 	ingressClient, err := loggregator.NewIngressClient(
@@ -252,15 +253,15 @@ func newIngressClient(port int) *loggregator.IngressClient {
 	return ingressClient
 }
 
-func startSpyLoggregatorV2Ingress() *spyLoggregatorV2Ingress {
+func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregatorV2Ingress {
 	s := &spyLoggregatorV2Ingress{
 		envelopes: make(chan *loggregator_v2.Envelope, 10000),
 	}
 
 	serverCreds, err := plumbing.NewServerCredentials(
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
+		testCerts.CA(),
 	)
 
 	lis, err := net.Listen("tcp", ":0")
@@ -308,13 +309,13 @@ func (s *spyLoggregatorV2Ingress) BatchSender(srv loggregator_v2.Ingress_BatchSe
 	}
 }
 
-func startSpyLoggregatorV2BlockingIngress() *spyLoggregatorV2BlockingIngress {
+func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyLoggregatorV2BlockingIngress {
 	s := &spyLoggregatorV2BlockingIngress{}
 
 	serverCreds, err := plumbing.NewServerCredentials(
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
-		testhelper.Cert("loggregator-ca.crt"),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
+		testCerts.CA(),
 	)
 
 	lis, err := net.Listen("tcp", ":0")

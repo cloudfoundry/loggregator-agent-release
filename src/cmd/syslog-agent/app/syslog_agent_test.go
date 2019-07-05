@@ -40,6 +40,9 @@ var _ = Describe("SyslogAgent", func() {
 
 		grpcPort   = 30000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
+
+		metronTestCerts = testhelper.GenerateCerts("loggregatorCA")
+		bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
 	)
 
 	BeforeEach(func() {
@@ -67,7 +70,7 @@ var _ = Describe("SyslogAgent", func() {
 				},
 			},
 		}
-		cupsProvider.startTLS()
+		cupsProvider.startTLS(bindingCacheTestCerts)
 	})
 
 	AfterEach(func() {
@@ -83,17 +86,17 @@ var _ = Describe("SyslogAgent", func() {
 			IdleDrainTimeout:    10 * time.Minute,
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
-				CAFile:          testhelper.Cert("binding-cache-ca.crt"),
-				CertFile:        testhelper.Cert("binding-cache-ca.crt"),
-				KeyFile:         testhelper.Cert("binding-cache-ca.key"),
-				CommonName:      "bindingCacheCA",
+				CAFile:          bindingCacheTestCerts.CA(),
+				CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+				KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+				CommonName:      "binding-cache",
 				PollingInterval: 10 * time.Millisecond,
 			},
 			GRPC: app.GRPC{
 				Port:     grpcPort,
-				CAFile:   testhelper.Cert("loggregator-ca.crt"),
-				CertFile: testhelper.Cert("metron.crt"),
-				KeyFile:  testhelper.Cert("metron.key"),
+				CAFile:   metronTestCerts.CA(),
+				CertFile: metronTestCerts.Cert("metron"),
+				KeyFile:  metronTestCerts.Key("metron"),
 			},
 		}
 		go app.NewSyslogAgent(cfg, mc, testLogger).Run()
@@ -120,24 +123,24 @@ var _ = Describe("SyslogAgent", func() {
 			DrainSkipCertVerify: true,
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
-				CAFile:          testhelper.Cert("binding-cache-ca.crt"),
-				CertFile:        testhelper.Cert("binding-cache-ca.crt"),
-				KeyFile:         testhelper.Cert("binding-cache-ca.key"),
-				CommonName:      "bindingCacheCA",
+				CAFile:          bindingCacheTestCerts.CA(),
+				CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+				KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+				CommonName:      "binding-cache",
 				PollingInterval: 10 * time.Millisecond,
 				Blacklist:       blacklist,
 			},
 			GRPC: app.GRPC{
 				Port:     grpcPort,
-				CAFile:   testhelper.Cert("loggregator-ca.crt"),
-				CertFile: testhelper.Cert("metron.crt"),
-				KeyFile:  testhelper.Cert("metron.key"),
+				CAFile:   metronTestCerts.CA(),
+				CertFile: metronTestCerts.Cert("metron"),
+				KeyFile:  metronTestCerts.Key("metron"),
 			},
 			UniversalDrainURLs: universalDrains,
 		}
 		go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
 		ctx, cancel := context.WithCancel(context.Background())
-		emitLogs(ctx, grpcPort)
+		emitLogs(ctx, grpcPort, metronTestCerts)
 
 		return cancel
 	}
@@ -177,11 +180,11 @@ var _ = Describe("SyslogAgent", func() {
 	})
 })
 
-func emitLogs(ctx context.Context, grpcPort int) {
+func emitLogs(ctx context.Context, grpcPort int, testCerts *testhelper.TestCerts) {
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
-		testhelper.Cert("loggregator-ca.crt"),
-		testhelper.Cert("metron.crt"),
-		testhelper.Cert("metron.key"),
+		testCerts.CA(),
+		testCerts.Cert("metron"),
+		testCerts.Key("metron"),
 	)
 	Expect(err).ToNot(HaveOccurred())
 	ingressClient, err := loggregator.NewIngressClient(
@@ -239,11 +242,11 @@ type fakeBindingCache struct {
 	results []binding.Binding
 }
 
-func (f *fakeBindingCache) startTLS() {
+func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testhelper.Cert("binding-cache-ca.crt"),
-		testhelper.Cert("binding-cache-ca.key"),
-		testhelper.Cert("binding-cache-ca.crt"),
+		testCerts.Cert("binding-cache"),
+		testCerts.Key("binding-cache"),
+		testCerts.CA(),
 	)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -312,9 +315,11 @@ type syslogTCPServer struct {
 func newSyslogTLSServer() *syslogTCPServer {
 	lis, err := net.Listen("tcp", ":0")
 	Expect(err).ToNot(HaveOccurred())
+
+	testCerts := testhelper.GenerateCerts("forwarderCA")
 	cert, err := tls.LoadX509KeyPair(
-		testhelper.Cert("forwarder.crt"),
-		testhelper.Cert("forwarder.key"),
+		testCerts.Cert("forwarder"),
+		testCerts.Key("forwarder"),
 	)
 	Expect(err).ToNot(HaveOccurred())
 	tlsLis := tls.NewListener(lis, &tls.Config{

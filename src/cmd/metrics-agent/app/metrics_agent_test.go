@@ -5,7 +5,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent/cmd/metrics-agent/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/tlsconfig"
-	"code.cloudfoundry.org/tlsconfig/certtest"
 	"context"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
@@ -13,7 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -26,22 +24,22 @@ var _ = Describe("MetricsAgent", func() {
 		metricsAgent *app.MetricsAgent
 		grpcPort     uint16
 		metricsPort  uint16
-		certDir      string
+		testCerts    *testhelper.TestCerts
 
 		ingressClient *loggregator.IngressClient
 	)
 
 	BeforeEach(func() {
-		certDir = generateCerts("loggregatorCA", "metron", "client")
+		testCerts = testhelper.GenerateCerts("loggregatorCA")
 
 		grpcPort = getFreePort()
 		metricsPort = getFreePort()
 		cfg = app.Config{
 			Metrics: app.MetricsConfig{
 				Port:     metricsPort,
-				CAFile:   certDir + "/loggregatorCA.cert",
-				CertFile: certDir + "/client.cert",
-				KeyFile:  certDir + "/client.key",
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("client"),
+				KeyFile:  testCerts.Key("client"),
 			},
 			Tags: map[string]string{
 				"a": "1",
@@ -49,18 +47,18 @@ var _ = Describe("MetricsAgent", func() {
 			},
 			GRPC: app.GRPCConfig{
 				Port:     grpcPort,
-				CAFile:   certDir + "/loggregatorCA.cert",
-				CertFile: certDir + "/metron.cert",
-				KeyFile:  certDir + "/metron.key",
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("metron"),
+				KeyFile:  testCerts.Key("metron"),
 			},
 		}
 
-		ingressClient = newTestingIngressClient(int(grpcPort), certDir+"/loggregatorCA.cert", certDir+"/metron.cert", certDir+"/metron.key")
+		ingressClient = newTestingIngressClient(int(grpcPort), testCerts)
 
 		testLogger := log.New(GinkgoWriter, "", log.LstdFlags)
 		metricsAgent = app.NewMetricsAgent(cfg, testhelper.NewMetricClient(), testLogger)
 		go metricsAgent.Run()
-		waitForMetricsEndpoint(metricsPort, certDir)
+		waitForMetricsEndpoint(metricsPort, testCerts)
 	})
 
 	AfterEach(func() {
@@ -73,9 +71,9 @@ var _ = Describe("MetricsAgent", func() {
 		})
 		defer cancel()
 
-		Eventually(getMetricFamilies(metricsPort, certDir), 3).Should(HaveKey("total_counter"))
+		Eventually(getMetricFamilies(metricsPort, testCerts), 3).Should(HaveKey("total_counter"))
 
-		metric := getMetric("total_counter", metricsPort, certDir)
+		metric := getMetric("total_counter", metricsPort, testCerts)
 		Expect(metric.GetCounter().GetValue()).To(BeNumerically("==", 22))
 	})
 
@@ -85,9 +83,9 @@ var _ = Describe("MetricsAgent", func() {
 		})
 		defer cancel()
 
-		Eventually(getMetricFamilies(metricsPort, certDir), 3).Should(HaveKey("total_counter"))
+		Eventually(getMetricFamilies(metricsPort, testCerts), 3).Should(HaveKey("total_counter"))
 
-		metric := getMetric("total_counter", metricsPort, certDir)
+		metric := getMetric("total_counter", metricsPort, testCerts)
 		Expect(metric.GetLabel()).To(ConsistOf(
 			&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
 			&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
@@ -100,12 +98,12 @@ var _ = Describe("MetricsAgent", func() {
 		})
 		defer cancel()
 
-		Eventually(getMetricFamilies(metricsPort, certDir), 3).Should(HaveKey("delta_counter"))
+		Eventually(getMetricFamilies(metricsPort, testCerts), 3).Should(HaveKey("delta_counter"))
 
-		originialValue := getMetric("delta_counter", metricsPort, certDir).GetCounter().GetValue()
+		originialValue := getMetric("delta_counter", metricsPort, testCerts).GetCounter().GetValue()
 
 		Eventually(func() float64 {
-			metric := getMetric("delta_counter", metricsPort, certDir)
+			metric := getMetric("delta_counter", metricsPort, testCerts)
 			if metric == nil {
 				return 0
 			}
@@ -132,16 +130,16 @@ func doUntilCancelled(f func()) context.CancelFunc {
 	return cancelFunc
 }
 
-func waitForMetricsEndpoint(port uint16, certDir string) {
+func waitForMetricsEndpoint(port uint16, testCerts *testhelper.TestCerts) {
 	Eventually(func() error {
-		_, err := getMetricsResponse(port, certDir)
+		_, err := getMetricsResponse(port, testCerts)
 		return err
 	}).Should(Succeed())
 }
 
-func getMetricsResponse(port uint16, certDir string) (*http.Response, error) {
-	tlsConfig, err := tlsconfig.Build(tlsconfig.WithIdentityFromFile(certDir+"/client.cert", certDir+"/client.key")).Client(
-		tlsconfig.WithAuthorityFromFile(certDir + "/loggregatorCA.cert"))
+func getMetricsResponse(port uint16, testCerts *testhelper.TestCerts) (*http.Response, error) {
+	tlsConfig, err := tlsconfig.Build(tlsconfig.WithIdentityFromFile(testCerts.Cert("client"), testCerts.Key("client"))).
+		Client(tlsconfig.WithAuthorityFromFile(testCerts.CA()))
 	if err != nil {
 		return nil, err
 	}
@@ -159,9 +157,9 @@ func getMetricsResponse(port uint16, certDir string) (*http.Response, error) {
 	return resp, err
 }
 
-func getMetricFamilies(port uint16, certDir string) func() map[string]*dto.MetricFamily {
+func getMetricFamilies(port uint16, testCerts *testhelper.TestCerts) func() map[string]*dto.MetricFamily {
 	return func() map[string]*dto.MetricFamily {
-		resp, err := getMetricsResponse(port, certDir)
+		resp, err := getMetricsResponse(port, testCerts)
 
 		metricFamilies, err := new(expfmt.TextParser).TextToMetricFamilies(resp.Body)
 		if err != nil {
@@ -172,8 +170,8 @@ func getMetricFamilies(port uint16, certDir string) func() map[string]*dto.Metri
 	}
 }
 
-func getMetric(metricName string, port uint16, certDir string) *dto.Metric {
-	families := getMetricFamilies(port, certDir)()
+func getMetric(metricName string, port uint16, testCerts *testhelper.TestCerts) *dto.Metric {
+	families := getMetricFamilies(port, testCerts)()
 	family, ok := families[metricName]
 	if !ok {
 		return nil
@@ -184,8 +182,8 @@ func getMetric(metricName string, port uint16, certDir string) *dto.Metric {
 	return metrics[0]
 }
 
-func newTestingIngressClient(grpcPort int, ca, cert, key string) *loggregator.IngressClient {
-	tlsConfig, err := loggregator.NewIngressTLSConfig(ca, cert, key)
+func newTestingIngressClient(grpcPort int, testCerts *testhelper.TestCerts) *loggregator.IngressClient {
+	tlsConfig, err := loggregator.NewIngressTLSConfig(testCerts.CA(), testCerts.Cert("metron"), testCerts.Key("metron"))
 	Expect(err).ToNot(HaveOccurred())
 
 	ingressClient, err := loggregator.NewIngressClient(
@@ -197,46 +195,6 @@ func newTestingIngressClient(grpcPort int, ca, cert, key string) *loggregator.In
 	Expect(err).ToNot(HaveOccurred())
 
 	return ingressClient
-}
-
-func generateCerts(caName string, commonNames ...string) string {
-	tmpDir, err := ioutil.TempDir("", caName)
-	Expect(err).ToNot(HaveOccurred())
-
-	ca, err := certtest.BuildCA(caName)
-	Expect(err).ToNot(HaveOccurred())
-
-	caBytes, err := ca.CertificatePEM()
-	Expect(err).ToNot(HaveOccurred())
-
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s.cert", tmpDir, caName), caBytes, 0600)
-
-	for _, commonName := range commonNames {
-		cert, err := ca.BuildSignedCertificate(commonName, certtest.WithDomains(commonName))
-		Expect(err).ToNot(HaveOccurred())
-
-		certBytes, keyBytes, err := cert.CertificatePEMAndPrivateKey()
-		Expect(err).ToNot(HaveOccurred())
-
-		err = ioutil.WriteFile(fmt.Sprintf("%s/%s.cert", tmpDir, commonName), certBytes, 0600)
-		Expect(err).ToNot(HaveOccurred())
-		err = ioutil.WriteFile(fmt.Sprintf("%s/%s.key", tmpDir, commonName), keyBytes, 0600)
-		Expect(err).ToNot(HaveOccurred())
-	}
-
-	return tmpDir
-}
-
-func writeToTempFile(tmpDir, pattern string, contents []byte) {
-	file, err := ioutil.TempFile(tmpDir, pattern)
-	Expect(err).ToNot(HaveOccurred())
-
-	_, err = file.Write(contents)
-	Expect(err).ToNot(HaveOccurred())
-
-	Expect(file.Close()).To(Succeed())
-
-	println(file.Name())
 }
 
 func getFreePort() uint16 {

@@ -21,8 +21,9 @@ var _ = Describe("TLSWriter", func() {
 	var (
 		tlsConfig *tls.Config
 
-		certFile = testhelper.Cert("metron.crt")
-		keyFile  = testhelper.Cert("metron.key")
+		testCerts = testhelper.GenerateCerts("loggregatorCA")
+		certFile = testCerts.Cert("metron")
+		keyFile  = testCerts.Key("metron")
 		env      = buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
 		netConf  = syslog.NetworkTimeoutConfig{
 			WriteTimeout: time.Second,
