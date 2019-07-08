@@ -129,7 +129,7 @@ func (s *SpyIngestorServer) Pusher(p plumbing.DopplerIngestor_PusherServer) erro
 	for {
 		select {
 		case <-s.stop:
-			break
+			return nil
 		default:
 			env, err := p.Recv()
 			if err != nil {

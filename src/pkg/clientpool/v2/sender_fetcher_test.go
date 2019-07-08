@@ -111,30 +111,6 @@ func (s *SpyIngestorServer) Stop() {
 	s.server.Stop()
 }
 
-type spyV2DeprecatedIngressServer struct {
-	spyIngestorServer *SpyIngestorServer
-}
-
-func (s *spyV2DeprecatedIngressServer) Sender(srv loggregator_v2.Ingress_SenderServer) error {
-	return nil
-}
-
-func (s *spyV2DeprecatedIngressServer) BatchSender(srv loggregator_v2.Ingress_BatchSenderServer) error {
-	for {
-		select {
-		case <-s.spyIngestorServer.stop:
-			break
-		default:
-			b, err := srv.Recv()
-			if err != nil {
-				break
-			}
-
-			s.spyIngestorServer.deprecatedBatch <- b
-		}
-	}
-}
-
 type spyV2IngressServer struct {
 	spyIngestorServer *SpyIngestorServer
 }

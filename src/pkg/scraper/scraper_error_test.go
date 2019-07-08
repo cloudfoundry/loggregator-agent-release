@@ -9,8 +9,7 @@ import (
 
 var _ = Describe("ScraperError", func() {
 	It("prints all the errors", func() {
-		var err error
-		err = &scraper.ScraperError{
+		err := &scraper.ScraperError{
 			Errors: []*scraper.ScrapeError{
 				{ID: "1", InstanceID: "instance-1", MetricURL: "https://1", Err: errors.New("one")},
 				{ID: "2", InstanceID: "instance-2", MetricURL: "https://2", Err: errors.New("two")},

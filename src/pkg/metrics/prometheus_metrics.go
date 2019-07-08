@@ -14,8 +14,8 @@ import (
 type PromRegistry struct {
 	port        string
 	registry    *prometheus.Registry
-	defaultTags map[string]string
 	loggr       *log.Logger
+	defaultTags map[string]string
 }
 
 type Counter interface {
@@ -33,6 +33,8 @@ type Gauge interface {
 //just for metrics, the WithServer RegistryOption
 func NewPromRegistry(defaultSourceID string, logger *log.Logger, opts ...RegistryOption) *PromRegistry {
 	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewGoCollector())
+	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
 	pr := &PromRegistry{
 		registry:    registry,
@@ -43,6 +45,8 @@ func NewPromRegistry(defaultSourceID string, logger *log.Logger, opts ...Registr
 	for _, o := range opts {
 		o(pr)
 	}
+
+	prometheus.WrapRegistererWith(pr.defaultTags, registry)
 
 	httpHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	http.Handle("/metrics", httpHandler)
@@ -129,10 +133,6 @@ func (p *PromRegistry) newMetricOpt(name, helpText string, mOpts ...MetricOption
 
 	for _, o := range mOpts {
 		o(&opt)
-	}
-
-	for k, v := range p.defaultTags {
-		opt.ConstLabels[k] = v
 	}
 
 	return opt

@@ -3,11 +3,16 @@ package prom
 import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	v2 "code.cloudfoundry.org/loggregator-agent/pkg/egress/v2"
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	"regexp"
+	"strings"
 	"sync"
 )
 
 const help = "Metrics Agent collected metric"
+
+var invalidTagCharacterRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 type Collector struct {
 	counters map[string]prometheus.Metric
@@ -17,12 +22,9 @@ type Collector struct {
 
 func NewCollector() *Collector {
 	return &Collector{
-		counters:        map[string]prometheus.Metric{},
+		counters: map[string]prometheus.Metric{},
 	}
 }
-
-//TODO use /Users/pivotal/workspace/loggregator-agent-release/src/pkg/egress/v2/counter_aggregator.go
-//TODO by using an envelope writer instead of reading from the diode
 
 // Describe implements prometheus.Collector
 // Unimplemented because metric descriptors should not be checked against other collectors
@@ -42,11 +44,16 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 func (c *Collector) Write(env *loggregator_v2.Envelope) error {
 	var id string
 	var metric prometheus.Metric
+	var err error
+
 	switch env.GetMessage().(type) {
 	case *loggregator_v2.Envelope_Counter:
-		id, metric = convertCounter(env)
+		id, metric, err = c.convertCounter(env)
 	default:
 		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to convert envelope to Prometheus metric: %s", err)
 	}
 
 	c.Lock()
@@ -56,27 +63,42 @@ func (c *Collector) Write(env *loggregator_v2.Envelope) error {
 	return nil
 }
 
-func convertCounter(env *loggregator_v2.Envelope) (string, prometheus.Metric) {
+func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (string, prometheus.Metric, error) {
 	name := env.GetCounter().GetName()
-	labelNames, labelValues := convertTags(env.GetTags())
+	labelNames, labelValues := convertTags(env)
 
 	desc := prometheus.NewDesc(name, help, labelNames, nil)
 	metric, err := prometheus.NewConstMetric(desc, prometheus.CounterValue, float64(env.GetCounter().GetTotal()), labelValues...)
 	if err != nil {
-		//TODO
-		panic(err)
+		return "", nil, err
 	}
 
-	return name + v2.HashTags(env.GetTags()), metric
+	return name + v2.HashTags(env.GetTags()), metric, nil
 }
 
-func convertTags(tags map[string]string) ([]string, []string) {
+func convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
 	var labelNames, labelValues []string
 
-	for name, value := range tags {
+	for name, value := range env.Tags {
+		if invalidTag(name, value) {
+			continue
+		}
+
 		labelNames = append(labelNames, name)
 		labelValues = append(labelValues, value)
 	}
 
+	labelNames = append(labelNames, "source_id")
+	labelValues = append(labelValues, env.GetSourceId())
+
+	if env.GetInstanceId() != "" {
+		labelNames = append(labelNames, "instance_id")
+		labelValues = append(labelValues, env.GetInstanceId())
+	}
+
 	return labelNames, labelValues
+}
+
+func invalidTag(name, value string) bool {
+	return strings.HasPrefix(name, "_") || invalidTagCharacterRegex.MatchString(name) || value == ""
 }

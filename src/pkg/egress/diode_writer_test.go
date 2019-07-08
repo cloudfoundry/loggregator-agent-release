@@ -176,10 +176,6 @@ func (s *SpyAlerter) Alert(missed int) {
 	atomic.AddInt64(&s.missed_, int64(missed))
 }
 
-func (s *SpyAlerter) missed() int64 {
-	return atomic.LoadInt64(&s.missed_)
-}
-
 type SpyWaitGroup struct {
 	addInput   int64
 	doneCalled int64

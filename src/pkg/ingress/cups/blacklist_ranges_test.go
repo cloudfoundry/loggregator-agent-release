@@ -155,18 +155,6 @@ var validIPs = []string{
 	"syslog://127.0.1.1:3000?app=great",
 }
 
-var invalidIPs = []string{
-	"http://127.0.2.2",
-	"http://127.0.2.3",
-	"http://127.0.2.4",
-	"https://127.0.2.3",
-	"syslog://127.0.2.3",
-	"syslog://127.0.2.3:3000",
-	"syslog://127.0.2.3:3000/test",
-	"syslog://127.0.2.3:3000?app=great",
-	"://127.0.2.3:3000?app=great",
-}
-
 var malformattedURLs = []string{
 	"127.0.0.1:300/new",
 	"syslog:127.0.0.1:300/new",

@@ -5,7 +5,6 @@ import (
 
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -48,18 +47,6 @@ func newMockCloser() *mockCloser {
 func (m *mockCloser) Close() error {
 	m.CloseCalled <- true
 	return <-m.CloseOutput.Ret0
-}
-
-type mockPusher struct {
-	PusherCalled chan bool
-	PusherInput  struct {
-		Ctx  chan context.Context
-		Opts chan []grpc.CallOption
-	}
-	PusherOutput struct {
-		Ret0 chan plumbing.DopplerIngestor_PusherClient
-		Ret1 chan error
-	}
 }
 
 type mockDopplerIngestor_PusherClient struct {

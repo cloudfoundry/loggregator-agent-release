@@ -61,9 +61,10 @@ func (p *PromScraper) Run() {
 		p.scrape,
 	)
 
+	ticker := time.Tick(p.cfg.ScrapeInterval)
 	for {
 		select {
-		case <-time.Tick(p.cfg.ScrapeInterval):
+		case <-ticker:
 			if err := s.Scrape(); err != nil {
 				p.log.Printf("failed to scrape: %s", err)
 			}

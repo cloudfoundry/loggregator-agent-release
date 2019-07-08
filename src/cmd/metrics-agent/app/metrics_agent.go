@@ -61,7 +61,7 @@ func (m *MetricsAgent) startIngressServer(diode *diodes.ManyToOneEnvelopeV2) {
 	originMetric := m.metrics.NewCounter("origin_mappings")
 
 	receiver := v2.NewReceiver(diode, ingressMetric, originMetric)
-	tlsConfig := m.generateGRPCServerTLSConfig()
+	tlsConfig := m.generateServerTLSConfig(m.cfg.GRPC.CertFile, m.cfg.GRPC.KeyFile, m.cfg.GRPC.CAFile)
 	server := v2.NewServer(
 		fmt.Sprintf("127.0.0.1:%d", m.cfg.GRPC.Port),
 		receiver,
@@ -71,12 +71,12 @@ func (m *MetricsAgent) startIngressServer(diode *diodes.ManyToOneEnvelopeV2) {
 	server.Start()
 }
 
-func (m *MetricsAgent) generateGRPCServerTLSConfig() *tls.Config {
+func (m *MetricsAgent) generateServerTLSConfig(certFile, keyFile, caFile string) *tls.Config {
 	tlsConfig, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
-		tlsconfig.WithIdentityFromFile(m.cfg.GRPC.CertFile, m.cfg.GRPC.KeyFile),
+		tlsconfig.WithIdentityFromFile(certFile, keyFile),
 	).Server(
-		tlsconfig.WithClientAuthenticationFromFile(m.cfg.GRPC.CAFile),
+		tlsconfig.WithClientAuthenticationFromFile(caFile),
 	)
 	if err != nil {
 		log.Fatalf("unable to generate server TLS Config: %s", err)
@@ -100,21 +100,13 @@ func (m *MetricsAgent) startEnvelopeCollection(promCollector *prom.Collector, di
 }
 
 func (m *MetricsAgent) startMetricsServer(promCollector *prom.Collector) {
-	prometheus.MustRegister(promCollector)
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(promCollector)
 
 	router := http.NewServeMux()
-	router.Handle("/metrics", promhttp.Handler())
+	router.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{ErrorHandling: promhttp.ContinueOnError}))
 
-	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
-		tlsconfig.WithIdentityFromFile(m.cfg.GRPC.CertFile, m.cfg.GRPC.KeyFile),
-	).Server(
-		tlsconfig.WithClientAuthenticationFromFile(m.cfg.GRPC.CAFile),
-	)
-	if err != nil {
-		log.Fatalf("unable to generate server TLS Config: %s", err)
-	}
-
+	tlsConfig := m.generateServerTLSConfig(m.cfg.Metrics.CertFile, m.cfg.Metrics.KeyFile, m.cfg.Metrics.CAFile)
 	m.metricsServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", m.cfg.Metrics.Port),
 		ReadTimeout:  15 * time.Second,

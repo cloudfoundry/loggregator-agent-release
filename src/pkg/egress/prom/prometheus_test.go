@@ -53,21 +53,78 @@ var _ = Describe("Collector", func() {
 		Expect(collectMetrics(promCollector)).ToNot(Receive())
 	})
 
-	It("includes tags", func() {
-		promCollector := prom.NewCollector()
-		counter := counterWithTags("label_counter", 1, map[string]string{
-			"a": "1",
-			"b": "2",
-		})
-		Expect(promCollector.Write(counter)).To(Succeed())
+	Context("tags", func() {
 
-		Expect(collectMetrics(promCollector)).To(Receive(And(
-			haveName("label_counter"),
-			haveLabels(
-				&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
-				&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
-			),
-		)))
+		It("includes tags", func() {
+			promCollector := prom.NewCollector()
+			counter := counterWithTags("label_counter", 1, map[string]string{
+				"a": "1",
+				"b": "2",
+			})
+			Expect(promCollector.Write(counter)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("label_counter"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
+					&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+		})
+
+		It("ignores invalid tags", func() {
+			promCollector := prom.NewCollector()
+			counter := counterWithTags("label_counter", 1, map[string]string{
+				"__invalid":    "1",
+				"not.valid":    "2",
+				"totally_fine": "3",
+			})
+			Expect(promCollector.Write(counter)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("label_counter"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("totally_fine"), Value: proto.String("3")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+		})
+
+		It("ignores tags with empty values", func() {
+			promCollector := prom.NewCollector()
+			counter := counterWithTags("label_counter", 1, map[string]string{
+				"a": "1",
+				"b": "2",
+				"c": "",
+			})
+			Expect(promCollector.Write(counter)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("label_counter"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
+					&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+		})
+
+		It("does not include instance_id if empty", func() {
+			promCollector := prom.NewCollector()
+			counter := counterWithEmptyInstanceID("some_name", 1)
+			Expect(promCollector.Write(counter)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_name"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+				),
+			)))
+		})
 	})
 
 	It("differentiates between metrics with the same name but different labels", func() {
@@ -141,7 +198,7 @@ func haveName(name string) types.GomegaMatcher {
 func totalCounter(name string, total uint64) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		SourceId:   "some-source-id",
-		InstanceId: "",
+		InstanceId: "some-instance-id",
 		Message: &loggregator_v2.Envelope_Counter{
 			Counter: &loggregator_v2.Counter{
 				Name:  name,
@@ -154,7 +211,7 @@ func totalCounter(name string, total uint64) *loggregator_v2.Envelope {
 func counterWithTags(name string, total uint64, tags map[string]string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		SourceId:   "some-source-id",
-		InstanceId: "",
+		InstanceId: "some-instance-id",
 		Message: &loggregator_v2.Envelope_Counter{
 			Counter: &loggregator_v2.Counter{
 				Name:  name,
@@ -165,10 +222,14 @@ func counterWithTags(name string, total uint64, tags map[string]string) *loggreg
 	}
 }
 
-type processor struct {
-}
-
-func (*processor) Process(env *loggregator_v2.Envelope) error {
-	*env = *totalCounter("processed", 3)
-	return nil
+func counterWithEmptyInstanceID(name string, total uint64) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		SourceId: "some-source-id",
+		Message: &loggregator_v2.Envelope_Counter{
+			Counter: &loggregator_v2.Counter{
+				Name:  name,
+				Total: total,
+			},
+		},
+	}
 }

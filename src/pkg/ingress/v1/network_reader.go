@@ -21,7 +21,6 @@ type NetworkReader struct {
 	connection  net.PacketConn
 	writer      ByteArrayWriter
 	rxMsgCount  func(uint64)
-	contextName string
 	buffer      *diodes.OneToOne
 }
 
@@ -36,14 +35,7 @@ func NewNetworkReader(
 	}
 	log.Printf("udp bound to: %s", connection.LocalAddr())
 	rxErrCount := m.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction":"all","metric_version":"1.0"}))
-	if err != nil {
-		return nil, err
-	}
-
 	rxMsgCount := m.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"metric_version":"1.0"}))
-	if err != nil {
-		return nil, err
-	}
 
 	return &NetworkReader{
 		connection: connection,

@@ -19,7 +19,6 @@ type BatchWriter interface {
 type Transponder struct {
 	nexter        Nexter
 	writer        BatchWriter
-	batcher       *batching.V2EnvelopeBatcher
 	batchSize     int
 	batchInterval time.Duration
 	droppedMetric metrics.Counter

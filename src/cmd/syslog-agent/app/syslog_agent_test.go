@@ -13,7 +13,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -238,7 +237,6 @@ func hasMetric(mc *testhelper.SpyMetricClient, metricName string, tags map[strin
 
 type fakeBindingCache struct {
 	*httptest.Server
-	called  bool
 	results []binding.Binding
 }
 
@@ -308,7 +306,6 @@ func newSyslogHTTPSServer() *syslogHTTPSServer {
 
 type syslogTCPServer struct {
 	lis              net.Listener
-	mu               sync.Mutex
 	receivedMessages chan *rfc5424.Message
 }
 
@@ -354,10 +351,6 @@ func (m *syslogTCPServer) handleConn(conn net.Conn) {
 
 		m.receivedMessages <- &msg
 	}
-}
-
-func (m *syslogTCPServer) addr() net.Addr {
-	return m.lis.Addr()
 }
 
 func (m *syslogTCPServer) port() string {

@@ -164,7 +164,6 @@ type spyIPChecker struct {
 	resolveAddrError    error
 	resolvedIP          net.IP
 	parseHostError      error
-	parsedScheme        string
 	parsedHost          string
 }
 

@@ -35,11 +35,6 @@ var _ = Describe("Handler", func() {
 	})
 })
 
-type cacheResponse struct {
-	Next     int               `json:"next"`
-	Bindings []binding.Binding `json:"bindings"`
-}
-
 type stubStore struct {
 	bindings []binding.Binding
 }
@@ -53,11 +48,3 @@ func newStubStore(bindings []binding.Binding) *stubStore {
 func (s *stubStore) Get() []binding.Binding {
 	return s.bindings
 }
-
-type spyResponseWriter struct {
-}
-
-func (rw *spyResponseWriter) Write(msg []byte) (int, error) {
-	return 0, nil
-}
-

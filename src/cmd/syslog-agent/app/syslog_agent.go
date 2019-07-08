@@ -29,7 +29,6 @@ type SyslogAgent struct {
 	bindingManager      BindingManager
 	grpc                GRPC
 	log                 *log.Logger
-	cache               Cache
 	bindingsPerAppLimit int
 	drainSkipCertVerify bool
 }

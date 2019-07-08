@@ -45,7 +45,6 @@ type SyslogConnector struct {
 	wg             egress.WaitGroup
 	sourceIndex    string
 	writerFactory  writerFactory
-	m              metricClient
 	droppedMetric  metrics.Counter
 }
 

@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-const envelopeOrigin = "system-metrics-agent"
-
 type InputFunc func() (SystemStat, error)
 
 type Processor struct {

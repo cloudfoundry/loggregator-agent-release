@@ -15,12 +15,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
 var _ = Describe("MetricsAgent", func() {
 	var (
-		cfg          app.Config
 		metricsAgent *app.MetricsAgent
 		grpcPort     uint16
 		metricsPort  uint16
@@ -34,7 +34,7 @@ var _ = Describe("MetricsAgent", func() {
 
 		grpcPort = getFreePort()
 		metricsPort = getFreePort()
-		cfg = app.Config{
+		cfg := app.Config{
 			Metrics: app.MetricsConfig{
 				Port:     metricsPort,
 				CAFile:   testCerts.CA(),
@@ -79,7 +79,10 @@ var _ = Describe("MetricsAgent", func() {
 
 	It("includes default tags", func() {
 		cancel := doUntilCancelled(func() {
-			ingressClient.EmitCounter("total_counter", loggregator.WithTotal(22))
+			ingressClient.EmitCounter("total_counter",
+				loggregator.WithTotal(22),
+				loggregator.WithCounterSourceInfo("some-source-id", "some-instance-id"),
+			)
 		})
 		defer cancel()
 
@@ -89,6 +92,8 @@ var _ = Describe("MetricsAgent", func() {
 		Expect(metric.GetLabel()).To(ConsistOf(
 			&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
 			&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
+			&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+			&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
 		))
 	})
 
@@ -114,8 +119,11 @@ var _ = Describe("MetricsAgent", func() {
 
 func doUntilCancelled(f func()) context.CancelFunc {
 	ctx, cancelFunc := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		ticker := time.Tick(100 * time.Millisecond)
 		for {
 			select {
