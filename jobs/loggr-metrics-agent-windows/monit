@@ -11,17 +11,19 @@
   }
   tags.merge!(p("tags"))
 
+  tag_str = tags.map { |k, v| "#{k}:#{v}" }.join(",")
+
   env = {
-    "AGENT_PORT" => p("port"),
+    "AGENT_PORT" => "#{p("port")}",
     "AGENT_CA_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/grpc_ca.crt",
     "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/grpc.crt",
     "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/grpc.key",
-    "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
-    "METRICS_PORT" => p("metrics_port"),
+    "AGENT_TAGS" => tag_str,
+    "METRICS_PORT" => "{p("metrics_port")}",
     "METRICS_CA_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics_ca.crt",
     "METRICS_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics.crt",
     "METRICS_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics.key",
-    "DEBUG_PORT" => p("debug_port"),
+    "DEBUG_PORT" => "#{p("debug_port")}",
   }
 
   monit = {
