@@ -48,3 +48,18 @@
   value:
     name: prom_scraper_windows
     release: loggregator-agent
+
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-metrics-agent-windows?
+  value:
+    name: loggr-metrics-agent-windows
+    release: loggregator-agent
+    properties:
+      grpc:
+        ca_cert: "((loggregator_tls_agent.ca))"
+        cert: "((loggregator_tls_agent.certificate))"
+        key: "((loggregator_tls_agent.private_key))"
+      metrics:
+        ca_cert: "((metrics_agent_tls.ca))"
+        cert: "((metrics_agent_tls.certificate))"
+        key: "((metrics_agent_tls.private_key))"
