@@ -22,6 +22,7 @@
     "METRICS_CA_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics_ca.crt",
     "METRICS_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics.crt",
     "METRICS_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent/config/certs/metrics.key",
+    "DEBUG_PORT" => p("debug_port"),
   }
 
   monit = {

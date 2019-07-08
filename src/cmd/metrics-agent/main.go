@@ -18,6 +18,7 @@ func main() {
 	m := metrics.NewPromRegistry(
 		"metrics_agent",
 		logger,
+		metrics.WithServer(int(cfg.DebugPort)),
 		metrics.WithDefaultTags(map[string]string{
 			"metrics_version": "2.0",
 			"origin": "loggregator.metrics_agent",

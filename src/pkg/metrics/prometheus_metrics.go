@@ -13,7 +13,7 @@ import (
 
 type PromRegistry struct {
 	port        string
-	registry    *prometheus.Registry
+	registerer    prometheus.Registerer
 	loggr       *log.Logger
 	defaultTags map[string]string
 }
@@ -37,7 +37,6 @@ func NewPromRegistry(defaultSourceID string, logger *log.Logger, opts ...Registr
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
 	pr := &PromRegistry{
-		registry:    registry,
 		defaultTags: map[string]string{"source_id": defaultSourceID, "origin": defaultSourceID},
 		loggr:       logger,
 	}
@@ -46,7 +45,8 @@ func NewPromRegistry(defaultSourceID string, logger *log.Logger, opts ...Registr
 		o(pr)
 	}
 
-	prometheus.WrapRegistererWith(pr.defaultTags, registry)
+	registerer := prometheus.WrapRegistererWith(pr.defaultTags, registry)
+	pr.registerer = registerer
 
 	httpHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	http.Handle("/metrics", httpHandler)
@@ -107,7 +107,7 @@ func (p *PromRegistry) NewGauge(name string, opts ...MetricOption) Gauge {
 }
 
 func (p *PromRegistry) registerCollector(name string, c prometheus.Collector) prometheus.Collector {
-	err := p.registry.Register(c)
+	err := p.registerer.Register(c)
 	if err != nil {
 		typ, ok := err.(prometheus.AlreadyRegisteredError)
 		if !ok {

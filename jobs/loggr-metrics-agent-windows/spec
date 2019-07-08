@@ -20,6 +20,9 @@ properties:
   metrics_port:
     description: "Port the agent uses to serve the Prometheus endpoint"
     default: 14826
+  debug_port:
+    description: "Port the agent uses to serve debug information"
+    default: 14827
   tags:
     description: "Collection of tags to add on all outgoing v2 envelopes. Bosh deployment, job, index and IP will be merged with this property if they are not provided"
     default: {}

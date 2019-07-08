@@ -17,7 +17,7 @@ type GRPCConfig struct {
 // MetricsConfig stores the configuration for the metrics server using a PORT
 // with mTLS certs.
 type MetricsConfig struct {
-	Port     uint16 `env:"METRICS_PORT, report"`
+	Port     uint16 `env:"METRICS_PORT, required, report"`
 	CAFile   string `env:"METRICS_CA_FILE_PATH, required, report"`
 	CertFile string `env:"METRICS_CERT_FILE_PATH, required, report"`
 	KeyFile  string `env:"METRICS_KEY_FILE_PATH, required, report"`
@@ -25,9 +25,10 @@ type MetricsConfig struct {
 
 // Config holds the configuration for the metrics agent
 type Config struct {
-	Metrics MetricsConfig
-	GRPC    GRPCConfig
-	Tags    map[string]string `env:"AGENT_TAGS"`
+	Metrics   MetricsConfig
+	GRPC      GRPCConfig
+	Tags      map[string]string `env:"AGENT_TAGS"`
+	DebugPort uint16            `env:"DEBUG_PORT, required, report"`
 }
 
 // LoadConfig will load the configuration for the forwarder agent from the
