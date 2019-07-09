@@ -31,7 +31,7 @@ github.com/go-ole/go-ole/oleutil
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
-# github.com/golang/protobuf v1.3.1
+# github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/ptypes
@@ -121,7 +121,7 @@ github.com/shirou/gopsutil/internal/common
 github.com/square/certstrap/pkix
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.3.0
+# github.com/valyala/fasthttp v1.4.0
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
