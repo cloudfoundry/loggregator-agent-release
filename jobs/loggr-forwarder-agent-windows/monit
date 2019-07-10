@@ -1,10 +1,23 @@
 <%
+  job_name = spec.job.name || name
+  instance_id = spec.id || spec.index.to_s
+  deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+
+  tags = {
+      deployment: deployment,
+      job: job_name,
+      index: instance_id,
+      ip: spec.ip,
+  }
+  tags.merge!(p("tags"))
+
   env = {
     "AGENT_PORT" => "#{p("port")}",
     "AGENT_CA_FILE_PATH" => "/var/vcap/jobs/loggr-forwarder-agent-windows/config/certs/loggregator_ca.crt",
     "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-forwarder-agent-windows/config/certs/forwarder.crt",
     "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-forwarder-agent-windows/config/certs/forwarder.key",
     "AGENT_CIPHER_SUITES" => p("tls.cipher_suites").split(":").join(","),
+    "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
     "DOWNSTREAM_INGRESS_PORT_GLOB": p("downstream_ingress_port_glob"),
     "DEBUG_PORT" => "#{p("debug_port")}",
   }
