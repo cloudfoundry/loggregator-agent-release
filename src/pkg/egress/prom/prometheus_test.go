@@ -32,6 +32,19 @@ var _ = Describe("Collector", func() {
 		))
 	})
 
+	It("drops metrics with invalid names", func(){
+		promCollector := prom.NewCollector()
+		Expect(promCollector.Write(gauge(map[string]float64{
+			"gauge1.wrong.name": 11,
+			"gauge2/also-wrong": 22,
+		}))).ToNot(Succeed())
+
+		Expect(promCollector.Write(totalCounter("counter.wrong.name", 11))).ToNot(Succeed())
+		Expect(promCollector.Write(timer("timer.wrong.name", 11, 22))).ToNot(Succeed())
+
+		Expect(collectMetrics(promCollector)).ToNot(Receive())
+	})
+
 	Context("envelope types", func() {
 		It("collects counters from the provider", func() {
 			promCollector := prom.NewCollector()

@@ -3,6 +3,7 @@ package prom
 import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	v2 "code.cloudfoundry.org/loggregator-agent/pkg/egress/v2"
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"regexp"
 	"strings"
@@ -12,9 +13,11 @@ import (
 
 const help = "Metrics Agent collected metric"
 
-var buckets = []float64{0.01, 0.2, 1.0, 15.0, 60.0}
-
-var invalidTagCharacterRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+var (
+	buckets                  = []float64{0.01, 0.2, 1.0, 15.0, 60.0}
+	invalidNameRegex         = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
+	invalidTagCharacterRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+)
 
 type Collector struct {
 	metrics map[string]prometheus.Metric
@@ -75,6 +78,10 @@ func (c *Collector) convertEnvelope(env *loggregator_v2.Envelope) (map[string]pr
 
 func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID string, metric prometheus.Metric, err error) {
 	name := env.GetCounter().GetName()
+	if invalidName(name) {
+		return "", nil, fmt.Errorf("invalid metric name: %s", name)
+	}
+
 	labelNames, labelValues := convertTags(env)
 
 	desc := prometheus.NewDesc(name, help, labelNames, nil)
@@ -91,6 +98,10 @@ func (c *Collector) convertGaugeEnvelope(env *loggregator_v2.Envelope) (map[stri
 
 	metrics := map[string]prometheus.Metric{}
 	for name, metric := range env.GetGauge().GetMetrics() {
+		if invalidName(name) {
+			return nil, fmt.Errorf("invalid metric name: %s", name)
+		}
+
 		id, metric := convertGaugeValue(name, metric, envelopeLabelNames, envelopeLabelValues)
 		metrics[id] = metric
 	}
@@ -132,6 +143,10 @@ func gaugeLabels(metric *loggregator_v2.GaugeValue, envelopeLabelNames, envelope
 func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string, metric prometheus.Metric, err error) {
 	timer := env.GetTimer()
 	name := timer.GetName() + "_seconds"
+	if invalidName(name) {
+		return "", nil, fmt.Errorf("invalid metric name: %s", name)
+	}
+
 	labelNames, labelValues := convertTags(env)
 	id := buildMetricID(name, labelNames, labelValues)
 
@@ -177,6 +192,10 @@ func convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
 	}
 
 	return labelNames, labelValues
+}
+
+func invalidName(name string) bool {
+	return invalidTagCharacterRegex.MatchString(name)
 }
 
 func invalidTag(name, value string) bool {
