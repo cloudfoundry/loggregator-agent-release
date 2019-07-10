@@ -10,6 +10,7 @@ import (
 	"github.com/onsi/gomega/types"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"time"
 )
 
 var _ = Describe("Collector", func() {
@@ -83,6 +84,31 @@ var _ = Describe("Collector", func() {
 			))
 		})
 
+		It("collects timers from the provider", func() {
+			promCollector := prom.NewCollector()
+			Expect(promCollector.Write(timer("http", int64(time.Millisecond), int64(2*time.Millisecond)))).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
+				And(
+					haveName("http_seconds"),
+					histogramWithCount(1),
+					histogramWithSum(float64(time.Millisecond)/float64(time.Second)),
+					histogramWithBuckets(0.01, 0.2, 1.0, 15.0, 60.0),
+				),
+			))
+
+			Expect(promCollector.Write(timer("http", 0, int64(time.Second)))).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
+				And(
+					haveName("http_seconds"),
+					histogramWithCount(2),
+					histogramWithSum(float64(time.Second+time.Millisecond)/float64(time.Second)),
+					histogramWithBuckets(0.01, 0.2, 1.0, 15.0, 60.0),
+				),
+			))
+		})
+
 		It("ignores unknown envelope types", func() {
 			promCollector := prom.NewCollector()
 			Expect(promCollector.Write(&loggregator_v2.Envelope{})).To(Succeed())
@@ -91,7 +117,7 @@ var _ = Describe("Collector", func() {
 	})
 
 	Context("tags", func() {
-		It("includes tags", func() {
+		It("includes tags for counters", func() {
 			promCollector := prom.NewCollector()
 			counter := counterWithTags("label_counter", 1, map[string]string{
 				"a": "1",
@@ -110,7 +136,7 @@ var _ = Describe("Collector", func() {
 			)))
 		})
 
-		It("includes units as labels", func() {
+		It("includes tags for gauges", func() {
 			promCollector := prom.NewCollector()
 			gauge := gaugeWithUnit("some_gauge", "percentage")
 			Expect(promCollector.Write(gauge)).To(Succeed())
@@ -119,6 +145,25 @@ var _ = Describe("Collector", func() {
 				haveName("some_gauge"),
 				haveLabels(
 					&dto.LabelPair{Name: proto.String("unit"), Value: proto.String("percentage")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+		})
+
+		It("includes tags for timers", func() {
+			promCollector := prom.NewCollector()
+			timer := timerWithTags("some_timer", map[string]string{
+				"a": "1",
+				"b": "2",
+			})
+			Expect(promCollector.Write(timer)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_timer_seconds"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
+					&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
 					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
 					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
 				),
@@ -271,6 +316,44 @@ func gaugeWithValue(val float64) types.GomegaMatcher {
 	}, Equal(val))
 }
 
+func histogramWithCount(count uint64) types.GomegaMatcher {
+	return WithTransform(func(metric prometheus.Metric) uint64 {
+		histogram := asHistogram(metric)
+		return histogram.GetSampleCount()
+	}, Equal(count))
+}
+
+func histogramWithBuckets(buckets ...float64) types.GomegaMatcher {
+	return WithTransform(func(metric prometheus.Metric) []float64 {
+		histogram := asHistogram(metric)
+		var upperBounds []float64
+		for _, bucket := range histogram.GetBucket() {
+			upperBounds = append(upperBounds, bucket.GetUpperBound())
+		}
+
+		return upperBounds
+	}, Equal(buckets))
+}
+
+func asHistogram(metric prometheus.Metric) *dto.Histogram {
+	dtoMetric := &dto.Metric{}
+	err := metric.Write(dtoMetric)
+	Expect(err).ToNot(HaveOccurred())
+
+	return dtoMetric.GetHistogram()
+}
+
+func histogramWithSum(sum float64) types.GomegaMatcher {
+	return WithTransform(func(metric prometheus.Metric) float64 {
+		dtoMetric := &dto.Metric{}
+		err := metric.Write(dtoMetric)
+		Expect(err).ToNot(HaveOccurred())
+
+		histogram := dtoMetric.GetHistogram()
+		return histogram.GetSampleSum()
+	}, Equal(sum))
+}
+
 func haveLabels(labels ...interface{}) types.GomegaMatcher {
 	return WithTransform(func(metric prometheus.Metric) []*dto.LabelPair {
 		dtoMetric := &dto.Metric{}
@@ -300,6 +383,35 @@ func totalCounter(name string, total uint64) *loggregator_v2.Envelope {
 	}
 }
 
+func counterWithTags(name string, total uint64, tags map[string]string) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		SourceId:   "some-source-id",
+		InstanceId: "some-instance-id",
+		Message: &loggregator_v2.Envelope_Counter{
+			Counter: &loggregator_v2.Counter{
+				Name:  name,
+				Total: total,
+			},
+		},
+		Tags: tags,
+	}
+}
+
+func timerWithTags(name string, tags map[string]string) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		SourceId:   "some-source-id",
+		InstanceId: "some-instance-id",
+		Message: &loggregator_v2.Envelope_Timer{
+			Timer: &loggregator_v2.Timer{
+				Name:  name,
+				Start: 0,
+				Stop:  int64(time.Second),
+			},
+		},
+		Tags: tags,
+	}
+}
+
 func gauge(gauges map[string]float64) *loggregator_v2.Envelope {
 	gaugeValues := map[string]*loggregator_v2.GaugeValue{}
 	for name, value := range gauges {
@@ -325,7 +437,7 @@ func gaugeWithUnit(name, unit string) *loggregator_v2.Envelope {
 			Gauge: &loggregator_v2.Gauge{
 				Metrics: map[string]*loggregator_v2.GaugeValue{
 					name: {
-						Unit: unit,
+						Unit:  unit,
 						Value: 1,
 					},
 				},
@@ -334,17 +446,17 @@ func gaugeWithUnit(name, unit string) *loggregator_v2.Envelope {
 	}
 }
 
-func counterWithTags(name string, total uint64, tags map[string]string) *loggregator_v2.Envelope {
+func timer(name string, start, stop int64) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		SourceId:   "some-source-id",
 		InstanceId: "some-instance-id",
-		Message: &loggregator_v2.Envelope_Counter{
-			Counter: &loggregator_v2.Counter{
+		Message: &loggregator_v2.Envelope_Timer{
+			Timer: &loggregator_v2.Timer{
 				Name:  name,
-				Total: total,
+				Start: start,
+				Stop:  stop,
 			},
 		},
-		Tags: tags,
 	}
 }
 

@@ -7,9 +7,12 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 const help = "Metrics Agent collected metric"
+
+var buckets = []float64{0.01, 0.2, 1.0, 15.0, 60.0}
 
 var invalidTagCharacterRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
@@ -62,6 +65,9 @@ func (c *Collector) convertEnvelope(env *loggregator_v2.Envelope) (map[string]pr
 		return map[string]prometheus.Metric{id: metric}, err
 	case *loggregator_v2.Envelope_Gauge:
 		return c.convertGaugeEnvelope(env)
+	case *loggregator_v2.Envelope_Timer:
+		id, metric, err := c.convertTimer(env)
+		return map[string]prometheus.Metric{id: metric}, err
 	default:
 		return nil, nil
 	}
@@ -102,12 +108,17 @@ func convertGaugeValue(name string, gaugeValue *loggregator_v2.GaugeValue, envel
 }
 
 func buildMetricID(name string, envelopeLabelNames, envelopeLabelValues []string) string {
+	labelTags := labelTags(envelopeLabelNames, envelopeLabelValues)
+
+	return name + v2.HashTags(labelTags)
+}
+
+func labelTags(envelopeLabelNames, envelopeLabelValues []string) map[string]string {
 	labelTags := map[string]string{}
 	for i, labelName := range envelopeLabelNames {
 		labelTags[labelName] = envelopeLabelValues[i]
 	}
-
-	return name + v2.HashTags(labelTags)
+	return labelTags
 }
 
 func gaugeLabels(metric *loggregator_v2.GaugeValue, envelopeLabelNames, envelopeLabelValues []string) ([]string, []string) {
@@ -116,6 +127,33 @@ func gaugeLabels(metric *loggregator_v2.GaugeValue, envelopeLabelNames, envelope
 	}
 
 	return append(envelopeLabelNames, "unit"), append(envelopeLabelValues, metric.Unit)
+}
+
+func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string, metric prometheus.Metric, err error) {
+	timer := env.GetTimer()
+	name := timer.GetName() + "_seconds"
+	labelNames, labelValues := convertTags(env)
+	id := buildMetricID(name, labelNames, labelValues)
+
+	c.RLock()
+	metric, ok := c.metrics[id]
+	c.RUnlock()
+	if !ok {
+		metric = prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:        name,
+			Help:        help,
+			Buckets:     buckets,
+			ConstLabels: labelTags(labelNames, labelValues),
+		})
+	}
+
+	metric.(prometheus.Histogram).Observe(durationInSeconds(timer))
+
+	return id, metric, nil
+}
+
+func durationInSeconds(timer *loggregator_v2.Timer) float64 {
+	return float64(timer.GetStop()-timer.GetStart()) / float64(time.Second)
 }
 
 func convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
