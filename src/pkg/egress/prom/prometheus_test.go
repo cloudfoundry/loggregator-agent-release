@@ -31,30 +31,66 @@ var _ = Describe("Collector", func() {
 		))
 	})
 
-	It("collects counters with totals from the provider", func() {
-		promCollector := prom.NewCollector()
-		Expect(promCollector.Write(totalCounter("some_total_counter", 22))).To(Succeed())
+	Context("envelope types", func() {
+		It("collects counters from the provider", func() {
+			promCollector := prom.NewCollector()
+			Expect(promCollector.Write(totalCounter("some_total_counter", 22))).To(Succeed())
 
-		Expect(collectMetrics(promCollector)).To(Receive(And(
-			haveName("some_total_counter"),
-			counterWithValue(22),
-		)))
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_total_counter"),
+				counterWithValue(22),
+			)))
 
-		Expect(promCollector.Write(totalCounter("some_total_counter", 37))).To(Succeed())
-		Expect(collectMetrics(promCollector)).To(Receive(And(
-			haveName("some_total_counter"),
-			counterWithValue(37),
-		)))
-	})
+			Expect(promCollector.Write(totalCounter("some_total_counter", 37))).To(Succeed())
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_total_counter"),
+				counterWithValue(37),
+			)))
+		})
 
-	It("ignores non counters", func() {
-		promCollector := prom.NewCollector()
-		Expect(promCollector.Write(&loggregator_v2.Envelope{})).To(Succeed())
-		Expect(collectMetrics(promCollector)).ToNot(Receive())
+		It("collects gauges from the provider", func() {
+			promCollector := prom.NewCollector()
+			Expect(promCollector.Write(gauge(map[string]float64{
+				"gauge1": 11,
+				"gauge2": 22,
+			}))).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
+				And(
+					haveName("gauge1"),
+					gaugeWithValue(11),
+				),
+				And(
+					haveName("gauge2"),
+					gaugeWithValue(22),
+				),
+			))
+
+			Expect(promCollector.Write(gauge(map[string]float64{
+				"gauge1": 111,
+				"gauge2": 222,
+			}))).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
+				And(
+					haveName("gauge1"),
+					gaugeWithValue(111),
+				),
+				And(
+					haveName("gauge2"),
+					gaugeWithValue(222),
+				),
+			))
+		})
+
+		It("ignores unknown envelope types", func() {
+			promCollector := prom.NewCollector()
+			Expect(promCollector.Write(&loggregator_v2.Envelope{})).To(Succeed())
+			Expect(collectMetrics(promCollector)).ToNot(Receive())
+		})
 	})
 
 	Context("tags", func() {
-
 		It("includes tags", func() {
 			promCollector := prom.NewCollector()
 			counter := counterWithTags("label_counter", 1, map[string]string{
@@ -68,6 +104,34 @@ var _ = Describe("Collector", func() {
 				haveLabels(
 					&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
 					&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+		})
+
+		It("includes units as labels", func() {
+			promCollector := prom.NewCollector()
+			gauge := gaugeWithUnit("some_gauge", "percentage")
+			Expect(promCollector.Write(gauge)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_gauge"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("unit"), Value: proto.String("percentage")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+		})
+
+		It("ignores units if empty", func() {
+			promCollector := prom.NewCollector()
+			Expect(promCollector.Write(gauge(map[string]float64{"some_gauge": 7}))).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_gauge"),
+				haveLabels(
 					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
 					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
 				),
@@ -149,6 +213,24 @@ var _ = Describe("Collector", func() {
 			counterWithValue(3),
 		))
 	})
+
+	It("differentiates between metrics with the same name and same tags but different source id", func() {
+		promCollector := prom.NewCollector()
+		counter := counterWithTags("some_counter", 1, map[string]string{
+			"a": "1",
+		})
+		Expect(promCollector.Write(counter)).To(Succeed())
+
+		sameCounter := counterWithTags("some_counter", 3, map[string]string{
+			"a": "1",
+		})
+		Expect(promCollector.Write(sameCounter)).To(Succeed())
+
+		counter.SourceId = "different_source_id"
+		Expect(promCollector.Write(counter)).To(Succeed())
+
+		Expect(collectMetrics(promCollector)).To(HaveLen(2))
+	})
 })
 
 func receiveInAnyOrder(elements ...interface{}) types.GomegaMatcher {
@@ -179,6 +261,16 @@ func counterWithValue(val float64) types.GomegaMatcher {
 	}, Equal(val))
 }
 
+func gaugeWithValue(val float64) types.GomegaMatcher {
+	return WithTransform(func(metric prometheus.Metric) float64 {
+		dtoMetric := &dto.Metric{}
+		err := metric.Write(dtoMetric)
+		Expect(err).ToNot(HaveOccurred())
+
+		return dtoMetric.GetGauge().GetValue()
+	}, Equal(val))
+}
+
 func haveLabels(labels ...interface{}) types.GomegaMatcher {
 	return WithTransform(func(metric prometheus.Metric) []*dto.LabelPair {
 		dtoMetric := &dto.Metric{}
@@ -203,6 +295,40 @@ func totalCounter(name string, total uint64) *loggregator_v2.Envelope {
 			Counter: &loggregator_v2.Counter{
 				Name:  name,
 				Total: total,
+			},
+		},
+	}
+}
+
+func gauge(gauges map[string]float64) *loggregator_v2.Envelope {
+	gaugeValues := map[string]*loggregator_v2.GaugeValue{}
+	for name, value := range gauges {
+		gaugeValues[name] = &loggregator_v2.GaugeValue{Value: value}
+	}
+
+	return &loggregator_v2.Envelope{
+		SourceId:   "some-source-id",
+		InstanceId: "some-instance-id",
+		Message: &loggregator_v2.Envelope_Gauge{
+			Gauge: &loggregator_v2.Gauge{
+				Metrics: gaugeValues,
+			},
+		},
+	}
+}
+
+func gaugeWithUnit(name, unit string) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		SourceId:   "some-source-id",
+		InstanceId: "some-instance-id",
+		Message: &loggregator_v2.Envelope_Gauge{
+			Gauge: &loggregator_v2.Gauge{
+				Metrics: map[string]*loggregator_v2.GaugeValue{
+					name: {
+						Unit: unit,
+						Value: 1,
+					},
+				},
 			},
 		},
 	}
