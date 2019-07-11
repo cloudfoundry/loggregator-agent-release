@@ -226,7 +226,8 @@ var _ = Describe("Manager", func() {
 			stubBindingFetcher,
 			spyConnector,
 			nil,
-			spyMetricClient, 100*time.Millisecond,
+			spyMetricClient,
+			100*time.Millisecond,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -238,19 +239,26 @@ var _ = Describe("Manager", func() {
 	})
 
 	It("reports the number of universal drains", func() {
-		binding.NewManager(
+		stubBindingFetcher.bindings <- []syslog.Binding{}
+
+		m := binding.NewManager(
 			stubBindingFetcher,
 			spyConnector,
 			[]string{
 				"syslog://universal-drain1.url.com",
 				"syslog://universal-drain2.url.com",
 			},
-			spyMetricClient, 100*time.Millisecond,
+			spyMetricClient,
+			100*time.Millisecond,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
+		go m.Run()
 
-		Expect(spyMetricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()).To(Equal(float64(2)))
+		Eventually(func() float64 {
+			return spyMetricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()
+
+		}).Should(Equal(float64(2)))
 	})
 
 	It("includes universal drains in active drain count", func() {
@@ -266,7 +274,8 @@ var _ = Describe("Manager", func() {
 			[]string{
 				"syslog://universal-drain1.url.com",
 			},
-			spyMetricClient, 100*time.Millisecond,
+			spyMetricClient,
+			time.Hour,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -283,6 +292,34 @@ var _ = Describe("Manager", func() {
 		Expect(spyConnector.ConnectionCount()).To(BeNumerically("==", 3))
 
 		Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(3.0))
+	})
+
+	It("re-connects the universal drains after updates", func() {
+		stubBindingFetcher.bindings <- []syslog.Binding{}
+		stubBindingFetcher.bindings <- []syslog.Binding{}
+
+		m := binding.NewManager(
+			stubBindingFetcher,
+			spyConnector,
+			[]string{"syslog://universal-drain.url.com"},
+			spyMetricClient,
+			100*time.Millisecond,
+			10*time.Minute,
+			log.New(GinkgoWriter, "", 0),
+		)
+		go m.Run()
+
+		var appDrains []egress.Writer
+		Eventually(func() int {
+			appDrains = m.GetDrains("app-1")
+			return len(appDrains)
+		}).Should(Equal(1))
+
+		Eventually(func() egress.Writer {
+			newAppDrains := m.GetDrains("app-1")
+			Expect(newAppDrains).To(HaveLen(1))
+			return newAppDrains[0]
+		}).ShouldNot(Equal(appDrains[0]))
 	})
 
 	It("removes deleted drains", func() {

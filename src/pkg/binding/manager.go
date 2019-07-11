@@ -27,9 +27,10 @@ type Connector interface {
 }
 
 type Manager struct {
-	bf              Fetcher
-	connector       Connector
-	universalDrains []egress.Writer
+	bf                 Fetcher
+	connector          Connector
+	universalDrains    []drainHolder
+	universalDrainURLs []string
 
 	pollingInterval time.Duration
 	idleTimeout     time.Duration
@@ -63,6 +64,7 @@ func NewManager(
 	manager := &Manager{
 		bf:                        bf,
 		connector:                 c,
+		universalDrainURLs:        universalDrainURLs,
 		pollingInterval:           pollingInterval,
 		idleTimeout:               idleTimeout,
 		drainCountMetric:          drainCount,
@@ -73,29 +75,9 @@ func NewManager(
 		log:                       log,
 	}
 
-	manager.addUniversalDrains(universalDrainURLs)
 	go manager.idleCleanupLoop()
 
 	return manager
-}
-
-func (m *Manager) addUniversalDrains(drains []string) {
-	for _, drain := range drains {
-		writer, err := m.connector.Connect(context.Background(), syslog.Binding{
-			AppId: "all",
-			Drain: drain,
-		})
-		if err != nil {
-			m.log.Printf("failed to connect to universal drain %s: %s", drain, err)
-			continue
-		}
-
-		m.universalDrains = append(m.universalDrains, writer)
-		m.universalDrainCountMetric.Add(1)
-
-		m.activeDrainCount++
-		m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
-	}
 }
 
 func (m *Manager) Run() {
@@ -142,7 +124,9 @@ func (m *Manager) GetDrains(sourceID string) []egress.Writer {
 		drains = append(drains, drainHolder.drainWriter)
 	}
 
-	drains = append(drains, m.universalDrains...)
+	for _, drainHolder := range m.universalDrains {
+		drains = append(drains, drainHolder.drainWriter)
+	}
 
 	return drains
 }
@@ -180,6 +164,37 @@ func (m *Manager) updateDrains(bindings []syslog.Binding) {
 			m.removeDrain(bindingWriterMap, b)
 		}
 	}
+
+	for _, drainHolder := range m.universalDrains {
+		drainHolder.cancel()
+	}
+
+	m.activeDrainCount -= int64(len(m.universalDrains))
+	m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+	m.universalDrains = []drainHolder{}
+	m.addUniversalDrains(m.universalDrainURLs)
+}
+
+func (m *Manager) addUniversalDrains(drains []string) {
+	for _, drain := range drains {
+		universalDrainHolder := newDrainHolder()
+		writer, err := m.connector.Connect(universalDrainHolder.ctx, syslog.Binding{
+			AppId: "all",
+			Drain: drain,
+		})
+		if err != nil {
+			m.log.Printf("failed to connect to universal drain %s: %s", drain, err)
+			continue
+		}
+
+		universalDrainHolder.drainWriter = writer
+		m.universalDrains = append(m.universalDrains, universalDrainHolder)
+	}
+
+	m.universalDrainCountMetric.Set(float64(len(m.universalDrains)))
+
+	m.activeDrainCount += int64(len(m.universalDrains))
+	m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
 }
 
 func (m *Manager) removeDrain(
