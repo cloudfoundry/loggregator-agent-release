@@ -10,7 +10,7 @@ code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
 # code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 code.cloudfoundry.org/rfc5424
-# code.cloudfoundry.org/tlsconfig v0.0.0-20190419002020-eb9396db5a71
+# code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
 # github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d
