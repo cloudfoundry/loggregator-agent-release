@@ -102,20 +102,26 @@ func (c *Collector) convertGaugeEnvelope(env *loggregator_v2.Envelope) (map[stri
 			return nil, fmt.Errorf("invalid metric name: %s", name)
 		}
 
-		id, metric := convertGaugeValue(name, metric, envelopeLabelNames, envelopeLabelValues)
+		id, metric, err := convertGaugeValue(name, metric, envelopeLabelNames, envelopeLabelValues)
+		if err != nil {
+			return nil, fmt.Errorf("invalid metric: %s", err)
+		}
 		metrics[id] = metric
 	}
 
 	return metrics, nil
 }
 
-func convertGaugeValue(name string, gaugeValue *loggregator_v2.GaugeValue, envelopeLabelNames, envelopeLabelValues []string) (string, prometheus.Metric) {
+func convertGaugeValue(name string, gaugeValue *loggregator_v2.GaugeValue, envelopeLabelNames, envelopeLabelValues []string) (string, prometheus.Metric, error) {
 	gaugeLabelNames, gaugeLabelValues := gaugeLabels(gaugeValue, envelopeLabelNames, envelopeLabelValues)
 
 	desc := prometheus.NewDesc(name, help, gaugeLabelNames, nil)
-	metric := prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, gaugeValue.Value, gaugeLabelValues...)
+	metric, err := prometheus.NewConstMetric(desc, prometheus.GaugeValue, gaugeValue.Value, gaugeLabelValues...)
+	if err != nil {
+		return "", nil, err
+	}
 
-	return buildMetricID(name, envelopeLabelNames, envelopeLabelValues), metric
+	return buildMetricID(name, envelopeLabelNames, envelopeLabelValues), metric, nil
 }
 
 func buildMetricID(name string, envelopeLabelNames, envelopeLabelValues []string) string {
