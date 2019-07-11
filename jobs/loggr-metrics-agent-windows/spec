@@ -16,7 +16,7 @@ packages:
 properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
-    default: 3459
+    default: 3461
   metrics_port:
     description: "Port the agent uses to serve the Prometheus endpoint"
     default: 14826
