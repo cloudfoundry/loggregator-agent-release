@@ -30,17 +30,17 @@ import (
 
 var _ = Describe("SyslogAgent", func() {
 	var (
-		syslogHTTPS  *syslogHTTPSServer
+		syslogHTTPS        *syslogHTTPSServer
 		universalSyslogTLS *syslogTCPServer
-		universalAddr string
-		syslogTLS    *syslogTCPServer
-		cupsProvider *fakeBindingCache
-		metricClient *testhelper.SpyMetricClient
+		universalAddr      string
+		syslogTLS          *syslogTCPServer
+		cupsProvider       *fakeBindingCache
+		metricClient       *testhelper.SpyMetricClient
 
 		grpcPort   = 30000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
-		metronTestCerts = testhelper.GenerateCerts("loggregatorCA")
+		metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
 		bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
 	)
 
@@ -113,7 +113,7 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 	})
 
-	var setupTestAgent = func(blacklist cups.BlacklistRanges, universalDrains []string) context.CancelFunc{
+	var setupTestAgent = func(blacklist cups.BlacklistRanges, universalDrains []string) context.CancelFunc {
 		metricClient = testhelper.NewMetricClient()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
@@ -166,7 +166,10 @@ var _ = Describe("SyslogAgent", func() {
 		defer cancel()
 
 		Eventually(hasMetric(metricClient, "non_app_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Expect(metricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+		Eventually(
+			func() float64 {
+				return metricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()
+			}).Should(Equal(1.0))
 		Expect(metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
 	})
 
