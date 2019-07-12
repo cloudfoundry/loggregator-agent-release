@@ -19,15 +19,69 @@ var (
 	invalidTagCharacterRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 )
 
+type sourceIDBucket struct {
+	lastUpdate time.Time
+	metrics    map[string]prometheus.Metric
+}
+
+func newSourceIDBucket() *sourceIDBucket {
+	return &sourceIDBucket{
+		lastUpdate: time.Now(),
+		metrics:    map[string]prometheus.Metric{},
+	}
+}
+
+func (b *sourceIDBucket) addMetric(id string, metric prometheus.Metric) {
+	b.metrics[id] = metric
+	b.lastUpdate = time.Now()
+}
+
 type Collector struct {
-	metrics map[string]prometheus.Metric
+	metricBuckets map[string]*sourceIDBucket
+
+	sourceIDTTL                time.Duration
+	sourceIDExpirationInterval time.Duration
 
 	sync.RWMutex
 }
 
-func NewCollector() *Collector {
-	return &Collector{
-		metrics: map[string]prometheus.Metric{},
+type CollectorOption func(*Collector)
+
+func NewCollector(opts ...CollectorOption) *Collector {
+	c := &Collector{
+		metricBuckets:              map[string]*sourceIDBucket{},
+		sourceIDTTL:                time.Hour,
+		sourceIDExpirationInterval: time.Minute,
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	go c.expireMetrics()
+
+	return c
+}
+
+func WithSourceIDExpiration(ttl, expirationInterval time.Duration) CollectorOption {
+	return func(c *Collector) {
+		c.sourceIDTTL = ttl
+		c.sourceIDExpirationInterval = expirationInterval
+	}
+}
+
+func (c *Collector) expireMetrics() {
+	expirationTicker := time.NewTicker(c.sourceIDExpirationInterval)
+	for range expirationTicker.C {
+		tooOld := time.Now().Add(-c.sourceIDTTL)
+
+		c.Lock()
+		for sourceID, bucket := range c.metricBuckets {
+			if bucket.lastUpdate.Before(tooOld) {
+				delete(c.metricBuckets, sourceID)
+			}
+		}
+		c.Unlock()
 	}
 }
 
@@ -40,8 +94,10 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	c.RLock()
 	defer c.RUnlock()
 
-	for _, metric := range c.metrics {
-		ch <- metric
+	for _, bucket := range c.metricBuckets {
+		for _, metric := range bucket.metrics {
+			ch <- metric
+		}
 	}
 }
 
@@ -54,11 +110,22 @@ func (c *Collector) Write(env *loggregator_v2.Envelope) error {
 
 	c.Lock()
 	for id, metric := range metrics {
-		c.metrics[id] = metric
+		c.getOrCreateBucket(env.GetSourceId()).addMetric(id, metric)
 	}
 	c.Unlock()
 
 	return nil
+}
+
+func (c *Collector) getOrCreateBucket(sourceID string) *sourceIDBucket {
+	bucket, ok := c.metricBuckets[sourceID]
+	if ok {
+		return bucket
+	}
+
+	bucket = newSourceIDBucket()
+	c.metricBuckets[sourceID] = bucket
+	return bucket
 }
 
 func (c *Collector) convertEnvelope(env *loggregator_v2.Envelope) (map[string]prometheus.Metric, error) {
@@ -157,8 +224,10 @@ func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string,
 	id := buildMetricID(name, labelNames, labelValues)
 
 	c.RLock()
-	metric, ok := c.metrics[id]
+	bucket := c.getOrCreateBucket(env.GetSourceId())
+	metric, ok := bucket.metrics[id]
 	c.RUnlock()
+
 	if !ok {
 		metric = prometheus.NewHistogram(prometheus.HistogramOpts{
 			Name:        name,
@@ -201,7 +270,7 @@ func convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
 }
 
 func invalidName(name string) bool {
-	return invalidTagCharacterRegex.MatchString(name)
+	return invalidNameRegex.MatchString(name)
 }
 
 func invalidTag(name, value string) bool {

@@ -43,7 +43,7 @@ func (m *MetricsAgent) Run() {
 	envelopeBuffer := m.envelopeDiode()
 	go m.startIngressServer(envelopeBuffer)
 
-	promCollector := prom.NewCollector()
+	promCollector := prom.NewCollector(prom.WithSourceIDExpiration(10 * time.Minute, time.Minute))
 	go m.startEnvelopeCollection(promCollector, envelopeBuffer)
 
 	m.startMetricsServer(promCollector)

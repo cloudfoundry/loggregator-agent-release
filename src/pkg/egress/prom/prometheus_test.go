@@ -32,7 +32,7 @@ var _ = Describe("Collector", func() {
 		))
 	})
 
-	It("drops metrics with invalid names", func(){
+	It("drops metrics with invalid names", func() {
 		promCollector := prom.NewCollector()
 		Expect(promCollector.Write(gauge(map[string]float64{
 			"gauge1.wrong.name": 11,
@@ -289,6 +289,33 @@ var _ = Describe("Collector", func() {
 
 		Expect(collectMetrics(promCollector)).To(HaveLen(2))
 	})
+
+	Context("expiring metrics", func() {
+		It("removes metrics for source IDs that haven't been updated recently", func() {
+			promCollector := prom.NewCollector(prom.WithSourceIDExpiration(time.Second, time.Millisecond))
+
+			Expect(promCollector.Write(counterWithSourceID("counter_to_keep", "persistent"))).To(Succeed())
+			go func() {
+				for range time.Tick(100 * time.Millisecond) {
+					Expect(promCollector.Write(counterWithSourceID("counter_to_keep", "persistent"))).To(Succeed())
+				}
+			}()
+
+			Expect(promCollector.Write(counterWithSourceID("counter_to_expire", "soon-to-not-exist"))).To(Succeed())
+			Expect(promCollector.Write(gaugeWithSourceID("gauge_to_expire", "soon-to-not-exist"))).To(Succeed())
+			Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
+				haveName("counter_to_expire"),
+				haveName("gauge_to_expire"),
+				haveName("counter_to_keep"),
+			))
+
+			Eventually(func() chan prometheus.Metric {
+				return collectMetrics(promCollector)
+			}, 2).Should(receiveOnly(
+				haveName("counter_to_keep"),
+			))
+		})
+	})
 })
 
 func receiveInAnyOrder(elements ...interface{}) types.GomegaMatcher {
@@ -301,6 +328,10 @@ func receiveInAnyOrder(elements ...interface{}) types.GomegaMatcher {
 
 		return metricSlice
 	}, ConsistOf(elements...))
+}
+
+func receiveOnly(element interface{}) types.GomegaMatcher {
+	return receiveInAnyOrder(element)
 }
 
 func collectMetrics(promCollector *prom.Collector) chan prometheus.Metric {
@@ -396,6 +427,19 @@ func totalCounter(name string, total uint64) *loggregator_v2.Envelope {
 	}
 }
 
+func counterWithSourceID(name, sourceID string) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		SourceId:   sourceID,
+		InstanceId: "some-instance-id",
+		Message: &loggregator_v2.Envelope_Counter{
+			Counter: &loggregator_v2.Counter{
+				Name:  name,
+				Total: 79,
+			},
+		},
+	}
+}
+
 func counterWithTags(name string, total uint64, tags map[string]string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
 		SourceId:   "some-source-id",
@@ -453,6 +497,20 @@ func gaugeWithUnit(name, unit string) *loggregator_v2.Envelope {
 						Unit:  unit,
 						Value: 1,
 					},
+				},
+			},
+		},
+	}
+}
+
+func gaugeWithSourceID(name, sourceID string) *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		SourceId:   sourceID,
+		InstanceId: "some-instance-id",
+		Message: &loggregator_v2.Envelope_Gauge{
+			Gauge: &loggregator_v2.Gauge{
+				Metrics: map[string]*loggregator_v2.GaugeValue{
+					name: {Value: 1},
 				},
 			},
 		},
