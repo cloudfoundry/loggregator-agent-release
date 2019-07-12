@@ -32,7 +32,7 @@ require (
 	github.com/shirou/gopsutil v2.18.12+incompatible
 	github.com/valyala/fasthttp v1.4.0
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
-	golang.org/x/sys v0.0.0-20190710143415-6ec70d6a5542 // indirect
+	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190708153700-3bdd9d9f5532 // indirect
