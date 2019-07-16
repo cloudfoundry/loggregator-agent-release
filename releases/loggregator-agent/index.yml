@@ -5,6 +5,8 @@ builds:
     version: "3.15"
   214a2e26-bb7f-4127-6d03-0952e54f03dd:
     version: "3.3"
+  32fcd65b-a67e-4a8a-5964-b1d475ae6893:
+    version: "3.18"
   3397e0b9-fbad-4d0d-7512-6decd1cfcdb5:
     version: "3.8"
   3b6eb034-9ad0-4fd9-5c65-2f666bc8564f:
