@@ -23,6 +23,7 @@
     "METRICS_CA_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent-windows/config/certs/metrics_ca.crt",
     "METRICS_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent-windows/config/certs/metrics.crt",
     "METRICS_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-metrics-agent-windows/config/certs/metrics.key",
+    "WHITELISTED_TIMER_TAGS" => "#{p("metrics.whitelisted_timer_tags")}",
     "DEBUG_PORT" => "#{p("debug_port")}",
   }
 

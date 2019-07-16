@@ -84,7 +84,7 @@ func (a *AppV2) Start() {
 	tagger := egress.NewTagger(a.config.Tags)
 	batchWriter := egress.NewBatchEnvelopeWriter(
 		pool,
-		egress.NewCounterAggregator(tagger),
+		egress.NewCounterAggregator(tagger.TagEnvelope),
 	)
 
 	ingressMetric := a.metricClient.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}))

@@ -3,6 +3,7 @@ package app
 import (
 	"code.cloudfoundry.org/go-envstruct"
 	"fmt"
+	"time"
 )
 
 // GRPCConfig stores the configuration for the router as a server using a PORT
@@ -17,10 +18,14 @@ type GRPCConfig struct {
 // MetricsConfig stores the configuration for the metrics server using a PORT
 // with mTLS certs.
 type MetricsConfig struct {
-	Port     uint16 `env:"METRICS_PORT, required, report"`
-	CAFile   string `env:"METRICS_CA_FILE_PATH, required, report"`
-	CertFile string `env:"METRICS_CERT_FILE_PATH, required, report"`
-	KeyFile  string `env:"METRICS_KEY_FILE_PATH, required, report"`
+	Port                 uint16        `env:"METRICS_PORT, required, report"`
+	CAFile               string        `env:"METRICS_CA_FILE_PATH, required, report"`
+	CertFile             string        `env:"METRICS_CERT_FILE_PATH, required, report"`
+	KeyFile              string        `env:"METRICS_KEY_FILE_PATH, required, report"`
+	WhitelistedTimerTags []string      `env:"WHITELISTED_TIMER_TAGS, required, report"`
+
+	ExpirationInterval   time.Duration `env:"EXPIRATION_INTERVAL, report"`
+	TimeToLive           time.Duration `env:"TTL, report"`
 }
 
 // Config holds the configuration for the metrics agent
@@ -38,6 +43,10 @@ func LoadConfig() Config {
 	cfg := Config{
 		GRPC: GRPCConfig{
 			Port: 3458,
+		},
+		Metrics: MetricsConfig{
+			TimeToLive:         10 * time.Minute,
+			ExpirationInterval: time.Minute,
 		},
 	}
 	if err := envstruct.Load(&cfg); err != nil {

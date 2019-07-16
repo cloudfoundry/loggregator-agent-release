@@ -190,7 +190,7 @@ func ingressClients(downstreamAddrs []string,
 		tagger := egress_v2.NewTagger(tags)
 		ew := egress_v2.NewEnvelopeWriter(
 			dw,
-			egress_v2.NewCounterAggregator(tagger),
+			egress_v2.NewCounterAggregator(tagger.TagEnvelope),
 		)
 
 		ingressClients = append(ingressClients, ew)

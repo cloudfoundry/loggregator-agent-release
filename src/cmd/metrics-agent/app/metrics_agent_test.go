@@ -36,10 +36,13 @@ var _ = Describe("MetricsAgent", func() {
 		metricsPort = getFreePort()
 		cfg := app.Config{
 			Metrics: app.MetricsConfig{
-				Port:     metricsPort,
-				CAFile:   testCerts.CA(),
-				CertFile: testCerts.Cert("client"),
-				KeyFile:  testCerts.Key("client"),
+				Port:                 metricsPort,
+				CAFile:               testCerts.CA(),
+				CertFile:             testCerts.Cert("client"),
+				KeyFile:              testCerts.Key("client"),
+				ExpirationInterval:   time.Minute,
+				TimeToLive:           10 * time.Minute,
+				WhitelistedTimerTags: []string{"whitelist1", "whitelist2"},
 			},
 			Tags: map[string]string{
 				"a": "1",
@@ -65,7 +68,7 @@ var _ = Describe("MetricsAgent", func() {
 		metricsAgent.Stop()
 	})
 
-	It("exposes counters on a prometheus endpoint", func() {
+	It("exposes metrics on a prometheus endpoint", func() {
 		cancel := doUntilCancelled(func() {
 			ingressClient.EmitCounter("total_counter", loggregator.WithTotal(22))
 		})
@@ -94,6 +97,33 @@ var _ = Describe("MetricsAgent", func() {
 			&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
 			&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
 			&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+		))
+	})
+
+	It("filters timer tags not in whitelist", func() {
+		cancel := doUntilCancelled(func() {
+			ingressClient.EmitTimer("timer", time.Now().Add(-time.Second), time.Now(),
+				loggregator.WithTimerSourceInfo("source-id-from-source-info", "instance-id-from-source-info"),
+				loggregator.WithEnvelopeTags(map[string]string{
+					"whitelist1": "whitelist1",
+					"whitelist2": "whitelist2",
+					"a":          "1",
+					"b":          "2",
+				}),
+			)
+		})
+		defer cancel()
+
+		Eventually(getMetricFamilies(metricsPort, testCerts), 3).Should(HaveKey("timer_seconds"))
+
+		metric := getMetric("timer_seconds", metricsPort, testCerts)
+		Expect(metric.GetLabel()).To(ConsistOf(
+			&dto.LabelPair{Name: proto.String("whitelist1"), Value: proto.String("whitelist1")},
+			&dto.LabelPair{Name: proto.String("whitelist2"), Value: proto.String("whitelist2")},
+
+			// source and instance id are added from envelope properties
+			&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("source-id-from-source-info")},
+			&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("instance-id-from-source-info")},
 		))
 	})
 

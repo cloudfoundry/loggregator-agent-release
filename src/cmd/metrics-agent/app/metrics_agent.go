@@ -43,7 +43,7 @@ func (m *MetricsAgent) Run() {
 	envelopeBuffer := m.envelopeDiode()
 	go m.startIngressServer(envelopeBuffer)
 
-	promCollector := prom.NewCollector(prom.WithSourceIDExpiration(10 * time.Minute, time.Minute))
+	promCollector := prom.NewCollector(prom.WithSourceIDExpiration(m.cfg.Metrics.TimeToLive, m.cfg.Metrics.ExpirationInterval))
 	go m.startEnvelopeCollection(promCollector, envelopeBuffer)
 
 	m.startMetricsServer(promCollector)
@@ -86,9 +86,13 @@ func (m *MetricsAgent) generateServerTLSConfig(certFile, keyFile, caFile string)
 }
 
 func (m *MetricsAgent) startEnvelopeCollection(promCollector *prom.Collector, diode *diodes.ManyToOneEnvelopeV2) {
+	tagger := egress_v2.NewTagger(m.cfg.Tags).TagEnvelope
+	timerTagFilterer := egress_v2.NewTimerTagFilterer(m.cfg.Metrics.WhitelistedTimerTags, tagger).Filter
 	envelopeWriter := egress_v2.NewEnvelopeWriter(
 		promCollector,
-		egress_v2.NewCounterAggregator(egress_v2.NewTagger(m.cfg.Tags)),
+		egress_v2.NewCounterAggregator(
+			timerTagFilterer,
+		),
 	)
 
 	for {

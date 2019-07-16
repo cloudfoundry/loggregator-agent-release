@@ -43,3 +43,6 @@ properties:
   metrics.key:
     description: "TLS private key for metrics server signed by the metrics CA"
 
+  metrics.whitelisted_timer_tags:
+    description: "A list of tags allowed for aggregating timer metrics into histograms"
+    default: "source_id,deployment,job,index,ip"

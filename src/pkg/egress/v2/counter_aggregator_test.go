@@ -14,7 +14,7 @@ var _ = Describe("CounterAggregator", func() {
 	It("calculates separate totals for envelopes with deprecated defaultTags", func( ){
 		tagger := egress.NewTagger(nil)
 
-		aggregator := egress.NewCounterAggregator(tagger)
+		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)
 		env1 := buildCounterEnvelope(10, "name-1", "origin-1")
 		env1.DeprecatedTags = map[string]*loggregator_v2.Value{
 			"tag-1": {Data: &loggregator_v2.Value_Text{Text: "text-value"}},
@@ -40,7 +40,7 @@ var _ = Describe("CounterAggregator", func() {
 	})
 
 	It("overwrites aggregated total when total is set", func() {
-		aggregator := egress.NewCounterAggregator(tagger)
+		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)
 		env1 := buildCounterEnvelope(10, "name-1", "origin-1")
 		env2 := buildCounterEnvelopeWithTotal(5000, "name-1", "origin-1")
 		env3 := buildCounterEnvelope(10, "name-1", "origin-1")
@@ -55,7 +55,7 @@ var _ = Describe("CounterAggregator", func() {
 	})
 
 	It("prunes the cache of totals when there are too many unique counters", func() {
-		aggregator := egress.NewCounterAggregator(tagger)
+		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)
 
 		env1 := buildCounterEnvelope(500, "unique-name", "origin-1")
 
@@ -73,7 +73,7 @@ var _ = Describe("CounterAggregator", func() {
 	})
 
 	It("keeps the delta as part of the message", func() {
-		aggregator := egress.NewCounterAggregator(tagger)
+		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)
 		env1 := buildCounterEnvelope(10, "name-1", "origin-1")
 
 		Expect(aggregator.Process(env1)).ToNot(HaveOccurred())

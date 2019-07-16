@@ -13,7 +13,7 @@ var _ = Describe("BatchEnvelopeWriter", func() {
 		close(mockWriter.WriteOutput.Ret0)
 
 		tagger := v2.NewTagger(nil)
-		ew := v2.NewBatchEnvelopeWriter(mockWriter, v2.NewCounterAggregator(tagger))
+		ew := v2.NewBatchEnvelopeWriter(mockWriter, v2.NewCounterAggregator(tagger.TagEnvelope))
 		envs := []*loggregator_v2.Envelope{
 			buildCounterEnvelope(10, "name-1", "origin-1"),
 			buildCounterEnvelope(14, "name-2", "origin-1"),

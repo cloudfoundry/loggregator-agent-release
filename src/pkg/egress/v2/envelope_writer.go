@@ -12,19 +12,20 @@ type EnvelopeProcessor interface {
 
 type EnvelopeWriter struct {
 	writer     Writer
-	processors []EnvelopeProcessor
+	processor EnvelopeProcessor
 }
 
-func NewEnvelopeWriter(w Writer, ps ...EnvelopeProcessor) EnvelopeWriter {
+func NewEnvelopeWriter(w Writer, ps EnvelopeProcessor) EnvelopeWriter {
 	return EnvelopeWriter{
 		writer:     w,
-		processors: ps,
+		processor: ps,
 	}
 }
 
 func (ew EnvelopeWriter) Write(env *loggregator_v2.Envelope) error {
-	for _, processor := range ew.processors {
-		processor.Process(env)
+	err := ew.processor.Process(env)
+	if err != nil {
+		return err
 	}
 
 	return ew.writer.Write(env)
