@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator"
@@ -16,75 +17,44 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type promScraperConfig struct {
+	Port           string            `yaml:"port"`
+	SourceID       string            `yaml:"source_id"`
+	InstanceID     string            `yaml:"instance_id"`
+	Scheme         string            `yaml:"scheme"`
+	Path           string            `yaml:"path"`
+	Headers        map[string]string `yaml:"headers"`
+	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
+}
+
 type PromScraper struct {
 	cfg  Config
 	log  *log.Logger
 	stop chan struct{}
-	done chan struct{}
+	wg   sync.WaitGroup
 }
 
 func NewPromScraper(cfg Config, log *log.Logger) *PromScraper {
 	return &PromScraper{
-		cfg: cfg,
-		log: log,
+		cfg:  cfg,
+		log:  log,
 		stop: make(chan struct{}),
-		done: make(chan struct{}),
 	}
 }
 
 func (p *PromScraper) Run() {
-	creds, err := loggregator.NewIngressTLSConfig(
-		p.cfg.CACertPath,
-		p.cfg.ClientCertPath,
-		p.cfg.ClientKeyPath,
-	)
-	if err != nil {
-		p.log.Fatal(err)
-	}
+	promScraperConfigs := p.scrapeConfigsFromFiles(p.cfg.ConfigGlobs)
+	client := p.buildIngressClient()
 
-	client, err := loggregator.NewIngressClient(
-		creds,
-		loggregator.WithAddr(p.cfg.LoggregatorIngressAddr),
-		loggregator.WithLogger(p.log),
-	)
-	if err != nil {
-		p.log.Fatal(err)
-	}
+	p.startScrapers(promScraperConfigs, client)
 
-	scrapeTargetProvider := func() []scraper.Target {
-		return p.scrapeTargetsFromFiles(p.cfg.ConfigGlobs)
-	}
-
-	s := scraper.New(
-		scrapeTargetProvider,
-		client,
-		p.scrape,
-	)
-
-	ticker := time.Tick(p.cfg.ScrapeInterval)
-	for {
-		select {
-		case <-ticker:
-			if err := s.Scrape(); err != nil {
-				p.log.Printf("failed to scrape: %s", err)
-			}
-		case <-p.stop:
-			close(p.done)
-			return
-		}
-	}
+	p.wg.Wait()
 }
 
-// Stops cancel future scrapes and wait for any current scrapes to complete
-func (p *PromScraper) Stop() {
-	close(p.stop)
-	<-p.done
-}
-
-func (p *PromScraper) scrapeTargetsFromFiles(globs []string) []scraper.Target {
+func (p *PromScraper) scrapeConfigsFromFiles(globs []string) []promScraperConfig {
 	files := p.filesForGlobs(globs)
 
-	var targets []scraper.Target
+	var targets []promScraperConfig
 	for _, f := range files {
 		targets = append(targets, p.parseConfig(f))
 	}
@@ -107,37 +77,94 @@ func (p *PromScraper) filesForGlobs(globs []string) []string {
 	return files
 }
 
-type promScraperConfig struct {
-	Port       string            `yaml:"port"`
-	SourceID   string            `yaml:"source_id"`
-	InstanceID string            `yaml:"instance_id"`
-	Scheme     string            `yaml:"scheme"`
-	Path       string            `yaml:"path"`
-	Headers    map[string]string `yaml:"headers"`
-}
-
-func (p *PromScraper) parseConfig(file string) scraper.Target {
+func (p *PromScraper) parseConfig(file string) promScraperConfig {
 	yamlFile, err := ioutil.ReadFile(file)
 	if err != nil {
 		p.log.Fatalf("cannot read file: %s", err)
 	}
 
-	c := promScraperConfig{
-		Scheme: "http",
-		Path:   "/metrics",
+	scraperConfig := promScraperConfig{
+		Scheme:         "http",
+		Path:           "/metrics",
+		ScrapeInterval: p.cfg.DefaultScrapeInterval,
 	}
 
-	err = yaml.Unmarshal(yamlFile, &c)
+	err = yaml.Unmarshal(yamlFile, &scraperConfig)
 	if err != nil {
 		p.log.Fatalf("Unmarshal: %v", err)
 	}
 
-	return scraper.Target{
-		ID:         c.SourceID,
-		InstanceID: c.InstanceID,
-		MetricURL:  fmt.Sprintf("%s://127.0.0.1:%s/%s", c.Scheme, c.Port, strings.TrimPrefix(c.Path, "/")),
-		Headers:    c.Headers,
+	return scraperConfig
+}
+
+func (p *PromScraper) buildIngressClient() *loggregator.IngressClient {
+	creds, err := loggregator.NewIngressTLSConfig(
+		p.cfg.CACertPath,
+		p.cfg.ClientCertPath,
+		p.cfg.ClientKeyPath,
+	)
+	if err != nil {
+		p.log.Fatal(err)
 	}
+
+	client, err := loggregator.NewIngressClient(
+		creds,
+		loggregator.WithAddr(p.cfg.LoggregatorIngressAddr),
+		loggregator.WithLogger(p.log),
+	)
+	if err != nil {
+		p.log.Fatal(err)
+	}
+
+	return client
+}
+
+func (p *PromScraper) startScrapers(promScraperConfigs []promScraperConfig, client *loggregator.IngressClient) {
+	for _, scrapeConfig := range promScraperConfigs {
+		p.wg.Add(1)
+		go p.startScraper(scrapeConfig, client)
+	}
+}
+
+func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, client *loggregator.IngressClient) {
+	defer p.wg.Done()
+
+	s := p.buildScraper(scrapeConfig, client)
+	ticker := time.Tick(scrapeConfig.ScrapeInterval)
+
+	for {
+		select {
+		case <-ticker:
+			if err := s.Scrape(); err != nil {
+				p.log.Printf("failed to scrape: %s", err)
+			}
+		case <-p.stop:
+			return
+		}
+	}
+}
+
+func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggregator.IngressClient) *scraper.Scraper {
+	scrapeTarget := scraper.Target{
+		ID:         scrapeConfig.SourceID,
+		InstanceID: scrapeConfig.InstanceID,
+		MetricURL:  fmt.Sprintf("%s://127.0.0.1:%s/%s", scrapeConfig.Scheme, scrapeConfig.Port, strings.TrimPrefix(scrapeConfig.Path, "/")),
+		Headers:    scrapeConfig.Headers,
+	}
+
+	return scraper.New(
+		func() []scraper.Target {
+			return []scraper.Target{scrapeTarget}
+		},
+		client,
+		p.scrape,
+	)
+}
+
+// Stops cancel future scrapes and wait for any current scrapes to complete
+func (p *PromScraper) Stop() {
+	close(p.stop)
+	p.wg.Wait()
 }
 
 func (p *PromScraper) scrape(addr string, headers map[string]string) (*http.Response, error) {

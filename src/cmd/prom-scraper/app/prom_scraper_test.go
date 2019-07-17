@@ -49,7 +49,7 @@ var _ = Describe("PromScraper", func() {
 			CACertPath:             testCerts.CA(),
 			LoggregatorIngressAddr: spyAgent.addr,
 			ConfigGlobs:            []string{fmt.Sprintf("%s/prom_scraper_config*", metricConfigDir)},
-			ScrapeInterval:         100 * time.Millisecond,
+			DefaultScrapeInterval:  100 * time.Millisecond,
 			SkipSSLValidation:      true,
 		}
 	})
@@ -80,7 +80,29 @@ var _ = Describe("PromScraper", func() {
 		))
 	})
 
-	It("scrapes multiple prometheus endpoints and sends those metrics to a loggregator agent", func() {
+	It("scrapes prometheus endpoints after the specified interval", func() {
+		promServer2 := newStubPromServer()
+		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
+		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithScrapeIntervalTemplate, promServer2.port, "100ms"), "prom_scraper_config.yml")
+
+		promServer.resp = promOutput
+		promServer2.resp = promOutput2
+
+		cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
+		cfg.DefaultScrapeInterval = time.Hour
+		ps = app.NewPromScraper(cfg, testLogger)
+		go ps.Run()
+
+		Eventually(spyAgent.Envelopes).Should(
+			ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
+		)
+
+		Consistently(spyAgent.Envelopes).ShouldNot(
+			ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+		)
+	})
+
+	It("scrapes multiple prometheus endpoints", func() {
 		promServer2 := newStubPromServer()
 		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
 		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
@@ -299,6 +321,12 @@ node2_counter 6
 port: %s
 source_id: some-id
 instance_id: some-instance-id`
+
+	metricConfigWithScrapeIntervalTemplate = `---
+port: %s
+source_id: some-id
+instance_id: some-instance-id
+scrape_interval: %s`
 
 	metricConfigWithPathTemplate = `---
 port: %s

@@ -16,13 +16,13 @@ type Config struct {
 	LoggregatorIngressAddr string        `env:"LOGGREGATOR_AGENT_ADDR, report, required"`
 	DefaultSourceID        string        `env:"DEFAULT_SOURCE_ID, report, required"`
 	ConfigGlobs            []string      `env:"CONFIG_GLOBS, report"`
-	ScrapeInterval         time.Duration `env:"SCRAPE_INTERVAL, report"`
+	DefaultScrapeInterval  time.Duration `env:"SCRAPE_INTERVAL, report"`
 	SkipSSLValidation      bool          `env:"SKIP_SSL_VALIDATION, report"`
 }
 
 func LoadConfig(log *log.Logger) Config {
 	cfg := Config{
-		ScrapeInterval: 15 * time.Second,
+		DefaultScrapeInterval: 15 * time.Second,
 	}
 
 	if err := envstruct.Load(&cfg); err != nil {
