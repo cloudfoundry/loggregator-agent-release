@@ -17,6 +17,7 @@ type Registry struct {
 	port        string
 	defaultTags map[string]string
 	loggr       *log.Logger
+	registerer  prometheus.Registerer
 }
 
 // A cumulative metric that represents a single monotonically increasing counter
@@ -45,8 +46,16 @@ func NewRegistry(logger *log.Logger, opts ...RegistryOption) *Registry {
 		o(pr)
 	}
 
-	prometheus.DefaultRegisterer = prometheus.WrapRegistererWith(pr.defaultTags, prometheus.DefaultRegisterer)
-	http.Handle("/metrics", promhttp.Handler())
+	registry := prometheus.NewRegistry()
+	registerer := prometheus.WrapRegistererWith(pr.defaultTags, registry)
+	pr.registerer = registerer
+
+	registerer.MustRegister(prometheus.NewGoCollector())
+	registerer.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+
+	http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{
+		Registry: registerer,
+	}))
 	return pr
 }
 
@@ -67,7 +76,7 @@ func (p *Registry) NewGauge(name string, opts ...MetricOption) Gauge {
 }
 
 func (p *Registry) registerCollector(name string, c prometheus.Collector) prometheus.Collector {
-	err := prometheus.DefaultRegisterer.Register(c)
+	err := p.registerer.Register(c)
 	if err != nil {
 		typ, ok := err.(prometheus.AlreadyRegisteredError)
 		if !ok {

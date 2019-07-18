@@ -7,6 +7,8 @@ code.cloudfoundry.org/go-envstruct v1.4.0 h1:bDwwwxIZdvYdB5udkTnmaOrRjQeE61XcvDH
 code.cloudfoundry.org/go-envstruct v1.4.0/go.mod h1:/Mr9WxQueWKylLYSZaPbiQlmzzZNbButXn08qM03Vfk=
 code.cloudfoundry.org/go-loggregator v0.0.0-20190718183021-62f50ceb45d3 h1:Z4cuVK24CDuNBsq9swLOdrvU5C2kpnqYKEm/nlYLfbc=
 code.cloudfoundry.org/go-loggregator v0.0.0-20190718183021-62f50ceb45d3/go.mod h1:xP5V2YhyhPFoVZsQ8my/fRTh8iWSZFi+k41g67zaCNE=
+code.cloudfoundry.org/go-loggregator v0.0.0-20190718225633-5f7f908f5a10 h1:5QG6T0Ydlg2/KfCVqDLlf1m7hvp8ayhlCdWPH1/d1dk=
+code.cloudfoundry.org/go-loggregator v0.0.0-20190718225633-5f7f908f5a10/go.mod h1:xP5V2YhyhPFoVZsQ8my/fRTh8iWSZFi+k41g67zaCNE=
 code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a h1:8rqv2w8xEceNwckcF5ONeRt0qBHlh5bnNfFnYTrZbxs=
 code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a/go.mod h1:tkZo8GtzBjySJ7USvxm4E36lNQw1D3xM6oKHGqdaAJ4=
 code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106 h1:F36x++Jh2aWiBK++W9wI97SJuprnROicHiV0HtdSOzc=
