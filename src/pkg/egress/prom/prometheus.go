@@ -41,6 +41,7 @@ type Collector struct {
 
 	sourceIDTTL                time.Duration
 	sourceIDExpirationInterval time.Duration
+	defaultTags                map[string]string
 
 	sync.RWMutex
 }
@@ -67,6 +68,12 @@ func WithSourceIDExpiration(ttl, expirationInterval time.Duration) CollectorOpti
 	return func(c *Collector) {
 		c.sourceIDTTL = ttl
 		c.sourceIDExpirationInterval = expirationInterval
+	}
+}
+
+func WithDefaultTags(tags map[string]string) CollectorOption {
+	return func(c *Collector) {
+		c.defaultTags = tags
 	}
 }
 
@@ -149,7 +156,7 @@ func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID strin
 		return "", nil, fmt.Errorf("invalid metric name: %s", name)
 	}
 
-	labelNames, labelValues := convertTags(env)
+	labelNames, labelValues := c.convertTags(env)
 
 	desc := prometheus.NewDesc(name, help, labelNames, nil)
 	metric, err = prometheus.NewConstMetric(desc, prometheus.CounterValue, float64(env.GetCounter().GetTotal()), labelValues...)
@@ -161,7 +168,7 @@ func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID strin
 }
 
 func (c *Collector) convertGaugeEnvelope(env *loggregator_v2.Envelope) (map[string]prometheus.Metric, error) {
-	envelopeLabelNames, envelopeLabelValues := convertTags(env)
+	envelopeLabelNames, envelopeLabelValues := c.convertTags(env)
 
 	metrics := map[string]prometheus.Metric{}
 	for name, metric := range env.GetGauge().GetMetrics() {
@@ -220,7 +227,7 @@ func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string,
 		return "", nil, fmt.Errorf("invalid metric name: %s", name)
 	}
 
-	labelNames, labelValues := convertTags(env)
+	labelNames, labelValues := c.convertTags(env)
 	id := buildMetricID(name, labelNames, labelValues)
 
 	c.RLock()
@@ -246,8 +253,22 @@ func durationInSeconds(timer *loggregator_v2.Timer) float64 {
 	return float64(timer.GetStop()-timer.GetStart()) / float64(time.Second)
 }
 
-func convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
+func (c *Collector) convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
 	var labelNames, labelValues []string
+
+	for name, value := range c.defaultTags {
+		if invalidTag(name, value) {
+			continue
+		}
+
+		_, tagAlreadyOnEnvelope := env.GetTags()[name]
+		if tagAlreadyOnEnvelope {
+			continue
+		}
+
+		labelNames = append(labelNames, name)
+		labelValues = append(labelValues, value)
+	}
 
 	for name, value := range env.GetTags() {
 		if invalidTag(name, value) {

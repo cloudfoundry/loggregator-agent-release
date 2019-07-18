@@ -18,14 +18,15 @@ type GRPCConfig struct {
 // MetricsConfig stores the configuration for the metrics server using a PORT
 // with mTLS certs.
 type MetricsConfig struct {
-	Port                 uint16        `env:"METRICS_PORT, required, report"`
-	CAFile               string        `env:"METRICS_CA_FILE_PATH, required, report"`
-	CertFile             string        `env:"METRICS_CERT_FILE_PATH, required, report"`
-	KeyFile              string        `env:"METRICS_KEY_FILE_PATH, required, report"`
-	WhitelistedTimerTags []string      `env:"WHITELISTED_TIMER_TAGS, required, report"`
+	Port                 uint16            `env:"METRICS_PORT, required, report"`
+	CAFile               string            `env:"METRICS_CA_FILE_PATH, required, report"`
+	CertFile             string            `env:"METRICS_CERT_FILE_PATH, required, report"`
+	KeyFile              string            `env:"METRICS_KEY_FILE_PATH, required, report"`
+	WhitelistedTimerTags []string          `env:"WHITELISTED_TIMER_TAGS, required, report"`
+	DefaultTags          map[string]string `env:"AGENT_TAGS"`
 
-	ExpirationInterval   time.Duration `env:"EXPIRATION_INTERVAL, report"`
-	TimeToLive           time.Duration `env:"TTL, report"`
+	ExpirationInterval time.Duration `env:"EXPIRATION_INTERVAL, report"`
+	TimeToLive         time.Duration `env:"TTL, report"`
 }
 
 // Config holds the configuration for the metrics agent

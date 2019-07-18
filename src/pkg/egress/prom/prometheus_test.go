@@ -247,6 +247,29 @@ var _ = Describe("Collector", func() {
 				),
 			)))
 		})
+
+		It("includes default tags", func() {
+			promCollector := prom.NewCollector(prom.WithDefaultTags(map[string]string{
+				"a": "1",
+				"b": "2",
+				"already_on_envelope": "17",
+			}))
+			counter := counterWithTags("some_name", 1, map[string]string{
+				"already_on_envelope": "3",
+			})
+			Expect(promCollector.Write(counter)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("some_name"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+					&dto.LabelPair{Name: proto.String("a"), Value: proto.String("1")},
+					&dto.LabelPair{Name: proto.String("b"), Value: proto.String("2")},
+					&dto.LabelPair{Name: proto.String("already_on_envelope"), Value: proto.String("3")},
+				),
+			)))
+		})
 	})
 
 	It("differentiates between metrics with the same name but different labels", func() {
