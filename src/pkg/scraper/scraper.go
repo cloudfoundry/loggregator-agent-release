@@ -1,7 +1,7 @@
 package scraper
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"fmt"
 	"github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"

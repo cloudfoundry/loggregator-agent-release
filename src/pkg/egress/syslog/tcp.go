@@ -2,7 +2,7 @@ package syslog
 
 import (
 	"bytes"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"fmt"
 	"log"
 	"net"

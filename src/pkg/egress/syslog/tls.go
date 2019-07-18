@@ -1,7 +1,7 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"crypto/tls"
 	"net"
 	"time"

@@ -1,7 +1,7 @@
 package v2
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"context"
 	"fmt"
 	"io"

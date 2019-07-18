@@ -1,8 +1,8 @@
 package app
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/v1"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
 	"fmt"
 	"log"
 	"net/http"

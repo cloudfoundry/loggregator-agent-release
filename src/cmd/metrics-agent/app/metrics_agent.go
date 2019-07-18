@@ -2,11 +2,11 @@ package app
 
 import (
 	gendiodes "code.cloudfoundry.org/go-diodes"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"code.cloudfoundry.org/loggregator-agent/pkg/diodes"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/prom"
 	egress_v2 "code.cloudfoundry.org/loggregator-agent/pkg/egress/v2"
 	v2 "code.cloudfoundry.org/loggregator-agent/pkg/ingress/v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
 	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"crypto/tls"

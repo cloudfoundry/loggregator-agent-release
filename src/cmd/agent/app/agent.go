@@ -1,11 +1,11 @@
 package app
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"log"
 	"net"
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 )
 
@@ -70,10 +70,12 @@ func (a *Agent) Start() {
 	logger.Println("starting loggregator-agent")
 	defer logger.Println("stopping loggregator-agent")
 
-	metricClient := metrics.NewPromRegistry(
-		"metron",
+	metricClient := metrics.NewRegistry(
 		logger,
-		metrics.WithDefaultTags(map[string]string{"origin": "loggregator.metron"}),
+		metrics.WithDefaultTags(map[string]string{
+			"origin": "loggregator.metron",
+			"source_id": "metron",
+		}),
 	)
 
 	appV1 := NewV1App(a.config, clientCreds, metricClient)

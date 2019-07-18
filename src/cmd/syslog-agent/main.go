@@ -1,11 +1,11 @@
 package main
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"log"
 	"os"
 
 	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
 )
 
 func main() {
@@ -14,12 +14,12 @@ func main() {
 	defer log.Println("stopping syslog-agent")
 
 	cfg := app.LoadConfig()
-	m := metrics.NewPromRegistry(
-		"syslog_agent",
+	m := metrics.NewRegistry(
 		log,
 		metrics.WithDefaultTags(map[string]string{
 			"metrics_version": "2.0",
 			"origin": "loggregator.syslog_agent",
+			"source_id": "syslog_agent",
 		}),
 	)
 

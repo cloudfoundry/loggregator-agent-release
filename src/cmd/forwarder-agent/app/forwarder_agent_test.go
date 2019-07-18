@@ -362,7 +362,7 @@ func (s *spyLoggregatorV2BlockingIngress) BatchSender(srv loggregator_v2.Ingress
 }
 
 func forwarderPortConfigDir() string {
-	dir, err := ioutil.TempDir(".", "")
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		log.Fatal(err)
 	}

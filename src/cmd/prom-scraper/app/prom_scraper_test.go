@@ -350,7 +350,7 @@ headers:
 )
 
 func metricPortConfigDir() string {
-	dir, err := ioutil.TempDir(".", "")
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		log.Fatal(err)
 	}

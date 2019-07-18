@@ -1,7 +1,7 @@
 package cups
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"math"
 	"net/url"
 	"sort"

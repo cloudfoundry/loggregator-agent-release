@@ -2,7 +2,7 @@ package main
 
 import (
 	"code.cloudfoundry.org/loggregator-agent/cmd/metrics-agent/app"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"log"
 	_ "net/http/pprof"
 	"os"
@@ -15,13 +15,13 @@ func main() {
 
 	cfg := app.LoadConfig()
 
-	m := metrics.NewPromRegistry(
-		"metrics_agent",
+	m := metrics.NewRegistry(
 		logger,
 		metrics.WithServer(int(cfg.DebugPort)),
 		metrics.WithDefaultTags(map[string]string{
 			"metrics_version": "2.0",
-			"origin": "loggregator.metrics_agent",
+			"origin": "loggregator_metrics_agent",
+			"source_id": "metrics_agent",
 		}),
 	)
 	app.NewMetricsAgent(cfg, m, logger).Run()

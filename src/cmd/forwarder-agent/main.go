@@ -1,11 +1,11 @@
 package main
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"log"
 	"os"
 
 	"code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
 )
 
 func main() {
@@ -16,11 +16,11 @@ func main() {
 	cfg := app.LoadConfig()
 	dt := map[string]string{
 		"metrics_version": "2.0",
-		"origin": "loggregator.forwarder_agent",
+		"origin": "loggregator_forwarder_agent",
+		"source_id": "forwarder_agent",
 	}
 
-	metrics := metrics.NewPromRegistry(
-		"forwarder_agent",
+	metrics := metrics.NewRegistry(
 		logger,
 		metrics.WithDefaultTags(dt),
 	)

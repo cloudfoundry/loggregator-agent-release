@@ -236,7 +236,7 @@ func buildCounter(sourceID, name string, value float64) *loggregator_v2.Envelope
 
 func createDNSFile(URL string) string {
 	contents := fmt.Sprintf(dnsFileTemplate, URL)
-	dir, err := ioutil.TempDir(".", "")
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		log.Fatal(err)
 	}

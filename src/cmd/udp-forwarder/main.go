@@ -1,13 +1,13 @@
 package main
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"log"
 	"os"
 
 	_ "net/http/pprof"
 
 	"code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/app"
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
 )
 
 func main() {
@@ -16,7 +16,12 @@ func main() {
 	defer logger.Println("closing UDP Forwarder...")
 
 	cfg := app.LoadConfig(logger)
-	m := metrics.NewPromRegistry("udp_forwarder", logger)
+	m := metrics.NewRegistry(logger,
+		metrics.WithDefaultTags(map[string]string{
+			"origin":    "loggregator.udp_forwarder",
+			"source_id": "udp_forwarder",
+		}),
+	)
 
 	forwarder := app.NewUDPForwarder(cfg, logger, m)
 	forwarder.Run()

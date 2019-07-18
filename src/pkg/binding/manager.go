@@ -1,7 +1,7 @@
 package binding
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"context"
 	"log"
 	"math/rand"

@@ -1,7 +1,7 @@
 package testhelper
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/metrics"
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"sort"
