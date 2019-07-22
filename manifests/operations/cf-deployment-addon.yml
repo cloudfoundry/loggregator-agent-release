@@ -5,21 +5,6 @@
     version: latest
 
 - type: replace
-  path: /addons/-
-  value:
-    name: prom_scraper
-    include:
-      stemcell:
-      - os: ubuntu-trusty
-      - os: ubuntu-xenial
-    exclude:
-      instance_groups:
-      - name: doppler
-    jobs:
-    - name: prom_scraper
-      release: loggregator-agent
-
-- type: replace
   path: /instance_groups/name=doppler/jobs/name=doppler/provides/loggregator?
   value:
     as: loggregator
