@@ -4,7 +4,7 @@ code.cloudfoundry.org/go-batching
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.4.0
 code.cloudfoundry.org/go-envstruct
-# code.cloudfoundry.org/go-loggregator v0.0.0-20190718225633-5f7f908f5a10
+# code.cloudfoundry.org/go-loggregator v7.6.0+incompatible
 code.cloudfoundry.org/go-loggregator/metrics
 code.cloudfoundry.org/go-loggregator
 code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
