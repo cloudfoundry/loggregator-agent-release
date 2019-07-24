@@ -119,17 +119,17 @@ func (p *PromScraper) buildIngressClient() *loggregator.IngressClient {
 	return client
 }
 
-func (p *PromScraper) startScrapers(promScraperConfigs []promScraperConfig, client *loggregator.IngressClient) {
+func (p *PromScraper) startScrapers(promScraperConfigs []promScraperConfig, ingressClient *loggregator.IngressClient) {
 	for _, scrapeConfig := range promScraperConfigs {
 		p.wg.Add(1)
-		go p.startScraper(scrapeConfig, client)
+		go p.startScraper(scrapeConfig, ingressClient)
 	}
 }
 
-func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, client *loggregator.IngressClient) {
+func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, ingressClient *loggregator.IngressClient) {
 	defer p.wg.Done()
 
-	s := p.buildScraper(scrapeConfig, client)
+	s := p.buildScraper(scrapeConfig, ingressClient)
 	ticker := time.Tick(scrapeConfig.ScrapeInterval)
 
 	for {
@@ -152,13 +152,34 @@ func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggr
 		Headers:    scrapeConfig.Headers,
 	}
 
+	httpClient := p.buildHttpClient(scrapeConfig.ScrapeInterval)
+
 	return scraper.New(
 		func() []scraper.Target {
 			return []scraper.Target{scrapeTarget}
 		},
 		client,
-		p.scrape,
+		p.scrape(httpClient),
 	)
+}
+
+func (p *PromScraper) buildHttpClient(idleTimeout time.Duration) *http.Client {
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+	).Client(
+		withSkipSSLValidation(p.cfg.SkipSSLValidation),
+	)
+	if err != nil {
+		p.log.Fatal(err)
+	}
+
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+			MaxIdleConns:    1,
+			IdleConnTimeout: idleTimeout,
+		},
+	}
 }
 
 // Stops cancel future scrapes and wait for any current scrapes to complete
@@ -167,34 +188,21 @@ func (p *PromScraper) Stop() {
 	p.wg.Wait()
 }
 
-func (p *PromScraper) scrape(addr string, headers map[string]string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, addr, nil)
-	if err != nil {
-		return nil, err
-	}
+func (p *PromScraper) scrape(client *http.Client) scraper.MetricsGetter {
+	return func(addr string, headers map[string]string) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodGet, addr, nil)
+		if err != nil {
+			return nil, err
+		}
 
-	requestHeader := http.Header{}
-	for k, v := range headers {
-		requestHeader[k] = []string{v}
-	}
-	req.Header = requestHeader
+		requestHeader := http.Header{}
+		for k, v := range headers {
+			requestHeader[k] = []string{v}
+		}
+		req.Header = requestHeader
 
-	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
-	).Client(
-		withSkipSSLValidation(p.cfg.SkipSSLValidation),
-	)
-	if err != nil {
-		return nil, err
+		return client.Do(req)
 	}
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
-	}
-
-	return client.Do(req)
 }
 
 func withSkipSSLValidation(skipSSLValidation bool) tlsconfig.ClientOption {
