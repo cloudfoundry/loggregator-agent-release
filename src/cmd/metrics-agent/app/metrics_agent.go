@@ -44,6 +44,7 @@ func (m *MetricsAgent) Run() {
 	go m.startIngressServer(envelopeBuffer)
 
 	promCollector := prom.NewCollector(
+		m.metrics,
 		prom.WithSourceIDExpiration(m.cfg.Metrics.TimeToLive, m.cfg.Metrics.ExpirationInterval),
 		prom.WithDefaultTags(m.cfg.Metrics.DefaultTags),
 	)

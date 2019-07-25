@@ -1,6 +1,7 @@
 package prom
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	v2 "code.cloudfoundry.org/loggregator-agent/pkg/egress/v2"
 	"fmt"
@@ -37,22 +38,28 @@ func (b *sourceIDBucket) addMetric(id string, metric prometheus.Metric) {
 }
 
 type Collector struct {
+	sync.RWMutex
+
 	metricBuckets map[string]*sourceIDBucket
 
 	sourceIDTTL                time.Duration
 	sourceIDExpirationInterval time.Duration
 	defaultTags                map[string]string
-
-	sync.RWMutex
+	metrics                    debugMetrics
 }
 
 type CollectorOption func(*Collector)
 
-func NewCollector(opts ...CollectorOption) *Collector {
+type debugMetrics interface {
+	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+}
+
+func NewCollector(m debugMetrics, opts ...CollectorOption) *Collector {
 	c := &Collector{
 		metricBuckets:              map[string]*sourceIDBucket{},
 		sourceIDTTL:                time.Hour,
 		sourceIDExpirationInterval: time.Minute,
+		metrics:                    m,
 	}
 
 	for _, opt := range opts {
@@ -254,31 +261,7 @@ func durationInSeconds(timer *loggregator_v2.Timer) float64 {
 }
 
 func (c *Collector) convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
-	var labelNames, labelValues []string
-
-	for name, value := range c.defaultTags {
-		if invalidTag(name, value) {
-			continue
-		}
-
-		_, tagAlreadyOnEnvelope := env.GetTags()[name]
-		if tagAlreadyOnEnvelope {
-			continue
-		}
-
-		labelNames = append(labelNames, name)
-		labelValues = append(labelValues, value)
-	}
-
-	for name, value := range env.GetTags() {
-		if invalidTag(name, value) {
-			continue
-		}
-
-		labelNames = append(labelNames, name)
-		labelValues = append(labelValues, value)
-	}
-
+	labelNames, labelValues := c.convertLabels(env.SourceId, c.allTags(env))
 	labelNames = append(labelNames, "source_id")
 	labelValues = append(labelValues, env.GetSourceId())
 
@@ -290,10 +273,57 @@ func (c *Collector) convertTags(env *loggregator_v2.Envelope) ([]string, []strin
 	return labelNames, labelValues
 }
 
+func (c *Collector) allTags(env *loggregator_v2.Envelope) map[string]string {
+	allTags := make(map[string]string)
+	for k, v := range env.GetTags() {
+		allTags[k] = v
+	}
+
+	for k, v := range c.defaultTags {
+		_, tagAlreadyOnEnvelope := allTags[k]
+		if tagAlreadyOnEnvelope {
+			continue
+		}
+		allTags[k] = v
+	}
+	return allTags
+}
+
+func (c *Collector) convertLabels(sourceID string, tags map[string]string) ([]string, []string) {
+	var labelNames, labelValues []string
+	for name, value := range tags {
+		if invalidTag(name, value) {
+			c.metrics.NewCounter(
+				"dropped",
+				metrics.WithMetricTags(map[string]string{"source_id": sourceID}),
+			).Add(1)
+
+			continue
+		}
+
+		name, modified := sanitizeTagName(name)
+		if modified {
+			c.metrics.NewCounter(
+				"modified",
+				metrics.WithMetricTags(map[string]string{"source_id": sourceID}),
+			).Add(1)
+		}
+
+		labelNames = append(labelNames, name)
+		labelValues = append(labelValues, value)
+	}
+	return labelNames, labelValues
+}
+
+func sanitizeTagName(name string) (string, bool) {
+	sanitized := invalidTagCharacterRegex.ReplaceAllString(name, "_")
+	return sanitized, sanitized != name
+}
+
 func invalidName(name string) bool {
 	return invalidNameRegex.MatchString(name)
 }
 
 func invalidTag(name, value string) bool {
-	return strings.HasPrefix(name, "_") || invalidTagCharacterRegex.MatchString(name) || value == ""
+	return strings.HasPrefix(name, "__") || value == ""
 }

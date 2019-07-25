@@ -2,6 +2,7 @@ package prom_test
 
 import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/metrics/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/prom"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
@@ -15,7 +16,7 @@ import (
 
 var _ = Describe("Collector", func() {
 	It("collects all received metrics", func() {
-		promCollector := prom.NewCollector()
+		promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 		Expect(promCollector.Write(totalCounter("metric1", 22))).To(Succeed())
 		Expect(promCollector.Write(totalCounter("metric2", 22))).To(Succeed())
 
@@ -33,7 +34,7 @@ var _ = Describe("Collector", func() {
 	})
 
 	It("drops metrics with invalid names", func() {
-		promCollector := prom.NewCollector()
+		promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 		Expect(promCollector.Write(gauge(map[string]float64{
 			"gauge1.wrong.name": 11,
 			"gauge2/also-wrong": 22,
@@ -47,7 +48,7 @@ var _ = Describe("Collector", func() {
 
 	Context("envelope types", func() {
 		It("collects counters from the provider", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			Expect(promCollector.Write(totalCounter("some_total_counter", 22))).To(Succeed())
 
 			Expect(collectMetrics(promCollector)).To(Receive(And(
@@ -63,7 +64,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("collects gauges from the provider", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			Expect(promCollector.Write(gauge(map[string]float64{
 				"gauge1": 11,
 				"gauge2": 22,
@@ -98,7 +99,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("collects timers from the provider", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			Expect(promCollector.Write(timer("http", int64(time.Millisecond), int64(2*time.Millisecond)))).To(Succeed())
 
 			Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
@@ -123,7 +124,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("ignores unknown envelope types", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			Expect(promCollector.Write(&loggregator_v2.Envelope{})).To(Succeed())
 			Expect(collectMetrics(promCollector)).ToNot(Receive())
 		})
@@ -131,7 +132,7 @@ var _ = Describe("Collector", func() {
 
 	Context("tags", func() {
 		It("includes tags for counters", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			counter := counterWithTags("label_counter", 1, map[string]string{
 				"a": "1",
 				"b": "2",
@@ -150,7 +151,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("includes tags for gauges", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			gauge := gaugeWithUnit("some_gauge", "percentage")
 			Expect(promCollector.Write(gauge)).To(Succeed())
 
@@ -165,7 +166,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("includes tags for timers", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			timer := timerWithTags("some_timer", map[string]string{
 				"a": "1",
 				"b": "2",
@@ -184,7 +185,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("ignores units if empty", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			Expect(promCollector.Write(gauge(map[string]float64{"some_gauge": 7}))).To(Succeed())
 
 			Expect(collectMetrics(promCollector)).To(Receive(And(
@@ -196,11 +197,32 @@ var _ = Describe("Collector", func() {
 			)))
 		})
 
-		It("ignores invalid tags", func() {
-			promCollector := prom.NewCollector()
+		It("converts invalid tags", func() {
+			spyRegistry := testhelpers.NewMetricsRegistry()
+			promCollector := prom.NewCollector(spyRegistry)
+			counter := counterWithTags("label_counter", 1, map[string]string{
+				"not.valid":    "2",
+				"totally_fine": "3",
+			})
+			Expect(promCollector.Write(counter)).To(Succeed())
+
+			Expect(collectMetrics(promCollector)).To(Receive(And(
+				haveName("label_counter"),
+				haveLabels(
+					&dto.LabelPair{Name: proto.String("not_valid"), Value: proto.String("2")},
+					&dto.LabelPair{Name: proto.String("totally_fine"), Value: proto.String("3")},
+					&dto.LabelPair{Name: proto.String("source_id"), Value: proto.String("some-source-id")},
+					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
+				),
+			)))
+			Expect(spyRegistry.GetMetricValue("modified", map[string]string{"source_id": "some-source-id"})).To(Equal(1.0))
+		})
+
+		It("dropped reserved tags", func() {
+			spyRegistry := testhelpers.NewMetricsRegistry()
+			promCollector := prom.NewCollector(spyRegistry)
 			counter := counterWithTags("label_counter", 1, map[string]string{
 				"__invalid":    "1",
-				"not.valid":    "2",
 				"totally_fine": "3",
 			})
 			Expect(promCollector.Write(counter)).To(Succeed())
@@ -213,10 +235,11 @@ var _ = Describe("Collector", func() {
 					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
 				),
 			)))
+			Expect(spyRegistry.GetMetricValue("dropped", map[string]string{"source_id": "some-source-id"})).To(Equal(1.0))
 		})
 
 		It("ignores tags with empty values", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			counter := counterWithTags("label_counter", 1, map[string]string{
 				"a": "1",
 				"b": "2",
@@ -236,7 +259,7 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("does not include instance_id if empty", func() {
-			promCollector := prom.NewCollector()
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 			counter := counterWithEmptyInstanceID("some_name", 1)
 			Expect(promCollector.Write(counter)).To(Succeed())
 
@@ -249,11 +272,13 @@ var _ = Describe("Collector", func() {
 		})
 
 		It("includes default tags", func() {
-			promCollector := prom.NewCollector(prom.WithDefaultTags(map[string]string{
-				"a": "1",
-				"b": "2",
-				"already_on_envelope": "17",
-			}))
+			promCollector := prom.NewCollector(
+				testhelpers.NewMetricsRegistry(),
+				prom.WithDefaultTags(map[string]string{
+					"a":                   "1",
+					"b":                   "2",
+					"already_on_envelope": "17",
+				}))
 			counter := counterWithTags("some_name", 1, map[string]string{
 				"already_on_envelope": "3",
 			})
@@ -273,7 +298,7 @@ var _ = Describe("Collector", func() {
 	})
 
 	It("differentiates between metrics with the same name but different labels", func() {
-		promCollector := prom.NewCollector()
+		promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 		counter1 := counterWithTags("some_counter", 1, map[string]string{
 			"a": "1",
 		})
@@ -296,7 +321,7 @@ var _ = Describe("Collector", func() {
 	})
 
 	It("differentiates between metrics with the same name and same tags but different source id", func() {
-		promCollector := prom.NewCollector()
+		promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
 		counter := counterWithTags("some_counter", 1, map[string]string{
 			"a": "1",
 		})
@@ -315,7 +340,7 @@ var _ = Describe("Collector", func() {
 
 	Context("expiring metrics", func() {
 		It("removes metrics for source IDs that haven't been updated recently", func() {
-			promCollector := prom.NewCollector(prom.WithSourceIDExpiration(time.Second, time.Millisecond))
+			promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry(), prom.WithSourceIDExpiration(time.Second, time.Millisecond))
 
 			Expect(promCollector.Write(counterWithSourceID("counter_to_keep", "persistent"))).To(Succeed())
 			go func() {
