@@ -72,7 +72,7 @@ var _ = Describe("TCPWriter", func() {
 			actual, err := buf.ReadString('\n')
 			Expect(err).ToNot(HaveOccurred())
 
-			expected := fmt.Sprintf("89 <%d>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [APP/2] - - just a test\n", expectedPriority)
+			expected := fmt.Sprintf(`118 <%d>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [APP/2] - [tags@47450 source_type="APP"] just a test`+"\n", expectedPriority)
 			Expect(actual).To(Equal(expected))
 		},
 			Entry("stdout", loggregator_v2.Log_OUT, 14),
@@ -91,11 +91,11 @@ var _ = Describe("TCPWriter", func() {
 			actual, err := buf.ReadString('\n')
 			Expect(err).ToNot(HaveOccurred())
 
-			expected := fmt.Sprintf("%d <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [%s] - - just a test\n", expectedLength, expectedProcessID)
+			expected := fmt.Sprintf(`%d <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [%s] - [tags@47450 source_type="%s"] just a test`+"\n", expectedLength, expectedProcessID, sourceType)
 			Expect(actual).To(Equal(expected))
 		},
-			Entry("app source type", "app/foo/bar", "26", "APP/FOO/BAR/26", 98),
-			Entry("other source type", "other", "1", "OTHER/1", 91),
+			Entry("app source type", "app/foo/bar", "26", "APP/FOO/BAR/26", 135),
+			Entry("other source type", "other", "1", "OTHER/1", 122),
 		)
 
 		It("writes gauge metrics to the tcp drain", func() {
@@ -150,7 +150,7 @@ var _ = Describe("TCPWriter", func() {
 			actual, err := buf.ReadString('\n')
 			Expect(err).ToNot(HaveOccurred())
 
-			expected := fmt.Sprintf("97 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [OTHER/1] - - no null `` please\n")
+			expected := fmt.Sprintf("128 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [OTHER/1] - [tags@47450 source_type=\"OTHER\"] no null `` please\n")
 			Expect(actual).To(Equal(expected))
 		})
 
@@ -173,7 +173,7 @@ var _ = Describe("TCPWriter", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(actual).To(Equal(
-				"93 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - - just a test\n",
+				`126 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - [tags@47450 source_type="MY TASK"] just a test` + "\n",
 			))
 		})
 	})

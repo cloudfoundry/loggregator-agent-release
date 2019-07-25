@@ -3,6 +3,7 @@ package syslog
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
@@ -18,6 +19,7 @@ const (
 	timerStructuredDataID   = "timer@47450"
 	counterStructuredDataID = "counter@47450"
 	eventStructuredDataID = "event@47450"
+	tagsStructuredDataID = "tags@47450"
 )
 
 func ToRFC5424(env *loggregator_v2.Envelope, hostname string) ([][]byte, error) {
@@ -105,16 +107,32 @@ func toRFC5424LogMessage(env *loggregator_v2.Envelope, hostname, appID string) [
 	))
 	msg := appendNewline(removeNulls(env.GetLog().Payload))
 
-	tmp := make([]byte, 0, 20+len(priority)+len(ts)+len(hostname)+len(appID)+len(pid)+len(msg))
-	tmp = append(tmp, []byte("<"+priority+">1 ")...)
-	tmp = append(tmp, []byte(ts+" ")...)
-	tmp = append(tmp, []byte(hostname+" ")...)
-	tmp = append(tmp, []byte(appID+" ")...)
-	tmp = append(tmp, []byte(pid+" ")...)
-	tmp = append(tmp, []byte("- - ")...)
-	tmp = append(tmp, msg...)
+	structuredData := buildTagsStructuredData(env.GetTags())
 
-	return tmp
+	message := make([]byte, 0, 20+len(priority)+len(ts)+len(hostname)+len(appID)+len(pid)+len(msg))
+	message = append(message, []byte("<"+priority+">1 ")...)
+	message = append(message, []byte(ts+" ")...)
+	message = append(message, []byte(hostname+" ")...)
+	message = append(message, []byte(appID+" ")...)
+	message = append(message, []byte(pid+" - ")...)
+	message = append(message, []byte(structuredData+" ")...)
+	message = append(message, msg...)
+
+	return message
+}
+
+func buildTagsStructuredData(tags map[string]string) string {
+	var tagsData []string
+
+	for k, v := range tags {
+		tagsData = append(tagsData, fmt.Sprintf(`%s="%s"`, k, v))
+	}
+
+	if len(tagsData) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("[%s %s]", tagsStructuredDataID, strings.Join(tagsData, " "))
 }
 
 func toRFC5424MetricMessage(env *loggregator_v2.Envelope, hostname, appID, structuredData string) []byte {
@@ -123,6 +141,8 @@ func toRFC5424MetricMessage(env *loggregator_v2.Envelope, hostname, appID, struc
 	appID = nilify(appID)
 	pid := "[" + env.InstanceId + "]"
 	priority := "14"
+
+	structuredData += buildTagsStructuredData(env.GetTags())
 
 	message := make([]byte, 0, 20+len(priority)+len(ts)+len(hostname)+len(appID)+len(pid)+len(structuredData))
 	message = append(message, []byte("<"+priority+">1 ")...)
