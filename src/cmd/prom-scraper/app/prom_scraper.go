@@ -164,11 +164,22 @@ func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggr
 }
 
 func (p *PromScraper) buildHttpClient(idleTimeout time.Duration) *http.Client {
-	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
-	).Client(
-		withSkipSSLValidation(p.cfg.SkipSSLValidation),
-	)
+	tlsOptions := []tlsconfig.TLSOption{tlsconfig.WithInternalServiceDefaults()}
+	clientOptions := []tlsconfig.ClientOption{withSkipSSLValidation(p.cfg.SkipSSLValidation)}
+
+	if p.cfg.ScrapeCertPath != "" && p.cfg.ScrapeKeyPath != "" {
+		tlsOptions = append(tlsOptions, tlsconfig.WithIdentityFromFile(p.cfg.ScrapeCertPath, p.cfg.ScrapeKeyPath))
+	}
+
+	if p.cfg.ScrapeCACertPath != "" {
+		clientOptions = append(clientOptions, tlsconfig.WithAuthorityFromFile(p.cfg.ScrapeCACertPath))
+	}
+
+	if p.cfg.ScrapeCommonName != "" {
+		clientOptions = append(clientOptions, tlsconfig.WithServerName(p.cfg.ScrapeCommonName))
+	}
+
+	tlsConfig, err := tlsconfig.Build(tlsOptions...).Client(clientOptions...)
 	if err != nil {
 		p.log.Fatal(err)
 	}

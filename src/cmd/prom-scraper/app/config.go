@@ -13,6 +13,12 @@ type Config struct {
 	ClientCertPath string `env:"CLIENT_CERT_PATH, report, required"`
 	CACertPath     string `env:"CA_CERT_PATH, report, required"`
 
+	// Prom Scraper Certs
+	ScrapeKeyPath    string `env:"SCRAPE_KEY_PATH, report"`
+	ScrapeCertPath   string `env:"SCRAPE_CERT_PATH, report"`
+	ScrapeCACertPath string `env:"SCRAPE_CA_CERT_PATH, report"`
+	ScrapeCommonName string `env:"SCRAPE_COMMON_NAME, report"`
+
 	LoggregatorIngressAddr string        `env:"LOGGREGATOR_AGENT_ADDR, report, required"`
 	DefaultSourceID        string        `env:"DEFAULT_SOURCE_ID, report, required"`
 	ConfigGlobs            []string      `env:"CONFIG_GLOBS, report"`

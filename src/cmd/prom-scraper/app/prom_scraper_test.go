@@ -18,7 +18,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	"code.cloudfoundry.org/tlsconfig"
-	"code.cloudfoundry.org/tlsconfig/certtest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"google.golang.org/grpc"
@@ -32,13 +31,13 @@ var _ = Describe("PromScraper", func() {
 		ps         *app.PromScraper
 
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts = testhelper.GenerateCerts("loggregatorCA")
+		testCerts  = testhelper.GenerateCerts("loggregatorCA")
+		scrapeCerts  = testhelper.GenerateCerts("scrapeCA")
 
 		metricConfigDir string
 	)
 
 	BeforeEach(func() {
-		promServer = newStubPromServer()
 		metricConfigDir = metricPortConfigDir()
 
 		spyAgent = newSpyAgent(testCerts)
@@ -64,120 +63,123 @@ var _ = Describe("PromScraper", func() {
 		gexec.CleanupBuildArtifacts()
 	})
 
-	It("scrapes a prometheus endpoint and sends those metrics to a loggregator agent", func() {
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
-		promServer.resp = promOutput
+	Context("http", func() {
+		BeforeEach(func() {
+			promServer = newStubPromServer()
+		})
 
-		ps = app.NewPromScraper(cfg, testLogger)
-		go ps.Run()
-
-		Eventually(spyAgent.Envelopes).Should(And(
-			ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-			ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-			ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-			ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-			ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
-		))
-	})
-
-	It("scrapes prometheus endpoints after the specified interval", func() {
-		promServer2 := newStubPromServer()
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithScrapeIntervalTemplate, promServer2.port, "100ms"), "prom_scraper_config.yml")
-
-		promServer.resp = promOutput
-		promServer2.resp = promOutput2
-
-		cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
-		cfg.DefaultScrapeInterval = time.Hour
-		ps = app.NewPromScraper(cfg, testLogger)
-		go ps.Run()
-
-		Eventually(spyAgent.Envelopes).Should(
-			ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
-		)
-
-		Consistently(spyAgent.Envelopes).ShouldNot(
-			ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-		)
-	})
-
-	It("scrapes multiple prometheus endpoints", func() {
-		promServer2 := newStubPromServer()
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
-
-		promServer.resp = promOutput
-		promServer2.resp = promOutput2
-
-		cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
-		ps = app.NewPromScraper(cfg, testLogger)
-		go ps.Run()
-
-		Eventually(spyAgent.Envelopes).Should(And(
-			ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-			ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-			ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-			ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-			ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
-			ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
-		))
-	})
-
-	It("scrapes with headers if provided", func() {
-		writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
-		promServer.resp = promOutput
-
-		ps = app.NewPromScraper(cfg, testLogger)
-		go ps.Run()
-
-		Eventually(promServer.requestHeaders).Should(Receive(And(
-			HaveKeyWithValue("Header1", []string{"value1"}),
-			HaveKeyWithValue("Header2", []string{"value2"}),
-		)))
-	})
-
-	Context("metrics path", func() {
-		It("defaults to /metrics", func() {
+		It("scrapes a prometheus endpoint and sends those metrics to a loggregator agent", func() {
 			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
 
 			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
-			Eventually(promServer.requestPaths).Should(Receive(Equal("/metrics")))
+			Eventually(spyAgent.Envelopes).Should(And(
+				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
+				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
+				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
+				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+			))
 		})
 
-		It("scrapes a different path if provided", func() {
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithPathTemplate, promServer.port, "/other/metrics/endpoint"),
-				"prom_scraper_config.yml",
+		It("scrapes prometheus endpoints after the specified interval", func() {
+			promServer2 := newStubPromServer()
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithScrapeIntervalTemplate, promServer2.port, "100ms"), "prom_scraper_config.yml")
+
+			promServer.resp = promOutput
+			promServer2.resp = promOutput2
+
+			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
+			cfg.DefaultScrapeInterval = time.Hour
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Eventually(spyAgent.Envelopes).Should(
+				ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
 			)
 
+			Consistently(spyAgent.Envelopes).ShouldNot(
+				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+			)
+		})
+
+		It("scrapes multiple prometheus endpoints", func() {
+			promServer2 := newStubPromServer()
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
+
+			promServer.resp = promOutput
+			promServer2.resp = promOutput2
+
+			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Eventually(spyAgent.Envelopes).Should(And(
+				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
+				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
+				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
+				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+				ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
+			))
+		})
+
+		It("scrapes with headers if provided", func() {
 			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
 
 			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
-			Eventually(promServer.requestPaths).Should(Receive(Equal("/other/metrics/endpoint")))
+			Eventually(promServer.requestHeaders).Should(Receive(And(
+				HaveKeyWithValue("Header1", []string{"value1"}),
+				HaveKeyWithValue("Header2", []string{"value2"}),
+			)))
+		})
+
+		Context("metrics path", func() {
+			It("defaults to /metrics", func() {
+				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
+				promServer.resp = promOutput
+
+				ps = app.NewPromScraper(cfg, testLogger)
+				go ps.Run()
+
+				Eventually(promServer.requestPaths).Should(Receive(Equal("/metrics")))
+			})
+
+			It("scrapes a different path if provided", func() {
+				writeScrapeConfig(
+					metricConfigDir,
+					fmt.Sprintf(metricConfigWithPathTemplate, promServer.port, "/other/metrics/endpoint"),
+					"prom_scraper_config.yml",
+				)
+
+				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
+				promServer.resp = promOutput
+
+				ps = app.NewPromScraper(cfg, testLogger)
+				go ps.Run()
+
+				Eventually(promServer.requestPaths).Should(Receive(Equal("/other/metrics/endpoint")))
+			})
 		})
 	})
 
 	Context("https", func() {
-		var promServer2 *stubPromServer
-
 		BeforeEach(func() {
-			promServer2 = newStubHttpsPromServer(testLogger)
+			promServer = newStubHttpsPromServer(testLogger, scrapeCerts,false)
 			writeScrapeConfig(
 				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer2.port, "https"),
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "https"),
 				"prom_scraper_config.yml",
 			)
 
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
-			promServer2.resp = promOutput
+			promServer.resp = promOutput
 		})
 
 		It("scrapes https if provided", func() {
@@ -201,6 +203,39 @@ var _ = Describe("PromScraper", func() {
 			// certs have an untrusted CA
 			Consistently(spyAgent.Envelopes, 1).Should(BeEmpty())
 		})
+	})
+
+	Context("with TLS", func() {
+		BeforeEach(func() {
+			promServer = newStubHttpsPromServer(testLogger, scrapeCerts, true)
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "https"),
+				"prom_scraper_config.yml",
+			)
+
+			promServer.resp = promOutput
+
+			cfg.SkipSSLValidation = false
+			cfg.ScrapeCertPath = scrapeCerts.Cert("client")
+			cfg.ScrapeKeyPath = scrapeCerts.Key("client")
+			cfg.ScrapeCACertPath = scrapeCerts.CA()
+			cfg.ScrapeCommonName = "server"
+		})
+
+		It("scrapes over mTLS", func() {
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Eventually(spyAgent.Envelopes).Should(And(
+				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
+				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
+				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
+				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+			))
+		})
+
 	})
 })
 
@@ -227,24 +262,19 @@ func newStubPromServer() *stubPromServer {
 	return s
 }
 
-func newStubHttpsPromServer(testLogger *log.Logger) *stubPromServer {
+func newStubHttpsPromServer(testLogger *log.Logger, scrapeCerts *testhelper.TestCerts, mTLS bool) *stubPromServer {
 	s := &stubPromServer{
 		requestHeaders: make(chan http.Header, 100),
 		requestPaths:   make(chan string, 100),
 	}
 
-	ca, err := certtest.BuildCA("tlsconfig")
-	Expect(err).ToNot(HaveOccurred())
-
-	serverCrt, err := ca.BuildSignedCertificate("server", certtest.WithDomains("tlsconfig"))
-	Expect(err).ToNot(HaveOccurred())
-
-	serverTLSCrt, err := serverCrt.TLSCertificate()
-	Expect(err).ToNot(HaveOccurred())
-
+	var serverOpts []tlsconfig.ServerOption
+	if mTLS == true {
+		serverOpts = append(serverOpts, tlsconfig.WithClientAuthenticationFromFile(scrapeCerts.CA()))
+	}
 	serverConf, err := tlsconfig.Build(
-		tlsconfig.WithIdentity(serverTLSCrt),
-	).Server()
+		tlsconfig.WithIdentityFromFile(scrapeCerts.Cert("server"), scrapeCerts.Key("server")),
+	).Server(serverOpts...)
 	Expect(err).ToNot(HaveOccurred())
 
 	server := httptest.NewUnstartedServer(s)

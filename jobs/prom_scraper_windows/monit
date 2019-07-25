@@ -15,6 +15,14 @@
     "CONFIG_GLOBS" => p('config_globs').join(','),
     "SCRAPE_INTERVAL" => p('scrape_interval'),
     "DEFAULT_SOURCE_ID" => "infra_#{spec.job.name}",
+    "SKIP_SSL_VALIDATION" => "#{p('skip_ssl_validation')}",
+  }
+
+  if_p('scrape.tls.ca_cert') {
+    env["SCRAPE_CA_CERT_PATH"] = "/var/vcap/jobs/prom_scraper/config/certs/scrape_ca.crt"
+    env["SCRAPE_CERT_PATH"] = "/var/vcap/jobs/prom_scraper/config/certs/scrape.crt"
+    env["SCRAPE_KEY_PATH"] = "/var/vcap/jobs/prom_scraper/config/certs/scrape.key"
+    env["SCRAPE_COMMON_NAME"] = p('scrape.tls.cn', "")
   }
 
   monit = {

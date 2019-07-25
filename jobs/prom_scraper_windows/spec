@@ -11,6 +11,9 @@ templates:
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
+  scrape.crt.erb: config/certs/scrape.crt
+  scrape.key.erb: config/certs/scrape.key
+  scrape_ca.crt.erb: config/certs/scrape_ca.crt
 
 packages:
 - prom_scraper_windows
@@ -22,6 +25,18 @@ properties:
   config_globs:
     description: "Files matching the globs are expected to contain information to scrape a Prometheus metrics endpoint on localhost."
     default: [/var/vcap/jobs/*/config/prom_scraper_config.yml, /var/vcap/jobs/*/config/metric_port.yml]
+  skip_ssl_validation:
+    description: "If true, Skips SSL Validation when scraping"
+    default: false
+
+  scrape.tls.cert:
+    description: "The cert used to communicate with scrape targets"
+  scrape.tls.key:
+    description: "The key used to communicate with scrape targets"
+  scrape.tls.ca_cert:
+    description: "The CA used to communicate with scrape targets"
+  scrape.tls.cn:
+    description: "The common name used to communicate with scrape targets"
 
   loggregator_agent.grpc_port:
     description: "The gRPC port used to connect to loggregator agent. Can come from loggregator link"
