@@ -33,17 +33,39 @@ var _ = Describe("Collector", func() {
 		))
 	})
 
-	It("drops metrics with invalid names", func() {
-		promCollector := prom.NewCollector(testhelpers.NewMetricsRegistry())
+	It("converts metrics with invalid characters", func() {
+		spyMetricsRegistry := testhelpers.NewMetricsRegistry()
+		promCollector := prom.NewCollector(spyMetricsRegistry)
+
 		Expect(promCollector.Write(gauge(map[string]float64{
 			"gauge1.wrong.name": 11,
 			"gauge2/also-wrong": 22,
-		}))).ToNot(Succeed())
+		}))).To(Succeed())
+		Expect(promCollector.Write(totalCounter("counter.wrong.name", 11))).To(Succeed())
+		Expect(promCollector.Write(timer("timer.wrong.name", int64(time.Millisecond), int64(2*time.Millisecond)))).To(Succeed())
 
-		Expect(promCollector.Write(totalCounter("counter.wrong.name", 11))).ToNot(Succeed())
-		Expect(promCollector.Write(timer("timer.wrong.name", 11, 22))).ToNot(Succeed())
+		Expect(collectMetrics(promCollector)).To(receiveInAnyOrder(
+			And(
+				haveName("gauge1_wrong_name"),
+				gaugeWithValue(11),
+			),
+			And(
+				haveName("gauge2_also_wrong"),
+				gaugeWithValue(22),
+			),
+			And(
+				haveName("counter_wrong_name"),
+				counterWithValue(11),
+			),
+			And(
+				haveName("timer_wrong_name_seconds"),
+				histogramWithCount(1),
+				histogramWithSum(float64(time.Millisecond)/float64(time.Second)),
+				histogramWithBuckets(0.01, 0.2, 1.0, 15.0, 60.0),
+			),
+		))
 
-		Expect(collectMetrics(promCollector)).ToNot(Receive())
+		Expect(spyMetricsRegistry.GetMetricValue("modified", map[string]string{"source_id": "some-source-id"})).To(Equal(4.0))
 	})
 
 	Context("envelope types", func() {
@@ -235,7 +257,7 @@ var _ = Describe("Collector", func() {
 					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
 				),
 			)))
-			Expect(spyRegistry.GetMetricValue("dropped", map[string]string{"source_id": "some-source-id"})).To(Equal(1.0))
+			Expect(spyRegistry.GetMetricValue("invalid_metric_label", map[string]string{"source_id": "some-source-id"})).To(Equal(1.0))
 		})
 
 		It("ignores tags with empty values", func() {

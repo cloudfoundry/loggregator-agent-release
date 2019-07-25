@@ -123,10 +123,10 @@ func (c *Collector) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	c.Lock()
+	defer c.Unlock()
 	for id, metric := range metrics {
 		c.getOrCreateBucket(env.GetSourceId()).addMetric(id, metric)
 	}
-	c.Unlock()
 
 	return nil
 }
@@ -159,8 +159,12 @@ func (c *Collector) convertEnvelope(env *loggregator_v2.Envelope) (map[string]pr
 
 func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID string, metric prometheus.Metric, err error) {
 	name := env.GetCounter().GetName()
-	if invalidName(name) {
-		return "", nil, fmt.Errorf("invalid metric name: %s", name)
+	name, modified := sanitizeName(name)
+	if modified {
+		c.metrics.NewCounter(
+			"modified",
+			metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
+		).Add(1)
 	}
 
 	labelNames, labelValues := c.convertTags(env)
@@ -177,20 +181,24 @@ func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID strin
 func (c *Collector) convertGaugeEnvelope(env *loggregator_v2.Envelope) (map[string]prometheus.Metric, error) {
 	envelopeLabelNames, envelopeLabelValues := c.convertTags(env)
 
-	metrics := map[string]prometheus.Metric{}
+	promMetrics := map[string]prometheus.Metric{}
 	for name, metric := range env.GetGauge().GetMetrics() {
-		if invalidName(name) {
-			return nil, fmt.Errorf("invalid metric name: %s", name)
+		name, modified := sanitizeName(name)
+		if modified {
+			c.metrics.NewCounter(
+				"modified",
+				metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
+			).Add(1)
 		}
 
 		id, metric, err := convertGaugeValue(name, metric, envelopeLabelNames, envelopeLabelValues)
 		if err != nil {
 			return nil, fmt.Errorf("invalid metric: %s", err)
 		}
-		metrics[id] = metric
+		promMetrics[id] = metric
 	}
 
-	return metrics, nil
+	return promMetrics, nil
 }
 
 func convertGaugeValue(name string, gaugeValue *loggregator_v2.GaugeValue, envelopeLabelNames, envelopeLabelValues []string) (string, prometheus.Metric, error) {
@@ -230,8 +238,12 @@ func gaugeLabels(metric *loggregator_v2.GaugeValue, envelopeLabelNames, envelope
 func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string, metric prometheus.Metric, err error) {
 	timer := env.GetTimer()
 	name := timer.GetName() + "_seconds"
-	if invalidName(name) {
-		return "", nil, fmt.Errorf("invalid metric name: %s", name)
+	name, modified := sanitizeName(name)
+	if modified {
+		c.metrics.NewCounter(
+			"modified",
+			metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
+		).Add(1)
 	}
 
 	labelNames, labelValues := c.convertTags(env)
@@ -294,7 +306,7 @@ func (c *Collector) convertLabels(sourceID string, tags map[string]string) ([]st
 	for name, value := range tags {
 		if invalidTag(name, value) {
 			c.metrics.NewCounter(
-				"dropped",
+				"invalid_metric_label",
 				metrics.WithMetricTags(map[string]string{"source_id": sourceID}),
 			).Add(1)
 
@@ -320,8 +332,9 @@ func sanitizeTagName(name string) (string, bool) {
 	return sanitized, sanitized != name
 }
 
-func invalidName(name string) bool {
-	return invalidNameRegex.MatchString(name)
+func sanitizeName(name string) (string, bool) {
+	sanitized := invalidNameRegex.ReplaceAllString(name, "_")
+	return sanitized, sanitized != name
 }
 
 func invalidTag(name, value string) bool {
