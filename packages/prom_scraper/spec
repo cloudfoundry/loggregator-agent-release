@@ -2,8 +2,7 @@
 name: prom_scraper
 
 dependencies:
-- golang1.12.4
-
+- golang-1-linux
 files:
 - cmd/prom-scraper/**/*.go
 - pkg/**/*.go

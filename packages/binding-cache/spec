@@ -2,8 +2,7 @@
 name: binding-cache
 
 dependencies:
-- golang1.12.4
-
+- golang-1-linux
 files:
 - cmd/syslog-binding-cache/**/*.go
 - pkg/**/*.go

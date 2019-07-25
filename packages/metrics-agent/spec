@@ -2,8 +2,7 @@
 name: metrics-agent
 
 dependencies:
-- golang1.12.4
-
+- golang-1-linux
 files:
 - cmd/metrics-agent/**/*.go
 - pkg/**/*.go

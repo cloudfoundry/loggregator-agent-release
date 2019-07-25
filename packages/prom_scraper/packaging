@@ -1,7 +1,6 @@
 set -ex
 
-export GOROOT=$(readlink -nf /var/vcap/packages/golang1.12.4)
-export PATH=$GOROOT/bin:$PATH
-export HOME=/var/vcap
+source /var/vcap/packages/golang-1-linux/bosh/compile.env
+export GOPATH=/var/vcap
 
 go build -mod=vendor -o ${BOSH_INSTALL_TARGET}/prom-scraper ./cmd/prom-scraper
