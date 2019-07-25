@@ -65,7 +65,7 @@ var _ = Describe("Collector", func() {
 			),
 		))
 
-		Expect(spyMetricsRegistry.GetMetricValue("modified", map[string]string{"source_id": "some-source-id"})).To(Equal(4.0))
+		Expect(spyMetricsRegistry.GetMetricValue("modified_tags", map[string]string{"source_id": "some-source-id"})).To(Equal(4.0))
 	})
 
 	Context("envelope types", func() {
@@ -237,7 +237,7 @@ var _ = Describe("Collector", func() {
 					&dto.LabelPair{Name: proto.String("instance_id"), Value: proto.String("some-instance-id")},
 				),
 			)))
-			Expect(spyRegistry.GetMetricValue("modified", map[string]string{"source_id": "some-source-id"})).To(Equal(1.0))
+			Expect(spyRegistry.GetMetricValue("modified_tags", map[string]string{"source_id": "some-source-id"})).To(Equal(1.0))
 		})
 
 		It("dropped reserved tags", func() {

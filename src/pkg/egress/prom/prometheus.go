@@ -162,7 +162,7 @@ func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID strin
 	name, modified := sanitizeName(name)
 	if modified {
 		c.metrics.NewCounter(
-			"modified",
+			"modified_tags",
 			metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
 		).Add(1)
 	}
@@ -186,7 +186,7 @@ func (c *Collector) convertGaugeEnvelope(env *loggregator_v2.Envelope) (map[stri
 		name, modified := sanitizeName(name)
 		if modified {
 			c.metrics.NewCounter(
-				"modified",
+				"modified_tags",
 				metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
 			).Add(1)
 		}
@@ -241,7 +241,7 @@ func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string,
 	name, modified := sanitizeName(name)
 	if modified {
 		c.metrics.NewCounter(
-			"modified",
+			"modified_tags",
 			metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
 		).Add(1)
 	}
@@ -316,7 +316,7 @@ func (c *Collector) convertLabels(sourceID string, tags map[string]string) ([]st
 		name, modified := sanitizeTagName(name)
 		if modified {
 			c.metrics.NewCounter(
-				"modified",
+				"modified_tags",
 				metrics.WithMetricTags(map[string]string{"source_id": sourceID}),
 			).Add(1)
 		}
