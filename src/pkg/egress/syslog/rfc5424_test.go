@@ -80,13 +80,11 @@ var _ = Describe("RFC5424", func() {
 		metricEnv := buildCounterEnvelope("1")
 		metricEnv.Tags = map[string]string{"metric-tag": "scallop"}
 
-		Expect(syslog.ToRFC5424(logEnv, "test-hostname")).To(Equal(
-			[][]byte{[]byte(`<11>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - [tags@47450 source_type="MY TASK" log-tag="oyster"] just a test` + "\n")},
-		))
+		receivedMsgs, _ := syslog.ToRFC5424(logEnv, "test-hostname")
+		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - [tags@47450 source_type="MY TASK" log-tag="oyster"] just a test`+"\n")
 
-		expectedMsg := `<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [counter@47450 name="some-counter" total="99" delta="1"][tags@47450 metric-tag="scallop"] ` + "\n"
-		receivedMsgs, _ := syslog.ToRFC5424(metricEnv, "test-hostname")
-		Expect(receivedMsgs).To(Equal([][]byte{[]byte(expectedMsg)}), fmt.Sprintf("\n%s\n%s", string(receivedMsgs[0]), expectedMsg))
+		receivedMsgs, _ = syslog.ToRFC5424(metricEnv, "test-hostname")
+		expectConversion(receivedMsgs, `<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [counter@47450 name="some-counter" total="99" delta="1"][tags@47450 metric-tag="scallop"] `+"\n")
 	})
 
 	Describe("validation", func() {
@@ -110,6 +108,10 @@ var _ = Describe("RFC5424", func() {
 		})
 	})
 })
+
+func expectConversion(received [][]byte, expected string) bool {
+	return Expect(received).To(Equal([][]byte{[]byte(expected)}), fmt.Sprintf("\n%s\n%s", string(received[0]), expected))
+}
 
 var (
 	invalidHostname  = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras tortor elit, ultricies in suscipit et, euismod quis velit. Duis et auctor mauris. Suspendisse et aliquet justo. Nunc fermentum lorem dolor, eu fermentum quam vulputate id. Morbi gravida ut elit sed."
