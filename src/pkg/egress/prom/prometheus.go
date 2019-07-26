@@ -161,10 +161,7 @@ func (c *Collector) convertCounter(env *loggregator_v2.Envelope) (metricID strin
 	name := env.GetCounter().GetName()
 	name, modified := sanitizeName(name)
 	if modified {
-		c.metrics.NewCounter(
-			"modified_tags",
-			metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
-		).Add(1)
+		c.incrementCounter("modified_tags", env.GetSourceId())
 	}
 
 	labelNames, labelValues := c.convertTags(env)
@@ -185,10 +182,7 @@ func (c *Collector) convertGaugeEnvelope(env *loggregator_v2.Envelope) (map[stri
 	for name, metric := range env.GetGauge().GetMetrics() {
 		name, modified := sanitizeName(name)
 		if modified {
-			c.metrics.NewCounter(
-				"modified_tags",
-				metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
-			).Add(1)
+			c.incrementCounter("modified_tags", env.GetSourceId())
 		}
 
 		id, metric, err := convertGaugeValue(name, metric, envelopeLabelNames, envelopeLabelValues)
@@ -240,10 +234,7 @@ func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string,
 	name := timer.GetName() + "_seconds"
 	name, modified := sanitizeName(name)
 	if modified {
-		c.metrics.NewCounter(
-			"modified_tags",
-			metrics.WithMetricTags(map[string]string{"source_id": env.SourceId}),
-		).Add(1)
+		c.incrementCounter("modified_tags", env.GetSourceId())
 	}
 
 	labelNames, labelValues := c.convertTags(env)
@@ -273,7 +264,7 @@ func durationInSeconds(timer *loggregator_v2.Timer) float64 {
 }
 
 func (c *Collector) convertTags(env *loggregator_v2.Envelope) ([]string, []string) {
-	labelNames, labelValues := c.convertLabels(env.SourceId, c.allTags(env))
+	labelNames, labelValues := c.toLabels(env.SourceId, c.allTags(env))
 	labelNames = append(labelNames, "source_id")
 	labelValues = append(labelValues, env.GetSourceId())
 
@@ -292,8 +283,8 @@ func (c *Collector) allTags(env *loggregator_v2.Envelope) map[string]string {
 	}
 
 	for k, v := range c.defaultTags {
-		_, tagAlreadyOnEnvelope := allTags[k]
-		if tagAlreadyOnEnvelope {
+		_, exists := allTags[k]
+		if exists {
 			continue
 		}
 		allTags[k] = v
@@ -301,30 +292,30 @@ func (c *Collector) allTags(env *loggregator_v2.Envelope) map[string]string {
 	return allTags
 }
 
-func (c *Collector) convertLabels(sourceID string, tags map[string]string) ([]string, []string) {
+func (c *Collector) toLabels(sourceID string, tags map[string]string) ([]string, []string) {
 	var labelNames, labelValues []string
 	for name, value := range tags {
 		if invalidTag(name, value) {
-			c.metrics.NewCounter(
-				"invalid_metric_label",
-				metrics.WithMetricTags(map[string]string{"source_id": sourceID}),
-			).Add(1)
-
+			c.incrementCounter("invalid_metric_label", sourceID)
 			continue
 		}
 
 		name, modified := sanitizeTagName(name)
 		if modified {
-			c.metrics.NewCounter(
-				"modified_tags",
-				metrics.WithMetricTags(map[string]string{"source_id": sourceID}),
-			).Add(1)
+			c.incrementCounter("modified_tags", sourceID)
 		}
 
 		labelNames = append(labelNames, name)
 		labelValues = append(labelValues, value)
 	}
 	return labelNames, labelValues
+}
+
+func (c *Collector) incrementCounter(metricName, originatingSourceID string) {
+	c.metrics.NewCounter(
+		metricName,
+		metrics.WithMetricTags(map[string]string{"originating_source_id": originatingSourceID}),
+	).Add(1)
 }
 
 func sanitizeTagName(name string) (string, bool) {
