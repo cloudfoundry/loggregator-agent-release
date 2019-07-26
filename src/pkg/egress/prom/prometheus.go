@@ -249,10 +249,10 @@ func (c *Collector) convertTimer(env *loggregator_v2.Envelope) (metricID string,
 	labelNames, labelValues := c.convertTags(env)
 	id := buildMetricID(name, labelNames, labelValues)
 
-	c.RLock()
+	c.Lock()
 	bucket := c.getOrCreateBucket(env.GetSourceId())
 	metric, ok := bucket.metrics[id]
-	c.RUnlock()
+	c.Unlock()
 
 	if !ok {
 		metric = prometheus.NewHistogram(prometheus.HistogramOpts{
