@@ -81,7 +81,7 @@ var _ = Describe("RFC5424", func() {
 		metricEnv.Tags = map[string]string{"metric-tag": "scallop"}
 
 		receivedMsgs, _ := syslog.ToRFC5424(logEnv, "test-hostname")
-		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - [tags@47450 source_type="MY TASK" log-tag="oyster"] just a test`+"\n")
+		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - [tags@47450 log-tag="oyster" source_type="MY TASK"] just a test`+"\n")
 
 		receivedMsgs, _ = syslog.ToRFC5424(metricEnv, "test-hostname")
 		expectConversion(receivedMsgs, `<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [counter@47450 name="some-counter" total="99" delta="1"][tags@47450 metric-tag="scallop"] `+"\n")

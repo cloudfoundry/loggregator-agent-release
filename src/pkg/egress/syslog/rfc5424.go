@@ -2,6 +2,7 @@ package syslog
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -122,14 +123,21 @@ func toRFC5424LogMessage(env *loggregator_v2.Envelope, hostname, appID string) [
 }
 
 func buildTagsStructuredData(tags map[string]string) string {
+	var tagKeys []string
 	var tagsData []string
 
-	for k, v := range tags {
-		tagsData = append(tagsData, fmt.Sprintf(`%s="%s"`, k, v))
+	for k := range tags {
+		tagKeys = append(tagKeys, k)
 	}
 
-	if len(tagsData) == 0 {
+	if len(tagKeys) == 0 {
 		return ""
+	}
+
+	sort.Strings(tagKeys)
+
+	for _, k := range tagKeys {
+		tagsData = append(tagsData, fmt.Sprintf(`%s="%s"`, k, tags[k]))
 	}
 
 	return fmt.Sprintf("[%s %s]", tagsStructuredDataID, strings.Join(tagsData, " "))
