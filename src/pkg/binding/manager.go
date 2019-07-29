@@ -181,6 +181,7 @@ func (m *Manager) addUniversalDrains(drains []string) {
 		writer, err := m.connector.Connect(universalDrainHolder.ctx, syslog.Binding{
 			AppId: "all",
 			Drain: drain,
+			Type: syslog.BINDING_TYPE_UNIVERSAL,
 		})
 		if err != nil {
 			m.log.Printf("failed to connect to universal drain %s: %s", drain, err)

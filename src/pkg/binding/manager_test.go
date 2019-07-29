@@ -362,7 +362,7 @@ var _ = Describe("Manager", func() {
 	It("removes drain holders for inactive drains", func() {
 		stubBindingFetcher.bindings <- []syslog.Binding{
 			binding1,
-			{"app-2", "host-1", "syslog://drain.url.com"},
+			{AppId: "app-2", Hostname: "host-1", Drain:"syslog://drain.url.com"},
 		}
 
 		m := binding.NewManager(
@@ -439,7 +439,7 @@ var _ = Describe("Manager", func() {
 
 	It("should not return a drain for binding to an invalid address", func() {
 		stubBindingFetcher.bindings <- []syslog.Binding{
-			{"app-1", "host-1", "syslog-v3-v3://drain.url.com"},
+			{AppId: "app-1", Hostname: "host-1", Drain: "syslog-v3-v3://drain.url.com"},
 		}
 
 		m := binding.NewManager(

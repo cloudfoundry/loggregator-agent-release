@@ -159,6 +159,9 @@ var _ = Describe("SyslogConnector", func() {
 				for {
 					w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
+						Message: &loggregator_v2.Envelope_Log{
+							Log: &loggregator_v2.Log{},
+						},
 					})
 				}
 			}(writer)
@@ -187,6 +190,9 @@ var _ = Describe("SyslogConnector", func() {
 				for {
 					w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
+						Message: &loggregator_v2.Envelope_Log{
+							Log: &loggregator_v2.Log{},
+						},
 					})
 				}
 			}(writer)

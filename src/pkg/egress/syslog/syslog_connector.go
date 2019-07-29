@@ -14,9 +14,10 @@ import (
 )
 
 type Binding struct {
-	AppId    string `json:"appId,omitempty"`
-	Hostname string `json:"hostname,omitempty"`
-	Drain    string `json:"drain,omitempty"`
+	AppId    string      `json:"appId,	omitempty"`
+	Hostname string      `json:"hostname,omitempty"`
+	Drain    string      `json:"drain,	omitempty"`
+	Type     BindingType `json:"type,	omitempty"`
 }
 
 // LogClient is used to emit logs.
@@ -134,7 +135,13 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		)
 	}), w.wg)
 
-	return dw, nil
+	filteredWriter, err := NewFilteringDrainWriter(b, dw)
+	if err != nil {
+		log.Printf("failed to create filtered writer: %s", err)
+		return nil, err
+	}
+
+	return filteredWriter, nil
 }
 
 func (w *SyslogConnector) emitErrorLog(appID, message string) {

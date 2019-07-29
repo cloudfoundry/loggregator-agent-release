@@ -9,6 +9,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -53,7 +54,7 @@ var _ = Describe("BindingFetcher", func() {
 		}
 	})
 
-	It("returns limited v3 bindings by app id", func() {
+	It("returns the max number of v3 bindings by app id", func() {
 		bindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(bindings).To(HaveLen(6))
@@ -93,6 +94,33 @@ var _ = Describe("BindingFetcher", func() {
 			},
 		}))
 	})
+
+	Describe("Binding Type", func() {
+		DescribeTable("determines the binding type from the drain url", func(url string, expectedType syslog.BindingType) {
+			getter.bindings = []binding.Binding{
+				{
+					AppID: "9be15160-4845-4f05-b089-40e827ba61f1",
+					Drains: []string{
+						url,
+					},
+					Hostname: "org.space.logspinner",
+				},
+			}
+
+			fetcher = cups.NewBindingFetcher(2, getter, metrics)
+			bindings, err := fetcher.FetchBindings()
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(bindings).To(HaveLen(1))
+			Expect(bindings[0].Type).To(Equal(expectedType))
+		},
+		Entry("default", "syslog://v3.something.url", syslog.BINDING_TYPE_LOG),
+		Entry("logs", "syslog://v3.something.url?drain-type=logs", syslog.BINDING_TYPE_LOG),
+		Entry("metrics", "syslog://v3.something.url?drain-type=metrics", syslog.BINDING_TYPE_METRIC),
+		Entry("all", "syslog://v3.something.url?drain-type=all", syslog.BINDING_TYPE_ALL),
+		)
+	})
+
 
 	It("tracks the number of binding refreshes", func() {
 		_, err := fetcher.FetchBindings()

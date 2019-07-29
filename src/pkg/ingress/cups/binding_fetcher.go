@@ -83,10 +83,23 @@ func (f *BindingFetcher) toSyslogBindings(bs []binding.Binding, perAppLimit int)
 				continue
 			}
 
+			var t syslog.BindingType
+			drainType := u.Query().Get("drain-type")
+
+			switch drainType {
+			case "metrics":
+				t = syslog.BINDING_TYPE_METRIC
+			case "all":
+				t = syslog.BINDING_TYPE_ALL
+			default:
+				t = syslog.BINDING_TYPE_LOG
+			}
+
 			binding := syslog.Binding{
 				AppId:    b.AppID,
 				Hostname: b.Hostname,
 				Drain:    u.String(),
+				Type:     t,
 			}
 			bindings = append(bindings, binding)
 		}
