@@ -21,7 +21,7 @@ func (s *Store) Get() []Binding {
 
 func (s *Store) Set(bindings []Binding) {
 	if bindings == nil {
-		return
+		bindings = []Binding{}
 	}
 
 	s.mu.Lock()

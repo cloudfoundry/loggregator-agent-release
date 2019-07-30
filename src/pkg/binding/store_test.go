@@ -29,8 +29,21 @@ var _ = Describe("Store", func() {
 
 	It("should not allow setting of bindings to nil", func() {
 		store := binding.NewStore()
+
+		bindings := []binding.Binding{
+			{
+				AppID:    "app-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "host-1",
+			},
+		}
+
+		store.Set(bindings)
 		store.Set(nil)
-		Expect(store.Get()).ToNot(BeNil())
+
+		storedBindings := store.Get()
+		Expect(storedBindings).ToNot(BeNil())
+		Expect(storedBindings).To(BeEmpty())
 	})
 
 	// The race detector will cause a failure here

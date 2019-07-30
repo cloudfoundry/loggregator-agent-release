@@ -52,13 +52,13 @@ func (p *Poller) poll() {
 		resp, err := p.apiClient.Get(nextID)
 		if err != nil {
 			log.Printf("failed to get id %d from CUPS Provider: %s", nextID, err)
-			break
+			return
 		}
 		var aResp apiResponse
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
 		if err != nil {
 			log.Printf("failed to decode JSON: %s", err)
-			break
+			return
 		}
 
 		bindings = append(bindings, p.toBindings(aResp)...)
