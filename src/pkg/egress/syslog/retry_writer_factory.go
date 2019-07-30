@@ -9,36 +9,51 @@ import (
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 )
 
-// RetryWrapper wraps a WriterConstructer, allowing it to retry writes.
-func RetryWrapper(
-	wc WriterConstructor,
-	r RetryDuration,
-	maxRetries int,
-	logClient LogClient,
-	sourceIndex string,
-) WriterConstructor {
-	return WriterConstructor(func(
-		binding *URLBinding,
-		netConf NetworkTimeoutConfig,
-		skipCertVerify bool,
-		egressMetric func(uint64),
-	) egress.WriteCloser {
-		writer := wc(
-			binding,
-			netConf,
-			skipCertVerify,
-			egressMetric,
-		)
+// WriterConstructor creates syslog connections to https, syslog, and
+// syslog-tls drains
+type WriterConstructor func(
+	binding *URLBinding,
+	netConf NetworkTimeoutConfig,
+	skipCertVerify bool,
+) (egress.WriteCloser, error)
 
-		return &RetryWriter{
-			writer:        writer,
-			retryDuration: r,
-			maxRetries:    maxRetries,
-			binding:       binding,
-			logClient:     logClient,
-			sourceIndex:   sourceIndex,
-		}
-	})
+type RetryWriterFactory struct {
+	writerConstructor WriterConstructor
+	retryDuration     RetryDuration
+	maxRetries        int
+}
+
+func NewRetryWriterFactory(
+	wc WriterConstructor,
+	rd RetryDuration,
+	maxRetries int,
+) *RetryWriterFactory {
+	return &RetryWriterFactory{
+		wc, rd, maxRetries,
+	}
+}
+
+func (rw *RetryWriterFactory) NewWriter(
+	urlBinding *URLBinding,
+	netConf NetworkTimeoutConfig,
+	skipCertVerify bool,
+) (egress.WriteCloser, error) {
+	writer, err := rw.writerConstructor(
+		urlBinding,
+		netConf,
+		skipCertVerify,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &RetryWriter{
+		writer:        writer,
+		retryDuration: rw.retryDuration,
+		maxRetries:    rw.maxRetries,
+		binding:       urlBinding,
+	}, nil
 }
 
 // RetryDuration calculates a duration based on the number of write attempts.
@@ -50,8 +65,6 @@ type RetryWriter struct {
 	retryDuration RetryDuration
 	maxRetries    int
 	binding       *URLBinding
-	logClient     LogClient
-	sourceIndex   string
 }
 
 // Write will retry writes unitl maxRetries has been reached.

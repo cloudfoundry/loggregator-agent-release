@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	loggregator "code.cloudfoundry.org/go-loggregator"
+	"code.cloudfoundry.org/go-loggregator"
 	v2 "code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
@@ -26,8 +26,8 @@ var _ = Describe("Retry Writer", func() {
 					Context: context.Background(),
 				},
 			}
-			logClient := newSpyLogClient()
-			r := buildRetryWriter(writeCloser, 1, 0, logClient, "1")
+			r, err := buildRetryWriter(writeCloser, 1, 0)
+			Expect(err).ToNot(HaveOccurred())
 			env := &v2.Envelope{}
 
 			_ = r.Write(env)
@@ -45,8 +45,8 @@ var _ = Describe("Retry Writer", func() {
 					Context: context.Background(),
 				},
 			}
-			logClient := newSpyLogClient()
-			r := buildRetryWriter(writeCloser, 3, 0, logClient, "1")
+			r, err := buildRetryWriter(writeCloser, 3, 0)
+			Expect(err).ToNot(HaveOccurred())
 
 			_ = r.Write(&v2.Envelope{})
 
@@ -62,10 +62,10 @@ var _ = Describe("Retry Writer", func() {
 					Context: context.Background(),
 				},
 			}
-			logClient := newSpyLogClient()
-			r := buildRetryWriter(writeCloser, 2, 0, logClient, "1")
+			r, err := buildRetryWriter(writeCloser, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
 
-			err := r.Write(&v2.Envelope{})
+			err = r.Write(&v2.Envelope{})
 
 			Expect(err).To(HaveOccurred())
 		})
@@ -80,11 +80,11 @@ var _ = Describe("Retry Writer", func() {
 					Context: ctx,
 				},
 			}
-			logClient := newSpyLogClient()
-			r := buildRetryWriter(writeCloser, 2, 0, logClient, "1")
+			r, err := buildRetryWriter(writeCloser, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
 			cancel()
 
-			err := r.Write(&v2.Envelope{})
+			err = r.Write(&v2.Envelope{})
 
 			Expect(err).To(HaveOccurred())
 			Expect(writeCloser.WriteAttempts()).To(Equal(1))
@@ -98,8 +98,8 @@ var _ = Describe("Retry Writer", func() {
 					URL: &url.URL{},
 				},
 			}
-			logClient := newSpyLogClient()
-			r := buildRetryWriter(writeCloser, 2, 0, logClient, "1")
+			r, err := buildRetryWriter(writeCloser, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(r.Close()).To(Succeed())
 			Expect(writeCloser.closeCalled).To(BeTrue())
@@ -253,23 +253,18 @@ func buildRetryWriter(
 	w *spyWriteCloser,
 	maxRetries int,
 	delayMultiplier time.Duration,
-	logClient syslog.LogClient,
-	sourceIndex string,
-) egress.WriteCloser {
-	constructor := syslog.RetryWrapper(
+) (egress.WriteCloser, error) {
+	factory := syslog.NewRetryWriterFactory(
 		func(
 			binding *syslog.URLBinding,
 			netConf syslog.NetworkTimeoutConfig,
 			skipCertVerify bool,
-			syslogMetric func(uint64),
-		) egress.WriteCloser {
-			return w
+		) (egress.WriteCloser, error) {
+			return w, nil
 		},
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
-		logClient,
-		sourceIndex,
 	)
 
-	return constructor(w.binding, syslog.NetworkTimeoutConfig{}, false, nil)
+	return factory.NewWriter(w.binding, syslog.NetworkTimeoutConfig{}, false)
 }

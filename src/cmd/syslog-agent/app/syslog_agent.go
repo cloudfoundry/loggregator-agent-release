@@ -43,12 +43,21 @@ type BindingManager interface {
 	GetDrains(string) []egress.Writer
 }
 
+// maxRetries for the backoff, results in around an hour of total delay
+const maxRetries int = 22
+
 // NewSyslogAgent intializes and returns a new syslog agent.
 func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
 ) *SyslogAgent {
+	writerFactory := syslog.NewRetryWriterFactory(
+		syslog.NewWriterFactory(m).NewWriter,
+		syslog.ExponentialDuration,
+		maxRetries,
+	)
+
 	connector := syslog.NewSyslogConnector(
 		syslog.NetworkTimeoutConfig{
 			Keepalive:    10 * time.Second,
@@ -57,7 +66,7 @@ func NewSyslogAgent(
 		},
 		cfg.DrainSkipCertVerify,
 		timeoutwaitgroup.New(time.Minute),
-		syslog.NewWriterFactory(m),
+		writerFactory,
 		m,
 	)
 

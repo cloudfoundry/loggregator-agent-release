@@ -76,14 +76,6 @@ func NewSyslogConnector(
 	return sc
 }
 
-// WriterConstructor creates syslog connections to https, syslog, and
-// syslog-tls drains
-type WriterConstructor func(
-	binding *URLBinding,
-	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
-	egressMetric func(uint64),
-) egress.WriteCloser
 
 // ConnectorOption allows a syslog connector to be customized.
 type ConnectorOption func(*SyslogConnector)
