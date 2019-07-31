@@ -6,6 +6,8 @@ A collection of composable agents used for interacting with Loggregator and Sysl
 
 ## Agents
 
+![architecture]
+
 ### UDP Forwarder
 Accepts the Loggregator v1 api over UDP and forwards it to a downstream Loggregator v2 consumer. 
 This is available for backwards compatibility between the v1 API and the Forwarder, Syslog, or Loggregator agents.
@@ -40,6 +42,11 @@ scrapes are avoided in an HA environment.
 ### Prom Scraper
 A simple agent that reads from any local prometheus-scrapable endpoint and forwards the results to Loggregator.
 Configurable via files in colocated bosh jobs as described in the [docs][prom-scraper]
+scrapes are avoided in an HA environment.
+
+### Metrics agent
+A simple agent that receives metrics from the Forwarder Agent and exposes them on a prometheus-scrapable endpoint.
+More information can be found in the [docs][metrics-agent]
 
 ## More Resources and Documentation
 
@@ -66,3 +73,5 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [loggregator-agent]:    docs/loggregator-agent.md
 [prom-scraper]:         docs/prom-scraper.md
 [system-metrics-agent]: docs/system-metrics-agent.md
+[metrics-agent]:        docs/metrics-agent.md
+[architecture]:         docs/agent-architecture.png
