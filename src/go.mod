@@ -11,6 +11,7 @@ require (
 	code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cloudfoundry/dropsonde v1.0.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4
 	github.com/go-ole/go-ole v1.2.4 // indirect

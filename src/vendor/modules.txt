@@ -20,7 +20,7 @@ github.com/StackExchange/wmi
 # github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 github.com/apoydence/eachers/testhelpers
 github.com/apoydence/eachers
-# github.com/beorn7/perks v1.0.0
+# github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/cloudfoundry/dropsonde v1.0.0
 github.com/cloudfoundry/dropsonde/emitter
