@@ -1,15 +1,20 @@
 package binding
 
-import "sync"
+import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
+	"sync"
+)
 
 type Store struct {
-	mu       sync.Mutex
-	bindings []Binding
+	mu           sync.Mutex
+	bindings     []Binding
+	bindingCount metrics.Gauge
 }
 
-func NewStore() *Store {
+func NewStore(m Metrics) *Store {
 	return &Store{
 		bindings: make([]Binding, 0),
+		bindingCount: m.NewGauge("cached_bindings"),
 	}
 }
 
@@ -26,5 +31,6 @@ func (s *Store) Set(bindings []Binding) {
 
 	s.mu.Lock()
 	s.bindings = bindings
+	s.bindingCount.Set(float64(len(s.bindings)))
 	s.mu.Unlock()
 }

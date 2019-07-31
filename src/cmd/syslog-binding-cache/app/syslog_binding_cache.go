@@ -1,6 +1,8 @@
 package app
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
@@ -14,53 +16,34 @@ import (
 )
 
 type SyslogBindingCache struct {
-	config Config
-	log    *log.Logger
+	config  Config
+	log     *log.Logger
+	metrics Metrics
 }
 
-func NewSyslogBindingCache(config Config, log *log.Logger) *SyslogBindingCache {
+type Metrics interface {
+	NewCounter(name string, options ...metrics.MetricOption) metrics.Counter
+	NewGauge(name string, o ...metrics.MetricOption) metrics.Gauge
+}
+
+func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *SyslogBindingCache {
 	return &SyslogBindingCache{
-		config: config,
-		log:    log,
+		config:  config,
+		log:     log,
+		metrics: metrics,
 	}
 }
 
 func (sbc *SyslogBindingCache) Run() {
-	listenAddr := fmt.Sprintf(":%d", sbc.config.CachePort)
-	lis, err := net.Listen("tcp", listenAddr)
-	if err != nil {
-		sbc.log.Panicf("error creating listener: %s", err)
-	}
-
-	store := binding.NewStore()
-	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store)
+	store := binding.NewStore(sbc.metrics)
+	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log)
 
 	go poller.Poll()
 
 	router := mux.NewRouter()
 	router.HandleFunc("/bindings", cache.Handler(store)).Methods(http.MethodGet)
 
-	var opts []plumbing.ConfigOption
-	if len(sbc.config.CipherSuites) > 0 {
-		opts = append(opts, plumbing.WithCipherSuites(sbc.config.CipherSuites))
-	}
-
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		sbc.config.CacheCertFile,
-		sbc.config.CacheKeyFile,
-		sbc.config.CacheCAFile,
-		opts...,
-	)
-	if err != nil {
-		sbc.log.Panicf("failed to load server TLS config: %s", err)
-	}
-
-	server := &http.Server{
-		Handler:   router,
-		TLSConfig: tlsConfig,
-	}
-
-	server.ServeTLS(lis, "", "")
+	sbc.startServer(router)
 }
 
 func (sbc *SyslogBindingCache) apiClient() api.Client {
@@ -76,4 +59,36 @@ func (sbc *SyslogBindingCache) apiClient() api.Client {
 		Client:    httpClient,
 		BatchSize: sbc.config.APIBatchSize,
 	}
+}
+
+func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
+	listenAddr := fmt.Sprintf(":%d", sbc.config.CachePort)
+	lis, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		sbc.log.Panicf("error creating listener: %s", err)
+	}
+
+	server := &http.Server{
+		Handler:   router,
+		TLSConfig: sbc.tlsConfig(),
+	}
+	server.ServeTLS(lis, "", "")
+}
+
+func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {
+	var opts []plumbing.ConfigOption
+	if len(sbc.config.CipherSuites) > 0 {
+		opts = append(opts, plumbing.WithCipherSuites(sbc.config.CipherSuites))
+	}
+
+	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
+		sbc.config.CacheCertFile,
+		sbc.config.CacheKeyFile,
+		sbc.config.CacheCAFile,
+		opts...,
+	)
+	if err != nil {
+		sbc.log.Panicf("failed to load server TLS config: %s", err)
+	}
+	return tlsConfig
 }

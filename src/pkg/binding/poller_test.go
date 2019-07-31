@@ -2,8 +2,11 @@ package binding_test
 
 import (
 	"bytes"
+	"code.cloudfoundry.org/go-loggregator/metrics/testhelpers"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -18,15 +21,18 @@ var _ = Describe("Poller", func() {
 	var (
 		apiClient *fakeAPIClient
 		store     *fakeStore
+		metrics   *testhelpers.SpyMetricsRegistry
+		logger    = log.New(GinkgoWriter, "", 0)
 	)
 
 	BeforeEach(func() {
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
+		metrics = testhelpers.NewMetricsRegistry()
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -45,7 +51,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
 		go p.Poll()
 
 		var expected []binding.Binding
@@ -83,7 +89,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
 		go p.Poll()
 
 		var expected []binding.Binding
@@ -103,17 +109,46 @@ var _ = Describe("Poller", func() {
 
 		Expect(apiClient.requestedIDs).To(ConsistOf(0, 2))
 	})
+
+	It("tracks the number of API errors", func() {
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		go p.Poll()
+
+		apiClient.errors <- errors.New("expected")
+
+		Eventually(func() float64 {
+			return metrics.GetMetric("binding_refresh_error", nil).Value()
+		}).Should(BeNumerically("==", 1))
+	})
+
+	It("tracks the number of bindings returned from CAPI", func() {
+		apiClient.bindings <- response{
+			Results: map[string]struct {
+				Drains   []string
+				Hostname string
+			}{
+				"app-id-1": {},
+				"app-id-2": {},
+			},
+		}
+		binding.NewPoller(apiClient, time.Hour, store, metrics, logger)
+
+		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
+			To(BeNumerically("==", 2))
+	})
 })
 
 type fakeAPIClient struct {
 	numRequests  int64
 	bindings     chan response
+	errors       chan error
 	requestedIDs []int
 }
 
 func newFakeAPIClient() *fakeAPIClient {
 	return &fakeAPIClient{
 		bindings: make(chan response, 100),
+		errors:   make(chan error, 100),
 	}
 }
 
@@ -122,6 +157,8 @@ func (c *fakeAPIClient) Get(nextID int) (*http.Response, error) {
 
 	var binding response
 	select {
+	case err := <-c.errors:
+		return nil, err
 	case binding = <-c.bindings:
 		c.requestedIDs = append(c.requestedIDs, nextID)
 	default:

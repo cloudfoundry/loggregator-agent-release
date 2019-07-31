@@ -16,4 +16,4 @@ processes:
       CACHE_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
       CACHE_COMMON_NAME: "<%= p("tls.cn") %>"
       CACHE_PORT: <%= p("external_port") %>
-
+      DEBUG_PORT: <%= p("debug_port") %>
