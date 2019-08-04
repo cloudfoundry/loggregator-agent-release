@@ -27,6 +27,7 @@ require (
 	github.com/shirou/gopsutil v2.18.12+incompatible
 	github.com/valyala/fasthttp v1.4.0
 	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+	golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa // indirect
 	google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64 // indirect
 	google.golang.org/grpc v1.22.1
 	gopkg.in/yaml.v2 v2.2.2
