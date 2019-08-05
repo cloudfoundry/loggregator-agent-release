@@ -4,9 +4,9 @@ Loggregator Agent Release
 ===================================================
 A collection of composable agents used for interacting with Loggregator and Syslog
 
-## Agents
+## Agents Architecture
 
-[Agents Architecture Diagram][architecture]
+![architecture]
 
 ### UDP Forwarder
 Accepts the Loggregator v1 api over UDP and forwards it to a downstream Loggregator v2 consumer. 
