@@ -18,54 +18,70 @@ import (
 )
 
 var _ = Describe("Scraper", func() {
-	var (
-		spyMetricsGetter *spyMetricsGetter
-		spyMetricEmitter *spyMetricEmitter
-		s                *scraper.Scraper
-	)
+	type testContext struct {
+		metricGetter  *spyMetricGetter
+		metricEmitter *spyMetricEmitter
+		metricClient  *testhelper.SpyMetricClient
+		scraper       *scraper.Scraper
+	}
 
-	BeforeEach(func() {
-		spyMetricsGetter = newSpyMetricsGetter()
-		spyMetricEmitter = newSpyMetricEmitter()
-		s = scraper.New(
+	var setup = func(targets ...scraper.Target) *testContext {
+		spyMetricGetter := newSpyMetricGetter()
+		spyMetricEmitter := newSpyMetricEmitter()
+		spyMetricClient := testhelper.NewMetricClient()
+
+		s := scraper.New(
 			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-				}
+				return targets
 			},
 			spyMetricEmitter,
-			spyMetricsGetter.Get,
+			spyMetricGetter.Get,
+			scraper.WithMetricsClient(spyMetricClient),
 		)
-	})
+
+		return &testContext{
+			metricGetter:  spyMetricGetter,
+			metricEmitter: spyMetricEmitter,
+			metricClient:  spyMetricClient,
+			scraper:       s,
+		}
+	}
+
+	var addResponse = func(tc *testContext, statusCode int, body string) {
+		tc.metricGetter.resp <- &http.Response{
+			StatusCode: statusCode,
+			Body:       ioutil.NopCloser(strings.NewReader(body)),
+		}
+	}
 
 	Context("gauges", func() {
 		It("emits a gauge metric with the target source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(promOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, promOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildGauge("some-id", "some-instance-id", "node_timex_pps_frequency_hertz", 3, nil)),
 				ContainElement(buildGauge("some-id", "some-instance-id", "node_timex_pps_jitter_seconds", 4, nil)),
 			))
 		})
 
 		It("emits a gauge metric with tagged source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(smallGaugeOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, smallGaugeOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildGauge("source-1", "some-instance-id", "gauge_1", 1, nil)),
 				ContainElement(buildGauge("source-2", "some-instance-id", "gauge_2", 2, nil)),
 			))
@@ -74,14 +90,16 @@ var _ = Describe("Scraper", func() {
 
 	Context("counters", func() {
 		It("emits a counter metric with a default source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(promOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, promOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildCounter("some-id", "some-instance-id", "node_timex_pps_calibration_total", 1, nil)),
 				ContainElement(buildCounter("some-id", "some-instance-id", "node_timex_pps_error_total", 2, nil)),
 				ContainElement(buildCounter("some-id", "some-instance-id", "node_timex_pps_jitter_total", 5, nil)),
@@ -91,33 +109,37 @@ var _ = Describe("Scraper", func() {
 			))
 
 			var addr string
-			Eventually(spyMetricsGetter.addrs).Should(Receive(&addr))
+			Eventually(tc.metricGetter.addrs).Should(Receive(&addr))
 			Expect(addr).To(Equal("http://some.url/metrics"))
 		})
 
 		It("emits a counter metric with tagged source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(smallCounterOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, smallCounterOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildCounter("source-1", "some-instance-id", "counter_1", 1, nil)),
 				ContainElement(buildCounter("source-2", "some-instance-id", "counter_2", 2, nil)),
 			))
 		})
 
 		It("ignores counter metrics with float values", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(floatCounterOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, floatCounterOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(ConsistOf(
+			Expect(tc.metricEmitter.envelopes).To(ConsistOf(
 				buildCounter("source-1", "some-instance-id", "counter_int", 1, nil),
 			))
 		})
@@ -125,14 +147,16 @@ var _ = Describe("Scraper", func() {
 
 	Context("histograms", func() {
 		It("emits a histogram with a default source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(histogramOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, histogramOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildCounter("some-id", "some-instance-id", "http_request_duration_seconds_bucket", 133988, map[string]string{"le": "1"})),
 				ContainElement(buildCounter("some-id", "some-instance-id", "http_request_duration_seconds_bucket", 144320, map[string]string{"le": "+Inf"})),
 				ContainElement(buildGauge("some-id", "some-instance-id", "http_request_duration_seconds_sum", 53423, nil)),
@@ -141,14 +165,16 @@ var _ = Describe("Scraper", func() {
 		})
 
 		It("emits a histogram with tagged source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(multiHistogramOutput)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, multiHistogramOutput)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildCounter("source-1", "some-instance-id", "histogram_1_bucket", 133988, map[string]string{"le": "1"})),
 				ContainElement(buildGauge("source-1", "some-instance-id", "histogram_1_sum", 53423, nil)),
 				ContainElement(buildCounter("source-1", "some-instance-id", "histogram_1_count", 133988, nil)),
@@ -161,14 +187,16 @@ var _ = Describe("Scraper", func() {
 
 	Context("summaries", func() {
 		It("emits a summary with a default source ID", func() {
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-			}
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, promSummary)
 
-			Expect(s.Scrape()).To(Succeed())
+			Expect(tc.scraper.Scrape()).To(Succeed())
 
-			Expect(spyMetricEmitter.envelopes).To(And(
+			Expect(tc.metricEmitter.envelopes).To(And(
 				ContainElement(buildGauge("some-id", "some-instance-id", "go_gc_duration_seconds", 9.5e-08, map[string]string{"quantile": "0"})),
 				ContainElement(buildGauge("some-id", "some-instance-id", "go_gc_duration_seconds", 0.000157366, map[string]string{"quantile": "0.25"})),
 				ContainElement(buildGauge("some-id", "some-instance-id", "go_gc_duration_seconds", 0.000300143, map[string]string{"quantile": "0.5"})),
@@ -182,23 +210,27 @@ var _ = Describe("Scraper", func() {
 	})
 
 	It("ignores unknown metric types", func() {
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promUntyped)),
-		}
-		Expect(s.Scrape()).To(Succeed())
-		Expect(spyMetricEmitter.envelopes).To(BeEmpty())
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+		})
+		addResponse(tc, 200, promUntyped)
+		Expect(tc.scraper.Scrape()).To(Succeed())
+		Expect(tc.metricEmitter.envelopes).To(BeEmpty())
 	})
 
 	It("scrapes the given endpoint", func() {
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(smallCounterOutput)),
-		}
-		Expect(s.Scrape()).To(Succeed())
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+		})
+		addResponse(tc, 200, smallCounterOutput)
+		Expect(tc.scraper.Scrape()).To(Succeed())
 
 		var addr string
-		Eventually(spyMetricsGetter.addrs).Should(Receive(&addr))
+		Eventually(tc.metricGetter.addrs).Should(Receive(&addr))
 		Expect(addr).To(Equal("http://some.url/metrics"))
 	})
 
@@ -207,305 +239,223 @@ var _ = Describe("Scraper", func() {
 			"header1": "value1",
 			"header2": "value2",
 		}
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+			Headers:    headers,
+		})
 
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-						Headers:    headers,
-					},
-				}
-			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
-		)
+		addResponse(tc, 200, promSummary)
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
-
-		Expect(s.Scrape()).To(Succeed())
-		Eventually(spyMetricsGetter.headers).Should(Receive(Equal(headers)))
+		Expect(tc.scraper.Scrape()).To(Succeed())
+		Eventually(tc.metricGetter.headers).Should(Receive(Equal(headers)))
 	})
 
 	It("scrapes all endpoints even when one fails", func() {
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.url/metrics",
-					},
-				}
+		tc := setup(
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			}, scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.url/metrics",
 			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
 		)
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promInvalid)),
-		}
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(smallGaugeOutput)),
-		}
-		Expect(s.Scrape()).To(HaveOccurred())
+		addResponse(tc, 200, promInvalid)
+		addResponse(tc, 200, smallGaugeOutput)
+		Expect(tc.scraper.Scrape()).To(HaveOccurred())
 
-		Expect(spyMetricEmitter.envelopes).To(And(
+		Expect(tc.metricEmitter.envelopes).To(And(
 			ContainElement(buildGauge("source-1", "some-instance-id", "gauge_1", 1, nil)),
 			ContainElement(buildGauge("source-2", "some-instance-id", "gauge_2", 2, nil)),
 		))
 	})
 
 	It("scrapes endpoints asynchronously", func() {
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.other.url/metrics",
-					},
-				}
+		tc := setup(
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
 			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.url/metrics",
+			},
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.other.url/metrics",
+			},
 		)
 
 		for i := 0; i < 3; i++ {
-			spyMetricsGetter.delay <- 1 * time.Second
-			spyMetricsGetter.resp <- &http.Response{
-				StatusCode: 200,
-				Body:       ioutil.NopCloser(strings.NewReader(smallGaugeOutput)),
-			}
+			tc.metricGetter.delay <- 1 * time.Second
+			addResponse(tc, 200, smallGaugeOutput)
 		}
 
-		go s.Scrape()
+		go tc.scraper.Scrape()
 
-		Eventually(func() int { return len(spyMetricsGetter.addrs) }, 1).Should(Equal(3))
+		Eventually(func() int { return len(tc.metricGetter.addrs) }, 1).Should(Equal(3))
 	})
 
 	It("returns a compilation of errors from scrapes", func() {
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.other.url/metrics",
-					},
-				}
+		tc := setup(
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
 			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.url/metrics",
+			},
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.other.url/metrics",
+			},
 		)
 
-		spyMetricsGetter.err <- errors.New("something")
-		spyMetricsGetter.err <- errors.New("something")
-		spyMetricsGetter.err <- errors.New("something")
+		tc.metricGetter.err <- errors.New("something")
+		tc.metricGetter.err <- errors.New("something")
+		tc.metricGetter.err <- errors.New("something")
 
-		err := s.Scrape()
+		err := tc.scraper.Scrape()
 		Expect(err).To(HaveOccurred())
 		Expect(err.(*scraper.ScraperError).Errors).To(ConsistOf(
 			&scraper.ScrapeError{
 				ID:         "some-id",
 				InstanceID: "some-instance-id",
 				MetricURL:  "http://some.url/metrics",
-				Err: errors.New("something"),
+				Err:        errors.New("something"),
 			},
 			&scraper.ScrapeError{
 				ID:         "some-id",
 				InstanceID: "some-instance-id",
 				MetricURL:  "http://some.other.url/metrics",
-				Err: errors.New("something"),
+				Err:        errors.New("something"),
 			},
 			&scraper.ScrapeError{
 				ID:         "some-id",
 				InstanceID: "some-instance-id",
 				MetricURL:  "http://some.other.other.url/metrics",
-				Err: errors.New("something"),
+				Err:        errors.New("something"),
 			},
 		))
 	})
 
 	It("returns an error if the parser fails", func() {
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promInvalid)),
-		}
-		Expect(s.Scrape()).To(HaveOccurred())
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+		})
+		addResponse(tc, 200, promInvalid)
+		Expect(tc.scraper.Scrape()).To(HaveOccurred())
 	})
 
 	It("returns an error if MetricsGetter returns an error", func() {
-		spyMetricsGetter.err <- errors.New("some-error")
-		Expect(s.Scrape()).To(MatchError(ContainSubstring("some-error")))
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+		})
+		tc.metricGetter.err <- errors.New("some-error")
+		Expect(tc.scraper.Scrape()).To(MatchError(ContainSubstring("some-error")))
 	})
 
 	It("returns an error if the response is not a 200 OK", func() {
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 400,
-			Body:       ioutil.NopCloser(strings.NewReader("")),
-		}
-		Expect(s.Scrape()).To(HaveOccurred())
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+		})
+		addResponse(tc, 400, "")
+		Expect(tc.scraper.Scrape()).To(HaveOccurred())
 	})
 
 	It("can emit metrics for attempted scrapes", func() {
-		spyMetricClient := testhelper.NewMetricClient()
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.other.url/metrics",
-					},
-				}
+		tc := setup(
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
 			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
-			scraper.WithMetricsClient(spyMetricClient),
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.url/metrics",
+			},
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.other.url/metrics",
+			},
 		)
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
+		addResponse(tc, 200, promSummary)
+		addResponse(tc, 200, promSummary)
+		addResponse(tc, 200, promSummary)
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
-
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
-
-		err := s.Scrape()
+		err := tc.scraper.Scrape()
 		Expect(err).ToNot(HaveOccurred())
 
-		metric := spyMetricClient.GetMetric("last_total_attempted_scrapes", map[string]string{"unit": "total"})
+		metric := tc.metricClient.GetMetric("last_total_attempted_scrapes", map[string]string{"unit": "total"})
 		Eventually(metric.Value).Should(BeNumerically("==", 3))
 	})
 
 	It("can emit metrics for failed scrapes", func() {
-		spyMetricClient := testhelper.NewMetricClient()
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.url/metrics",
-					},
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.other.other.url/metrics",
-					},
-				}
+		tc := setup(
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
 			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
-			scraper.WithMetricsClient(spyMetricClient),
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.url/metrics",
+			},
+			scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.other.other.url/metrics",
+			},
 		)
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
+		addResponse(tc, 200, promSummary)
+		addResponse(tc, 500, "")
+		addResponse(tc, 200, promSummary)
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 500,
-			Body:       ioutil.NopCloser(strings.NewReader("")),
-		}
-
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
-
-		err := s.Scrape()
+		err := tc.scraper.Scrape()
 		Expect(err).To(HaveOccurred())
 
-		metric := spyMetricClient.GetMetric("last_total_failed_scrapes", map[string]string{"unit": "total"})
+		metric := tc.metricClient.GetMetric("last_total_failed_scrapes", map[string]string{"unit": "total"})
 		Eventually(metric.Value).Should(BeNumerically("==", 1))
 	})
 
 	It("can emit metrics for scrape duration", func() {
-		spyMetricClient := testhelper.NewMetricClient()
-		s = scraper.New(
-			func() []scraper.Target {
-				return []scraper.Target{
-					{
-						ID:         "some-id",
-						InstanceID: "some-instance-id",
-						MetricURL:  "http://some.url/metrics",
-					},
-				}
-			},
-			spyMetricEmitter,
-			spyMetricsGetter.Get,
-			scraper.WithMetricsClient(spyMetricClient),
-		)
+		tc := setup(scraper.Target{
+			ID:         "some-id",
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metrics",
+		})
 
-		spyMetricsGetter.resp <- &http.Response{
-			StatusCode: 200,
-			Body:       ioutil.NopCloser(strings.NewReader(promSummary)),
-		}
+		addResponse(tc, 200, promSummary)
 
-		spyMetricsGetter.delay <- 10 * time.Millisecond
+		tc.metricGetter.delay <- 10 * time.Millisecond
 
-		err := s.Scrape()
+		err := tc.scraper.Scrape()
 		Expect(err).ToNot(HaveOccurred())
 
-		metric := spyMetricClient.GetMetric("last_total_scrape_duration", map[string]string{"unit": "ms"})
+		metric := tc.metricClient.GetMetric("last_total_scrape_duration", map[string]string{"unit": "ms"})
 		Eventually(metric.Value).Should(BeNumerically(">=", 10))
 	})
 })
@@ -688,7 +638,7 @@ func (s *spyMetricEmitter) EmitCounter(name string, opts ...loggregator.EmitCoun
 	s.mu.Unlock()
 }
 
-type spyMetricsGetter struct {
+type spyMetricGetter struct {
 	addrs   chan string
 	headers chan map[string]string
 
@@ -697,8 +647,8 @@ type spyMetricsGetter struct {
 	err   chan error
 }
 
-func newSpyMetricsGetter() *spyMetricsGetter {
-	return &spyMetricsGetter{
+func newSpyMetricGetter() *spyMetricGetter {
+	return &spyMetricGetter{
 		addrs:   make(chan string, 100),
 		headers: make(chan map[string]string, 100),
 		resp:    make(chan *http.Response, 100),
@@ -707,7 +657,7 @@ func newSpyMetricsGetter() *spyMetricsGetter {
 	}
 }
 
-func (s *spyMetricsGetter) Get(addr string, headers map[string]string) (*http.Response, error) {
+func (s *spyMetricGetter) Get(addr string, headers map[string]string) (*http.Response, error) {
 	s.addrs <- addr
 	s.headers <- headers
 
