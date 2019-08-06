@@ -4,9 +4,7 @@ Loggregator Agent Release
 ===================================================
 A collection of composable agents used for interacting with Loggregator and Syslog
 
-## Agents Architecture
-
-![architecture]
+## Agents
 
 ### UDP Forwarder
 Accepts the Loggregator v1 api over UDP and forwards it to a downstream Loggregator v2 consumer. 
@@ -42,11 +40,6 @@ scrapes are avoided in an HA environment.
 ### Prom Scraper
 A simple agent that reads from any local prometheus-scrapable endpoint and forwards the results to Loggregator.
 Configurable via files in colocated bosh jobs as described in the [docs][prom-scraper]
-scrapes are avoided in an HA environment.
-
-### Metrics agent
-A simple agent that receives metrics from the Forwarder Agent and exposes them on a prometheus-scrapable endpoint.
-More information can be found in the [docs][metrics-agent]
 
 ## More Resources and Documentation
 
@@ -64,8 +57,8 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 
 [slack-badge]:         https://slack.cloudfoundry.org/badge.svg
 [loggregator-slack]:   https://cloudfoundry.slack.com/archives/loggregator
-[ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/products/jobs/loggregator-tests-with-bumped-modules/badge
-[ci-pipeline]:         https://loggregator.ci.cf-app.com/teams/main/pipelines/products?group=loggregator-agent
+[ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/loggregator/jobs/loggregator-tests/badge
+[ci-pipeline]:         https://loggregator.ci.cf-app.com/teams/main/pipelines/loggregator
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
 [leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
@@ -73,5 +66,3 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [loggregator-agent]:    docs/loggregator-agent.md
 [prom-scraper]:         docs/prom-scraper.md
 [system-metrics-agent]: docs/system-metrics-agent.md
-[metrics-agent]:        docs/metrics-agent.md
-[architecture]:         docs/agent-architecture.png

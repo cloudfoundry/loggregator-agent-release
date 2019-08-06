@@ -63,7 +63,7 @@ var _ = Describe("SyslogBindingCache", func() {
 			CacheCommonName:    "binding-cache",
 			CachePort:          cachePort,
 		}
-		sbc = app.NewSyslogBindingCache(config, testhelper.NewMetricClient(), logger)
+		sbc = app.NewSyslogBindingCache(config, logger)
 		go sbc.Run()
 	})
 

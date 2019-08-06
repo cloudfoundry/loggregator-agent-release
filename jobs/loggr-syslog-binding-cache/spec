@@ -78,7 +78,3 @@ properties:
       The batch size the syslog will request the Cloud Controller for
       bindings.
     default: 1000
-
-  debug_port:
-    description: "Port the agent uses to serve metrics"
-    default: 14828

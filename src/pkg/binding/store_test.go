@@ -1,15 +1,15 @@
 package binding_test
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 )
 
 var _ = Describe("Store", func() {
 	It("should store and retrieve bindings", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore()
 		bindings := []binding.Binding{
 			{
 				AppID:    "app-1",
@@ -23,12 +23,12 @@ var _ = Describe("Store", func() {
 	})
 
 	It("should not return nil bindings", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore()
 		Expect(store.Get()).ToNot(BeNil())
 	})
 
 	It("should not allow setting of bindings to nil", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore()
 
 		bindings := []binding.Binding{
 			{
@@ -49,7 +49,7 @@ var _ = Describe("Store", func() {
 	// The race detector will cause a failure here
 	// if the store is not thread safe
 	It("should be thread safe", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore()
 
 		go func() {
 			for i := 0; i < 1000; i++ {
@@ -60,22 +60,5 @@ var _ = Describe("Store", func() {
 		for i := 0; i < 1000; i++ {
 			_ = store.Get()
 		}
-	})
-
-	It("tracks the number of bindings", func() {
-		metrics := testhelpers.NewMetricsRegistry()
-		store := binding.NewStore(metrics)
-		bindings := []binding.Binding{
-			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
-			},
-		}
-
-		store.Set(bindings)
-
-		Expect(metrics.GetMetric("cached_bindings", nil).Value()).
-			To(BeNumerically("==", 1))
 	})
 })
