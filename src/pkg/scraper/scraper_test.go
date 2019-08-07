@@ -36,6 +36,7 @@ var _ = Describe("Scraper", func() {
 			},
 			spyMetricEmitter,
 			spyMetricGetter.Get,
+			"default-id",
 			scraper.WithMetricsClient(spyMetricClient),
 		)
 
@@ -207,6 +208,24 @@ var _ = Describe("Scraper", func() {
 			))
 
 		})
+	})
+
+	It("defaults the ID if missing", func() {
+		tc := setup(scraper.Target{
+			InstanceID: "some-instance-id",
+			MetricURL:  "http://some.url/metric",
+		})
+
+		addResponse(tc, 200, promOutput)
+		Expect(tc.scraper.Scrape()).To(Succeed())
+		Expect(tc.metricEmitter.envelopes).To(And(
+			ContainElement(buildCounter("default-id", "some-instance-id", "node_timex_pps_calibration_total", 1, nil)),
+			ContainElement(buildCounter("default-id", "some-instance-id", "node_timex_pps_error_total", 2, nil)),
+			ContainElement(buildCounter("default-id", "some-instance-id", "node_timex_pps_jitter_total", 5, nil)),
+			ContainElement(buildCounter("default-id", "some-instance-id", "promhttp_metric_handler_requests_total", 6, map[string]string{"code": "200"})),
+			ContainElement(buildCounter("default-id", "some-instance-id", "promhttp_metric_handler_requests_total", 7, map[string]string{"code": "500"})),
+			ContainElement(buildCounter("default-id", "some-instance-id", "promhttp_metric_handler_requests_total", 8, map[string]string{"code": "503"})),
+		))
 	})
 
 	It("ignores unknown metric types", func() {

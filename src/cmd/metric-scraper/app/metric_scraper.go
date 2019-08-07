@@ -67,6 +67,7 @@ func (m *MetricScraper) scrape() {
 		func(addr string, _ map[string]string) (response *http.Response, e error) {
 			return tlsClient.Get(addr)
 		},
+		m.cfg.DefaultSourceID,
 		scraper.WithMetricsClient(m.metrics),
 	)
 

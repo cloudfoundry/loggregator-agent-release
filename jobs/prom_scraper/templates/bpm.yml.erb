@@ -26,7 +26,7 @@ processes:
 
     CONFIG_GLOBS: <%= p('config_globs').join(',') %>
     SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
-    DEFAULT_SOURCE_ID: "<%= "infra_#{spec.job.name}" %>"
+    DEFAULT_SOURCE_ID: "<%= spec.name %>"
     SKIP_SSL_VALIDATION: "<%= p('skip_ssl_validation') %>"
   unsafe:
     unrestricted_volumes:

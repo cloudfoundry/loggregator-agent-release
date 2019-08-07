@@ -22,6 +22,7 @@ type Scraper struct {
 	urlsScraped    metrics.Gauge
 	failedScrapes  metrics.Gauge
 	scrapeDuration metrics.Gauge
+	defaultID      string
 }
 
 type TargetProvider func() []Target
@@ -50,12 +51,14 @@ func New(
 	t TargetProvider,
 	e MetricsEmitter,
 	sc MetricsGetter,
+	defaultID string,
 	opts ...ScrapeOption,
 ) *Scraper {
 	scraper := &Scraper{
 		targetProvider: t,
 		metricsEmitter: e,
 		metricsGetter:  sc,
+		defaultID:      defaultID,
 		urlsScraped:    &defaultGauge{},
 		scrapeDuration: &defaultGauge{},
 		failedScrapes:  &defaultGauge{},
@@ -262,6 +265,10 @@ func (s *Scraper) parseTags(m *io_prometheus_client.Metric, t Target) (string, m
 			continue
 		}
 		tags[l.GetName()] = l.GetValue()
+	}
+
+	if sourceID == "" {
+		return s.defaultID, tags
 	}
 	return sourceID, tags
 }

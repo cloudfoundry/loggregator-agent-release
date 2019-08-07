@@ -160,6 +160,7 @@ func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggr
 		},
 		client,
 		p.scrape(httpClient),
+		p.cfg.DefaultSourceID,
 	)
 }
 
