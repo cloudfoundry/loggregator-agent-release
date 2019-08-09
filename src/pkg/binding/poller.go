@@ -1,6 +1,7 @@
 package binding
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,6 +12,10 @@ type Poller struct {
 	apiClient       client
 	pollingInterval time.Duration
 	store           Setter
+
+	logger                     *log.Logger
+	bindingRefreshErrorCounter metrics.Counter
+	lastBindingCount           metrics.Gauge
 }
 
 type client interface {
@@ -27,11 +32,14 @@ type Setter interface {
 	Set([]Binding)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter) *Poller {
+func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger) *Poller {
 	p := &Poller{
-		apiClient:       ac,
-		pollingInterval: pi,
-		store:           s,
+		apiClient:                  ac,
+		pollingInterval:            pi,
+		store:                      s,
+		logger:                     logger,
+		bindingRefreshErrorCounter: m.NewCounter("binding_refresh_error"),
+		lastBindingCount:           m.NewGauge("last_binding_refresh_count"),
 	}
 	p.poll()
 	return p
@@ -51,13 +59,14 @@ func (p *Poller) poll() {
 	for {
 		resp, err := p.apiClient.Get(nextID)
 		if err != nil {
-			log.Printf("failed to get id %d from CUPS Provider: %s", nextID, err)
+			p.bindingRefreshErrorCounter.Add(1)
+			p.logger.Printf("failed to get id %d from CUPS Provider: %s", nextID, err)
 			return
 		}
 		var aResp apiResponse
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
 		if err != nil {
-			log.Printf("failed to decode JSON: %s", err)
+			p.logger.Printf("failed to decode JSON: %s", err)
 			return
 		}
 
@@ -68,6 +77,8 @@ func (p *Poller) poll() {
 			break
 		}
 	}
+
+	p.lastBindingCount.Set(float64(len(bindings)))
 	p.store.Set(bindings)
 }
 
