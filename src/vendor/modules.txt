@@ -1,8 +1,8 @@
 # code.cloudfoundry.org/go-batching v0.0.0-20171020220229-924d2a9b48ac
 code.cloudfoundry.org/go-batching
-# code.cloudfoundry.org/go-diodes v0.0.0-20180905200951-72629b5276e3
+# code.cloudfoundry.org/go-diodes v0.0.0-20190809170250-f77fb823c7ee
 code.cloudfoundry.org/go-diodes
-# code.cloudfoundry.org/go-envstruct v1.4.0
+# code.cloudfoundry.org/go-envstruct v1.5.0
 code.cloudfoundry.org/go-envstruct
 # code.cloudfoundry.org/go-loggregator v7.7.0+incompatible
 code.cloudfoundry.org/go-loggregator/metrics
