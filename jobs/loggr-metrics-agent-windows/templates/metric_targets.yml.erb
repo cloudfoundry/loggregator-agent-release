@@ -1,0 +1,40 @@
+<%
+scrape_configs = [
+{
+  "job_name" => "metrics_agent_exporter",
+  "scheme" => "https",
+  "dns_sd_configs" => [
+    {
+      "names" => ["q-s0.#{spec.name}.*.*.#{spec.dns_domain_name}"],
+      "type" => "A",
+      "port" => p('metrics_port'),
+    },
+  ]
+},
+{
+  "job_name" => "metrics_agent",
+  "scheme" => "https",
+  "dns_sd_configs" => [
+    {
+      "names" => ["q-s0.#{spec.name}.*.*.#{spec.dns_domain_name}"],
+      "type" => "A",
+      "port" => p('debug_port'),
+    },
+  ],
+  "relabel_configs" => [
+    {
+      "source_labels"=> ['__address__'], # always there (added by Prometheus)
+      "target_label" => 'source_id',
+      "replacement" => 'metrics_agent'
+    },
+    {
+      "source_labels"=> ['__address__'], # always there (added by Prometheus)
+      "target_label" => 'origin',
+      "replacement" => 'loggregator_metrics_agent'
+    }
+  ]
+}
+]
+%>
+
+<%= YAML.dump({"scrape_configs" => scrape_configs}) %>
