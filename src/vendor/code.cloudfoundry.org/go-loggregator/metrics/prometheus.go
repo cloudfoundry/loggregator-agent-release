@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"code.cloudfoundry.org/tlsconfig"
+	"crypto/tls"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -127,6 +129,13 @@ func WithServer(port int) RegistryOption {
 	}
 }
 
+// Starts an https server on the given port to host metrics.
+func WithTLSServer(port int, certFile, keyFile, caFile string) RegistryOption {
+	return func(r *Registry) {
+		r.startTLS(port, certFile, keyFile, caFile)
+	}
+}
+
 func (p *Registry) start(port int) {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	s := http.Server{
@@ -136,6 +145,37 @@ func (p *Registry) start(port int) {
 	}
 
 	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		p.loggr.Fatalf("Unable to setup metrics endpoint (%s): %s", addr, err)
+	}
+	p.loggr.Printf("Metrics endpoint is listening on %s", lis.Addr().String())
+
+	parts := strings.Split(lis.Addr().String(), ":")
+	p.port = parts[len(parts)-1]
+
+	go s.Serve(lis)
+}
+
+func (p *Registry) startTLS(port int, certFile, keyFile, caFile string) {
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(certFile, keyFile),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(caFile),
+	)
+	if err != nil {
+		p.loggr.Fatalf("unable to generate server TLS Config: %s", err)
+	}
+
+	addr := fmt.Sprintf(":%d", port)
+	s := http.Server{
+		Addr:         addr,
+		TLSConfig:    tlsConfig,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	lis, err := tls.Listen("tcp", addr, tlsConfig)
 	if err != nil {
 		p.loggr.Fatalf("Unable to setup metrics endpoint (%s): %s", addr, err)
 	}
