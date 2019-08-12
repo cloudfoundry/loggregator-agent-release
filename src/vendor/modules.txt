@@ -128,40 +128,11 @@ github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
 # golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
-golang.org/x/net/idna
-golang.org/x/net/context
-golang.org/x/net/trace
-golang.org/x/net/internal/timeseries
 golang.org/x/net/http2
-golang.org/x/net/http2/hpack
-golang.org/x/net/html/charset
 golang.org/x/net/http/httpguts
-golang.org/x/net/html
-golang.org/x/net/html/atom
 # golang.org/x/sys v0.0.0-20190812073006-9eafafc0a87e
 golang.org/x/sys/windows
 golang.org/x/sys/unix
-# golang.org/x/text v0.3.2
-golang.org/x/text/secure/bidirule
-golang.org/x/text/unicode/bidi
-golang.org/x/text/unicode/norm
-golang.org/x/text/transform
-golang.org/x/text/encoding
-golang.org/x/text/encoding/charmap
-golang.org/x/text/encoding/htmlindex
-golang.org/x/text/encoding/internal/identifier
-golang.org/x/text/encoding/internal
-golang.org/x/text/encoding/japanese
-golang.org/x/text/encoding/korean
-golang.org/x/text/encoding/simplifiedchinese
-golang.org/x/text/encoding/traditionalchinese
-golang.org/x/text/encoding/unicode
-golang.org/x/text/language
-golang.org/x/text/internal/utf8internal
-golang.org/x/text/runes
-golang.org/x/text/internal/language
-golang.org/x/text/internal/language/compact
-golang.org/x/text/internal/tag
 # google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.22.1
