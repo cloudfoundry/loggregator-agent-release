@@ -166,11 +166,14 @@ var _ = Describe("SyslogAgent", func() {
 		defer cancel()
 
 		Eventually(hasMetric(metricClient, "non_app_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Eventually(
-			func() float64 {
-				return metricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()
-			}).Should(Equal(1.0))
-		Expect(metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(1.0))
+		Eventually(func() float64 {
+			return metricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()
+		}).Should(Equal(1.0))
+
+		// 2 app drains and 1 universal drain
+		Eventually(func() float64 {
+			return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+		}, 5).Should(Equal(3.0))
 	})
 
 	It("egresses logs", func() {

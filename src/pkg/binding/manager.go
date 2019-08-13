@@ -117,8 +117,7 @@ func (m *Manager) GetDrains(sourceID string) []egress.Writer {
 			drainHolder.drainWriter = writer
 			m.sourceDrainMap[sourceID][binding] = drainHolder
 
-			m.activeDrainCount++
-			m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+			m.updateActiveDrainCount(1)
 		}
 
 		drains = append(drains, drainHolder.drainWriter)
@@ -169,8 +168,7 @@ func (m *Manager) updateDrains(bindings []syslog.Binding) {
 		drainHolder.cancel()
 	}
 
-	m.activeDrainCount -= int64(len(m.universalDrains))
-	m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+	m.updateActiveDrainCount(-int64(len(m.universalDrains)))
 	m.universalDrains = []drainHolder{}
 	m.addUniversalDrains(m.universalDrainURLs)
 }
@@ -181,7 +179,7 @@ func (m *Manager) addUniversalDrains(drains []string) {
 		writer, err := m.connector.Connect(universalDrainHolder.ctx, syslog.Binding{
 			AppId: "all",
 			Drain: drain,
-			Type: syslog.BINDING_TYPE_UNIVERSAL,
+			Type:  syslog.BINDING_TYPE_UNIVERSAL,
 		})
 		if err != nil {
 			m.log.Printf("failed to connect to universal drain %s: %s", drain, err)
@@ -193,9 +191,7 @@ func (m *Manager) addUniversalDrains(drains []string) {
 	}
 
 	m.universalDrainCountMetric.Set(float64(len(m.universalDrains)))
-
-	m.activeDrainCount += int64(len(m.universalDrains))
-	m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+	m.updateActiveDrainCount(int64(len(m.universalDrains)))
 }
 
 func (m *Manager) removeDrain(
@@ -215,8 +211,7 @@ func (m *Manager) removeDrain(
 	}
 
 	if active {
-		m.activeDrainCount--
-		m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+		m.updateActiveDrainCount(-1)
 	}
 }
 
@@ -238,14 +233,17 @@ func (m *Manager) idleCleanup() {
 				dh.cancel()
 
 				m.sourceDrainMap[sID][b] = newDrainHolder()
-
-				m.activeDrainCount--
-				m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+				m.updateActiveDrainCount(-1)
 			}
 
 			delete(m.sourceAccessTimes, sID)
 		}
 	}
+}
+
+func (m *Manager) updateActiveDrainCount(delta int64) {
+	m.activeDrainCount += delta
+	m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
 }
 
 type drainHolder struct {
