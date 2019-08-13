@@ -26,7 +26,7 @@ require (
 	github.com/prometheus/common v0.6.0
 	github.com/shirou/gopsutil v2.18.12+incompatible
 	github.com/valyala/fasthttp v1.4.0
-	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64 // indirect
