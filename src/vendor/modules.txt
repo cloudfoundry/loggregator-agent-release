@@ -164,7 +164,7 @@ golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
 # google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.22.1
+# google.golang.org/grpc v1.22.2
 google.golang.org/grpc/grpclog
 google.golang.org/grpc
 google.golang.org/grpc/credentials
