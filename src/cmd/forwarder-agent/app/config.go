@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"fmt"
 
 	"code.cloudfoundry.org/go-envstruct"
@@ -22,8 +23,8 @@ type Config struct {
 	// receive each envelope. It is assumed to adhere to the Loggregator Ingress
 	// Service and use the provided TLS configuration.
 	DownstreamIngressPortCfg string `env:"DOWNSTREAM_INGRESS_PORT_GLOB, report"`
-	DebugPort                uint16 `env:"DEBUG_PORT, report"`
 	GRPC                     GRPC
+	MetricsServer            config.MetricsServer
 	Tags                     map[string]string `env:"AGENT_TAGS"`
 }
 

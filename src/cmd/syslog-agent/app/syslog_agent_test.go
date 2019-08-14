@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 	"context"
 	"crypto/tls"
@@ -81,7 +82,12 @@ var _ = Describe("SyslogAgent", func() {
 		mc := testhelper.NewMetricClient()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
-			DebugPort:           7392,
+			MetricsServer: config.MetricsServer{
+				Port:     7392,
+				CAFile:   metronTestCerts.CA(),
+				CertFile: metronTestCerts.Cert("metron"),
+				KeyFile:  metronTestCerts.Key("metron"),
+			},
 			IdleDrainTimeout:    10 * time.Minute,
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
@@ -117,7 +123,12 @@ var _ = Describe("SyslogAgent", func() {
 		metricClient = testhelper.NewMetricClient()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
-			DebugPort:           7392,
+			MetricsServer: config.MetricsServer{
+				Port:     7392,
+				CAFile:   metronTestCerts.CA(),
+				CertFile: metronTestCerts.Cert("metron"),
+				KeyFile:  metronTestCerts.Key("metron"),
+			},
 			IdleDrainTimeout:    10 * time.Minute,
 			DrainSkipCertVerify: true,
 			Cache: app.Cache{

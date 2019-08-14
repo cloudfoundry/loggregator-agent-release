@@ -12,20 +12,26 @@
     tags.merge!(p("tags"))
 
     tag_str = tags.map { |k, v| "#{k}:#{v}" }.join(",")
+
+    certs_dir="/var/vcap/jobs/loggr-forwarder-agent/config/certs"
 %>
 
 processes:
   - name: loggr-forwarder-agent
     executable: /var/vcap/packages/forwarder-agent/forwarder-agent
     env:
-      AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-forwarder-agent/config/certs/loggregator_ca.crt"
-      AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-forwarder-agent/config/certs/forwarder.crt"
-      AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-forwarder-agent/config/certs/forwarder.key"
+      AGENT_CA_FILE_PATH: "<%= certs_dir %>/loggregator_ca.crt"
+      AGENT_CERT_FILE_PATH: "<%= certs_dir %>/forwarder.crt"
+      AGENT_KEY_FILE_PATH: "<%= certs_dir %>/forwarder.key"
       AGENT_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
       AGENT_TAGS: "<%= tag_str %>"
       AGENT_PORT: <%= p("port") %>
-      DEBUG_PORT: <%= p("debug_port") %>
       DOWNSTREAM_INGRESS_PORT_GLOB: "<%= p("downstream_ingress_port_glob") %>"
+
+      METRICS_PORT: <%= p("metrics.port") %>
+      METRICS_CA_FILE_PATH: "<%= certs_dir %>/metrics_ca.crt"
+      METRICS_CERT_FILE_PATH: "<%= certs_dir %>/metrics.crt"
+      METRICS_KEY_FILE_PATH: "<%= certs_dir %>/metrics.key"
     unsafe:
       unrestricted_volumes:
       - path: /var/vcap/jobs

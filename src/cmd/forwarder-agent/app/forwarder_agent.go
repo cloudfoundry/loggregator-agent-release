@@ -58,7 +58,7 @@ func NewForwarderAgent(
 	log *log.Logger,
 ) *ForwarderAgent {
 	return &ForwarderAgent{
-		pprofPort:          cfg.DebugPort,
+		pprofPort:          cfg.MetricsServer.Port,
 		grpc:               cfg.GRPC,
 		m:                  m,
 		downstreamPortsCfg: cfg.DownstreamIngressPortCfg,

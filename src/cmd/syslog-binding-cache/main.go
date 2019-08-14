@@ -16,11 +16,15 @@ func main() {
 	cfg := app.LoadConfig()
 	m := metrics.NewRegistry(
 		logger,
-		metrics.WithServer(int(cfg.DebugPort)),
 		metrics.WithDefaultTags(map[string]string{
 			"origin": "loggregator_syslog_binding_cache",
-			"source_id": "syslog_binding_cache",
 		}),
+		metrics.WithTLSServer(
+			int(cfg.MetricsServer.Port),
+			cfg.MetricsServer.CertFile,
+			cfg.MetricsServer.KeyFile,
+			cfg.MetricsServer.CAFile,
+		),
 	)
 	app.NewSyslogBindingCache(cfg, m, logger).Run()
 }

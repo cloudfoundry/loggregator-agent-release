@@ -6,8 +6,6 @@ import (
 	"log"
 	"time"
 
-	"net/http"
-	_ "net/http/pprof"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
@@ -24,7 +22,6 @@ import (
 
 // SyslogAgent manages starting the syslog agent service.
 type SyslogAgent struct {
-	pprofPort           uint16
 	metrics             Metrics
 	bindingManager      BindingManager
 	grpc                GRPC
@@ -94,7 +91,6 @@ func NewSyslogAgent(
 	)
 
 	return &SyslogAgent{
-		pprofPort:           cfg.DebugPort,
 		grpc:                cfg.GRPC,
 		metrics:             m,
 		log:                 l,
@@ -105,8 +101,6 @@ func NewSyslogAgent(
 }
 
 func (s *SyslogAgent) Run() {
-	go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", s.pprofPort), nil)
-
 	ingressDropped := s.metrics.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction": "ingress"}))
 	diode := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))

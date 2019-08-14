@@ -21,6 +21,7 @@
           ca_cert: "((metrics_agent_tls.ca))"
           cert: "((metrics_agent_tls.certificate))"
           key: "((metrics_agent_tls.private_key))"
+          server_name: metrics_agent
 
 - type: replace
   path: /variables/name=metric_scraper_ca?
@@ -41,4 +42,3 @@
       common_name: metrics_agent
       extended_key_usage:
       - server_auth
-      - client_auth

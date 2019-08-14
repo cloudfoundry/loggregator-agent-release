@@ -18,12 +18,6 @@ properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3461
-  metrics_port:
-    description: "Port the agent uses to serve the Prometheus endpoint"
-    default: 14826
-  debug_port:
-    description: "Port the agent uses to serve debug information"
-    default: 14827
   tags:
     description: "Collection of tags to add on all outgoing v2 envelopes. Bosh deployment, job, index and IP will be merged with this property if they are not provided"
     default: {}
@@ -36,12 +30,20 @@ properties:
   grpc.key:
     description: "TLS private key for GRPC ingress server signed by the loggregator CA"
 
+  metrics_exporter_port:
+    description: "Port the agent uses to serve the Prometheus endpoint"
+    default: 14826
+  metrics.port:
+    description: "Port the agent uses to serve metrics and debug information"
+    default: 14827
   metrics.ca_cert:
     description: "TLS CA cert to verify requests to metrics endpoint."
   metrics.cert:
     description: "TLS certificate for metrics server signed by the metrics CA"
   metrics.key:
     description: "TLS private key for metrics server signed by the metrics CA"
+  metrics.server_name:
+    description: "The server name used in the scrape configuration for the metrics endpoint"
 
   metrics.whitelisted_timer_tags:
     description: "A list of tags allowed for aggregating timer metrics into histograms"

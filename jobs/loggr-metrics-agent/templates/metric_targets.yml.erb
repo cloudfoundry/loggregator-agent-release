@@ -10,7 +10,7 @@ scrape_configs = [
     {
       "names" => ["q-s0.#{spec.name}.*.*.#{spec.dns_domain_name}"],
       "type" => "A",
-      "port" => p('metrics_port'),
+      "port" => p('metrics_exporter_port'),
     },
   ]
 },
@@ -24,7 +24,7 @@ scrape_configs = [
     {
       "names" => ["q-s0.#{spec.name}.*.*.#{spec.dns_domain_name}"],
       "type" => "A",
-      "port" => p('debug_port'),
+      "port" => p('metrics.port'),
     },
   ],
   "relabel_configs" => [

@@ -3,6 +3,7 @@ package main
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
 	"log"
+	_ "net/http/pprof"
 	"os"
 
 	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app"
@@ -19,8 +20,13 @@ func main() {
 		metrics.WithDefaultTags(map[string]string{
 			"metrics_version": "2.0",
 			"origin": "loggregator.syslog_agent",
-			"source_id": "syslog_agent",
 		}),
+		metrics.WithTLSServer(
+			int(cfg.MetricsServer.Port),
+			cfg.MetricsServer.CertFile,
+			cfg.MetricsServer.KeyFile,
+			cfg.MetricsServer.CAFile,
+		),
 	)
 
 	app.NewSyslogAgent(cfg, m, log).Run()

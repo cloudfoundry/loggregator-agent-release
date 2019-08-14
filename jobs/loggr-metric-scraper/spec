@@ -17,6 +17,10 @@ templates:
   system_metrics.key.erb: config/certs/system_metrics.key
   system_metrics_ca.crt.erb: config/certs/system_metrics_ca.crt
   prom_scraper_config.yml.erb: config/prom_scraper_config.yml
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
+  metric_targets.yml.erb: config/metric_targets.yml
 
 packages:
 - metric-scraper
@@ -28,9 +32,6 @@ properties:
   scrape_port:
     description: "The port where the scraping endpoints are hosted"
     default: 9100
-  debug_port:
-    description: "The pprof port for runtime profiling data"
-    default: 14825
 
   system_metrics.tls.common_name:
     description: "Common name for system metrics agent CA"
@@ -43,3 +44,15 @@ properties:
     description: "TLS certificate for system metrics agent signed by the loggregator CA"
   system_metrics.tls.key:
     description: "TLS private key for system metrics agent signed by the loggregator CA"
+
+  metrics.port:
+    description: "Port the agent uses to serve metrics and debug information"
+    default: 14825
+  metrics.ca_cert:
+    description: "TLS CA cert to verify requests to metrics endpoint."
+  metrics.cert:
+    description: "TLS certificate for metrics server signed by the metrics CA"
+  metrics.key:
+    description: "TLS private key for metrics server signed by the metrics CA"
+  metrics.server_name:
+    description: "The server name used in the scrape configuration for the metrics endpoint"

@@ -1,4 +1,5 @@
 ---
-port: <%= p("debug_port") %>
-source_id: <%= spec.job.name %>
+port: <%= p("metrics.port") %>
+source_id: "metron"
 instance_id: <%= spec.id || spec.index.to_s %>
+scheme: https

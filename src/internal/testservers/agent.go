@@ -1,6 +1,7 @@
 package testservers
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"fmt"
 	"os"
 	"os/exec"
@@ -36,14 +37,20 @@ func BuildAgentConfig(dopplerURI string, dopplerGRPCPort int, testCerts *testhel
 			CAFile:   testCerts.CA(),
 		},
 
+		MetricsServer: config.MetricsServer{
+			CertFile: testCerts.Cert("metron"),
+			KeyFile:  testCerts.Key("metron"),
+			CAFile:   testCerts.CA(),
+		},
+
 		MetricBatchIntervalMilliseconds: 5000,
 	}
 }
 
 type AgentPorts struct {
-	GRPC  int
-	UDP   int
-	PProf int
+	GRPC    int
+	UDP     int
+	Metrics int
 }
 
 func StartAgent(conf app.Config) (cleanup func(), mp AgentPorts) {
@@ -64,7 +71,7 @@ func StartAgent(conf app.Config) (cleanup func(), mp AgentPorts) {
 	By("waiting for agent to listen")
 	mp.GRPC = waitForPortBinding("grpc", agentSession.Err)
 	mp.UDP = waitForPortBinding("udp", agentSession.Err)
-	mp.PProf = waitForPortBinding("pprof", agentSession.Err)
+	mp.Metrics = waitForPortBinding("metrics", agentSession.Err)
 
 	cleanup = func() {
 		agentSession.Kill().Wait()

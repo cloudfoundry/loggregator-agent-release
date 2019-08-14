@@ -1,8 +1,8 @@
 package main
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/cmd/metrics-agent/app"
 	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/loggregator-agent/cmd/metrics-agent/app"
 	"log"
 	_ "net/http/pprof"
 	"os"
@@ -17,8 +17,12 @@ func main() {
 
 	m := metrics.NewRegistry(
 		logger,
-		metrics.WithTLSServer(int(cfg.DebugPort), cfg.Metrics.CertFile, cfg.Metrics.KeyFile, cfg.Metrics.CAFile),
+		metrics.WithTLSServer(
+			int(cfg.MetricsServer.Port),
+			cfg.MetricsServer.CertFile,
+			cfg.MetricsServer.KeyFile,
+			cfg.MetricsServer.CAFile,
+		),
 	)
 	app.NewMetricsAgent(cfg, m, logger).Run()
 }
-

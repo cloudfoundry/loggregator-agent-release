@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 	"fmt"
 	"time"
@@ -34,10 +35,9 @@ type Config struct {
 	DrainSkipCertVerify bool          `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
 	IdleDrainTimeout    time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
 
-	DebugPort uint16 `env:"DEBUG_PORT, report"`
-
 	GRPC  GRPC
 	Cache Cache
+	MetricsServer config.MetricsServer
 
 	UniversalDrainURLs []string `env:"UNIVERSAL_DRAIN_URLS, report"`
 }

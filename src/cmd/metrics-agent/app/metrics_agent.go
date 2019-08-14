@@ -45,8 +45,8 @@ func (m *MetricsAgent) Run() {
 
 	promCollector := prom.NewCollector(
 		m.metrics,
-		prom.WithSourceIDExpiration(m.cfg.Metrics.TimeToLive, m.cfg.Metrics.ExpirationInterval),
-		prom.WithDefaultTags(m.cfg.Metrics.DefaultTags),
+		prom.WithSourceIDExpiration(m.cfg.MetricsExporter.TimeToLive, m.cfg.MetricsExporter.ExpirationInterval),
+		prom.WithDefaultTags(m.cfg.MetricsExporter.DefaultTags),
 	)
 	go m.startEnvelopeCollection(promCollector, envelopeBuffer)
 
@@ -91,7 +91,7 @@ func (m *MetricsAgent) generateServerTLSConfig(certFile, keyFile, caFile string)
 
 func (m *MetricsAgent) startEnvelopeCollection(promCollector *prom.Collector, diode *diodes.ManyToOneEnvelopeV2) {
 	tagger := egress_v2.NewTagger(m.cfg.Tags).TagEnvelope
-	timerTagFilterer := egress_v2.NewTimerTagFilterer(m.cfg.Metrics.WhitelistedTimerTags, tagger).Filter
+	timerTagFilterer := egress_v2.NewTimerTagFilterer(m.cfg.MetricsExporter.WhitelistedTimerTags, tagger).Filter
 	envelopeWriter := egress_v2.NewEnvelopeWriter(
 		promCollector,
 		egress_v2.NewCounterAggregator(
@@ -114,9 +114,13 @@ func (m *MetricsAgent) startMetricsServer(promCollector *prom.Collector) {
 	router := http.NewServeMux()
 	router.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{ErrorHandling: promhttp.ContinueOnError}))
 
-	tlsConfig := m.generateServerTLSConfig(m.cfg.Metrics.CertFile, m.cfg.Metrics.KeyFile, m.cfg.Metrics.CAFile)
+	tlsConfig := m.generateServerTLSConfig(
+		m.cfg.MetricsServer.CertFile,
+		m.cfg.MetricsServer.KeyFile,
+		m.cfg.MetricsServer.CAFile,
+	)
 	m.metricsServer = &http.Server{
-		Addr:         fmt.Sprintf(":%d", m.cfg.Metrics.Port),
+		Addr:         fmt.Sprintf(":%d", m.cfg.MetricsExporter.Port),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		Handler:      router,

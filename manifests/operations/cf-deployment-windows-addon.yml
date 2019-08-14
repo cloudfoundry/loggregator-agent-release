@@ -8,10 +8,23 @@
         ca_cert: "((loggregator_ca.certificate))"
         cert: "((loggregator_tls_agent.certificate))"
         key: "((loggregator_tls_agent.private_key))"
+      metrics:
+        ca_cert: "((forwarder_agent_metrics_tls.ca))"
+        cert: "((forwarder_agent_metrics_tls.certificate))"
+        key: "((forwarder_agent_metrics_tls.private_key))"
+        server_name: forwarder_agent
 
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=loggregator_agent_windows/properties/grpc_port?
   value: 3459
+
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=loggregator_agent_windows/properties/metrics?
+  value:
+    ca_cert: "((loggregator_agent_metrics_tls.ca))"
+    cert: "((loggregator_agent_metrics_tls.certificate))"
+    key: "((loggregator_agent_metrics_tls.private_key))"
+    server_name: loggregator_agent
 
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=loggr-system-metrics-agent-windows?
@@ -42,6 +55,11 @@
           cert: "((syslog_agent_api_tls.certificate))"
           key: "((syslog_agent_api_tls.private_key))"
           cn: "binding-cache"
+      metrics:
+        ca_cert: "((syslog_agent_metrics_tls.ca))"
+        cert: "((syslog_agent_metrics_tls.certificate))"
+        key: "((syslog_agent_metrics_tls.private_key))"
+        server_name: syslog_agent
 
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=loggr-metrics-agent-windows?
@@ -57,3 +75,16 @@
         ca_cert: "((metrics_agent_tls.ca))"
         cert: "((metrics_agent_tls.certificate))"
         key: "((metrics_agent_tls.private_key))"
+        server_name: metrics_agent
+
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=prom_scraper_windows/properties?/scrape?/tls?
+  value:
+    ca_cert: "((prom_scraper_scrape_tls.ca))"
+    cert: "((prom_scraper_scrape_tls.certificate))"
+    key: "((prom_scraper_scrape_tls.private_key))"
+    cn: loggregator
+
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=prom_scraper_windows/properties?/skip_ssl_validation?
+  value: "true"

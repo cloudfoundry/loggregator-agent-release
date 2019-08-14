@@ -2,6 +2,7 @@ package app
 
 import (
 	"code.cloudfoundry.org/go-envstruct"
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"fmt"
 	"time"
 )
@@ -15,13 +16,10 @@ type GRPCConfig struct {
 	KeyFile  string `env:"AGENT_KEY_FILE_PATH, required, report"`
 }
 
-// MetricsConfig stores the configuration for the metrics server using a PORT
+// MetricsExporterConfig stores the configuration for the metrics server using a PORT
 // with mTLS certs.
-type MetricsConfig struct {
-	Port                 uint16            `env:"METRICS_PORT, required, report"`
-	CAFile               string            `env:"METRICS_CA_FILE_PATH, required, report"`
-	CertFile             string            `env:"METRICS_CERT_FILE_PATH, required, report"`
-	KeyFile              string            `env:"METRICS_KEY_FILE_PATH, required, report"`
+type MetricsExporterConfig struct {
+	Port                 uint16            `env:"METRICS_EXPORTER_PORT, required, report"`
 	WhitelistedTimerTags []string          `env:"WHITELISTED_TIMER_TAGS, required, report"`
 	DefaultTags          map[string]string `env:"AGENT_TAGS"`
 
@@ -31,10 +29,10 @@ type MetricsConfig struct {
 
 // Config holds the configuration for the metrics agent
 type Config struct {
-	Metrics   MetricsConfig
-	GRPC      GRPCConfig
-	Tags      map[string]string `env:"AGENT_TAGS"`
-	DebugPort uint16            `env:"DEBUG_PORT, required, report"`
+	MetricsExporter MetricsExporterConfig
+	MetricsServer   config.MetricsServer
+	GRPC            GRPCConfig
+	Tags            map[string]string `env:"AGENT_TAGS"`
 }
 
 // LoadConfig will load the configuration for the forwarder agent from the
@@ -45,7 +43,7 @@ func LoadConfig() Config {
 		GRPC: GRPCConfig{
 			Port: 3458,
 		},
-		Metrics: MetricsConfig{
+		MetricsExporter: MetricsExporterConfig{
 			TimeToLive:         10 * time.Minute,
 			ExpirationInterval: time.Minute,
 		},

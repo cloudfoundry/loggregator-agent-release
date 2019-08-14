@@ -10,6 +10,12 @@ import (
 )
 
 var _ = Describe("Config", func() {
+	BeforeEach(func() {
+		os.Setenv("METRICS_CA_FILE_PATH", "something")
+		os.Setenv("METRICS_CERT_FILE_PATH", "something")
+		os.Setenv("METRICS_KEY_FILE_PATH", "something")
+	})
+
 	It("IDN encodes RouterAddrWithAZ", func() {
 		os.Setenv("ROUTER_ADDR", "router-addr")
 		os.Setenv("ROUTER_ADDR_WITH_AZ", "jedinečné.router-addr:1234")

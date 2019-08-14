@@ -9,6 +9,10 @@ templates:
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   binding_cache.crt.erb: config/certs/binding_cache.crt
   binding_cache.key.erb: config/certs/binding_cache.key
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
+  metric_targets.yml.erb: config/metric_targets.yml
 
 packages:
 - binding-cache
@@ -79,6 +83,14 @@ properties:
       bindings.
     default: 1000
 
-  debug_port:
-    description: "Port the agent uses to serve metrics"
+  metrics.port:
+    description: "Port the agent uses to serve metrics and debug information"
     default: 14828
+  metrics.ca_cert:
+    description: "TLS CA cert to verify requests to metrics endpoint."
+  metrics.cert:
+    description: "TLS certificate for metrics server signed by the metrics CA"
+  metrics.key:
+    description: "TLS private key for metrics server signed by the metrics CA"
+  metrics.server_name:
+    description: "The server name used in the scrape configuration for the metrics endpoint"

@@ -4,6 +4,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/loggregator-agent/cmd/metrics-agent/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"fmt"
@@ -35,14 +36,16 @@ var _ = Describe("MetricsAgent", func() {
 		grpcPort = getFreePort()
 		metricsPort = getFreePort()
 		cfg := app.Config{
-			Metrics: app.MetricsConfig{
+			MetricsExporter: app.MetricsExporterConfig{
 				Port:                 metricsPort,
-				CAFile:               testCerts.CA(),
-				CertFile:             testCerts.Cert("client"),
-				KeyFile:              testCerts.Key("client"),
 				ExpirationInterval:   time.Minute,
 				TimeToLive:           10 * time.Minute,
 				WhitelistedTimerTags: []string{"whitelist1", "whitelist2"},
+			},
+			MetricsServer: config.MetricsServer{
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("client"),
+				KeyFile:  testCerts.Key("client"),
 			},
 			Tags: map[string]string{
 				"a": "1",

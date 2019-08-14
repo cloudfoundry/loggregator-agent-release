@@ -25,7 +25,7 @@ headers: Optional - a map of headers to add to the scrape request
 #### Example `prom-scraper-config.yml.erb`
 ```yaml
 port: 6061
-source_id: <%= spec.job.name %>
+source_id: "my-job-name"
 instance_id: <%= spec.id || spec.index.to_s %>
 scheme: https
 path: /metrics/prometheus

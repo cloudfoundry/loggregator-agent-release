@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"log"
 	"time"
 
@@ -23,8 +24,9 @@ type Config struct {
 	CacheKeyFile    string `env:"CACHE_KEY_FILE_PATH,    required, report"`
 	CacheCommonName string `env:"CACHE_COMMON_NAME,      required, report"`
 
-	DebugPort int `env:"DEBUG_PORT,           report"`
 	CachePort int `env:"CACHE_PORT, required, report"`
+
+	MetricsServer config.MetricsServer
 }
 
 // LoadConfig will load the configuration for the syslog binding cache from the

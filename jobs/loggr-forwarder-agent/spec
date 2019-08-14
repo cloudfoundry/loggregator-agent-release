@@ -7,6 +7,10 @@ templates:
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   forwarder.crt.erb: config/certs/forwarder.crt
   forwarder.key.erb: config/certs/forwarder.key
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
+  metric_targets.yml.erb: config/metric_targets.yml
 
 packages:
 - forwarder-agent
@@ -15,9 +19,6 @@ properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458
-  debug_port:
-    description: "Port the agent uses to serve debug information"
-    default: 14823
   downstream_ingress_port_glob:
     description: |
       Files matching the glob are expected to contain ports of downstream
@@ -25,7 +26,7 @@ properties:
       mTLS configuration. The forwarder assumes the downstream server is
       serving Loggregator's V2 IngressService. See code.cloudfoundry.org/loggregator-api.
     default: /var/vcap/jobs/*/config/ingress_port.yml
-      
+
   deployment:
     description: "Name of deployment (added as tag on all outgoing v1 envelopes)"
     default: ""
@@ -47,4 +48,16 @@ properties:
       An ordered list of supported SSL cipher suites. Allowed cipher suites are
       TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
     default: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+
+  metrics.port:
+    description: "Port the agent uses to serve metrics and debug information"
+    default: 14823
+  metrics.ca_cert:
+    description: "TLS CA cert to verify requests to metrics endpoint."
+  metrics.cert:
+    description: "TLS certificate for metrics server signed by the metrics CA"
+  metrics.key:
+    description: "TLS private key for metrics server signed by the metrics CA"
+  metrics.server_name:
+    description: "The server name used in the scrape configuration for the metrics endpoint"
 

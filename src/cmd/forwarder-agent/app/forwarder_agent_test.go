@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -37,7 +38,7 @@ var _ = Describe("Main", func() {
 	var (
 		grpcPort   = 20000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts = testhelper.GenerateCerts("loggregatorCA")
+		testCerts  = testhelper.GenerateCerts("loggregatorCA")
 
 		forwarderAgent *app.ForwarderAgent
 		mc             *testhelper.SpyMetricClient
@@ -89,7 +90,12 @@ var _ = Describe("Main", func() {
 				KeyFile:  testCerts.Key("metron"),
 			},
 			DownstreamIngressPortCfg: fmt.Sprintf("%s/*/ingress_port.yml", fConfigDir),
-			DebugPort:                7392,
+			MetricsServer: config.MetricsServer{
+				Port:     7392,
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("metron"),
+				KeyFile:  testCerts.Key("metron"),
+			},
 			Tags: map[string]string{
 				"some-tag": "some-value",
 			},

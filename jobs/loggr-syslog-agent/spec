@@ -11,6 +11,10 @@ templates:
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   syslog_agent.crt.erb: config/certs/syslog_agent.crt
   syslog_agent.key.erb: config/certs/syslog_agent.key
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
+  metric_targets.yml.erb: config/metric_targets.yml
 
 packages:
 - syslog-agent
@@ -29,9 +33,6 @@ properties:
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458
-  debug_port:
-    description: "Port the agent uses to serve debug information"
-    default: 14822
   drain_skip_cert_verify:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
@@ -93,3 +94,15 @@ properties:
       The batch size the syslog will request the Cloud Controller for
       bindings.
     default: 1000
+
+  metrics.port:
+    description: "Port the agent uses to serve metrics and debug information"
+    default: 14822
+  metrics.ca_cert:
+    description: "TLS CA cert to verify requests to metrics endpoint."
+  metrics.cert:
+    description: "TLS certificate for metrics server signed by the metrics CA"
+  metrics.key:
+    description: "TLS private key for metrics server signed by the metrics CA"
+  metrics.server_name:
+    description: "The server name used in the scrape configuration for the metrics endpoint"

@@ -74,13 +74,19 @@ func (a *Agent) Start() {
 		logger,
 		metrics.WithDefaultTags(map[string]string{
 			"origin": "loggregator.metron",
-			"source_id": "metron",
 		}),
+		metrics.WithTLSServer(
+			int(a.config.MetricsServer.Port),
+			a.config.MetricsServer.CertFile,
+			a.config.MetricsServer.KeyFile,
+			a.config.MetricsServer.CAFile,
+		),
 	)
+	logger.Printf("metrics bound to: %s", metricClient.Port())
 
 	appV1 := NewV1App(a.config, clientCreds, metricClient)
 	go appV1.Start()
 
 	appV2 := NewV2App(a.config, clientCreds, serverCreds, metricClient)
-	go appV2.Start()
+	appV2.Start()
 }

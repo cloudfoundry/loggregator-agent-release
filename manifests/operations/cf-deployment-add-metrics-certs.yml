@@ -1,0 +1,127 @@
+---
+- type: replace
+  path: /addons/name=forwarder_agent/jobs/name=loggr-forwarder-agent/properties/metrics?
+  value:
+    ca_cert: "((forwarder_agent_metrics_tls.ca))"
+    cert: "((forwarder_agent_metrics_tls.certificate))"
+    key: "((forwarder_agent_metrics_tls.private_key))"
+    server_name: forwarder_agent
+
+- type: replace
+  path: /addons/name=loggr-syslog-agent/jobs/name=loggr-syslog-agent/properties/metrics?
+  value:
+    ca_cert: "((syslog_agent_metrics_tls.ca))"
+    cert: "((syslog_agent_metrics_tls.certificate))"
+    key: "((syslog_agent_metrics_tls.private_key))"
+    server_name: syslog_agent
+
+- type: replace
+  path: /addons/name=loggregator_agent/jobs/name=loggregator_agent/properties/metrics?
+  value:
+    ca_cert: "((loggregator_agent_metrics_tls.ca))"
+    cert: "((loggregator_agent_metrics_tls.certificate))"
+    key: "((loggregator_agent_metrics_tls.private_key))"
+    server_name: loggregator_agent
+
+- type: replace
+  path: /addons/name=prom_scraper/jobs/name=prom_scraper/properties?/scrape?/tls?
+  value:
+    ca_cert: "((prom_scraper_scrape_tls.ca))"
+    cert: "((prom_scraper_scrape_tls.certificate))"
+    key: "((prom_scraper_scrape_tls.private_key))"
+    cn: loggregator
+
+- type: replace
+  path: /addons/name=prom_scraper/jobs/name=prom_scraper/properties?/skip_ssl_validation?
+  value: "true"
+
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/name=loggr-metric-scraper/properties/metrics?
+  value:
+    ca_cert: "((loggr_metric_scraper_metrics_tls.ca))"
+    cert: "((loggr_metric_scraper_metrics_tls.certificate))"
+    key: "((loggr_metric_scraper_metrics_tls.private_key))"
+    server_name: loggr_metric_scraper
+
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/name=loggr-syslog-binding-cache/properties/metrics?
+  value:
+    ca_cert: "((loggr_syslog_binding_cache_metrics_tls.ca))"
+    cert: "((loggr_syslog_binding_cache_metrics_tls.certificate))"
+    key: "((loggr_syslog_binding_cache_metrics_tls.private_key))"
+    server_name: loggr_syslog_binding_cache
+
+- type: replace
+  path: /variables/name=metric_scraper_ca?
+  value:
+    name: metric_scraper_ca
+    type: certificate
+    options:
+      is_ca: true
+      common_name: metricScraperCA
+
+- type: replace
+  path: /variables/name=forwarder_agent_metrics_tls?
+  value:
+    name: forwarder_agent_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: forwarder_agent
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /variables/name=syslog_agent_metrics_tls?
+  value:
+    name: syslog_agent_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: syslog_agent
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /variables/name=loggregator_agent_metrics_tls?
+  value:
+    name: loggregator_agent_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: loggregator_agent
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /variables/name=loggr_metric_scraper_metrics_tls?
+  value:
+    name: loggr_metric_scraper_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: loggr_metric_scraper
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /variables/name=loggr_syslog_binding_cache_metrics_tls?
+  value:
+    name: loggr_syslog_binding_cache_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: loggr_syslog_binding_cache
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /variables/name=prom_scraper_scrape_tls?
+  value:
+    name: prom_scraper_scrape_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: prom_scraper
+      extended_key_usage:
+      - client_auth

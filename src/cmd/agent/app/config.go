@@ -1,10 +1,11 @@
 package app
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"fmt"
 	"strings"
 
-	envstruct "code.cloudfoundry.org/go-envstruct"
+	"code.cloudfoundry.org/go-envstruct"
 	"golang.org/x/net/idna"
 )
 
@@ -30,37 +31,39 @@ type Config struct {
 	IncomingUDPPort                 int               `env:"AGENT_INCOMING_UDP_PORT"`
 	MetricBatchIntervalMilliseconds uint              `env:"AGENT_METRIC_BATCH_INTERVAL_MILLISECONDS"`
 	MetricSourceID                  string            `env:"AGENT_METRIC_SOURCE_ID"`
-	DebugPort                       uint32            `env:"AGENT_DEBUG_PORT"`
 	RouterAddr                      string            `env:"ROUTER_ADDR"`
 	RouterAddrWithAZ                string            `env:"ROUTER_ADDR_WITH_AZ"`
 	GRPC                            GRPC
+	MetricsServer                   config.MetricsServer
 }
 
 // LoadConfig reads from the environment to create a Config.
 func LoadConfig() (*Config, error) {
-	config := Config{
+	cfg := Config{
 		MetricBatchIntervalMilliseconds: 60000,
 		MetricSourceID:                  "metron",
 		IncomingUDPPort:                 3457,
-		DebugPort:                       14824,
+		MetricsServer: config.MetricsServer{
+			Port: 14824,
+		},
 		GRPC: GRPC{
 			Port: 3458,
 		},
 	}
-	err := envstruct.Load(&config)
+	err := envstruct.Load(&cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	if config.RouterAddr == "" {
+	if cfg.RouterAddr == "" {
 		return nil, fmt.Errorf("RouterAddr is required")
 	}
 
-	config.RouterAddrWithAZ, err = idna.ToASCII(config.RouterAddrWithAZ)
+	cfg.RouterAddrWithAZ, err = idna.ToASCII(cfg.RouterAddrWithAZ)
 	if err != nil {
 		return nil, err
 	}
-	config.RouterAddrWithAZ = strings.Replace(config.RouterAddrWithAZ, "@", "-", -1)
+	cfg.RouterAddrWithAZ = strings.Replace(cfg.RouterAddrWithAZ, "@", "-", -1)
 
-	return &config, nil
+	return &cfg, nil
 }
