@@ -25,6 +25,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/prometheus/common v0.6.0
 	github.com/shirou/gopsutil v2.18.12+incompatible
+	github.com/stretchr/testify v1.4.0 // indirect
 	github.com/valyala/fasthttp v1.4.0
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
