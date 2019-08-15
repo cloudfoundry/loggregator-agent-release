@@ -1,7 +1,7 @@
 <%
 scrape_configs = [
 {
-  "job_name" => "loggr_syslog_binding_cache",
+  "job_name" => "loggr_syslog_binding_cache_#{spec.name}",
   "scheme" => "https",
   "tls_config" => {
     "server_name" => p('metrics.server_name'),

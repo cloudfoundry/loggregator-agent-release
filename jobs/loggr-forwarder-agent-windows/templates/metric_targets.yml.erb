@@ -1,7 +1,7 @@
 <%
 scrape_configs = [
 {
-  "job_name" => "loggr_forwarder_agent",
+  "job_name" => "loggr_forwarder_agent_#{spec.name}",
   "scheme" => "https",
   "tls_config" => {
     "server_name" => p('metrics.server_name'),
