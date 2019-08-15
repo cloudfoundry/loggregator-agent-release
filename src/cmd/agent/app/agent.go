@@ -82,7 +82,7 @@ func (a *Agent) Start() {
 			a.config.MetricsServer.CAFile,
 		),
 	)
-	logger.Printf("metrics bound to: %s", metricClient.Port())
+	logger.Printf("metrics bound to: :%s", metricClient.Port())
 
 	appV1 := NewV1App(a.config, clientCreds, metricClient)
 	go appV1.Start()

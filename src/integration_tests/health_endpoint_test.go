@@ -2,6 +2,7 @@ package agent_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	"code.cloudfoundry.org/tlsconfig"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,7 +24,14 @@ var _ = Describe("Agent Health Endpoint", func() {
 		)
 		defer agentCleanup()
 
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/metrics", agentPorts.Metrics))
+		tlsConfig, err := tlsconfig.Build(
+			tlsconfig.WithIdentityFromFile(testCerts.Cert("client"), testCerts.Key("client")),
+		).Client(tlsconfig.WithAuthorityFromFile(testCerts.CA()))
+		Expect(err).ToNot(HaveOccurred())
+
+		tlsClient := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
+
+		resp, err := tlsClient.Get(fmt.Sprintf("https://127.0.0.1:%d/metrics", agentPorts.Metrics))
 		Expect(err).ToNot(HaveOccurred())
 		defer resp.Body.Close()
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))

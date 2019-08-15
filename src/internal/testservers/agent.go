@@ -69,9 +69,9 @@ func StartAgent(conf app.Config) (cleanup func(), mp AgentPorts) {
 	Expect(err).ToNot(HaveOccurred())
 
 	By("waiting for agent to listen")
+	mp.Metrics = waitForPortBinding("metrics", agentSession.Err)
 	mp.GRPC = waitForPortBinding("grpc", agentSession.Err)
 	mp.UDP = waitForPortBinding("udp", agentSession.Err)
-	mp.Metrics = waitForPortBinding("metrics", agentSession.Err)
 
 	cleanup = func() {
 		agentSession.Kill().Wait()
