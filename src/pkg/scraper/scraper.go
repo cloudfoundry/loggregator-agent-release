@@ -187,8 +187,15 @@ func (s *Scraper) emitMetrics(res map[string]*io_prometheus_client.MetricFamily,
 func (s *Scraper) emitGauge(sourceID, instanceID, name string, tags map[string]string, metric *io_prometheus_client.Metric) {
 	val := metric.GetGauge().GetValue()
 
+	var unit string
+	tagUnit, ok := tags["unit"]
+	if ok {
+		unit = tagUnit
+		delete(tags, "unit")
+	}
+
 	s.metricsEmitter.EmitGauge(
-		loggregator.WithGaugeValue(name, val, ""),
+		loggregator.WithGaugeValue(name, val, unit),
 		loggregator.WithGaugeSourceInfo(sourceID, instanceID),
 		loggregator.WithEnvelopeTags(tags),
 	)

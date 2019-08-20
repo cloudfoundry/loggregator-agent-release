@@ -87,6 +87,32 @@ var _ = Describe("Scraper", func() {
 				ContainElement(buildGauge("source-2", "some-instance-id", "gauge_2", 2, nil)),
 			))
 		})
+
+		It("emits a gauge with unit from label", func() {
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, gaugeWithUnitOutput)
+
+			Expect(tc.scraper.Scrape()).To(Succeed())
+
+			Expect(tc.metricEmitter.envelopes).To(And(
+				ContainElement(&loggregator_v2.Envelope{
+					SourceId:   "source-1",
+					InstanceId: "some-instance-id",
+					Message: &loggregator_v2.Envelope_Gauge{
+						Gauge: &loggregator_v2.Gauge{
+							Metrics: map[string]*loggregator_v2.GaugeValue{
+								"gauge_1": {Value: 1, Unit: "some-unit"},
+							},
+						},
+					},
+					Tags: map[string]string{},
+				}),
+			))
+		})
 	})
 
 	Context("counters", func() {
@@ -520,6 +546,12 @@ gauge_1{source_id="source-1"} 1
 # TYPE gauge_2 gauge
 gauge_2{source_id="source-2"} 2
 `
+	gaugeWithUnitOutput = `
+# HELP gauge_1 Example metric
+# TYPE gauge_1 gauge
+gauge_1{source_id="source-1", unit="some-unit"} 1
+`
+
 	smallCounterOutput = `
 # HELP counter_1 Example metric
 # TYPE counter_1 counter
