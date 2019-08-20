@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/tlsconfig"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -36,7 +37,7 @@ var _ = Describe("App", func() {
 		promServer       *promServer
 		spyMetricsClient *testhelper.SpyMetricClient
 
-		metronTestCerts = testhelper.GenerateCerts("loggregatorCA")
+		metronTestCerts        = testhelper.GenerateCerts("loggregatorCA")
 		systemMetricsTestCerts = testhelper.GenerateCerts("systemMetricsCA")
 	)
 
@@ -310,11 +311,16 @@ func (s *promServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 func (s *promServer) start(testCerts *testhelper.TestCerts) {
 	s.server = httptest.NewUnstartedServer(http.HandlerFunc(s.handleRequest))
 
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testCerts.Cert("system-metrics-agent"),
-		testCerts.Key("system-metrics-agent"),
-		testCerts.CA(),
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			testCerts.Cert("system-metrics-agent"),
+			testCerts.Key("system-metrics-agent"),
+		),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
 	)
+
 	Expect(err).ToNot(HaveOccurred())
 
 	s.server.TLS = tlsConfig

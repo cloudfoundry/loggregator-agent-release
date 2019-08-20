@@ -3,6 +3,7 @@ package app_test
 import (
 	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
+	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -25,7 +26,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	"code.cloudfoundry.org/rfc5424"
 )
 
@@ -258,11 +258,16 @@ type fakeBindingCache struct {
 }
 
 func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testCerts.Cert("binding-cache"),
-		testCerts.Key("binding-cache"),
-		testCerts.CA(),
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			testCerts.Cert("binding-cache"),
+			testCerts.Key("binding-cache"),
+		),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
 	)
+
 	Expect(err).ToNot(HaveOccurred())
 
 	f.Server = httptest.NewUnstartedServer(f)

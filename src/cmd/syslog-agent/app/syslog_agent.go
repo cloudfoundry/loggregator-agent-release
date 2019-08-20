@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent/pkg/cache"
@@ -73,6 +72,7 @@ func NewSyslogAgent(
 		cfg.Cache.CAFile,
 		cfg.Cache.CommonName,
 	)
+
 	cacheClient := cache.NewClient(cfg.Cache.URL, tlsClient)
 	fetcher := cups.NewFilteredBindingFetcher(
 		&cfg.Cache.Blacklist,

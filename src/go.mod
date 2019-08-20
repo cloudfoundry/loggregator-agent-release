@@ -10,6 +10,8 @@ require (
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 	code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
+	github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4 // indirect
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/cloudfoundry/dropsonde v1.0.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4

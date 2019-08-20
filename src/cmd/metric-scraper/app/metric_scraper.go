@@ -2,13 +2,13 @@ package app
 
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/tlsconfig"
 	"log"
 	"net"
 	"net/http"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
 )
 
@@ -103,12 +103,14 @@ func (m *MetricScraper) Stop() {
 }
 
 func newTLSClient(cfg Config) *http.Client {
-	tlsConfig, err := plumbing.NewClientMutualTLSConfig(
-		cfg.MetricsCertPath,
-		cfg.MetricsKeyPath,
-		cfg.MetricsCACertPath,
-		cfg.MetricsCN,
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(cfg.MetricsCertPath, cfg.MetricsKeyPath),
+	).Client(
+		tlsconfig.WithAuthorityFromFile(cfg.MetricsCACertPath),
+		tlsconfig.WithServerName(cfg.MetricsCN),
 	)
+
 	if err != nil {
 		log.Panicf("failed to load API client certificates: %s", err)
 	}

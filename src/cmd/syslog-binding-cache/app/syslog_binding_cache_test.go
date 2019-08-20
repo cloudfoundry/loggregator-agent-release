@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/tlsconfig"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -131,11 +132,16 @@ type fakeCC struct {
 }
 
 func (f *fakeCC) startTLS(testCerts *testhelper.TestCerts) {
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testCerts.Cert("capi"),
-		testCerts.Key("capi"),
-		testCerts.CA(),
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			testCerts.Cert("capi"),
+			testCerts.Key("capi"),
+		),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
 	)
+
 	Expect(err).ToNot(HaveOccurred())
 
 	f.Server = httptest.NewUnstartedServer(f)

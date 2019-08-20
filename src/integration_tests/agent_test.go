@@ -1,6 +1,7 @@
 package agent_test
 
 import (
+	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"fmt"
 	"time"
@@ -141,12 +142,17 @@ var _ = Describe("Agent", func() {
 func agentClient(port int, testCerts *testhelper.TestCerts) loggregator_v2.IngressClient {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
-	tlsConfig, err := plumbing.NewClientMutualTLSConfig(
-		testCerts.Cert("metron"),
-		testCerts.Key("metron"),
-		testCerts.CA(),
-		"metron",
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+		),
+	).Client(
+		tlsconfig.WithAuthorityFromFile(testCerts.CA()),
+		tlsconfig.WithServerName("metron"),
 	)
+
 	if err != nil {
 		panic(err)
 	}

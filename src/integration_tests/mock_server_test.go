@@ -1,6 +1,7 @@
 package agent_test
 
 import (
+	"code.cloudfoundry.org/tlsconfig"
 	"net"
 	"time"
 
@@ -21,11 +22,16 @@ type Server struct {
 }
 
 func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		testCerts.Cert("doppler"),
-		testCerts.Key("doppler"),
-		testCerts.CA(),
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			testCerts.Cert("doppler"),
+			testCerts.Key("doppler"),
+		),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
 	)
+	
 	if err != nil {
 		return nil, err
 	}

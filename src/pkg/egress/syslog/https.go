@@ -2,15 +2,16 @@ package syslog
 
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/tlsconfig"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	"github.com/valyala/fasthttp"
 )
 
@@ -89,7 +90,14 @@ func (*HTTPSWriter) Close() error {
 }
 
 func httpClient(netConf NetworkTimeoutConfig, skipCertVerify bool) *fasthttp.Client {
-	tlsConfig := plumbing.NewTLSConfig()
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+	).Client()
+
+	if err != nil {
+		log.Panicf("failed to load create tls config for http client: %s", err)
+	}
+
 	tlsConfig.InsecureSkipVerify = skipCertVerify
 
 	return &fasthttp.Client{

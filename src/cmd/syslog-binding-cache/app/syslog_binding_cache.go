@@ -2,6 +2,7 @@ package app
 
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -76,19 +77,20 @@ func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
 }
 
 func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {
-	var opts []plumbing.ConfigOption
-	if len(sbc.config.CipherSuites) > 0 {
-		opts = append(opts, plumbing.WithCipherSuites(sbc.config.CipherSuites))
-	}
-
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		sbc.config.CacheCertFile,
-		sbc.config.CacheKeyFile,
-		sbc.config.CacheCAFile,
-		opts...,
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(sbc.config.CacheCertFile, sbc.config.CacheKeyFile),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(sbc.config.CacheCAFile),
 	)
 	if err != nil {
 		sbc.log.Panicf("failed to load server TLS config: %s", err)
 	}
+
+	if len(sbc.config.CipherSuites) > 0 {
+		opt := plumbing.WithCipherSuites(sbc.config.CipherSuites)
+		opt(tlsConfig)
+	}
+
 	return tlsConfig
 }

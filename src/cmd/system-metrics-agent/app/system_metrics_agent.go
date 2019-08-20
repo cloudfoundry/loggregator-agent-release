@@ -3,7 +3,7 @@ package app
 import (
 	"code.cloudfoundry.org/loggregator-agent/pkg/collector"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/stats"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
@@ -121,11 +121,13 @@ func (a *SystemMetricsAgent) setup(addr string, router *http.ServeMux) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	tlsConfig, err := plumbing.NewServerMutualTLSConfig(
-		a.cfg.CertPath,
-		a.cfg.KeyPath,
-		a.cfg.CACertPath,
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(a.cfg.CertPath, a.cfg.KeyPath),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(a.cfg.CACertPath),
 	)
+
 	if err != nil {
 		log.Fatalf("Unable to setup tls for metrics endpoint (%s): %s", addr, err)
 	}
