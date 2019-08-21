@@ -2,18 +2,26 @@
     job_name = spec.job.name || name
     instance_id = spec.id || spec.index.to_s
     deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+
+    certs_dir = "/var/vcap/jobs/loggr-udp-forwarder/config/certs"
+
+    process = {
+      "name" => "loggr-udp-forwarder",
+      "executable" => "/var/vcap/packages/udp-forwarder/udp-forwarder",
+      "env" => {
+        "LOGGREGATOR_AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
+        "LOGGREGATOR_AGENT_CERT_FILE_PATH" => "#{certs_dir}/loggregator_agent.crt",
+        "LOGGREGATOR_AGENT_KEY_FILE_PATH" => "#{certs_dir}/loggregator_agent.key",
+        "LOGGREGATOR_AGENT_ADDR" => "localhost:#{p('loggregator.ingress_port')}",
+        "UDP_PORT" => "#{p('udp_port')}",
+        "DEPLOYMENT" => "#{deployment}",
+        "JOB" => "#{job_name}",
+        "INDEX" => "#{instance_id}",
+        "IP" => "#{spec.ip}",
+      }
+    }
+
+    bpm = {"processes" => [process] }
 %>
 
-processes:
-  - name: loggr-udp-forwarder
-    executable: /var/vcap/packages/udp-forwarder/udp-forwarder
-    env:
-      LOGGREGATOR_AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_ca.crt"
-      LOGGREGATOR_AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_agent.crt"
-      LOGGREGATOR_AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_agent.key"
-      LOGGREGATOR_AGENT_ADDR: <%= "localhost:#{p('loggregator.ingress_port')}" %>
-      UDP_PORT: <%= p('udp_port') %>
-      DEPLOYMENT: "<%= deployment %>"
-      JOB: "<%= job_name %>"
-      INDEX: "<%= instance_id %>"
-      IP: "<%= spec.ip %>"
+<%= YAML.dump(bpm) %>
