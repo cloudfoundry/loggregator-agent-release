@@ -29,7 +29,7 @@
     ca_cert: "((prom_scraper_scrape_tls.ca))"
     cert: "((prom_scraper_scrape_tls.certificate))"
     key: "((prom_scraper_scrape_tls.private_key))"
-    cn: loggregator
+    cn: prom_scraper
 
 - type: replace
   path: /addons/name=prom_scraper/jobs/name=prom_scraper/properties?/skip_ssl_validation?
