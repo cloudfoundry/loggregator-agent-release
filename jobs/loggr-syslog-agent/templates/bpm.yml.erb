@@ -6,29 +6,33 @@
   end.join(",")
 
   certs_dir="/var/vcap/jobs/loggr-syslog-agent/config/certs"
+
+  process = {
+    "name" => "loggr-syslog-agent",
+    "executable" => "/var/vcap/packages/syslog-agent/syslog-agent",
+    "env" => {
+      "CACHE_CA_FILE_PATH" => "#{certs_dir}/cache_ca.crt",
+      "CACHE_CERT_FILE_PATH" => "#{certs_dir}/cache_client.crt",
+      "CACHE_KEY_FILE_PATH" => "#{certs_dir}/cache_client.key",
+      "CACHE_COMMON_NAME" => "#{p("cache.tls.cn")}",
+      "CACHE_URL" => "https://#{b.address}:#{b.p("external_port")}",
+      "CACHE_POLLING_INTERVAL" => "#{p("cache.polling_interval")}",
+      "AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
+      "AGENT_CERT_FILE_PATH" => "#{certs_dir}/syslog_agent.crt",
+      "AGENT_KEY_FILE_PATH" => "#{certs_dir}/syslog_agent.key",
+      "AGENT_CIPHER_SUITES" => "#{p("tls.cipher_suites").split(":").join(",")}",
+      "AGENT_PORT" => "#{p("port")}",
+      "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
+      "BLACKLISTED_SYSLOG_RANGES" => "#{blacklisted_ips}",
+      "UNIVERSAL_DRAIN_URLS" => "#{p("non_app_drains")}",
+      "METRICS_PORT" => "#{p("metrics.port")}",
+      "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
+      "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
+      "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+    }
+  }
+
+  bpm = {"processes" => [process] }
 %>
-processes:
-  - name: loggr-syslog-agent
-    executable: /var/vcap/packages/syslog-agent/syslog-agent
-    env:
-      CACHE_CA_FILE_PATH: "<%= certs_dir %>/cache_ca.crt"
-      CACHE_CERT_FILE_PATH: "<%= certs_dir %>/cache_client.crt"
-      CACHE_KEY_FILE_PATH: "<%= certs_dir %>/cache_client.key"
-      CACHE_COMMON_NAME: <%= p("cache.tls.cn") %>
-      CACHE_URL: <%= "https://#{b.address}:#{b.p("external_port")}" %>
-      CACHE_POLLING_INTERVAL: "<%= p("cache.polling_interval") %>"
 
-      AGENT_CA_FILE_PATH: "<%= certs_dir %>/loggregator_ca.crt"
-      AGENT_CERT_FILE_PATH: "<%= certs_dir %>/syslog_agent.crt"
-      AGENT_KEY_FILE_PATH: "<%= certs_dir %>/syslog_agent.key"
-      AGENT_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
-      AGENT_PORT: <%= p("port") %>
-
-      DRAIN_SKIP_CERT_VERIFY: "<%= p("drain_skip_cert_verify") %>"
-      BLACKLISTED_SYSLOG_RANGES: "<%= blacklisted_ips %>"
-      UNIVERSAL_DRAIN_URLS: "<%= p("non_app_drains") %>"
-
-      METRICS_PORT: <%= p("metrics.port") %>
-      METRICS_CA_FILE_PATH: "<%= certs_dir %>/metrics_ca.crt"
-      METRICS_CERT_FILE_PATH: "<%= certs_dir %>/metrics.crt"
-      METRICS_KEY_FILE_PATH: "<%= certs_dir %>/metrics.key"
+<%= YAML.dump(bpm) %>

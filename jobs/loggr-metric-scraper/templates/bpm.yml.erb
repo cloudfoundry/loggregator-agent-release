@@ -1,32 +1,42 @@
 <%
   leader_addr = "http://127.0.0.1:#{link("leader-election-agent").p("port")}/v1/leader"
   certs_dir="/var/vcap/jobs/loggr-metric-scraper/config/certs"
+
+  process = {
+    "name" => "loggr-metric-scraper",
+    "executable" => "/var/vcap/packages/metric-scraper/metric-scraper",
+    "env" => {
+      "LOGGREGATOR_AGENT_ADDR" => "localhost:#{link('loggregator').p('metron_endpoint.grpc_port')}",
+      "CA_CERT_PATH" => "#{certs_dir}/loggregator_ca.crt",
+      "CLIENT_CERT_PATH" => "#{certs_dir}/loggregator_agent.crt",
+      "CLIENT_KEY_PATH" => "#{certs_dir}/loggregator_agent.key",
+      "SCRAPE_INTERVAL" => "#{p('scrape_interval')}",
+      "SCRAPE_PORT" => "#{p('scrape_port')}",
+      "DEFAULT_SOURCE_ID" => "#{spec.job.name}",
+      "DNS_FILE" => "/var/vcap/instance/dns/records.json",
+      "LEADERSHIP_SERVER_ADDR" => "#{leader_addr}",
+      "SYSTEM_METRICS_CA_CN" => "#{p('system_metrics.tls.common_name')}",
+      "SYSTEM_METRICS_CA_CERT_PATH" => "#{certs_dir}/system_metrics_ca.crt",
+      "SYSTEM_METRICS_CERT_PATH" => "#{certs_dir}/system_metrics.crt",
+      "SYSTEM_METRICS_KEY_PATH" => "#{certs_dir}/system_metrics.key",
+      "METRICS_PORT" => "#{p("metrics.port")}",
+      "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
+      "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
+      "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+    },
+    "unsafe" => {
+      "unrestricted_volumes" => [
+        {
+          "path" => "/var/vcap/instance/dns",
+          "writable" => false,
+          "allow_executions" => false,
+          "mount_only" => true,
+        },
+      ]
+    },
+  }
+
+  bpm = {"processes" => [process] }
 %>
 
-processes:
-  - name: loggr-metric-scraper
-    executable: /var/vcap/packages/metric-scraper/metric-scraper
-    env:
-      LOGGREGATOR_AGENT_ADDR: "<%= "localhost:#{link('loggregator').p('metron_endpoint.grpc_port')}" %>"
-      CA_CERT_PATH: "<%= certs_dir %>/loggregator_ca.crt"
-      CLIENT_CERT_PATH: "<%= certs_dir %>/loggregator_agent.crt"
-      CLIENT_KEY_PATH: "<%= certs_dir %>/loggregator_agent.key"
-      SCRAPE_INTERVAL: "<%= p('scrape_interval') %>"
-      SCRAPE_PORT: "<%= p('scrape_port') %>"
-      DEFAULT_SOURCE_ID: "<%= "#{spec.job.name}" %>"
-      DNS_FILE: "/var/vcap/instance/dns/records.json"
-      LEADERSHIP_SERVER_ADDR: "<%= leader_addr %>"
-      SYSTEM_METRICS_CA_CN: <%= p('system_metrics.tls.common_name') %>
-      SYSTEM_METRICS_CA_CERT_PATH: "<%= certs_dir %>/system_metrics_ca.crt"
-      SYSTEM_METRICS_CERT_PATH: "<%= certs_dir %>/system_metrics.crt"
-      SYSTEM_METRICS_KEY_PATH: "<%= certs_dir %>/system_metrics.key"
-      METRICS_PORT: <%= p("metrics.port") %>
-      METRICS_CA_FILE_PATH: "<%= certs_dir %>/metrics_ca.crt"
-      METRICS_CERT_FILE_PATH: "<%= certs_dir %>/metrics.crt"
-      METRICS_KEY_FILE_PATH: "<%= certs_dir %>/metrics.key"
-    unsafe:
-      unrestricted_volumes:
-        - path: /var/vcap/instance/dns
-          writable: false
-          allow_executions: false
-          mount_only: true
+<%= YAML.dump(bpm) %>

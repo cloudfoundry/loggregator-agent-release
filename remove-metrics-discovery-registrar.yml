@@ -1,0 +1,5 @@
+- type: remove
+  path: /addons/metrics-discovery-registrar
+
+- type: remove
+  path: /instance_groups/name=windows1803-cell/jobs/name=metrics-discovery-registrar-windows

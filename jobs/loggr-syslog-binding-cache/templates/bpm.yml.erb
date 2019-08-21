@@ -1,24 +1,31 @@
-<% certs_dir =  "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs" %>
-processes:
-- name: loggr-syslog-binding-cache
-  executable: /var/vcap/packages/binding-cache/binding-cache
-  env:
-    API_CA_FILE_PATH: "<%= certs_dir %>/api_ca.crt"
-    API_CERT_FILE_PATH: "<%= certs_dir %>/api_client.crt"
-    API_KEY_FILE_PATH: "<%= certs_dir %>/api_client.key"
-    API_COMMON_NAME: <%= p("api.tls.cn") %>
-    API_URL: <%= "https://#{link("cloud_controller").address}:9023" %>
-    API_POLLING_INTERVAL: "<%= p("api.polling_interval") %>"
-    API_BATCH_SIZE: "<%= p("api.batch_size") %>"
+<%
+  certs_dir =  "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs"
+  process = {
+    "name" => "loggr-syslog-binding-cache",
+    "executable" => "/var/vcap/packages/binding-cache/binding-cache",
+    "env" => {
+      "API_CA_FILE_PATH" => "#{certs_dir}/api_ca.crt",
+      "API_CERT_FILE_PATH" => "#{certs_dir}/api_client.crt",
+      "API_KEY_FILE_PATH" => "#{certs_dir}/api_client.key",
+      "API_COMMON_NAME" => "#{p("api.tls.cn")}",
+      "API_URL" => "https://#{link("cloud_controller").address}:9023",
+      "API_POLLING_INTERVAL" => "#{p("api.polling_interval")}",
+      "API_BATCH_SIZE" => "#{p("api.batch_size")}",
 
-    CACHE_CA_FILE_PATH: "<%= certs_dir %>/loggregator_ca.crt"
-    CACHE_CERT_FILE_PATH: "<%= certs_dir %>/binding_cache.crt"
-    CACHE_KEY_FILE_PATH: "<%= certs_dir %>/binding_cache.key"
-    CACHE_CIPHER_SUITES: "<%= p("tls.cipher_suites").split(":").join(",") %>"
-    CACHE_COMMON_NAME: "<%= p("tls.cn") %>"
-    CACHE_PORT: <%= p("external_port") %>
+      "CACHE_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
+      "CACHE_CERT_FILE_PATH" => "#{certs_dir}/binding_cache.crt",
+      "CACHE_KEY_FILE_PATH" => "#{certs_dir}/binding_cache.key",
+      "CACHE_CIPHER_SUITES" => "#{p("tls.cipher_suites").split(":").join(",")}",
+      "CACHE_COMMON_NAME" => "#{p("tls.cn")}",
+      "CACHE_PORT" => "#{p("external_port")}",
 
-    METRICS_PORT: <%= p("metrics.port") %>
-    METRICS_CA_FILE_PATH: "<%= certs_dir %>/metrics_ca.crt"
-    METRICS_CERT_FILE_PATH: "<%= certs_dir %>/metrics.crt"
-    METRICS_KEY_FILE_PATH: "<%= certs_dir %>/metrics.key"
+      "METRICS_PORT" => "#{p("metrics.port")}",
+      "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
+      "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
+      "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+    }
+  }
+  bpm = {"processes" => [process] }
+%>
+
+<%= YAML.dump(bpm) %>
