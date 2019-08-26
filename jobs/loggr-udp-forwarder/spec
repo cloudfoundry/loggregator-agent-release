@@ -6,6 +6,9 @@ templates:
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
   loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
   loggregator_agent.key.erb: config/certs/loggregator_agent.key
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
 
 packages:
 - udp-forwarder

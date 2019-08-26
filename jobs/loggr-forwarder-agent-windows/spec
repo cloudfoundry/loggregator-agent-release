@@ -11,10 +11,6 @@ templates:
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
   metric_targets.yml.erb: config/metric_targets.yml
-  metrics_ca.crt.erb: config/certs/metrics_ca.crt
-  metrics.crt.erb: config/certs/metrics.crt
-  metrics.key.erb: config/certs/metrics.key
-  metric_targets.yml.erb: config/metric_targets.yml
 
 packages:
 - forwarder-agent-windows
