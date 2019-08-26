@@ -31,7 +31,7 @@ scrape_configs = [
     {
       "source_labels"=> ['__address__'], # always there (added by Prometheus)
       "target_label" => 'source_id',
-      "replacement" => 'metrics_agent'
+      "replacement" => 'loggr-metrics-agent'
     },
     {
       "source_labels"=> ['__address__'], # always there (added by Prometheus)
