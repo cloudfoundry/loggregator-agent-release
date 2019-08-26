@@ -18,6 +18,11 @@
         "JOB" => "#{job_name}",
         "INDEX" => "#{instance_id}",
         "IP" => "#{spec.ip}",
+
+        "METRICS_PORT" => "#{p("metrics.port")}",
+        "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
+        "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
+        "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
       }
     }
 
