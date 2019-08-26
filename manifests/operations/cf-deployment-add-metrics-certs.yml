@@ -32,10 +32,6 @@
     cn: prom_scraper
 
 - type: replace
-  path: /addons/name=prom_scraper/jobs/name=prom_scraper/properties?/skip_ssl_validation?
-  value: "true"
-
-- type: replace
   path: /instance_groups/name=scheduler/jobs/name=loggr-metric-scraper/properties/metrics?
   value:
     ca_cert: "((loggr_metric_scraper_metrics_tls.ca))"

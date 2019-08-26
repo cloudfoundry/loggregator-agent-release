@@ -34,7 +34,6 @@
     process["env"]["SCRAPE_CA_CERT_PATH"] = "#{cert_dir}/scrape_ca.crt"
     process["env"]["SCRAPE_CERT_PATH"] = "#{cert_dir}/scrape.crt"
     process["env"]["SCRAPE_KEY_PATH"] = "#{cert_dir}/scrape.key"
-    process["env"]["SCRAPE_COMMON_NAME"] = "#{p('scrape.tls.cn', "")}"
   }
 
   bpm = {"processes" => [process] }

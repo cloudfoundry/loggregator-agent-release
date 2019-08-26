@@ -33,7 +33,6 @@
       monit["processes"][0]["env"]["SCRAPE_CA_CERT_PATH"] = "#{certs_dir}/scrape_ca.crt"
       monit["processes"][0]["env"]["SCRAPE_CERT_PATH"] = "#{certs_dir}/scrape.crt"
       monit["processes"][0]["env"]["SCRAPE_KEY_PATH"] = "#{certs_dir}/scrape.key"
-      monit["processes"][0]["env"]["SCRAPE_COMMON_NAME"] = p('scrape.tls.cn', "")
   }
 %>
 

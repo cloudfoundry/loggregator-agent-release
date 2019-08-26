@@ -35,8 +35,6 @@ properties:
     description: "The key used to communicate with scrape targets"
   scrape.tls.ca_cert:
     description: "The CA used to communicate with scrape targets"
-  scrape.tls.cn:
-    description: "The common name used to communicate with scrape targets"
 
   loggregator_agent.grpc_port:
     description: "The gRPC port used to connect to loggregator agent. Can come from loggregator link"

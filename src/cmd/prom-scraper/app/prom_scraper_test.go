@@ -175,7 +175,7 @@ var _ = Describe("PromScraper", func() {
 			promServer = newStubHttpsPromServer(testLogger, scrapeCerts,false)
 			writeScrapeConfig(
 				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "https"),
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, ""),
 				"prom_scraper_config.yml",
 			)
 
@@ -208,22 +208,21 @@ var _ = Describe("PromScraper", func() {
 	Context("with TLS", func() {
 		BeforeEach(func() {
 			promServer = newStubHttpsPromServer(testLogger, scrapeCerts, true)
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "https"),
-				"prom_scraper_config.yml",
-			)
-
 			promServer.resp = promOutput
 
 			cfg.SkipSSLValidation = false
 			cfg.ScrapeCertPath = scrapeCerts.Cert("client")
 			cfg.ScrapeKeyPath = scrapeCerts.Key("client")
 			cfg.ScrapeCACertPath = scrapeCerts.CA()
-			cfg.ScrapeCommonName = "server"
 		})
 
 		It("scrapes over mTLS", func() {
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "server_name: server"),
+				"prom_scraper_config.yml",
+			)
+
 			ps = app.NewPromScraper(cfg, testLogger)
 			go ps.Run()
 
@@ -236,6 +235,29 @@ var _ = Describe("PromScraper", func() {
 			))
 		})
 
+		It("verifies server name if given", func() {
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "server_name: wrong"),
+				"prom_scraper_config.yml",
+			)
+
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Consistently(spyAgent.Envelopes, 1).Should(BeEmpty())
+		})
+
+		It("does not scrape if certs are provided but server name is empty", func(){
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, ""),
+				"prom_scraper_config.yml",
+			)
+
+			ps = app.NewPromScraper(cfg, testLogger)
+			Expect(ps.Run).To(Panic())
+		})
 	})
 })
 
@@ -368,7 +390,8 @@ path: %s`
 port: %s
 source_id: some-id
 instance_id: some-instance-id
-scheme: %s`
+scheme: https
+%s`
 
 	metricConfigWithHeadersTemplate = `---
 port: %s

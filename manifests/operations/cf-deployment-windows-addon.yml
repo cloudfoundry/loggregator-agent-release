@@ -85,6 +85,3 @@
     key: "((prom_scraper_scrape_tls.private_key))"
     cn: loggregator
 
-- type: replace
-  path: /instance_groups/name=windows1803-cell/jobs/name=prom_scraper_windows/properties?/skip_ssl_validation?
-  value: "true"

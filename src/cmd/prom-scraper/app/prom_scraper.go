@@ -22,6 +22,7 @@ type promScraperConfig struct {
 	SourceID       string            `yaml:"source_id"`
 	InstanceID     string            `yaml:"instance_id"`
 	Scheme         string            `yaml:"scheme"`
+	ServerName     string            `yaml:"server_name"`
 	Path           string            `yaml:"path"`
 	Headers        map[string]string `yaml:"headers"`
 	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
@@ -94,7 +95,15 @@ func (p *PromScraper) parseConfig(file string) promScraperConfig {
 		p.log.Fatalf("Unmarshal: %v", err)
 	}
 
+	if p.isMTLSTargetMissingServerName(scraperConfig) {
+		p.log.Panicf("server_name is missing from mTLS scrape config (%s)", file)
+	}
+
 	return scraperConfig
+}
+
+func (p *PromScraper) isMTLSTargetMissingServerName(scraperConfig promScraperConfig) bool {
+	return p.cfg.ScrapeCertPath != "" && scraperConfig.Scheme == "https" && scraperConfig.ServerName == ""
 }
 
 func (p *PromScraper) buildIngressClient() *loggregator.IngressClient {
@@ -152,7 +161,7 @@ func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggr
 		Headers:    scrapeConfig.Headers,
 	}
 
-	httpClient := p.buildHttpClient(scrapeConfig.ScrapeInterval)
+	httpClient := p.buildHttpClient(scrapeConfig.ScrapeInterval, scrapeConfig.ServerName)
 
 	return scraper.New(
 		func() []scraper.Target {
@@ -164,20 +173,17 @@ func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggr
 	)
 }
 
-func (p *PromScraper) buildHttpClient(idleTimeout time.Duration) *http.Client {
+func (p *PromScraper) buildHttpClient(idleTimeout time.Duration, serverName string) *http.Client {
 	tlsOptions := []tlsconfig.TLSOption{tlsconfig.WithInternalServiceDefaults()}
 	clientOptions := []tlsconfig.ClientOption{withSkipSSLValidation(p.cfg.SkipSSLValidation)}
 
 	if p.cfg.ScrapeCertPath != "" && p.cfg.ScrapeKeyPath != "" {
 		tlsOptions = append(tlsOptions, tlsconfig.WithIdentityFromFile(p.cfg.ScrapeCertPath, p.cfg.ScrapeKeyPath))
+		clientOptions = append(clientOptions, tlsconfig.WithServerName(serverName))
 	}
 
 	if p.cfg.ScrapeCACertPath != "" {
 		clientOptions = append(clientOptions, tlsconfig.WithAuthorityFromFile(p.cfg.ScrapeCACertPath))
-	}
-
-	if p.cfg.ScrapeCommonName != "" {
-		clientOptions = append(clientOptions, tlsconfig.WithServerName(p.cfg.ScrapeCommonName))
 	}
 
 	tlsConfig, err := tlsconfig.Build(tlsOptions...).Client(clientOptions...)
