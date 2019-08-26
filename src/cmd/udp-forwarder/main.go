@@ -19,8 +19,13 @@ func main() {
 	m := metrics.NewRegistry(logger,
 		metrics.WithDefaultTags(map[string]string{
 			"origin":    "loggregator.udp_forwarder",
-			"source_id": "udp_forwarder",
 		}),
+		metrics.WithTLSServer(
+			int(cfg.MetricsServer.Port),
+			cfg.MetricsServer.CertFile,
+			cfg.MetricsServer.KeyFile,
+			cfg.MetricsServer.CAFile,
+		),
 	)
 
 	forwarder := app.NewUDPForwarder(cfg, logger, m)

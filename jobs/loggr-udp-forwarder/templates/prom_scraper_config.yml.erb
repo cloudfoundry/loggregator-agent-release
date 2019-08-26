@@ -1,0 +1,5 @@
+---
+port: <%= p("metrics.port") %>
+source_id: "udp_forwarder"
+instance_id: <%= spec.id || spec.index.to_s %>
+scheme: https

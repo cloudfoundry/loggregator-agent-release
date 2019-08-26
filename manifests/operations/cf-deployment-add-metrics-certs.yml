@@ -52,6 +52,54 @@
     server_name: loggr_syslog_binding_cache
 
 - type: replace
+  path: /instance_groups/name=api/jobs/name=loggr-udp-forwarder/properties/metrics?
+  value:
+    ca_cert: "((loggr_udp_forwarder_tls.ca))"
+    cert: "((loggr_udp_forwarder_tls.certificate))"
+    key: "((loggr_udp_forwarder_tls.private_key))"
+    server_name: loggr_udp_forwarder
+
+- type: replace
+  path: /instance_groups/name=diego-api/jobs/name=loggr-udp-forwarder/properties/metrics?
+  value:
+    ca_cert: "((loggr_udp_forwarder_tls.ca))"
+    cert: "((loggr_udp_forwarder_tls.certificate))"
+    key: "((loggr_udp_forwarder_tls.private_key))"
+    server_name: loggr_udp_forwarder
+
+- type: replace
+  path: /instance_groups/name=diego-cell/jobs/name=loggr-udp-forwarder/properties/metrics?
+  value:
+    ca_cert: "((loggr_udp_forwarder_tls.ca))"
+    cert: "((loggr_udp_forwarder_tls.certificate))"
+    key: "((loggr_udp_forwarder_tls.private_key))"
+    server_name: loggr_udp_forwarder
+
+- type: replace
+  path: /instance_groups/name=router/jobs/name=loggr-udp-forwarder/properties/metrics?
+  value:
+    ca_cert: "((loggr_udp_forwarder_tls.ca))"
+    cert: "((loggr_udp_forwarder_tls.certificate))"
+    key: "((loggr_udp_forwarder_tls.private_key))"
+    server_name: loggr_udp_forwarder
+
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/name=loggr-udp-forwarder/properties/metrics?
+  value:
+    ca_cert: "((loggr_udp_forwarder_tls.ca))"
+    cert: "((loggr_udp_forwarder_tls.certificate))"
+    key: "((loggr_udp_forwarder_tls.private_key))"
+    server_name: loggr_udp_forwarder
+
+- type: replace
+  path: /instance_groups/name=tcp-router/jobs/name=loggr-udp-forwarder/properties/metrics?
+  value:
+    ca_cert: "((loggr_udp_forwarder_tls.ca))"
+    cert: "((loggr_udp_forwarder_tls.certificate))"
+    key: "((loggr_udp_forwarder_tls.private_key))"
+    server_name: loggr_udp_forwarder
+
+- type: replace
   path: /variables/name=metric_scraper_ca?
   value:
     name: metric_scraper_ca
@@ -112,6 +160,17 @@
     options:
       ca: metric_scraper_ca
       common_name: loggr_syslog_binding_cache
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /variables/name=loggr_udp_forwarder_tls?
+  value:
+    name: loggr_udp_forwarder_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: loggr_udp_forwarder
       extended_key_usage:
       - server_auth
 
