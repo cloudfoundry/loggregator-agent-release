@@ -25,14 +25,15 @@ import (
 
 var _ = Describe("PromScraper", func() {
 	var (
-		spyAgent   *spyAgent
-		cfg        app.Config
-		promServer *stubPromServer
-		ps         *app.PromScraper
+		spyAgent     *spyAgent
+		cfg          app.Config
+		promServer   *stubPromServer
+		ps           *app.PromScraper
+		metricClient *testhelper.SpyMetricClient
 
-		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts  = testhelper.GenerateCerts("loggregatorCA")
-		scrapeCerts  = testhelper.GenerateCerts("scrapeCA")
+		testLogger  = log.New(GinkgoWriter, "", log.LstdFlags)
+		testCerts   = testhelper.GenerateCerts("loggregatorCA")
+		scrapeCerts = testhelper.GenerateCerts("scrapeCA")
 
 		metricConfigDir string
 	)
@@ -41,6 +42,7 @@ var _ = Describe("PromScraper", func() {
 		metricConfigDir = metricPortConfigDir()
 
 		spyAgent = newSpyAgent(testCerts)
+		metricClient = testhelper.NewMetricClient()
 
 		cfg = app.Config{
 			ClientKeyPath:          testCerts.Key("metron"),
@@ -72,7 +74,7 @@ var _ = Describe("PromScraper", func() {
 			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
 
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -94,7 +96,7 @@ var _ = Describe("PromScraper", func() {
 
 			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
 			cfg.DefaultScrapeInterval = time.Hour
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(
@@ -115,7 +117,7 @@ var _ = Describe("PromScraper", func() {
 			promServer2.resp = promOutput2
 
 			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -132,7 +134,7 @@ var _ = Describe("PromScraper", func() {
 			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
 
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(promServer.requestHeaders).Should(Receive(And(
@@ -146,7 +148,7 @@ var _ = Describe("PromScraper", func() {
 				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 				promServer.resp = promOutput
 
-				ps = app.NewPromScraper(cfg, testLogger)
+				ps = app.NewPromScraper(cfg, metricClient, testLogger)
 				go ps.Run()
 
 				Eventually(promServer.requestPaths).Should(Receive(Equal("/metrics")))
@@ -162,7 +164,7 @@ var _ = Describe("PromScraper", func() {
 				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 				promServer.resp = promOutput
 
-				ps = app.NewPromScraper(cfg, testLogger)
+				ps = app.NewPromScraper(cfg, metricClient, testLogger)
 				go ps.Run()
 
 				Eventually(promServer.requestPaths).Should(Receive(Equal("/other/metrics/endpoint")))
@@ -172,7 +174,7 @@ var _ = Describe("PromScraper", func() {
 
 	Context("https", func() {
 		BeforeEach(func() {
-			promServer = newStubHttpsPromServer(testLogger, scrapeCerts,false)
+			promServer = newStubHttpsPromServer(testLogger, scrapeCerts, false)
 			writeScrapeConfig(
 				metricConfigDir,
 				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, ""),
@@ -183,7 +185,7 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("scrapes https if provided", func() {
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -197,7 +199,7 @@ var _ = Describe("PromScraper", func() {
 
 		It("respects skip SSL validation", func() {
 			cfg.SkipSSLValidation = false
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			// certs have an untrusted CA
@@ -223,7 +225,7 @@ var _ = Describe("PromScraper", func() {
 				"prom_scraper_config.yml",
 			)
 
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -242,24 +244,75 @@ var _ = Describe("PromScraper", func() {
 				"prom_scraper_config.yml",
 			)
 
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
 			Consistently(spyAgent.Envelopes, 1).Should(BeEmpty())
 		})
 
-		It("does not scrape if certs are provided but server name is empty", func(){
+		It("does not scrape if certs are provided but server name is empty", func() {
 			writeScrapeConfig(
 				metricConfigDir,
 				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, ""),
 				"prom_scraper_config.yml",
 			)
 
-			ps = app.NewPromScraper(cfg, testLogger)
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			Expect(ps.Run).To(Panic())
 		})
 	})
+
+	Context("metrics", func() {
+		It("has scrape targets counter", func() {
+			promServer = newStubPromServer()
+			promServer2 := newStubPromServer()
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
+
+			promServer.resp = promOutput
+			promServer2.resp = promOutput2
+
+			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			go ps.Run()
+
+			Eventually(hasMetric(metricClient,"scrape_targets_total", map[string]string{})).Should(BeTrue())
+			Eventually(func() float64 {
+				return metricClient.GetMetric("scrape_targets_total", map[string]string{}).Value()
+			}).Should(Equal(2.0))
+		})
+
+		It("has failed scrapes counter", func() {
+			promServer = newStubHttpsPromServer(testLogger, scrapeCerts, true)
+			promServer.resp = promOutput
+
+			cfg.SkipSSLValidation = false
+			cfg.ScrapeCertPath = scrapeCerts.Cert("client")
+			cfg.ScrapeKeyPath = scrapeCerts.Key("client")
+			cfg.ScrapeCACertPath = scrapeCerts.CA()
+
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "server_name: wrong"),
+				"prom_scraper_config.yml",
+			)
+
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			go ps.Run()
+
+			Eventually(hasMetric(metricClient,"failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"})).Should(BeTrue())
+			Eventually(func() float64 {
+				return metricClient.GetMetric("failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"}).Value()
+			}).Should(BeNumerically(">=", 1))
+		})
+	})
 })
+
+func hasMetric(metricClient *testhelper.SpyMetricClient, name string, tags map[string]string) func() bool {
+	return func() bool {
+		return metricClient.HasMetric(name, tags)
+	}
+}
 
 type stubPromServer struct {
 	resp string

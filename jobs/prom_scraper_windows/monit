@@ -20,10 +20,16 @@
           "CA_CERT_PATH" => "#{certs_dir}/loggregator_ca.crt",
           "CLIENT_CERT_PATH" => "#{certs_dir}/loggregator_agent.crt",
           "CLIENT_KEY_PATH" => "#{certs_dir}/loggregator_agent.key",
+
           "CONFIG_GLOBS" => p('config_globs').join(','),
           "SCRAPE_INTERVAL" => p('scrape_interval'),
           "DEFAULT_SOURCE_ID" => "infra_#{spec.job.name}",
           "SKIP_SSL_VALIDATION" => "#{p('skip_ssl_validation')}",
+
+          "METRICS_PORT" => "#{p("metrics.port")}",
+          "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
+          "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
+          "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
         }
       }
     ]

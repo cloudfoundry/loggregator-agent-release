@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/pkg/config"
 	"log"
 	"time"
 
@@ -23,6 +24,8 @@ type Config struct {
 	ConfigGlobs            []string      `env:"CONFIG_GLOBS, report"`
 	DefaultScrapeInterval  time.Duration `env:"SCRAPE_INTERVAL, report"`
 	SkipSSLValidation      bool          `env:"SKIP_SSL_VALIDATION, report"`
+
+	MetricsServer config.MetricsServer
 }
 
 func LoadConfig(log *log.Logger) Config {

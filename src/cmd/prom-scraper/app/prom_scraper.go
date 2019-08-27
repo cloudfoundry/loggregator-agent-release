@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/go-loggregator/metrics"
 	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
@@ -29,17 +30,25 @@ type promScraperConfig struct {
 }
 
 type PromScraper struct {
-	cfg  Config
-	log  *log.Logger
-	stop chan struct{}
-	wg   sync.WaitGroup
+	cfg                Config
+	log                *log.Logger
+	stop               chan struct{}
+	wg                 sync.WaitGroup
+	m                  promRegistry
+	scrapeTargetTotals metrics.Counter
 }
 
-func NewPromScraper(cfg Config, log *log.Logger) *PromScraper {
+type promRegistry interface {
+	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+}
+func NewPromScraper(cfg Config, m promRegistry, log *log.Logger) *PromScraper {
 	return &PromScraper{
 		cfg:  cfg,
 		log:  log,
 		stop: make(chan struct{}),
+
+		m:m,
+		scrapeTargetTotals: m.NewCounter("scrape_targets_total"),
 	}
 }
 
@@ -48,7 +57,7 @@ func (p *PromScraper) Run() {
 	client := p.buildIngressClient()
 
 	p.startScrapers(promScraperConfigs, client)
-
+	p.scrapeTargetTotals.Add(float64(len(promScraperConfigs)))
 	p.wg.Wait()
 }
 
@@ -141,10 +150,15 @@ func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, ingressClient
 	s := p.buildScraper(scrapeConfig, ingressClient)
 	ticker := time.Tick(scrapeConfig.ScrapeInterval)
 
+	failedScrapesTotal := p.m.NewCounter("failed_scrapes_total", metrics.WithMetricTags(map[string]string{
+		"scrape_target_source_id": scrapeConfig.SourceID,
+	}))
+
 	for {
 		select {
 		case <-ticker:
 			if err := s.Scrape(); err != nil {
+				failedScrapesTotal.Add(1)
 				p.log.Printf("failed to scrape: %s", err)
 			}
 		case <-p.stop:

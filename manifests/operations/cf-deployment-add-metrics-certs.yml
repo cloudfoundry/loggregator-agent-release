@@ -32,6 +32,14 @@
     cn: prom_scraper
 
 - type: replace
+  path: /addons/name=prom_scraper/jobs/name=prom_scraper/properties?/metrics?
+  value:
+    ca_cert: "((prom_scraper_metrics_tls.ca))"
+    cert: "((prom_scraper_metrics_tls.certificate))"
+    key: "((prom_scraper_metrics_tls.private_key))"
+    server_name: prom_scraper
+
+- type: replace
   path: /instance_groups/name=scheduler/jobs/name=loggr-metric-scraper/properties/metrics?
   value:
     ca_cert: "((loggr_metric_scraper_metrics_tls.ca))"
@@ -180,3 +188,15 @@
       common_name: prom_scraper
       extended_key_usage:
       - client_auth
+
+
+- type: replace
+  path: /variables/name=prom_scraper_metrics_tls?
+  value:
+    name: prom_scraper_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: prom_scraper_metrics
+      extended_key_usage:
+      - server_auth

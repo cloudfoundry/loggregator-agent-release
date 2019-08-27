@@ -14,6 +14,10 @@ templates:
   scrape.crt.erb: config/certs/scrape.crt
   scrape.key.erb: config/certs/scrape.key
   scrape_ca.crt.erb: config/certs/scrape_ca.crt
+  metrics_ca.crt.erb: config/certs/metrics_ca.crt
+  metrics.crt.erb: config/certs/metrics.crt
+  metrics.key.erb: config/certs/metrics.key
+  prom_scraper_config.yml.erb: config/prom_scraper_config.yml
 
 packages:
 - prom_scraper_windows
@@ -44,3 +48,15 @@ properties:
     description: "The key used to communicate with loggregator agent. Can come from loggregator link"
   loggregator_agent.tls.ca_cert:
     description: "The CA used to communicate with loggregator agent. Can come from loggregator link"
+
+  metrics.port:
+    description: "Port the agent uses to serve metrics and debug information"
+    default: 14821
+  metrics.ca_cert:
+    description: "TLS CA cert to verify requests to metrics endpoint."
+  metrics.cert:
+    description: "TLS certificate for metrics server signed by the metrics CA"
+  metrics.key:
+    description: "TLS private key for metrics server signed by the metrics CA"
+  metrics.server_name:
+    description: "The server name used in the scrape configuration for the metrics endpoint"
