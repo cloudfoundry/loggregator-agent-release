@@ -21,6 +21,9 @@ templates:
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
   metric_targets.yml.erb: config/metric_targets.yml
+  leadership_election_ca.crt.erb: config/certs/leadership_election_ca.crt
+  leadership_election.crt.erb: config/certs/leadership_election.crt
+  leadership_election.key.erb: config/certs/leadership_election.key
 
 packages:
 - metric-scraper
@@ -56,3 +59,10 @@ properties:
     description: "TLS private key for metrics server signed by the metrics CA"
   metrics.server_name:
     description: "The server name used in the scrape configuration for the metrics endpoint"
+
+  leadership_election.ca_cert:
+    description: "TLS CA cert to verify requests to leadership election endpoint."
+  leadership_election.cert:
+    description: "TLS certificate for leadership election client signed by the leadership election CA"
+  leadership_election.key:
+    description: "TLS private key for leadership election client signed by the leadership election CA"

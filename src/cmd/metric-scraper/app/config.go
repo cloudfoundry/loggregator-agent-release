@@ -20,6 +20,11 @@ type Config struct {
 	MetricsCACertPath string `env:"SYSTEM_METRICS_CA_CERT_PATH, report, required"`
 	MetricsCN         string `env:"SYSTEM_METRICS_CA_CN, report, required"`
 
+	// Leadership Election Certs
+	LeadershipKeyPath    string `env:"LEADERSHIP_ELECTION_KEY_PATH, report, required"`
+	LeadershipCertPath   string `env:"LEADERSHIP_ELECTION_CERT_PATH, report, required"`
+	LeadershipCACertPath string `env:"LEADERSHIP_ELECTION_CA_CERT_PATH, report, required"`
+
 	LoggregatorIngressAddr string `env:"LOGGREGATOR_AGENT_ADDR, report, required"`
 	DefaultSourceID        string `env:"DEFAULT_SOURCE_ID, report, required"`
 

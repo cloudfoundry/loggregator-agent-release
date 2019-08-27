@@ -71,10 +71,7 @@ func (m *MetricScraper) scrape() {
 		scraper.WithMetricsClient(m.metrics),
 	)
 
-	leadershipClient := &http.Client{
-		Timeout: 5 * time.Second,
-	}
-
+	leadershipClient := m.leadershipClient()
 	numScrapes := m.metrics.NewCounter("num_scrapes")
 	t := time.NewTicker(m.cfg.ScrapeInterval)
 	for {
@@ -94,6 +91,22 @@ func (m *MetricScraper) scrape() {
 			close(m.stoppedChan)
 			return
 		}
+	}
+}
+
+func (m *MetricScraper) leadershipClient() *http.Client {
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithIdentityFromFile(m.cfg.LeadershipCertPath, m.cfg.LeadershipKeyPath),
+	).Client(
+		tlsconfig.WithAuthorityFromFile(m.cfg.LeadershipCACertPath),
+	)
+	if err != nil {
+		m.log.Fatalf("failed to generate leadership election client tls config: %s", err)
+	}
+
+	return &http.Client{
+		Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		Timeout:   5 * time.Second,
 	}
 }
 

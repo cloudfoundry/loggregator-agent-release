@@ -44,7 +44,7 @@ var _ = Describe("App", func() {
 	Describe("when configured with a single metrics_url", func() {
 		BeforeEach(func() {
 			spyAgent = newSpyAgent(metronTestCerts)
-			leadership = newSpyLeadership()
+			leadership = newSpyLeadership(metronTestCerts)
 
 			promServer = newPromServer()
 			promServer.start(systemMetricsTestCerts)
@@ -64,6 +64,9 @@ var _ = Describe("App", func() {
 				MetricsKeyPath:         systemMetricsTestCerts.Key("system-metrics-agent"),
 				MetricsCertPath:        systemMetricsTestCerts.Cert("system-metrics-agent"),
 				MetricsCACertPath:      systemMetricsTestCerts.CA(),
+				LeadershipKeyPath:      metronTestCerts.Key("leadership-client"),
+				LeadershipCertPath:     metronTestCerts.Cert("leadership-client"),
+				LeadershipCACertPath:   metronTestCerts.CA(),
 				MetricsCN:              "system-metrics-agent",
 				LoggregatorIngressAddr: spyAgent.addr,
 				ScrapeInterval:         100 * time.Millisecond,
@@ -422,12 +425,23 @@ func (l *spyLeadership) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(l.statusCode)
 }
 
-func newSpyLeadership() *spyLeadership {
+func newSpyLeadership(metronTestCerts *testhelper.TestCerts) *spyLeadership {
 	leadership := &spyLeadership{
 		statusCode: http.StatusOK,
 	}
 
-	leadership.server = httptest.NewServer(leadership)
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithIdentityFromFile(
+			metronTestCerts.Cert("leadership-server"),
+			metronTestCerts.Key("leadership-server"),
+		)).Server(tlsconfig.WithClientAuthenticationFromFile(metronTestCerts.CA()))
+	if err != nil {
+		panic(err)
+	}
+
+	leadership.server = httptest.NewUnstartedServer(leadership)
+	leadership.server.TLS = tlsConfig
+	leadership.server.StartTLS()
 
 	return leadership
 }
