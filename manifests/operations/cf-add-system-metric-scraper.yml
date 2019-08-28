@@ -17,9 +17,34 @@
     release: leadership-election
     properties:
       port: 7100
+      metrics:
+        ca_cert: "((leadership_election_metrics_tls.ca))"
+        cert: "((leadership_election_metrics_tls.certificate))"
+        key: "((leadership_election_metrics_tls.private_key))"
+        server_name: leadership_election_metrics
 
 - type: replace
   path: /releases/name=leadership-election?
   value:
     name: leadership-election
     version: latest
+
+- type: replace
+  path: /variables/name=metric_scraper_ca?
+  value:
+    name: metric_scraper_ca
+    type: certificate
+    options:
+      is_ca: true
+      common_name: metricScraperCA
+
+- type: replace
+  path: /variables/name=forwarder_agent_metrics_tls?
+  value:
+    name: leadership_election_metrics_tls
+    type: certificate
+    options:
+      ca: metric_scraper_ca
+      common_name: leadership_election_metrics
+      extended_key_usage:
+      - server_auth
