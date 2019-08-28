@@ -20,7 +20,6 @@ templates:
   metrics_ca.crt.erb: config/certs/metrics_ca.crt
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
-  metric_targets.yml.erb: config/metric_targets.yml
   leadership_election_ca.crt.erb: config/certs/leadership_election_ca.crt
   leadership_election.crt.erb: config/certs/leadership_election.crt
   leadership_election.key.erb: config/certs/leadership_election.key
