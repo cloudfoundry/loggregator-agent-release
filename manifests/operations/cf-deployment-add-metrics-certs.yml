@@ -37,7 +37,7 @@
     ca_cert: "((prom_scraper_metrics_tls.ca))"
     cert: "((prom_scraper_metrics_tls.certificate))"
     key: "((prom_scraper_metrics_tls.private_key))"
-    server_name: prom_scraper
+    server_name: prom_scraper_metrics
 
 - type: replace
   path: /instance_groups/name=scheduler/jobs/name=loggr-metric-scraper/properties/metrics?
