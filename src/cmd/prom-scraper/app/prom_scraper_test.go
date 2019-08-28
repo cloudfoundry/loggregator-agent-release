@@ -143,6 +143,26 @@ var _ = Describe("PromScraper", func() {
 			)))
 		})
 
+		It("adds default tags if provided", func() {
+			writeScrapeConfig(
+				metricConfigDir,
+				fmt.Sprintf(metricConfigWithLabelsTemplate, promServer.port, `default_label: "value"`),
+				"prom_scraper_config.yml",
+			)
+			promServer.resp = promOutput
+
+			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			go ps.Run()
+
+			Eventually(func() int {
+				return len(spyAgent.Envelopes())
+			}).Should(BeNumerically(">=", 5))
+
+			for _, env := range spyAgent.Envelopes() {
+				Expect(env.Tags).To(HaveKeyWithValue("default_label", "value"))
+			}
+		})
+
 		Context("metrics path", func() {
 			It("defaults to /metrics", func() {
 				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
@@ -276,7 +296,7 @@ var _ = Describe("PromScraper", func() {
 			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
-			Eventually(hasMetric(metricClient,"scrape_targets_total", map[string]string{})).Should(BeTrue())
+			Eventually(hasMetric(metricClient, "scrape_targets_total", map[string]string{})).Should(BeTrue())
 			Eventually(func() float64 {
 				return metricClient.GetMetric("scrape_targets_total", map[string]string{}).Value()
 			}).Should(Equal(2.0))
@@ -300,7 +320,7 @@ var _ = Describe("PromScraper", func() {
 			ps = app.NewPromScraper(cfg, metricClient, testLogger)
 			go ps.Run()
 
-			Eventually(hasMetric(metricClient,"failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"})).Should(BeTrue())
+			Eventually(hasMetric(metricClient, "failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"})).Should(BeTrue())
 			Eventually(func() float64 {
 				return metricClient.GetMetric("failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"}).Value()
 			}).Should(BeNumerically(">=", 1))
@@ -453,6 +473,13 @@ instance_id: some-instance-id
 headers:
   Header1: value1
   Header2: value2`
+
+	metricConfigWithLabelsTemplate = `---
+port: %s
+source_id: some-id
+instance_id: some-instance-id
+labels:
+  %s`
 )
 
 func metricPortConfigDir() string {

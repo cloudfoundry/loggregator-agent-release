@@ -236,6 +236,66 @@ var _ = Describe("Scraper", func() {
 		})
 	})
 
+	Context("default tags", func() {
+		It("adds default tags to emitted metrics", func() {
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+				DefaultTags: map[string]string{
+					"tag_a": "a",
+					"tag_b": "b",
+				},
+			})
+			addResponse(tc, 200, promOutput)
+
+			Expect(tc.scraper.Scrape()).To(Succeed())
+
+			Expect(tc.metricEmitter.envelopes).To(And(
+				ContainElement(buildGauge(
+					"some-id", "some-instance-id", "node_timex_pps_frequency_hertz", 3,
+					map[string]string{
+						"tag_a": "a",
+						"tag_b": "b",
+					})),
+				ContainElement(buildGauge("some-id", "some-instance-id", "node_timex_pps_jitter_seconds", 4,
+					map[string]string{
+						"tag_a": "a",
+						"tag_b": "b",
+					})),
+			))
+		})
+
+		It("does not add default tags to metrics that already have those tags", func() {
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+				DefaultTags: map[string]string{
+					"tag_a": "a",
+					"tag_b": "b",
+				},
+			})
+			addResponse(tc, 200, promOutputWithTagB)
+
+			Expect(tc.scraper.Scrape()).To(Succeed())
+
+			Expect(tc.metricEmitter.envelopes).To(And(
+				ContainElement(buildGauge(
+					"some-id", "some-instance-id", "node_timex_pps_frequency_hertz", 3,
+					map[string]string{
+						"tag_a": "a",
+						"tag_b": "different-b",
+					})),
+				ContainElement(buildGauge("some-id", "some-instance-id", "node_timex_pps_jitter_seconds", 4,
+					map[string]string{
+						"tag_a": "a",
+						"tag_b": "b",
+					})),
+			))
+		})
+	})
+
 	It("defaults the ID if missing", func() {
 		tc := setup(scraper.Target{
 			InstanceID: "some-instance-id",
@@ -602,6 +662,15 @@ go_gc_duration_seconds_count 331
 `
 	promUntyped = `
 test 9.5e-08
+`
+
+	promOutputWithTagB = `
+# HELP node_timex_pps_frequency_hertz Pulse per second frequency.
+# TYPE node_timex_pps_frequency_hertz gauge
+node_timex_pps_frequency_hertz{tag_b="different-b"} 3
+# HELP node_timex_pps_jitter_seconds Pulse per second jitter.
+# TYPE node_timex_pps_jitter_seconds gauge
+node_timex_pps_jitter_seconds 4
 `
 )
 

@@ -30,10 +30,11 @@ type TargetProvider func() []Target
 type ScrapeOption func(s *Scraper)
 
 type Target struct {
-	ID         string
-	InstanceID string
-	MetricURL  string
-	Headers    map[string]string
+	ID          string
+	InstanceID  string
+	MetricURL   string
+	Headers     map[string]string
+	DefaultTags map[string]string
 }
 
 type MetricsEmitter interface {
@@ -267,7 +268,11 @@ func (s *Scraper) emitSummary(sourceID, instanceID, name string, tags map[string
 }
 
 func (s *Scraper) parseTags(m *io_prometheus_client.Metric, t Target) (string, map[string]string) {
-	tags := make(map[string]string)
+	tags := map[string]string{}
+	for k, v := range t.DefaultTags {
+		tags[k] = v
+	}
+
 	sourceID := t.ID
 	for _, l := range m.GetLabel() {
 		if l.GetName() == "source_id" {

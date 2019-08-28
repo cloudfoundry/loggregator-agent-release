@@ -26,6 +26,7 @@ type promScraperConfig struct {
 	ServerName     string            `yaml:"server_name"`
 	Path           string            `yaml:"path"`
 	Headers        map[string]string `yaml:"headers"`
+	Labels         map[string]string `yaml:"labels"`
 	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
 }
 
@@ -175,10 +176,11 @@ func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, ingressClient
 
 func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggregator.IngressClient) *scraper.Scraper {
 	scrapeTarget := scraper.Target{
-		ID:         scrapeConfig.SourceID,
-		InstanceID: scrapeConfig.InstanceID,
-		MetricURL:  fmt.Sprintf("%s://127.0.0.1:%s/%s", scrapeConfig.Scheme, scrapeConfig.Port, strings.TrimPrefix(scrapeConfig.Path, "/")),
-		Headers:    scrapeConfig.Headers,
+		ID:          scrapeConfig.SourceID,
+		InstanceID:  scrapeConfig.InstanceID,
+		MetricURL:   fmt.Sprintf("%s://127.0.0.1:%s/%s", scrapeConfig.Scheme, scrapeConfig.Port, strings.TrimPrefix(scrapeConfig.Path, "/")),
+		Headers:     scrapeConfig.Headers,
+		DefaultTags: scrapeConfig.Labels,
 	}
 
 	httpClient := p.buildHttpClient(scrapeConfig.ScrapeInterval, scrapeConfig.ServerName)
