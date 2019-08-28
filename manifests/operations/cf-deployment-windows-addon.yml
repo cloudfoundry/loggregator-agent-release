@@ -83,5 +83,13 @@
     ca_cert: "((prom_scraper_scrape_tls.ca))"
     cert: "((prom_scraper_scrape_tls.certificate))"
     key: "((prom_scraper_scrape_tls.private_key))"
-    cn: loggregator
+    cn: prom_scraper
+
+- type: replace
+  path: /instance_groups/name=windows1803-cell/jobs/name=prom_scraper_windows/properties?/metrics?
+  value:
+    ca_cert: "((prom_scraper_metrics_tls.ca))"
+    cert: "((prom_scraper_metrics_tls.certificate))"
+    key: "((prom_scraper_metrics_tls.private_key))"
+    server_name: prom_scraper
 

@@ -189,7 +189,6 @@
       extended_key_usage:
       - client_auth
 
-
 - type: replace
   path: /variables/name=prom_scraper_metrics_tls?
   value:
