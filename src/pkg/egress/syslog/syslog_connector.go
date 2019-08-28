@@ -58,7 +58,11 @@ func NewSyslogConnector(
 	m metricClient,
 	opts ...ConnectorOption,
 ) *SyslogConnector {
-	metric := m.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction": "egress"}))
+	droppedMetric := m.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "egress"}),
+	)
 
 	sc := &SyslogConnector{
 		keepalive:      netConf.Keepalive,
@@ -68,14 +72,13 @@ func NewSyslogConnector(
 		wg:             wg,
 		logClient:      nullLogClient{},
 		writerFactory:  f,
-		droppedMetric:  metric,
+		droppedMetric:  droppedMetric,
 	}
 	for _, o := range opts {
 		o(sc)
 	}
 	return sc
 }
-
 
 // ConnectorOption allows a syslog connector to be customized.
 type ConnectorOption func(*SyslogConnector)

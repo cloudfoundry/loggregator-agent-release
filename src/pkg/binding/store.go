@@ -14,7 +14,10 @@ type Store struct {
 func NewStore(m Metrics) *Store {
 	return &Store{
 		bindings: make([]Binding, 0),
-		bindingCount: m.NewGauge("cached_bindings"),
+		bindingCount: m.NewGauge(
+			"cached_bindings",
+			metrics.WithHelpText("Current number of bindings stored in the binding cache."),
+		),
 	}
 }
 

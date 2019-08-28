@@ -72,7 +72,10 @@ func (m *MetricScraper) scrape() {
 	)
 
 	leadershipClient := m.leadershipClient()
-	numScrapes := m.metrics.NewCounter("num_scrapes")
+	numScrapes := m.metrics.NewCounter(
+		"num_scrapes",
+		metrics.WithHelpText("Total number of scrapes performed by the metric scraper."),
+	)
 	t := time.NewTicker(m.cfg.ScrapeInterval)
 	for {
 		select {

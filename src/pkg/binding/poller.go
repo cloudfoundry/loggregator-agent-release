@@ -34,12 +34,18 @@ type Setter interface {
 
 func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger) *Poller {
 	p := &Poller{
-		apiClient:                  ac,
-		pollingInterval:            pi,
-		store:                      s,
-		logger:                     logger,
-		bindingRefreshErrorCounter: m.NewCounter("binding_refresh_error"),
-		lastBindingCount:           m.NewGauge("last_binding_refresh_count"),
+		apiClient:       ac,
+		pollingInterval: pi,
+		store:           s,
+		logger:          logger,
+		bindingRefreshErrorCounter: m.NewCounter(
+			"binding_refresh_error",
+			metrics.WithHelpText("Total number of failed requests to the binding provider."),
+		),
+		lastBindingCount: m.NewGauge(
+			"last_binding_refresh_count",
+			metrics.WithHelpText("Current number of bindings received from binding provider during last refresh."),
+		),
 	}
 	p.poll()
 	return p

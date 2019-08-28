@@ -25,13 +25,16 @@ type PusherFetcher struct {
 func NewPusherFetcher(mc MetricClient, opts ...grpc.DialOption) *PusherFetcher {
 	dopplerV1Streams := mc.NewGauge(
 		"doppler_v1_streams",
+		metrics.WithHelpText("Current number of established gRPC streams from v1 agent."),
 		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
 	)
 
 	dopplerConnections := mc.NewGauge(
 		"doppler_connections",
+		metrics.WithHelpText("Current number of gRPC connections from v1 and v2 agents."),
 		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
 	)
+
 	return &PusherFetcher{
 		opts:               opts,
 		dopplerConnections: func(i float64){ dopplerConnections.Add(i) },

@@ -18,10 +18,10 @@ type MetricClient interface {
 }
 
 type NetworkReader struct {
-	connection  net.PacketConn
-	writer      ByteArrayWriter
-	rxMsgCount  func(uint64)
-	buffer      *diodes.OneToOne
+	connection net.PacketConn
+	writer     ByteArrayWriter
+	rxMsgCount func(uint64)
+	buffer     *diodes.OneToOne
 }
 
 func NewNetworkReader(
@@ -34,8 +34,16 @@ func NewNetworkReader(
 		return nil, err
 	}
 	log.Printf("udp bound to: %s", connection.LocalAddr())
-	rxErrCount := m.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction":"all","metric_version":"1.0"}))
-	rxMsgCount := m.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"metric_version":"1.0"}))
+	rxErrCount := m.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "all", "metric_version": "1.0"}),
+	)
+	rxMsgCount := m.NewCounter(
+		"ingress",
+		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+		metrics.WithMetricTags(map[string]string{"metric_version": "1.0"}),
+	)
 
 	return &NetworkReader{
 		connection: connection,

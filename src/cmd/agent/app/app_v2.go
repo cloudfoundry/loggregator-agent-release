@@ -37,11 +37,11 @@ func WithV2Lookup(l func(string) ([]net.IP, error)) func(*AppV2) {
 }
 
 type AppV2 struct {
-	config                   *Config
-	clientCreds              credentials.TransportCredentials
-	serverCreds              credentials.TransportCredentials
-	metricClient             MetricClient
-	lookup                   func(string) ([]net.IP, error)
+	config       *Config
+	clientCreds  credentials.TransportCredentials
+	serverCreds  credentials.TransportCredentials
+	metricClient MetricClient
+	lookup       func(string) ([]net.IP, error)
 }
 
 func NewV2App(
@@ -52,11 +52,11 @@ func NewV2App(
 	opts ...AppV2Option,
 ) *AppV2 {
 	a := &AppV2{
-		config:                   c,
-		clientCreds:              clientCreds,
-		serverCreds:              serverCreds,
-		metricClient:             metricClient,
-		lookup:                   net.LookupIP,
+		config:       c,
+		clientCreds:  clientCreds,
+		serverCreds:  serverCreds,
+		metricClient: metricClient,
+		lookup:       net.LookupIP,
 	}
 
 	for _, o := range opts {
@@ -71,7 +71,11 @@ func (a *AppV2) Start() {
 		log.Panic("Failed to load TLS server config")
 	}
 
-	droppedMetric := a.metricClient.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction": "ingress", "metric_version": "2.0"}))
+	droppedMetric := a.metricClient.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "ingress", "metric_version": "2.0"}),
+	)
 	envelopeBuffer := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		// metric-documentation-v2: (loggregator.metron.dropped) Number of v2 envelopes
 		// dropped from the agent ingress diode
@@ -87,8 +91,16 @@ func (a *AppV2) Start() {
 		egress.NewCounterAggregator(tagger.TagEnvelope),
 	)
 
-	ingressMetric := a.metricClient.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}))
-	originMappings := a.metricClient.NewCounter("origin_mappings", metrics.WithMetricTags(map[string]string{"unit": "bytes/minute", "metric_version": "2.0"}))
+	ingressMetric := a.metricClient.NewCounter(
+		"ingress",
+		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
+	)
+	originMappings := a.metricClient.NewCounter(
+		"origin_mappings",
+		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
+		metrics.WithMetricTags(map[string]string{"unit": "bytes/minute", "metric_version": "2.0"}),
+	)
 
 	tx := egress.NewTransponder(
 		envelopeBuffer,
@@ -132,7 +144,11 @@ func (a *AppV2) initializePool() *clientpoolv2.ClientPool {
 		clientpoolv2.WithLookup(a.lookup)),
 	)
 
-	avgEnvelopeSize := a.metricClient.NewGauge("average_envelopes", metrics.WithMetricTags(map[string]string{"unit":"bytes/minute","metric_version":"2.0","loggregator":"v2"}))
+	avgEnvelopeSize := a.metricClient.NewGauge(
+		"average_envelopes",
+		metrics.WithHelpText("Average envelope size over the past minute."),
+		metrics.WithMetricTags(map[string]string{"unit": "bytes/minute", "metric_version": "2.0", "loggregator": "v2"}),
+	)
 
 	tracker := plumbing.NewEnvelopeAverager()
 	tracker.Start(60*time.Second, func(i float64) { avgEnvelopeSize.Set(i) })

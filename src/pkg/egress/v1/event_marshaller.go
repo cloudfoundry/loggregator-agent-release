@@ -27,7 +27,11 @@ type EventMarshaller struct {
 }
 
 func NewMarshaller(mc MetricClient) *EventMarshaller {
-	egressMetric := mc.NewCounter("egress", metrics.WithMetricTags(map[string]string{"metric_version":"1.0"}))
+	egressMetric := mc.NewCounter(
+		"egress",
+		metrics.WithHelpText("Total number of envelopes successfully egressed."),
+		metrics.WithMetricTags(map[string]string{"metric_version": "1.0"}),
+	)
 	return &EventMarshaller{
 		egressCounter: func(i uint64) { egressMetric.Add(float64(i)) },
 	}

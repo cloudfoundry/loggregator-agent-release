@@ -57,9 +57,21 @@ func NewManager(
 	log *log.Logger,
 ) *Manager {
 	tagOpt := metrics.WithMetricTags(map[string]string{"unit": "count"})
-	drainCount := m.NewGauge("drains", tagOpt)
-	universalDrainCount := m.NewGauge("non_app_drains", tagOpt)
-	activeDrains := m.NewGauge("active_drains", tagOpt)
+	drainCount := m.NewGauge(
+		"drains",
+		metrics.WithHelpText("Current number of syslog drain bindings."),
+		tagOpt,
+	)
+	universalDrainCount := m.NewGauge(
+		"non_app_drains",
+		metrics.WithHelpText("Current number of non-app drains."),
+		tagOpt,
+	)
+	activeDrains := m.NewGauge(
+		"active_drains",
+		metrics.WithHelpText("Current number of active syslog drains including app and non-app drains."),
+		tagOpt,
+	)
 
 	manager := &Manager{
 		bf:                        bf,

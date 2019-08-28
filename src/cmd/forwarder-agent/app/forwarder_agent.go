@@ -70,7 +70,11 @@ func NewForwarderAgent(
 func (s ForwarderAgent) Run() {
 	go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", s.pprofPort), nil)
 
-	ingressDropped := s.m.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction": "ingress"}))
+	ingressDropped := s.m.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "ingress"}),
+	)
 	diode := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))
 	}))
@@ -101,8 +105,14 @@ func (s ForwarderAgent) Run() {
 		s.log.Fatalf("failed to configure server TLS: %s", err)
 	}
 
-	im := s.m.NewCounter("ingress")
-	omm := s.m.NewCounter("origin_mappings")
+	im := s.m.NewCounter(
+		"ingress",
+		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+	)
+	omm := s.m.NewCounter(
+		"origin_mappings",
+		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
+	)
 	rx := v2.NewReceiver(diode, im, omm)
 
 	srv := v2.NewServer(

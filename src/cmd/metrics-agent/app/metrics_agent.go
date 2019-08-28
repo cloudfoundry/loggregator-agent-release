@@ -54,15 +54,25 @@ func (m *MetricsAgent) Run() {
 }
 
 func (m *MetricsAgent) envelopeDiode() *diodes.ManyToOneEnvelopeV2 {
-	ingressDropped := m.metrics.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction": "ingress"}))
+	ingressDropped := m.metrics.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "ingress"}),
+	)
 	return diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))
 	}))
 }
 
 func (m *MetricsAgent) startIngressServer(diode *diodes.ManyToOneEnvelopeV2) {
-	ingressMetric := m.metrics.NewCounter("ingress")
-	originMetric := m.metrics.NewCounter("origin_mappings")
+	ingressMetric := m.metrics.NewCounter(
+		"ingress",
+		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+	)
+	originMetric := m.metrics.NewCounter(
+		"origin_mappings",
+		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
+	)
 
 	receiver := v2.NewReceiver(diode, ingressMetric, originMetric)
 	tlsConfig := m.generateServerTLSConfig(m.cfg.GRPC.CertFile, m.cfg.GRPC.KeyFile, m.cfg.GRPC.CAFile)

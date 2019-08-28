@@ -24,11 +24,13 @@ type SenderFetcher struct {
 func NewSenderFetcher(mc MetricClient, opts ...grpc.DialOption) *SenderFetcher {
 	dopplerV2Streams := mc.NewGauge(
 		"doppler_v2_streams",
+		metrics.WithHelpText("Current number of established gRPC streams from v2 agent."),
 		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
 	)
 
 	dopplerConnections := mc.NewGauge(
 		"doppler_connections",
+		metrics.WithHelpText("Current number of gRPC connections from v1 and v2 agents."),
 		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
 	)
 

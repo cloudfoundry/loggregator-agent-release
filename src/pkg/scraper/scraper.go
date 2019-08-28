@@ -75,16 +75,19 @@ func WithMetricsClient(m metricsClient) ScrapeOption {
 	return func(s *Scraper) {
 		s.urlsScraped = m.NewGauge(
 			"last_total_attempted_scrapes",
+			metrics.WithHelpText("Count of attempted scrapes during last round of scraping."),
 			metrics.WithMetricTags(map[string]string{"unit": "total"}),
 		)
 
 		s.failedScrapes = m.NewGauge(
 			"last_total_failed_scrapes",
+			metrics.WithHelpText("Count of failed scrapes during last round of scraping."),
 			metrics.WithMetricTags(map[string]string{"unit": "total"}),
 		)
 
 		s.scrapeDuration = m.NewGauge(
 			"last_total_scrape_duration",
+			metrics.WithHelpText("Time in milliseconds to scrape all targets in last round of scraping."),
 			metrics.WithMetricTags(map[string]string{"unit": "ms"}),
 		)
 	}

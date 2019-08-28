@@ -36,8 +36,16 @@ func NewTransponder(
 	batchInterval time.Duration,
 	metricClient MetricClient,
 ) *Transponder {
-	droppedMetric := metricClient.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction":"egress","metric_version":"2.0"}))
-	egressMetric := metricClient.NewCounter("egress", metrics.WithMetricTags(map[string]string{"metric_version":"2.0"}))
+	droppedMetric := metricClient.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "egress", "metric_version": "2.0"}),
+	)
+	egressMetric := metricClient.NewCounter(
+		"egress",
+		metrics.WithHelpText("Total number of envelopes successfully egressed."),
+		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
+	)
 	return &Transponder{
 		nexter:        n,
 		writer:        w,

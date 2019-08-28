@@ -32,8 +32,17 @@ type BindingFetcher struct {
 
 // NewBindingFetcher returns a new BindingFetcher
 func NewBindingFetcher(limit int, g Getter, m Metrics) *BindingFetcher {
-	refreshCount := m.NewCounter("binding_refresh_count")
-	maxLatency := m.NewGauge("latency_for_last_binding_refresh", metrics.WithMetricTags(map[string]string{"unit": "ms"}))
+	refreshCount := m.NewCounter(
+		"binding_refresh_count",
+		metrics.WithHelpText("Total number of binding refresh attempts made to the binding provider."),
+	)
+
+	//TODO change to histogram
+	maxLatency := m.NewGauge(
+		"latency_for_last_binding_refresh",
+		metrics.WithHelpText("Latency in milliseconds of the last binding fetch made to the binding provider."),
+		metrics.WithMetricTags(map[string]string{"unit": "ms"}),
+	)
 	return &BindingFetcher{
 		limit:        limit,
 		getter:       g,

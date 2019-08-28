@@ -34,8 +34,16 @@ type FilteredBindingFetcher struct {
 func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, lc *log.Logger) *FilteredBindingFetcher {
 	opt := metrics.WithMetricTags(map[string]string{"unit": "total"})
 
-	invalidDrains := m.NewGauge("invalid_drains", opt)
-	blacklistedDrains := m.NewGauge("blacklisted_drains", opt)
+	invalidDrains := m.NewGauge(
+		"invalid_drains",
+		metrics.WithHelpText("Count of invalid drains encountered in last binding fetch. Includes blacklisted drains."),
+		opt,
+	)
+	blacklistedDrains := m.NewGauge(
+		"blacklisted_drains",
+		metrics.WithHelpText("Count of blacklisted drains encountered in last binding fetch."),
+		opt,
+	)
 
 	return &FilteredBindingFetcher{
 		ipChecker:         c,

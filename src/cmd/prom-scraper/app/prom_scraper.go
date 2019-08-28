@@ -41,14 +41,18 @@ type PromScraper struct {
 type promRegistry interface {
 	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
 }
+
 func NewPromScraper(cfg Config, m promRegistry, log *log.Logger) *PromScraper {
 	return &PromScraper{
 		cfg:  cfg,
 		log:  log,
 		stop: make(chan struct{}),
 
-		m:m,
-		scrapeTargetTotals: m.NewCounter("scrape_targets_total"),
+		m: m,
+		scrapeTargetTotals: m.NewCounter(
+			"scrape_targets_total",
+			metrics.WithHelpText("Total number of scrape targets identified from prom scraper config files."),
+		),
 	}
 }
 
@@ -150,9 +154,11 @@ func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, ingressClient
 	s := p.buildScraper(scrapeConfig, ingressClient)
 	ticker := time.Tick(scrapeConfig.ScrapeInterval)
 
-	failedScrapesTotal := p.m.NewCounter("failed_scrapes_total", metrics.WithMetricTags(map[string]string{
-		"scrape_target_source_id": scrapeConfig.SourceID,
-	}))
+	failedScrapesTotal := p.m.NewCounter(
+		"failed_scrapes_total",
+		metrics.WithHelpText("Total number of failed scrapes for the target source_id."),
+		metrics.WithMetricTags(map[string]string{"scrape_target_source_id": scrapeConfig.SourceID}),
+	)
 
 	for {
 		select {

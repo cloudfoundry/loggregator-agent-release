@@ -16,7 +16,10 @@ type WriterFactory struct {
 }
 
 func NewWriterFactory(m metricClient) WriterFactory {
-	metric := m.NewCounter("egress")
+	metric := m.NewCounter(
+		"egress",
+		metrics.WithHelpText("Total number of envelopes successfully egressed."),
+	)
 	return WriterFactory{
 		egressMetric: metric,
 	}

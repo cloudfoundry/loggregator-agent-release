@@ -101,13 +101,21 @@ func NewSyslogAgent(
 }
 
 func (s *SyslogAgent) Run() {
-	ingressDropped := s.metrics.NewCounter("dropped", metrics.WithMetricTags(map[string]string{"direction": "ingress"}))
+	ingressDropped := s.metrics.NewCounter(
+		"dropped",
+		metrics.WithHelpText("Total number of dropped envelopes."),
+		metrics.WithMetricTags(map[string]string{"direction": "ingress"}),
+	)
 	diode := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))
 	}))
 	go s.bindingManager.Run()
 
-	drainIngress := s.metrics.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"scope": "all_drains"}))
+	drainIngress := s.metrics.NewCounter(
+		"ingress",
+		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+		metrics.WithMetricTags(map[string]string{"scope": "all_drains"}),
+	)
 	envelopeWriter := syslog.NewEnvelopeWriter(s.bindingManager.GetDrains, diode.Next, drainIngress, s.log)
 	go envelopeWriter.Run()
 
@@ -126,8 +134,15 @@ func (s *SyslogAgent) Run() {
 		s.log.Fatalf("failed to configure server TLS: %s", err)
 	}
 
-	im := s.metrics.NewCounter("ingress", metrics.WithMetricTags(map[string]string{"scope": "agent"}))
-	omm := s.metrics.NewCounter("origin_mappings")
+	im := s.metrics.NewCounter(
+		"ingress",
+		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+		metrics.WithMetricTags(map[string]string{"scope": "agent"}),
+	)
+	omm := s.metrics.NewCounter(
+		"origin_mappings",
+		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
+	)
 
 	rx := v2.NewReceiver(diode, im, omm)
 	srv := v2.NewServer(
