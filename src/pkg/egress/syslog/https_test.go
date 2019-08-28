@@ -75,7 +75,7 @@ var _ = Describe("HTTPWriter", func() {
 
 	It("does not leak creds when reporting a POST error", func() {
 		b := buildURLBinding(
-			"http://user:password@localhost:garbage",
+			"http://user:password@localhost:0",
 			"test-app-id",
 			"test-hostname",
 		)
