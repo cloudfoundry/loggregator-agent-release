@@ -15,14 +15,8 @@ func main() {
 
 	cfg := app.LoadConfig(log)
 
-	dt := map[string]string{
-		"metrics_version": "2.0",
-		"origin": "loggregator_metrics_scraper",
-	}
-
 	metricClient := metrics.NewRegistry(
 		log,
-		metrics.WithDefaultTags(dt),
 		metrics.WithTLSServer(
 			int(cfg.MetricsServer.Port),
 			cfg.MetricsServer.CertFile,

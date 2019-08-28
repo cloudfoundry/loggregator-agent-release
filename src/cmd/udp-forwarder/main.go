@@ -17,9 +17,6 @@ func main() {
 
 	cfg := app.LoadConfig(logger)
 	m := metrics.NewRegistry(logger,
-		metrics.WithDefaultTags(map[string]string{
-			"origin":    "loggregator.udp_forwarder",
-		}),
 		metrics.WithTLSServer(
 			int(cfg.MetricsServer.Port),
 			cfg.MetricsServer.CertFile,

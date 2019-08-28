@@ -72,9 +72,6 @@ func (a *Agent) Start() {
 
 	metricClient := metrics.NewRegistry(
 		logger,
-		metrics.WithDefaultTags(map[string]string{
-			"origin": "loggregator.metron",
-		}),
 		metrics.WithTLSServer(
 			int(a.config.MetricsServer.Port),
 			a.config.MetricsServer.CertFile,

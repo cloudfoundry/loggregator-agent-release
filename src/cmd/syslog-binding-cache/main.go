@@ -16,9 +16,6 @@ func main() {
 	cfg := app.LoadConfig()
 	m := metrics.NewRegistry(
 		logger,
-		metrics.WithDefaultTags(map[string]string{
-			"origin": "loggregator_syslog_binding_cache",
-		}),
 		metrics.WithTLSServer(
 			int(cfg.MetricsServer.Port),
 			cfg.MetricsServer.CertFile,

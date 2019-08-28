@@ -4,3 +4,5 @@ source_id: "metron"
 instance_id: <%= spec.id || spec.index.to_s %>
 scheme: https
 server_name: <%= p('metrics.server_name') %>
+labels:
+  origin: loggregator.metron

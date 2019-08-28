@@ -17,10 +17,6 @@ func main() {
 	cfg := app.LoadConfig()
 	m := metrics.NewRegistry(
 		log,
-		metrics.WithDefaultTags(map[string]string{
-			"metrics_version": "2.0",
-			"origin": "loggregator.syslog_agent",
-		}),
 		metrics.WithTLSServer(
 			int(cfg.MetricsServer.Port),
 			cfg.MetricsServer.CertFile,
