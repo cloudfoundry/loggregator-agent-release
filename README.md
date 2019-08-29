@@ -44,10 +44,6 @@ A simple agent that reads from any local prometheus-scrapable endpoint and forwa
 Configurable via files in colocated bosh jobs as described in the [docs][prom-scraper]
 scrapes are avoided in an HA environment.
 
-### Metrics agent
-A simple agent that receives metrics from the Forwarder Agent and exposes them on a prometheus-scrapable endpoint.
-More information can be found in the [docs][metrics-agent]
-
 ## More Resources and Documentation
 
 ### Feedabck
@@ -73,5 +69,4 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [loggregator-agent]:    docs/loggregator-agent.md
 [prom-scraper]:         docs/prom-scraper.md
 [system-metrics-agent]: docs/system-metrics-agent.md
-[metrics-agent]:        docs/metrics-agent.md
 [architecture]:         docs/agent-architecture.png
