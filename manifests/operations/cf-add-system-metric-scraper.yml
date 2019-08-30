@@ -39,7 +39,7 @@
       common_name: metricScraperCA
 
 - type: replace
-  path: /variables/name=forwarder_agent_metrics_tls?
+  path: /variables/name=leadership_election_metrics_tls?
   value:
     name: leadership_election_metrics_tls
     type: certificate
