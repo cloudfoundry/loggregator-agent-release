@@ -3,6 +3,7 @@ package main
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
 	"code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/app"
+	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
 	"log"
 	"os"
 )
@@ -24,5 +25,6 @@ func main() {
 		),
 	)
 
-	app.NewPromScraper(cfg, m, log).Run()
+	configProvider := scraper.NewConfigProvider(cfg.ConfigGlobs, cfg.DefaultScrapeInterval, log).Configs
+	app.NewPromScraper(cfg, configProvider, m, log).Run()
 }

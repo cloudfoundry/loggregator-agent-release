@@ -5,49 +5,38 @@ import (
 	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
-	"gopkg.in/yaml.v2"
 )
 
-type promScraperConfig struct {
-	Port           string            `yaml:"port"`
-	SourceID       string            `yaml:"source_id"`
-	InstanceID     string            `yaml:"instance_id"`
-	Scheme         string            `yaml:"scheme"`
-	ServerName     string            `yaml:"server_name"`
-	Path           string            `yaml:"path"`
-	Headers        map[string]string `yaml:"headers"`
-	Labels         map[string]string `yaml:"labels"`
-	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
+type PromScraper struct {
+	scrapeConfigProvider ConfigProvider
+	cfg                  Config
+	log                  *log.Logger
+	stop                 chan struct{}
+	wg                   sync.WaitGroup
+	m                    promRegistry
+	scrapeTargetTotals   metrics.Counter
 }
 
-type PromScraper struct {
-	cfg                Config
-	log                *log.Logger
-	stop               chan struct{}
-	wg                 sync.WaitGroup
-	m                  promRegistry
-	scrapeTargetTotals metrics.Counter
-}
+type ConfigProvider func() ([]scraper.PromScraperConfig, error)
 
 type promRegistry interface {
 	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
 }
 
-func NewPromScraper(cfg Config, m promRegistry, log *log.Logger) *PromScraper {
+func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, log *log.Logger) *PromScraper {
 	return &PromScraper{
-		cfg:  cfg,
-		log:  log,
-		stop: make(chan struct{}),
+		scrapeConfigProvider: configProvider,
+		cfg:                  cfg,
+		log:                  log,
+		stop:                 make(chan struct{}),
 
 		m: m,
 		scrapeTargetTotals: m.NewCounter(
@@ -58,7 +47,13 @@ func NewPromScraper(cfg Config, m promRegistry, log *log.Logger) *PromScraper {
 }
 
 func (p *PromScraper) Run() {
-	promScraperConfigs := p.scrapeConfigsFromFiles(p.cfg.ConfigGlobs)
+	promScraperConfigs, err := p.scrapeConfigProvider()
+	if err != nil {
+		p.log.Fatal(err)
+	}
+
+	p.validateConfigs(promScraperConfigs)
+
 	client := p.buildIngressClient()
 
 	p.startScrapers(promScraperConfigs, client)
@@ -66,57 +61,15 @@ func (p *PromScraper) Run() {
 	p.wg.Wait()
 }
 
-func (p *PromScraper) scrapeConfigsFromFiles(globs []string) []promScraperConfig {
-	files := p.filesForGlobs(globs)
-
-	var targets []promScraperConfig
-	for _, f := range files {
-		targets = append(targets, p.parseConfig(f))
-	}
-
-	return targets
-}
-
-func (p *PromScraper) filesForGlobs(globs []string) []string {
-	var files []string
-
-	for _, glob := range globs {
-		globFiles, err := filepath.Glob(glob)
-		if err != nil {
-			p.log.Println("unable to read config from glob:", glob)
+func (p *PromScraper) validateConfigs(scrapeConfigs []scraper.PromScraperConfig) {
+	for _, scrapeConfig := range scrapeConfigs {
+		if p.isMTLSTargetMissingServerName(scrapeConfig) {
+			p.log.Panicf("server_name is missing from mTLS scrape config (%s)", scrapeConfig.SourceID)
 		}
-
-		files = append(files, globFiles...)
 	}
-
-	return files
 }
 
-func (p *PromScraper) parseConfig(file string) promScraperConfig {
-	yamlFile, err := ioutil.ReadFile(file)
-	if err != nil {
-		p.log.Fatalf("cannot read file: %s", err)
-	}
-
-	scraperConfig := promScraperConfig{
-		Scheme:         "http",
-		Path:           "/metrics",
-		ScrapeInterval: p.cfg.DefaultScrapeInterval,
-	}
-
-	err = yaml.Unmarshal(yamlFile, &scraperConfig)
-	if err != nil {
-		p.log.Fatalf("Unmarshal: %v", err)
-	}
-
-	if p.isMTLSTargetMissingServerName(scraperConfig) {
-		p.log.Panicf("server_name is missing from mTLS scrape config (%s)", file)
-	}
-
-	return scraperConfig
-}
-
-func (p *PromScraper) isMTLSTargetMissingServerName(scraperConfig promScraperConfig) bool {
+func (p *PromScraper) isMTLSTargetMissingServerName(scraperConfig scraper.PromScraperConfig) bool {
 	return p.cfg.ScrapeCertPath != "" && scraperConfig.Scheme == "https" && scraperConfig.ServerName == ""
 }
 
@@ -142,14 +95,14 @@ func (p *PromScraper) buildIngressClient() *loggregator.IngressClient {
 	return client
 }
 
-func (p *PromScraper) startScrapers(promScraperConfigs []promScraperConfig, ingressClient *loggregator.IngressClient) {
+func (p *PromScraper) startScrapers(promScraperConfigs []scraper.PromScraperConfig, ingressClient *loggregator.IngressClient) {
 	for _, scrapeConfig := range promScraperConfigs {
 		p.wg.Add(1)
 		go p.startScraper(scrapeConfig, ingressClient)
 	}
 }
 
-func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, ingressClient *loggregator.IngressClient) {
+func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingressClient *loggregator.IngressClient) {
 	defer p.wg.Done()
 
 	s := p.buildScraper(scrapeConfig, ingressClient)
@@ -174,7 +127,7 @@ func (p *PromScraper) startScraper(scrapeConfig promScraperConfig, ingressClient
 	}
 }
 
-func (p *PromScraper) buildScraper(scrapeConfig promScraperConfig, client *loggregator.IngressClient) *scraper.Scraper {
+func (p *PromScraper) buildScraper(scrapeConfig scraper.PromScraperConfig, client *loggregator.IngressClient) *scraper.Scraper {
 	scrapeTarget := scraper.Target{
 		ID:          scrapeConfig.SourceID,
 		InstanceID:  scrapeConfig.InstanceID,

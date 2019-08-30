@@ -48,3 +48,39 @@
       common_name: leadership_election_metrics
       extended_key_usage:
       - server_auth
+
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/name=leadership-election/properties/tls?
+  value:
+    ca_cert: "((leadership_election_tls.ca))"
+    cert: "((leadership_election_tls.certificate))"
+    key: "((leadership_election_tls.private_key))"
+
+- type: replace
+  path: /variables/name=leadership_election_tls?
+  value:
+    name: leadership_election_tls
+    type: certificate
+    options:
+      ca: loggregator_ca
+      common_name: leadership_election
+      extended_key_usage:
+      - server_auth
+
+- type: replace
+  path: /instance_groups/name=scheduler/jobs/name=loggr-metric-scraper/properties/leadership_election?
+  value:
+    ca_cert: "((leadership_election_client_tls.ca))"
+    cert: "((leadership_election_client_tls.certificate))"
+    key: "((leadership_election_client_tls.private_key))"
+
+- type: replace
+  path: /variables/name=leadership_election_client_tls?
+  value:
+    name: leadership_election_client_tls
+    type: certificate
+    options:
+      ca: loggregator_ca
+      common_name: leadership_election_client
+      extended_key_usage:
+      - client_auth

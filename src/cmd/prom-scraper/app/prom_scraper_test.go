@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/app"
+	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
 	"fmt"
 	"github.com/onsi/gomega/gexec"
 	"io/ioutil"
@@ -25,7 +26,9 @@ import (
 
 var _ = Describe("PromScraper", func() {
 	var (
-		spyAgent     *spyAgent
+		spyAgent          *spyAgent
+		spyConfigProvider *spyConfigProvider
+
 		cfg          app.Config
 		promServer   *stubPromServer
 		ps           *app.PromScraper
@@ -42,6 +45,7 @@ var _ = Describe("PromScraper", func() {
 		metricConfigDir = metricPortConfigDir()
 
 		spyAgent = newSpyAgent(testCerts)
+		spyConfigProvider = newSpyConfigProvider()
 		metricClient = testhelper.NewMetricClient()
 
 		cfg = app.Config{
@@ -71,10 +75,14 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("scrapes a prometheus endpoint and sends those metrics to a loggregator agent", func() {
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
 			promServer.resp = promOutput
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+			}}
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -88,15 +96,26 @@ var _ = Describe("PromScraper", func() {
 
 		It("scrapes prometheus endpoints after the specified interval", func() {
 			promServer2 := newStubPromServer()
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithScrapeIntervalTemplate, promServer2.port, "100ms"), "prom_scraper_config.yml")
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
+				{
+					Port:       promServer.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+				},
+				{
+					Port:           promServer2.port,
+					SourceID:       "some-id",
+					InstanceID:     "some-instance-id",
+					ScrapeInterval: 100 * time.Millisecond,
+				},
+			}
 
 			promServer.resp = promOutput
 			promServer2.resp = promOutput2
 
 			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
 			cfg.DefaultScrapeInterval = time.Hour
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(
@@ -110,14 +129,25 @@ var _ = Describe("PromScraper", func() {
 
 		It("scrapes multiple prometheus endpoints", func() {
 			promServer2 := newStubPromServer()
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
+
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
+				{
+					Port:       promServer.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+				},
+				{
+					Port:       promServer2.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+				},
+			}
 
 			promServer.resp = promOutput
 			promServer2.resp = promOutput2
 
 			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -131,10 +161,18 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("scrapes with headers if provided", func() {
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Headers: map[string]string{
+					"header1": "value1",
+					"Header2": "value2",
+				},
+			}}
 			promServer.resp = promOutput
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(promServer.requestHeaders).Should(Receive(And(
@@ -144,14 +182,17 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("adds default tags if provided", func() {
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithLabelsTemplate, promServer.port, `default_label: "value"`),
-				"prom_scraper_config.yml",
-			)
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Labels: map[string]string{
+					"default_label": "value",
+				},
+			}}
 			promServer.resp = promOutput
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(func() int {
@@ -164,27 +205,17 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		Context("metrics path", func() {
-			It("defaults to /metrics", func() {
-				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "prom_scraper_config.yml")
-				promServer.resp = promOutput
-
-				ps = app.NewPromScraper(cfg, metricClient, testLogger)
-				go ps.Run()
-
-				Eventually(promServer.requestPaths).Should(Receive(Equal("/metrics")))
-			})
-
 			It("scrapes a different path if provided", func() {
-				writeScrapeConfig(
-					metricConfigDir,
-					fmt.Sprintf(metricConfigWithPathTemplate, promServer.port, "/other/metrics/endpoint"),
-					"prom_scraper_config.yml",
-				)
+				spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+					Port:       promServer.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+					Path:       "/other/metrics/endpoint",
+				}}
 
-				writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigWithHeadersTemplate, promServer.port), "prom_scraper_config.yml")
 				promServer.resp = promOutput
 
-				ps = app.NewPromScraper(cfg, metricClient, testLogger)
+				ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 				go ps.Run()
 
 				Eventually(promServer.requestPaths).Should(Receive(Equal("/other/metrics/endpoint")))
@@ -195,17 +226,18 @@ var _ = Describe("PromScraper", func() {
 	Context("https", func() {
 		BeforeEach(func() {
 			promServer = newStubHttpsPromServer(testLogger, scrapeCerts, false)
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, ""),
-				"prom_scraper_config.yml",
-			)
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Scheme:     "https",
+			}}
 
 			promServer.resp = promOutput
 		})
 
 		It("scrapes https if provided", func() {
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -219,7 +251,7 @@ var _ = Describe("PromScraper", func() {
 
 		It("respects skip SSL validation", func() {
 			cfg.SkipSSLValidation = false
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			// certs have an untrusted CA
@@ -239,13 +271,15 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("scrapes over mTLS", func() {
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "server_name: server"),
-				"prom_scraper_config.yml",
-			)
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Scheme:     "https",
+				ServerName: "server",
+			}}
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
@@ -258,26 +292,29 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("verifies server name if given", func() {
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "server_name: wrong"),
-				"prom_scraper_config.yml",
-			)
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Scheme:     "https",
+				ServerName: "wrong",
+			}}
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Consistently(spyAgent.Envelopes, 1).Should(BeEmpty())
 		})
 
 		It("does not scrape if certs are provided but server name is empty", func() {
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, ""),
-				"prom_scraper_config.yml",
-			)
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Scheme:     "https",
+			}}
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			Expect(ps.Run).To(Panic())
 		})
 	})
@@ -286,14 +323,25 @@ var _ = Describe("PromScraper", func() {
 		It("has scrape targets counter", func() {
 			promServer = newStubPromServer()
 			promServer2 := newStubPromServer()
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer.port), "metric_port.yml")
-			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, promServer2.port), "prom_scraper_config.yml")
-
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
+				{
+					Port:       promServer.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+					Path:       "metrics",
+				},
+				{
+					Port:       promServer2.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+					Path:       "metrics",
+				},
+			}
 			promServer.resp = promOutput
 			promServer2.resp = promOutput2
 
 			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(hasMetric(metricClient, "scrape_targets_total", map[string]string{})).Should(BeTrue())
@@ -311,13 +359,16 @@ var _ = Describe("PromScraper", func() {
 			cfg.ScrapeKeyPath = scrapeCerts.Key("client")
 			cfg.ScrapeCACertPath = scrapeCerts.CA()
 
-			writeScrapeConfig(
-				metricConfigDir,
-				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "server_name: wrong"),
-				"prom_scraper_config.yml",
-			)
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:       promServer.port,
+				SourceID:   "some-id",
+				InstanceID: "some-instance-id",
+				Path:       "metrics",
+				Scheme:     "https",
+				ServerName: "wrong",
+			}}
 
-			ps = app.NewPromScraper(cfg, metricClient, testLogger)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 
 			Eventually(hasMetric(metricClient, "failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"})).Should(BeTrue())
@@ -441,45 +492,6 @@ node_timex_pps_jitter_total 5
 # TYPE node2_counter counter
 node2_counter 6
 `
-
-	metricConfigTemplate = `---
-port: %s
-source_id: some-id
-instance_id: some-instance-id`
-
-	metricConfigWithScrapeIntervalTemplate = `---
-port: %s
-source_id: some-id
-instance_id: some-instance-id
-scrape_interval: %s`
-
-	metricConfigWithPathTemplate = `---
-port: %s
-source_id: some-id
-instance_id: some-instance-id
-path: %s`
-
-	metricConfigWithSchemeTemplate = `---
-port: %s
-source_id: some-id
-instance_id: some-instance-id
-scheme: https
-%s`
-
-	metricConfigWithHeadersTemplate = `---
-port: %s
-source_id: some-id
-instance_id: some-instance-id
-headers:
-  Header1: value1
-  Header2: value2`
-
-	metricConfigWithLabelsTemplate = `---
-port: %s
-source_id: some-id
-instance_id: some-instance-id
-labels:
-  %s`
 )
 
 func metricPortConfigDir() string {
@@ -489,18 +501,6 @@ func metricPortConfigDir() string {
 	}
 
 	return dir
-}
-
-func writeScrapeConfig(metricConfigDir, config, fileName string) {
-	f, err := ioutil.TempFile(metricConfigDir, fileName)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = f.Write([]byte(config))
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 type spyAgent struct {
@@ -567,4 +567,30 @@ func (s *spyAgent) Envelopes() []*loggregator_v2.Envelope {
 	results := make([]*loggregator_v2.Envelope, len(s.envelopes))
 	copy(results, s.envelopes)
 	return results
+}
+
+type spyConfigProvider struct {
+	scrapeConfigs []scraper.PromScraperConfig
+}
+
+func newSpyConfigProvider() *spyConfigProvider {
+	return &spyConfigProvider{}
+}
+
+func (p *spyConfigProvider) Configs() ([]scraper.PromScraperConfig, error) {
+	var configsWithDefaults []scraper.PromScraperConfig
+	for _, cfg := range p.scrapeConfigs {
+		if cfg.Scheme == "" {
+			cfg.Scheme = "http"
+		}
+		if cfg.Path == "" {
+			cfg.Path = "metrics"
+		}
+		if cfg.ScrapeInterval.Nanoseconds() == 0 {
+			cfg.ScrapeInterval = 100 * time.Millisecond
+		}
+		configsWithDefaults = append(configsWithDefaults, cfg)
+	}
+
+	return configsWithDefaults, nil
 }
