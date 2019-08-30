@@ -101,6 +101,7 @@ var _ = Describe("PromScraper", func() {
 					Port:       promServer.port,
 					SourceID:   "some-id",
 					InstanceID: "some-instance-id",
+					ScrapeInterval: time.Hour,
 				},
 				{
 					Port:           promServer2.port,
