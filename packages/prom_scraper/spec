@@ -5,6 +5,7 @@ dependencies:
 - golang-1-linux
 files:
 - cmd/prom-scraper/**/*.go
+- cmd/prom-scraper/get-metrics.sh
 - pkg/**/*.go
 - vendor/**/*
 - go.mod
