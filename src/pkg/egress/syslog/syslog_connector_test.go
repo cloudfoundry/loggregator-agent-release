@@ -244,7 +244,6 @@ type stubWriterFactory struct {
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
 	netConf syslog.NetworkTimeoutConfig,
-	skipCertVerify bool,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

@@ -258,7 +258,6 @@ func buildRetryWriter(
 		func(
 			binding *syslog.URLBinding,
 			netConf syslog.NetworkTimeoutConfig,
-			skipCertVerify bool,
 		) (egress.WriteCloser, error) {
 			return w, nil
 		},
@@ -266,5 +265,5 @@ func buildRetryWriter(
 		maxRetries,
 	)
 
-	return factory.NewWriter(w.binding, syslog.NetworkTimeoutConfig{}, false)
+	return factory.NewWriter(w.binding, syslog.NetworkTimeoutConfig{})
 }

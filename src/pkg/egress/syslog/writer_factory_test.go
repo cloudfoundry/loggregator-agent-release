@@ -14,12 +14,11 @@ var _ = Describe("EgressFactory", func() {
 	var (
 		f       syslog.WriterFactory
 		sm      *testhelper.SpyMetricClient
-		skipSSL = false
 	)
 
 	BeforeEach(func() {
 		sm = testhelper.NewMetricClient()
-		f = syslog.NewWriterFactory(sm)
+		f = syslog.NewWriterFactory(nil, sm)
 	})
 
 	It("returns an https writer when the url begins with https", func() {
@@ -29,7 +28,7 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{}, skipSSL)
+		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, ok := writer.(*syslog.HTTPSWriter)
@@ -46,7 +45,7 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{}, skipSSL)
+		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, ok := writer.(*syslog.TCPWriter)
@@ -63,7 +62,7 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{}, skipSSL)
+		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
 		Expect(err).ToNot(HaveOccurred())
 
 		_, ok := writer.(*syslog.TLSWriter)
@@ -79,7 +78,7 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		_, err = f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{}, skipSSL)
+		_, err = f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
 		Expect(err).To(MatchError("unsupported protocol"))
 	})
 })

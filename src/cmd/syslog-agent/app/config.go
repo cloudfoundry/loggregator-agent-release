@@ -31,12 +31,14 @@ type Cache struct {
 
 // Config holds the configuration for the syslog agent
 type Config struct {
-	BindingsPerAppLimit int           `env:"BINDING_PER_APP_LIMIT,    report"`
-	DrainSkipCertVerify bool          `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
-	IdleDrainTimeout    time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
+	BindingsPerAppLimit int    `env:"BINDING_PER_APP_LIMIT,    report"`
+	DrainSkipCertVerify bool   `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
+	DrainTrustedCAFile  string `env:"DRAIN_TRUSTED_CA_FILE, report"`
 
-	GRPC  GRPC
-	Cache Cache
+	IdleDrainTimeout time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
+
+	GRPC          GRPC
+	Cache         Cache
 	MetricsServer config.MetricsServer
 
 	UniversalDrainURLs []string `env:"UNIVERSAL_DRAIN_URLS, report"`

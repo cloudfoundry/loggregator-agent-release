@@ -2,6 +2,7 @@ package syslog
 
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
+	"crypto/tls"
 	"errors"
 
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
@@ -12,15 +13,18 @@ type metricClient interface {
 }
 
 type WriterFactory struct {
+	tlsConfig    *tls.Config
+
 	egressMetric metrics.Counter
 }
 
-func NewWriterFactory(m metricClient) WriterFactory {
+func NewWriterFactory(tlsConf *tls.Config, m metricClient) WriterFactory {
 	metric := m.NewCounter(
 		"egress",
 		metrics.WithHelpText("Total number of envelopes successfully egressed."),
 	)
 	return WriterFactory{
+		tlsConfig:    tlsConf,
 		egressMetric: metric,
 	}
 }
@@ -28,28 +32,26 @@ func NewWriterFactory(m metricClient) WriterFactory {
 func (f WriterFactory) NewWriter(
 	urlBinding *URLBinding,
 	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
 ) (egress.WriteCloser, error) {
 	switch urlBinding.URL.Scheme {
 	case "https":
 		return NewHTTPSWriter(
 			urlBinding,
 			netConf,
-			skipCertVerify,
+			f.tlsConfig,
 			f.egressMetric,
 		), nil
 	case "syslog":
 		return NewTCPWriter(
 			urlBinding,
 			netConf,
-			skipCertVerify,
 			f.egressMetric,
 		), nil
 	case "syslog-tls":
 		return NewTLSWriter(
 			urlBinding,
 			netConf,
-			skipCertVerify,
+			f.tlsConfig,
 			f.egressMetric,
 		), nil
 	default:

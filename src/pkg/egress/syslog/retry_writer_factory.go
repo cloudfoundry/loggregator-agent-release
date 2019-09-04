@@ -14,7 +14,6 @@ import (
 type WriterConstructor func(
 	binding *URLBinding,
 	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
 ) (egress.WriteCloser, error)
 
 type RetryWriterFactory struct {
@@ -36,12 +35,10 @@ func NewRetryWriterFactory(
 func (rw *RetryWriterFactory) NewWriter(
 	urlBinding *URLBinding,
 	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
 ) (egress.WriteCloser, error) {
 	writer, err := rw.writerConstructor(
 		urlBinding,
 		netConf,
-		skipCertVerify,
 	)
 
 	if err != nil {

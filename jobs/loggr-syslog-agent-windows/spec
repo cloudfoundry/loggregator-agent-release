@@ -14,6 +14,7 @@ templates:
   metrics_ca.crt.erb: config/certs/metrics_ca.crt
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
+  drain_ca.crt.erb: config/certs/drain_ca.crt
 
 packages:
 - syslog-agent-windows
@@ -35,6 +36,8 @@ properties:
   drain_skip_cert_verify:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
+  drain_ca_cert:
+    description: The CA certificate for key/cert verification.
 
   non_app_drains:
     description: "URLs to syslog drains that will receive all logs from all sources"

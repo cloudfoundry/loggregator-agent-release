@@ -43,13 +43,14 @@ var _ = Describe("SyslogAgent", func() {
 
 		metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
 		bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
+		syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
 	)
 
 	BeforeEach(func() {
-		syslogHTTPS = newSyslogHTTPSServer()
-		syslogTLS = newSyslogTLSServer()
+		syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
+		syslogTLS = newSyslogTLSServer(syslogServerTestCerts)
 
-		universalSyslogTLS = newSyslogTLSServer()
+		universalSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
 		universalAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", universalSyslogTLS.port())
 
 		cupsProvider = &fakeBindingCache{
@@ -88,7 +89,7 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: metronTestCerts.Cert("metron"),
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
-			IdleDrainTimeout:    10 * time.Minute,
+			IdleDrainTimeout: 10 * time.Minute,
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
 				CAFile:          bindingCacheTestCerts.CA(),
@@ -130,7 +131,8 @@ var _ = Describe("SyslogAgent", func() {
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
 			IdleDrainTimeout:    10 * time.Minute,
-			DrainSkipCertVerify: true,
+			DrainSkipCertVerify: false,
+			DrainTrustedCAFile:  syslogServerTestCerts.CA(),
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
 				CAFile:          bindingCacheTestCerts.CA(),
@@ -299,12 +301,12 @@ type syslogHTTPSServer struct {
 	server           *httptest.Server
 }
 
-func newSyslogHTTPSServer() *syslogHTTPSServer {
+func newSyslogHTTPSServer(syslogServerTestCerts *testhelper.TestCerts) *syslogHTTPSServer {
 	syslogServer := syslogHTTPSServer{
 		receivedMessages: make(chan *rfc5424.Message, 100),
 	}
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		msg := &rfc5424.Message{}
 
 		data, err := ioutil.ReadAll(r.Body)
@@ -317,10 +319,22 @@ func newSyslogHTTPSServer() *syslogHTTPSServer {
 			panic(err)
 		}
 
-		// msg.AppName
-		// msg.MessageID
 		syslogServer.receivedMessages <- msg
 	}))
+
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			syslogServerTestCerts.Cert("localhost"),
+			syslogServerTestCerts.Key("localhost"),
+		),
+	).Server()
+	if err != nil {
+		panic(err)
+	}
+
+	server.TLS = tlsConfig
+	server.StartTLS()
 
 	syslogServer.server = server
 	return &syslogServer
@@ -331,19 +345,21 @@ type syslogTCPServer struct {
 	receivedMessages chan *rfc5424.Message
 }
 
-func newSyslogTLSServer() *syslogTCPServer {
+func newSyslogTLSServer(syslogServerTestCerts *testhelper.TestCerts) *syslogTCPServer {
 	lis, err := net.Listen("tcp", ":0")
 	Expect(err).ToNot(HaveOccurred())
 
-	testCerts := testhelper.GenerateCerts("forwarderCA")
-	cert, err := tls.LoadX509KeyPair(
-		testCerts.Cert("forwarder"),
-		testCerts.Key("forwarder"),
-	)
-	Expect(err).ToNot(HaveOccurred())
-	tlsLis := tls.NewListener(lis, &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	})
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			syslogServerTestCerts.Cert("localhost"),
+			syslogServerTestCerts.Key("localhost"),
+		),
+	).Server()
+	if err != nil {
+		panic(err)
+	}
+	tlsLis := tls.NewListener(lis, tlsConfig)
 	m := &syslogTCPServer{
 		receivedMessages: make(chan *rfc5424.Message, 100),
 		lis:              tlsLis,

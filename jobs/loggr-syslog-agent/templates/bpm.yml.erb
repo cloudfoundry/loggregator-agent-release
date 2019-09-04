@@ -6,6 +6,10 @@
   end.join(",")
 
   certs_dir="/var/vcap/jobs/loggr-syslog-agent/config/certs"
+  drain_ca=""
+  if_p("drain_ca_cert") {
+    drain_ca="#{certs_dir}/drain_ca.crt"
+  }
 
   process = {
     "name" => "loggr-syslog-agent",
@@ -23,6 +27,7 @@
       "AGENT_CIPHER_SUITES" => "#{p("tls.cipher_suites").split(":").join(",")}",
       "AGENT_PORT" => "#{p("port")}",
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
+      "DRAIN_TRUSTED_CA_FILE" => "#{drain_ca}",
       "BLACKLISTED_SYSLOG_RANGES" => "#{blacklisted_ips}",
       "UNIVERSAL_DRAIN_URLS" => "#{p("non_app_drains")}",
       "METRICS_PORT" => "#{p("metrics.port")}",

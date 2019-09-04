@@ -3,6 +3,11 @@
   b = link("binding_cache")
   certs_dir = "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs"
 
+  drain_ca=""
+  if_p("drain_ca_cert") {
+    drain_ca="#{certs_dir}/drain_ca.crt"
+  }
+
   process = {
     "name" => "syslog-agent",
     "executable" => "/var/vcap/packages/syslog-agent-windows/syslog-agent.exe",
@@ -22,6 +27,7 @@
       "AGENT_PORT" => "#{p("port")}",
 
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
+      "DRAIN_TRUSTED_CA_FILE" => "#{drain_ca}",
       "UNIVERSAL_DRAIN_URLS" => "#{p("non_app_drains")}",
 
       "METRICS_PORT" => "#{p("metrics.port")}",

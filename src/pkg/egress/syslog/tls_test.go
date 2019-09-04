@@ -22,10 +22,10 @@ var _ = Describe("TLSWriter", func() {
 		tlsConfig *tls.Config
 
 		testCerts = testhelper.GenerateCerts("loggregatorCA")
-		certFile = testCerts.Cert("metron")
-		keyFile  = testCerts.Key("metron")
-		env      = buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
-		netConf  = syslog.NetworkTimeoutConfig{
+		certFile  = testCerts.Cert("metron")
+		keyFile   = testCerts.Key("metron")
+		env       = buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
+		netConf   = syslog.NetworkTimeoutConfig{
 			WriteTimeout: time.Second,
 		}
 
@@ -57,7 +57,9 @@ var _ = Describe("TLSWriter", func() {
 		writer := syslog.NewTLSWriter(
 			binding,
 			netConf,
-			true,
+			&tls.Config{
+				InsecureSkipVerify: true,
+			},
 			egressCounter,
 		)
 		defer writer.Close()
@@ -82,7 +84,7 @@ var _ = Describe("TLSWriter", func() {
 		actual, err := buf.ReadString('\n')
 		Expect(err).ToNot(HaveOccurred())
 
-		expected := fmt.Sprintf(`118 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [APP/2] - [tags@47450 source_type="APP"] just a test` +"\n")
+		expected := fmt.Sprintf(`118 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [APP/2] - [tags@47450 source_type="APP"] just a test` + "\n")
 		Expect(actual).To(Equal(expected))
 
 		By("emit an egress metric for each message")

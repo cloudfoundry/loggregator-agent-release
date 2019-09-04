@@ -24,7 +24,7 @@ type NetworkTimeoutConfig struct {
 func NewTLSWriter(
 	binding *URLBinding,
 	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
+	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
 ) egress.WriteCloser {
 
@@ -32,10 +32,9 @@ func NewTLSWriter(
 		Timeout:   netConf.DialTimeout,
 		KeepAlive: netConf.Keepalive,
 	}
+
 	df := func(addr string) (net.Conn, error) {
-		return tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
-			InsecureSkipVerify: skipCertVerify,
-		})
+		return tls.DialWithDialer(dialer, "tcp", addr, tlsConf)
 	}
 
 	w := &TLSWriter{

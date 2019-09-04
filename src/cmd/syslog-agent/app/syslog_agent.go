@@ -2,6 +2,8 @@ package app
 
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/tlsconfig"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"time"
@@ -26,7 +28,6 @@ type SyslogAgent struct {
 	grpc                GRPC
 	log                 *log.Logger
 	bindingsPerAppLimit int
-	drainSkipCertVerify bool
 }
 
 type Metrics interface {
@@ -49,7 +50,7 @@ func NewSyslogAgent(
 	l *log.Logger,
 ) *SyslogAgent {
 	writerFactory := syslog.NewRetryWriterFactory(
-		syslog.NewWriterFactory(m).NewWriter,
+		syslog.NewWriterFactory(drainTLSConfig(cfg), m).NewWriter,
 		syslog.ExponentialDuration,
 		maxRetries,
 	)
@@ -95,9 +96,29 @@ func NewSyslogAgent(
 		metrics:             m,
 		log:                 l,
 		bindingsPerAppLimit: cfg.BindingsPerAppLimit,
-		drainSkipCertVerify: cfg.DrainSkipCertVerify,
 		bindingManager:      bindingManager,
 	}
+}
+
+func drainTLSConfig(cfg Config) *tls.Config {
+	var clientOpts []tlsconfig.ClientOption
+	if cfg.DrainTrustedCAFile != "" {
+		clientOpts = append(clientOpts, tlsconfig.WithAuthorityFromFile(cfg.DrainTrustedCAFile))
+	}
+
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+	).Client(
+		clientOpts...,
+	)
+
+	if err != nil {
+		log.Panicf("failed to load create tls config for http client: %s", err)
+	}
+
+	tlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
+
+	return tlsConfig
 }
 
 func (s *SyslogAgent) Run() {

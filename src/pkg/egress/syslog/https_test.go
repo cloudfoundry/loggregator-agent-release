@@ -2,6 +2,7 @@ package syslog_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	"crypto/tls"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,9 @@ import (
 
 var _ = Describe("HTTPWriter", func() {
 	var netConf syslog.NetworkTimeoutConfig
+	var skipSSLTLSConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
 
 	It("errors when ssl validation is enabled", func() {
 		drain := newMockOKDrain()
@@ -25,7 +29,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			false,
+			&tls.Config{},
 			&testhelper.SpyMetric{},
 		)
 
@@ -44,7 +48,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 
@@ -65,7 +69,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 
@@ -83,7 +87,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 
@@ -107,7 +111,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 
@@ -160,7 +164,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 
@@ -208,7 +212,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 
@@ -243,7 +247,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			sm,
 		)
 
@@ -265,7 +269,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			true,
+			skipSSLTLSConfig,
 			&testhelper.SpyMetric{},
 		)
 

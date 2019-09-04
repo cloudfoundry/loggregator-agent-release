@@ -2,10 +2,9 @@ package syslog
 
 import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
-	"code.cloudfoundry.org/tlsconfig"
+	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -26,11 +25,11 @@ type HTTPSWriter struct {
 func NewHTTPSWriter(
 	binding *URLBinding,
 	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
+	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
 ) egress.WriteCloser {
 
-	client := httpClient(netConf, skipCertVerify)
+	client := httpClient(netConf, tlsConf)
 
 	return &HTTPSWriter{
 		url:          binding.URL,
@@ -89,21 +88,11 @@ func (*HTTPSWriter) Close() error {
 	return nil
 }
 
-func httpClient(netConf NetworkTimeoutConfig, skipCertVerify bool) *fasthttp.Client {
-	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
-	).Client()
-
-	if err != nil {
-		log.Panicf("failed to load create tls config for http client: %s", err)
-	}
-
-	tlsConfig.InsecureSkipVerify = skipCertVerify
-
+func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
 	return &fasthttp.Client{
 		MaxConnsPerHost:     5,
 		MaxIdleConnDuration: 90 * time.Second,
-		TLSConfig:           tlsConfig,
+		TLSConfig:           tlsConf,
 		ReadTimeout:         20 * time.Second,
 		WriteTimeout:        20 * time.Second,
 	}

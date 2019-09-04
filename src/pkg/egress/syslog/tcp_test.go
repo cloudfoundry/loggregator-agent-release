@@ -55,7 +55,6 @@ var _ = Describe("TCPWriter", func() {
 			writer = syslog.NewTCPWriter(
 				binding,
 				netConf,
-				false,
 				egressCounter,
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -186,7 +185,6 @@ var _ = Describe("TCPWriter", func() {
 			writer := syslog.NewTCPWriter(
 				binding,
 				netConf,
-				false,
 				&testhelper.SpyMetric{},
 			)
 
@@ -210,7 +208,6 @@ var _ = Describe("TCPWriter", func() {
 				writer = syslog.NewTCPWriter(
 					binding,
 					netConf,
-					false,
 					&testhelper.SpyMetric{},
 				)
 				Expect(err).ToNot(HaveOccurred())

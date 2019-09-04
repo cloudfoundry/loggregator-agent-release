@@ -33,7 +33,7 @@ func (nullLogClient) EmitLog(message string, opts ...loggregator.EmitLogOption) 
 }
 
 type writerFactory interface {
-	NewWriter(*URLBinding, NetworkTimeoutConfig, bool) (egress.WriteCloser, error)
+	NewWriter(*URLBinding, NetworkTimeoutConfig) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
@@ -110,7 +110,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		WriteTimeout: w.ioTimeout,
 	}
 
-	writer, err := w.writerFactory.NewWriter(urlBinding, netConf, w.skipCertVerify)
+	writer, err := w.writerFactory.NewWriter(urlBinding, netConf)
 	if err != nil {
 		return nil, err
 	}

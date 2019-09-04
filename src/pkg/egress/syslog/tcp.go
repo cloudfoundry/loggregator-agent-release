@@ -37,7 +37,6 @@ type TCPWriter struct {
 func NewTCPWriter(
 	binding *URLBinding,
 	netConf NetworkTimeoutConfig,
-	skipCertVerify bool,
 	egressMetric metrics.Counter,
 ) egress.WriteCloser {
 	dialer := &net.Dialer{
