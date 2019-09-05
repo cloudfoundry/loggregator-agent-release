@@ -49,7 +49,7 @@ github.com/hpcloud/tail/ratelimiter
 github.com/hpcloud/tail/util
 github.com/hpcloud/tail/watch
 github.com/hpcloud/tail/winfile
-# github.com/klauspost/compress v1.8.1
+# github.com/klauspost/compress v1.8.2
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/zlib
@@ -163,7 +163,7 @@ golang.org/x/text/runes
 golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
-# google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
+# google.golang.org/genproto v0.0.0-20190905072037-92dd089d5514
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.23.0
 google.golang.org/grpc/grpclog
