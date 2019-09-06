@@ -27,6 +27,7 @@ type SyslogAgent struct {
 	log                 *log.Logger
 	bindingsPerAppLimit int
 	drainSkipCertVerify bool
+	appCache            *AppCache
 }
 
 type Metrics interface {
@@ -90,6 +91,9 @@ func NewSyslogAgent(
 		l,
 	)
 
+	fmt.Println("initializing app cache ******************")
+	appCache := NewAppCache(cfg, l)
+
 	return &SyslogAgent{
 		grpc:                cfg.GRPC,
 		metrics:             m,
@@ -97,10 +101,14 @@ func NewSyslogAgent(
 		bindingsPerAppLimit: cfg.BindingsPerAppLimit,
 		drainSkipCertVerify: cfg.DrainSkipCertVerify,
 		bindingManager:      bindingManager,
+		appCache:            appCache,
 	}
 }
 
 func (s *SyslogAgent) Run() {
+	fmt.Println("starting app cache *********************")
+	go s.appCache.Start()
+
 	ingressDropped := s.metrics.NewCounter(
 		"dropped",
 		metrics.WithHelpText("Total number of dropped envelopes."),
@@ -117,7 +125,7 @@ func (s *SyslogAgent) Run() {
 		metrics.WithMetricTags(map[string]string{"scope": "all_drains"}),
 	)
 	envelopeWriter := syslog.NewEnvelopeWriter(s.bindingManager.GetDrains, diode.Next, drainIngress, s.log)
-	go envelopeWriter.Run()
+	go envelopeWriter.Run(s.appCache)
 
 	var opts []plumbing.ConfigOption
 	if len(s.grpc.CipherSuites) > 0 {

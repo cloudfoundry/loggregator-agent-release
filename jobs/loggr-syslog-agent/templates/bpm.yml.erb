@@ -29,6 +29,15 @@
       "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
       "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
       "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+
+
+      "GROUPCACHE_CA_FILE_PATH" => "#{certs_dir}/app_cache_ca.crt",
+      "GROUPCACHE_CERT_FILE_PATH" => "#{certs_dir}/app_cache.crt",
+      "GROUPCACHE_KEY_FILE_PATH" => "#{certs_dir}/app_cache.key",
+      "PEERS" => "#{p("appcache.peers")}",
+      "CC_ENDPOINT" => "#{p("cc.endpoint")}",
+      "CC_CLIENT_ID" => "#{p("cc.client_id")}",
+      "CC_CLIENT_SECRET" => "#{p("cc.client_secret")}",
     }
   }
 

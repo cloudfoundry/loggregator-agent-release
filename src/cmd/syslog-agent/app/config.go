@@ -29,14 +29,29 @@ type Cache struct {
 	Blacklist       cups.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 }
 
+type Capi struct {
+	Endpoint     string `env:"CC_ENDPOINT, required, report"`
+	ClientID     string `env:"CC_CLIENT_ID, required, report"`
+	ClientSecret string `env:"CC_CLIENT_SECRET, required, report"`
+}
+
+type GroupCache struct {
+	Peers    string `env:"PEERS, required, report"`
+	CAFile   string `env:"GROUPCACHE_CA_FILE_PATH,     required, report"`
+	CertFile string `env:"GROUPCACHE_CERT_FILE_PATH,   required, report"`
+	KeyFile  string `env:"GROUPCACHE_KEY_FILE_PATH,    required, report"`
+}
+
 // Config holds the configuration for the syslog agent
 type Config struct {
 	BindingsPerAppLimit int           `env:"BINDING_PER_APP_LIMIT,    report"`
 	DrainSkipCertVerify bool          `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
 	IdleDrainTimeout    time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
 
-	GRPC  GRPC
-	Cache Cache
+	GroupCache    GroupCache
+	GRPC          GRPC
+	Cache         Cache
+	Capi          Capi
 	MetricsServer config.MetricsServer
 
 	UniversalDrainURLs []string `env:"UNIVERSAL_DRAIN_URLS, report"`

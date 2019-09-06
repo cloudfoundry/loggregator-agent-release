@@ -1,0 +1,51 @@
+#- type: replace
+#  path: /instance_groups/name=doppler/jobs/name=loggr-syslog-agent?
+#  value:
+#    name: loggr-syslog-agent
+#    release: loggregator-agent
+#    properties:
+#      port: 3460
+#      tls:
+#        ca_cert: "((loggregator_ca.certificate))"
+#        cert: "((loggregator_tls_agent.certificate))"
+#        key: "((loggregator_tls_agent.private_key))"
+#      cache:
+#        tls:
+#          ca_cert: "((loggregator_ca.certificate))"
+#          cert: "((syslog_agent_api_tls.certificate))"
+#          key: "((syslog_agent_api_tls.private_key))"
+#          cn: "binding-cache"
+#      cc:
+#        endpoint: "https://api.banana.loggr.cf-app.com/v3"
+#        client_id: admin
+#        client_secret: "((credhub_admin_client_secret))"
+#      appcache:
+#        peers: "10.0.1.13, 10.0.1.14"
+#        ca_cert: "((app_cache_ca.certificate))"
+#        cert: "((app_cache_tls.certificate))"
+#        key: "((app_cache_tls.private_key))"
+
+- type: replace
+  path: /instance_groups/name=doppler/instances
+  value: 3
+
+- type: replace
+  path: /variables/-
+  value:
+    name: app_cache_ca
+    type: certificate
+    options:
+      is_ca: true
+      common_name: appCacheCA
+
+- type: replace
+  path: /variables/-
+  value:
+    name: app_cache_tls
+    type: certificate
+    options:
+      ca: app_cache_ca
+      common_name: appCache
+      extended_key_usage:
+      - client_auth
+      - server_auth

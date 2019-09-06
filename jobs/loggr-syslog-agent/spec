@@ -14,6 +14,9 @@ templates:
   metrics_ca.crt.erb: config/certs/metrics_ca.crt
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
+  app_cache_ca.crt.erb: config/certs/app_cache_ca.crt
+  app_cache.crt.erb: config/certs/app_cache.crt
+  app_cache.key.erb: config/certs/app_cache.key
 
 packages:
 - syslog-agent
@@ -105,3 +108,19 @@ properties:
     description: "TLS private key for metrics server signed by the metrics CA"
   metrics.server_name:
     description: "The server name used in the scrape configuration for the metrics endpoint"
+
+  cc.endpoint:
+    description: "Cloud Controller endpoint"
+  cc.client_id:
+    description: "Cloud Controller client ID"
+  cc.client_secret:
+    description: "Cloud Controller client secret"
+
+  appcache.peers:
+    description: "AppCache peers"
+  appcache.ca_cert:
+    description: "TLS CA cert to verify requests to AppCache"
+  appcache.cert:
+    description: "TLS certificate for AppCache signed by the AppCache CA"
+  appcache.key:
+    description: "TLS private key for AppCache signed by the AppCache CA"
