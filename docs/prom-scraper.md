@@ -20,6 +20,7 @@ instance_id: Optional - the instance ID to set on scraped metrics (defaults to "
 scheme: Optional - the scheme to use when scraping the target metrics endpoint. Either "http" or "https" (defaults to "http")
 path: Optional - the path to the metrics endpoint (defaults to "/metrics")
 headers: Optional - a map of headers to add to the scrape request
+labels: Optional - a map of labels that will be added to all metrics
 ```
 
 #### Example `prom-scraper-config.yml.erb`
@@ -31,6 +32,8 @@ scheme: https
 path: /metrics/prometheus
 headers:
   "Authorization": "lemons" 
+labels:
+  bosh_job: my-cool-bosh-job
 ```
 
 ### Output
