@@ -5,7 +5,7 @@
     ca_cert: "((forwarder_agent_metrics_tls.ca))"
     cert: "((forwarder_agent_metrics_tls.certificate))"
     key: "((forwarder_agent_metrics_tls.private_key))"
-    server_name: forwarder_agent
+    server_name: forwarder_agent_metrics
 
 - type: replace
   path: /addons/name=loggr-syslog-agent/jobs/name=loggr-syslog-agent/properties/metrics?
@@ -21,7 +21,7 @@
     ca_cert: "((loggregator_agent_metrics_tls.ca))"
     cert: "((loggregator_agent_metrics_tls.certificate))"
     key: "((loggregator_agent_metrics_tls.private_key))"
-    server_name: loggregator_agent
+    server_name: loggregator_agent_metrics
 
 - type: replace
   path: /addons/name=prom_scraper/jobs/name=prom_scraper/properties?/scrape?/tls?
@@ -45,7 +45,7 @@
     ca_cert: "((loggr_metric_scraper_metrics_tls.ca))"
     cert: "((loggr_metric_scraper_metrics_tls.certificate))"
     key: "((loggr_metric_scraper_metrics_tls.private_key))"
-    server_name: loggr_metric_scraper
+    server_name: loggr_metric_scraper_metrics
 
 - type: replace
   path: /instance_groups/name=scheduler/jobs/name=loggr-syslog-binding-cache/properties/metrics?
@@ -53,7 +53,7 @@
     ca_cert: "((loggr_syslog_binding_cache_metrics_tls.ca))"
     cert: "((loggr_syslog_binding_cache_metrics_tls.certificate))"
     key: "((loggr_syslog_binding_cache_metrics_tls.private_key))"
-    server_name: loggr_syslog_binding_cache
+    server_name: loggr_syslog_binding_cache_metrics
 
 - type: replace
   path: /instance_groups/name=api/jobs/name=loggr-udp-forwarder/properties/metrics?
@@ -61,7 +61,7 @@
     ca_cert: "((loggr_udp_forwarder_tls.ca))"
     cert: "((loggr_udp_forwarder_tls.certificate))"
     key: "((loggr_udp_forwarder_tls.private_key))"
-    server_name: loggr_udp_forwarder
+    server_name: loggr_udp_forwarder_metrics
 
 - type: replace
   path: /instance_groups/name=diego-api/jobs/name=loggr-udp-forwarder/properties/metrics?
@@ -69,7 +69,7 @@
     ca_cert: "((loggr_udp_forwarder_tls.ca))"
     cert: "((loggr_udp_forwarder_tls.certificate))"
     key: "((loggr_udp_forwarder_tls.private_key))"
-    server_name: loggr_udp_forwarder
+    server_name: loggr_udp_forwarder_metrics
 
 - type: replace
   path: /instance_groups/name=diego-cell/jobs/name=loggr-udp-forwarder/properties/metrics?
@@ -77,7 +77,7 @@
     ca_cert: "((loggr_udp_forwarder_tls.ca))"
     cert: "((loggr_udp_forwarder_tls.certificate))"
     key: "((loggr_udp_forwarder_tls.private_key))"
-    server_name: loggr_udp_forwarder
+    server_name: loggr_udp_forwarder_metrics
 
 - type: replace
   path: /instance_groups/name=router/jobs/name=loggr-udp-forwarder/properties/metrics?
@@ -85,7 +85,7 @@
     ca_cert: "((loggr_udp_forwarder_tls.ca))"
     cert: "((loggr_udp_forwarder_tls.certificate))"
     key: "((loggr_udp_forwarder_tls.private_key))"
-    server_name: loggr_udp_forwarder
+    server_name: loggr_udp_forwarder_metrics
 
 - type: replace
   path: /instance_groups/name=scheduler/jobs/name=loggr-udp-forwarder/properties/metrics?
@@ -93,7 +93,7 @@
     ca_cert: "((loggr_udp_forwarder_tls.ca))"
     cert: "((loggr_udp_forwarder_tls.certificate))"
     key: "((loggr_udp_forwarder_tls.private_key))"
-    server_name: loggr_udp_forwarder
+    server_name: loggr_udp_forwarder_metrics
 
 - type: replace
   path: /instance_groups/name=tcp-router/jobs/name=loggr-udp-forwarder/properties/metrics?
@@ -101,7 +101,7 @@
     ca_cert: "((loggr_udp_forwarder_tls.ca))"
     cert: "((loggr_udp_forwarder_tls.certificate))"
     key: "((loggr_udp_forwarder_tls.private_key))"
-    server_name: loggr_udp_forwarder
+    server_name: loggr_udp_forwarder_metrics
 
 - type: replace
   path: /instance_groups/name=scheduler/jobs/name=leadership-election/properties/metrics?
@@ -133,7 +133,7 @@
     type: certificate
     options:
       ca: metric_scraper_ca
-      common_name: forwarder_agent
+      common_name: forwarder_agent_metrics
       extended_key_usage:
       - server_auth
 
@@ -155,7 +155,7 @@
     type: certificate
     options:
       ca: metric_scraper_ca
-      common_name: loggregator_agent
+      common_name: loggregator_agent_metrics
       extended_key_usage:
       - server_auth
 
@@ -166,7 +166,7 @@
     type: certificate
     options:
       ca: metric_scraper_ca
-      common_name: loggr_metric_scraper
+      common_name: loggr_metric_scraper_metrics
       extended_key_usage:
       - server_auth
 
@@ -177,7 +177,7 @@
     type: certificate
     options:
       ca: metric_scraper_ca
-      common_name: loggr_syslog_binding_cache
+      common_name: loggr_syslog_binding_cache_metrics
       extended_key_usage:
       - server_auth
 
@@ -188,7 +188,7 @@
     type: certificate
     options:
       ca: metric_scraper_ca
-      common_name: loggr_udp_forwarder
+      common_name: loggr_udp_forwarder_metrics
       extended_key_usage:
       - server_auth
 
