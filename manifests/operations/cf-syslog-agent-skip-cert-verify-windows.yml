@@ -1,5 +1,0 @@
-- type: replace
-  path: /instance_groups/name=windows1803-cell/jobs/name=loggr-syslog-agent-windows/properties/drain_skip_cert_verify?
-  value: true
-
-
