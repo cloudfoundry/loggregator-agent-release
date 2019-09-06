@@ -111,6 +111,12 @@
     key: "((leadership_election_metrics_tls.private_key))"
     server_name: leadership_election_metrics
 
+- type: remove
+  path: /instance_groups/name=api/jobs/name=loggregator_agent?
+
+- type: remove
+  path: /addons/name=loggregator_agent/exclude/jobs?/name=cloud_controller_ng
+
 - type: replace
   path: /variables/name=metric_scraper_ca?
   value:
