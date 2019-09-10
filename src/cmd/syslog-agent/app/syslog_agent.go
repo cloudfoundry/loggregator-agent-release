@@ -4,7 +4,9 @@ import (
 	"code.cloudfoundry.org/go-loggregator/metrics"
 	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"time"
 
@@ -101,15 +103,11 @@ func NewSyslogAgent(
 }
 
 func drainTLSConfig(cfg Config) *tls.Config {
-	var clientOpts []tlsconfig.ClientOption
-	if cfg.DrainTrustedCAFile != "" {
-		clientOpts = append(clientOpts, tlsconfig.WithAuthorityFromFile(cfg.DrainTrustedCAFile))
-	}
-
+	certPool := trustedCertPool(cfg.DrainTrustedCAFile)
 	tlsConfig, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
 	).Client(
-		clientOpts...,
+		tlsconfig.WithAuthority(certPool),
 	)
 
 	if err != nil {
@@ -119,6 +117,28 @@ func drainTLSConfig(cfg Config) *tls.Config {
 	tlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
 
 	return tlsConfig
+}
+
+func trustedCertPool(trustedCAFile string) *x509.CertPool {
+	cp, err := x509.SystemCertPool()
+	if err != nil {
+		cp = x509.NewCertPool()
+	}
+
+	if trustedCAFile != "" {
+		cert, err := ioutil.ReadFile(trustedCAFile)
+		if err != nil {
+			log.Printf("unable to read provided custom CA: %s", err)
+			return cp
+		}
+
+		ok := cp.AppendCertsFromPEM(cert)
+		if !ok {
+			log.Println("unable to add provided custom CA")
+		}
+	}
+
+	return cp
 }
 
 func (s *SyslogAgent) Run() {
