@@ -41,6 +41,8 @@ builds:
     version: "3.17"
   bf7a43f8-9760-4c30-6675-c555e91006bf:
     version: "3.2"
+  c6aebb99-bcf3-4ca1-7e40-d101b9fb7564:
+    version: 3.21.1
   c74ea9f3-5de6-4296-7f93-ff0817ebe3f1:
     version: "3.16"
   e06cf376-ccb0-4cf3-5019-89bc20883fbf:
