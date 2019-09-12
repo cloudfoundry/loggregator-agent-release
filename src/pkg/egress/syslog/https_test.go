@@ -75,7 +75,7 @@ var _ = Describe("HTTPWriter", func() {
 
 	It("does not leak creds when reporting a POST error", func() {
 		b := buildURLBinding(
-			"http://user:password@localhost:garbage",
+			"http://user:password@localhost:0",
 			"test-app-id",
 			"test-hostname",
 		)
@@ -311,7 +311,8 @@ func newMockDrain(status int) *SpyDrain {
 }
 
 func buildURLBinding(u, appID, hostname string) *syslog.URLBinding {
-	parsedURL, _ := url.Parse(u)
+	parsedURL, err := url.Parse(u)
+	Expect(err).ToNot(HaveOccurred())
 
 	return &syslog.URLBinding{
 		URL:      parsedURL,
