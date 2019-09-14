@@ -19,7 +19,6 @@ require (
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/klauspost/compress v1.8.3 // indirect
-	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
 	github.com/prometheus/client_golang v1.1.0
@@ -28,7 +27,7 @@ require (
 	github.com/prometheus/procfs v0.0.4 // indirect
 	github.com/shirou/gopsutil v2.18.12+incompatible
 	github.com/stretchr/testify v1.4.0 // indirect
-	github.com/valyala/fasthttp v1.4.0
+	github.com/valyala/fasthttp v1.5.0
 	golang.org/x/net v0.0.0-20190912160710-24e19bdeb0f2
 	golang.org/x/sys v0.0.0-20190913121621-c3b328c6e5a7 // indirect
 	golang.org/x/text v0.3.2 // indirect
