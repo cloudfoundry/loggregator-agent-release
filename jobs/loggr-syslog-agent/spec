@@ -37,7 +37,7 @@ properties:
   drain_ca_cert:
     description: The CA certificate for key/cert verification.
 
-  non_app_drains:
+  aggregate_drains:
     description: "Syslog server URLs that will receive the logs from all sources"
     default: ""
     example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"

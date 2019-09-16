@@ -41,7 +41,7 @@ type Config struct {
 	Cache         Cache
 	MetricsServer config.MetricsServer
 
-	UniversalDrainURLs []string `env:"UNIVERSAL_DRAIN_URLS, report"`
+	AggregateDrainURLs []string `env:"AGGREGATE_DRAIN_URLS, report"`
 }
 
 // LoadConfig will load the configuration for the syslog agent from the

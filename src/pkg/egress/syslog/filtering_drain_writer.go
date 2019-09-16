@@ -12,7 +12,7 @@ const (
 	BINDING_TYPE_LOG BindingType = iota
 	BINDING_TYPE_METRIC
 	BINDING_TYPE_ALL
-	BINDING_TYPE_UNIVERSAL
+	BINDING_TYPE_AGGREGATE
 )
 
 type FilteringDrainWriter struct {
@@ -21,7 +21,7 @@ type FilteringDrainWriter struct {
 }
 
 func NewFilteringDrainWriter(binding Binding, writer egress.Writer) (*FilteringDrainWriter, error) {
-	if binding.Type < BINDING_TYPE_LOG || binding.Type > BINDING_TYPE_UNIVERSAL {
+	if binding.Type < BINDING_TYPE_LOG || binding.Type > BINDING_TYPE_AGGREGATE {
 		return nil, errors.New("invalid binding type")
 	}
 
@@ -32,7 +32,7 @@ func NewFilteringDrainWriter(binding Binding, writer egress.Writer) (*FilteringD
 }
 
 func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
-	if w.binding.Type == BINDING_TYPE_UNIVERSAL {
+	if w.binding.Type == BINDING_TYPE_AGGREGATE {
 		return w.writer.Write(env)
 	}
 

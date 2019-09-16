@@ -86,7 +86,7 @@ func NewSyslogAgent(
 	bindingManager := binding.NewManager(
 		fetcher,
 		connector,
-		cfg.UniversalDrainURLs,
+		cfg.AggregateDrainURLs,
 		m,
 		cfg.Cache.PollingInterval,
 		cfg.IdleDrainTimeout,

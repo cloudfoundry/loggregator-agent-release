@@ -32,8 +32,8 @@ import (
 var _ = Describe("SyslogAgent", func() {
 	var (
 		syslogHTTPS        *syslogHTTPSServer
-		universalSyslogTLS *syslogTCPServer
-		universalAddr      string
+		aggregateSyslogTLS *syslogTCPServer
+		aggregateAddr      string
 		syslogTLS          *syslogTCPServer
 		cupsProvider       *fakeBindingCache
 		metricClient       *testhelper.SpyMetricClient
@@ -50,8 +50,8 @@ var _ = Describe("SyslogAgent", func() {
 		syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
 		syslogTLS = newSyslogTLSServer(syslogServerTestCerts)
 
-		universalSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
-		universalAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", universalSyslogTLS.port())
+		aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+		aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
 		cupsProvider = &fakeBindingCache{
 			results: []binding.Binding{
@@ -110,7 +110,7 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "agent"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "non_app_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+		Eventually(hasMetric(mc, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "binding_refresh_count", nil)).Should(BeTrue())
 		Eventually(hasMetric(mc, "latency_for_last_binding_refresh", map[string]string{"unit": "ms"})).Should(BeTrue())
@@ -120,7 +120,7 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 	})
 
-	var setupTestAgent = func(blacklist cups.BlacklistRanges, universalDrains []string) context.CancelFunc {
+	var setupTestAgent = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
 		metricClient = testhelper.NewMetricClient()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
@@ -148,7 +148,7 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: metronTestCerts.Cert("metron"),
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
-			UniversalDrainURLs: universalDrains,
+			AggregateDrainURLs: aggregateDrains,
 		}
 		go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
 		ctx, cancel := context.WithCancel(context.Background())
@@ -174,27 +174,27 @@ var _ = Describe("SyslogAgent", func() {
 		Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
 	})
 
-	It("should create connections to universal drains", func() {
-		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{universalAddr})
+	It("should create connections to aggregate drains", func() {
+		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
 		defer cancel()
 
-		Eventually(hasMetric(metricClient, "non_app_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+		Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
 		Eventually(func() float64 {
-			return metricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()
+			return metricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
 		}).Should(Equal(1.0))
 
-		// 2 app drains and 1 universal drain
+		// 2 app drains and 1 aggregate drain
 		Eventually(func() float64 {
 			return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 		}, 5).Should(Equal(3.0))
 	})
 
 	It("egresses logs", func() {
-		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{universalAddr})
+		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
 		defer cancel()
 
 		Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
-		Eventually(universalSyslogTLS.receivedMessages, 5).Should(Receive())
+		Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
 	})
 })
 

@@ -69,13 +69,13 @@ var _ = Describe("Manager", func() {
 			Eventually(appDrains[0].(*spyDrain).envelopes).Should(Receive(Equal(e)))
 		})
 
-		It("returns universal syslog drains for all sourceIDs", func() {
+		It("returns aggregate syslog drains for all sourceIDs", func() {
 			stubBindingFetcher.bindings <- []syslog.Binding{binding1}
 
 			m := binding.NewManager(
 				stubBindingFetcher,
 				spyConnector,
-				[]string{"syslog://universal-drain.url.com"},
+				[]string{"syslog://aggregate-drain.url.com"},
 				spyMetricClient, 10*time.Second,
 				10*time.Minute,
 				log.New(GinkgoWriter, "", 0),
@@ -238,15 +238,15 @@ var _ = Describe("Manager", func() {
 		}).Should(BeNumerically("==", 3))
 	})
 
-	It("reports the number of universal drains", func() {
+	It("reports the number of aggregate drains", func() {
 		stubBindingFetcher.bindings <- []syslog.Binding{}
 
 		m := binding.NewManager(
 			stubBindingFetcher,
 			spyConnector,
 			[]string{
-				"syslog://universal-drain1.url.com",
-				"syslog://universal-drain2.url.com",
+				"syslog://aggregate-drain1.url.com",
+				"syslog://aggregate-drain2.url.com",
 			},
 			spyMetricClient,
 			100*time.Millisecond,
@@ -256,12 +256,12 @@ var _ = Describe("Manager", func() {
 		go m.Run()
 
 		Eventually(func() float64 {
-			return spyMetricClient.GetMetric("non_app_drains", map[string]string{"unit": "count"}).Value()
+			return spyMetricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
 
 		}).Should(Equal(float64(2)))
 	})
 
-	It("includes universal drains in active drain count", func() {
+	It("includes aggregate drains in active drain count", func() {
 		stubBindingFetcher.bindings <- []syslog.Binding{
 			binding1,
 			binding2,
@@ -272,7 +272,7 @@ var _ = Describe("Manager", func() {
 			stubBindingFetcher,
 			spyConnector,
 			[]string{
-				"syslog://universal-drain1.url.com",
+				"syslog://aggregate-drain1.url.com",
 			},
 			spyMetricClient,
 			time.Hour,
@@ -294,14 +294,14 @@ var _ = Describe("Manager", func() {
 		Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(3.0))
 	})
 
-	It("re-connects the universal drains after updates", func() {
+	It("re-connects the aggregate drains after updates", func() {
 		stubBindingFetcher.bindings <- []syslog.Binding{}
 		stubBindingFetcher.bindings <- []syslog.Binding{}
 
 		m := binding.NewManager(
 			stubBindingFetcher,
 			spyConnector,
-			[]string{"syslog://universal-drain.url.com"},
+			[]string{"syslog://aggregate-drain.url.com"},
 			spyMetricClient,
 			100*time.Millisecond,
 			10*time.Minute,

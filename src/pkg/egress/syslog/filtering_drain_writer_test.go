@@ -144,9 +144,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 		Entry("events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{Event: &loggregator_v2.Event{}}}),
 	)
 
-	Describe("Universal drains", func() {
+	Describe("aggregate drains", func() {
 		DescribeTable("allows all envelope types", func(env *loggregator_v2.Envelope) {
-			binding := syslog.Binding{AppId: "all", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_UNIVERSAL}
+			binding := syslog.Binding{AppId: "all", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_AGGREGATE}
 			fakeWriter := &fakeWriter{}
 
 			drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)

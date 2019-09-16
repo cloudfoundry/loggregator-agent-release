@@ -28,7 +28,7 @@
 
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
       "DRAIN_TRUSTED_CA_FILE" => "#{drain_ca}",
-      "UNIVERSAL_DRAIN_URLS" => "#{p("non_app_drains")}",
+      "AGGREGATE_DRAIN_URLS" => "#{p("aggregate_drains")}",
 
       "METRICS_PORT" => "#{p("metrics.port")}",
       "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",

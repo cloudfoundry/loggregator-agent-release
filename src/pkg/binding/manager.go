@@ -29,14 +29,14 @@ type Connector interface {
 type Manager struct {
 	bf                 Fetcher
 	connector          Connector
-	universalDrains    []drainHolder
-	universalDrainURLs []string
+	aggregateDrains    []drainHolder
+	aggregateDrainURLs []string
 
 	pollingInterval time.Duration
 	idleTimeout     time.Duration
 
 	drainCountMetric          metrics.Gauge
-	universalDrainCountMetric metrics.Gauge
+	aggregateDrainCountMetric metrics.Gauge
 	activeDrainCountMetric    metrics.Gauge
 	activeDrainCount          int64
 
@@ -50,7 +50,7 @@ type Manager struct {
 func NewManager(
 	bf Fetcher,
 	c Connector,
-	universalDrainURLs []string,
+	aggregateDrainURLs []string,
 	m Metrics,
 	pollingInterval time.Duration,
 	idleTimeout time.Duration,
@@ -62,25 +62,25 @@ func NewManager(
 		metrics.WithHelpText("Current number of syslog drain bindings."),
 		tagOpt,
 	)
-	universalDrainCount := m.NewGauge(
-		"non_app_drains",
-		metrics.WithHelpText("Current number of non-app drains."),
+	aggregateDrainCount := m.NewGauge(
+		"aggregate_drains",
+		metrics.WithHelpText("Current number of aggregate drains."),
 		tagOpt,
 	)
 	activeDrains := m.NewGauge(
 		"active_drains",
-		metrics.WithHelpText("Current number of active syslog drains including app and non-app drains."),
+		metrics.WithHelpText("Current number of active syslog drains including app and aggregate drains."),
 		tagOpt,
 	)
 
 	manager := &Manager{
 		bf:                        bf,
 		connector:                 c,
-		universalDrainURLs:        universalDrainURLs,
+		aggregateDrainURLs:        aggregateDrainURLs,
 		pollingInterval:           pollingInterval,
 		idleTimeout:               idleTimeout,
 		drainCountMetric:          drainCount,
-		universalDrainCountMetric: universalDrainCount,
+		aggregateDrainCountMetric: aggregateDrainCount,
 		activeDrainCountMetric:    activeDrains,
 		sourceDrainMap:            make(map[string]map[syslog.Binding]drainHolder),
 		sourceAccessTimes:         make(map[string]time.Time),
@@ -135,7 +135,7 @@ func (m *Manager) GetDrains(sourceID string) []egress.Writer {
 		drains = append(drains, drainHolder.drainWriter)
 	}
 
-	for _, drainHolder := range m.universalDrains {
+	for _, drainHolder := range m.aggregateDrains {
 		drains = append(drains, drainHolder.drainWriter)
 	}
 
@@ -176,34 +176,34 @@ func (m *Manager) updateDrains(bindings []syslog.Binding) {
 		}
 	}
 
-	for _, drainHolder := range m.universalDrains {
+	for _, drainHolder := range m.aggregateDrains {
 		drainHolder.cancel()
 	}
 
-	m.updateActiveDrainCount(-int64(len(m.universalDrains)))
-	m.universalDrains = []drainHolder{}
-	m.addUniversalDrains(m.universalDrainURLs)
+	m.updateActiveDrainCount(-int64(len(m.aggregateDrains)))
+	m.aggregateDrains = []drainHolder{}
+	m.addAggregateDrains(m.aggregateDrainURLs)
 }
 
-func (m *Manager) addUniversalDrains(drains []string) {
+func (m *Manager) addAggregateDrains(drains []string) {
 	for _, drain := range drains {
-		universalDrainHolder := newDrainHolder()
-		writer, err := m.connector.Connect(universalDrainHolder.ctx, syslog.Binding{
+		aggregateDrainHolder := newDrainHolder()
+		writer, err := m.connector.Connect(aggregateDrainHolder.ctx, syslog.Binding{
 			AppId: "all",
 			Drain: drain,
-			Type:  syslog.BINDING_TYPE_UNIVERSAL,
+			Type:  syslog.BINDING_TYPE_AGGREGATE,
 		})
 		if err != nil {
-			m.log.Printf("failed to connect to universal drain %s: %s", drain, err)
+			m.log.Printf("failed to connect to aggregate drain %s: %s", drain, err)
 			continue
 		}
 
-		universalDrainHolder.drainWriter = writer
-		m.universalDrains = append(m.universalDrains, universalDrainHolder)
+		aggregateDrainHolder.drainWriter = writer
+		m.aggregateDrains = append(m.aggregateDrains, aggregateDrainHolder)
 	}
 
-	m.universalDrainCountMetric.Set(float64(len(m.universalDrains)))
-	m.updateActiveDrainCount(int64(len(m.universalDrains)))
+	m.aggregateDrainCountMetric.Set(float64(len(m.aggregateDrains)))
+	m.updateActiveDrainCount(int64(len(m.aggregateDrains)))
 }
 
 func (m *Manager) removeDrain(
