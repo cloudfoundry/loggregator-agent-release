@@ -62,3 +62,32 @@ it will emit the following metrics about the VM where it is deployed:
 | system_network_drop_out              |   ✔️   |    ✔️    |
 
 Note: these metrics are also available via HTTP in Prometheus format.
+
+#### Deploying System Metrics Agent
+
+To deploy system metrics agent, add the following jobs to all instance groups and the variables to the variables section.
+
+**Notes**
+- The system metrics agent is scraped by the metric scraper deployed inside of CF.
+
+```yaml
+jobs:
+- name: loggr-system-metrics-agent
+  properties:
+    system_metrics:
+      tls:
+        ca_cert: ((system_metrics.ca))
+        cert: ((system_metrics.certificate))
+        key: ((system_metrics.private_key))
+  release: loggregator-agent
+
+variables:
+- name: system_metrics
+  options:
+    ca: /bosh-<ENV_NAME>/cf/loggregator_ca 
+    common_name: system-metrics
+    extended_key_usage:
+    - client_auth
+    - server_auth
+  type: certificate
+```

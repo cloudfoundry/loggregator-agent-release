@@ -19,7 +19,7 @@ directory. [example][ingress-port]
 
 ### Syslog Agent
 An agent that forwards app logs to a syslog drain. Drains are registered by binding User Provided Services to apps. 
-Any logs coming from a registered app are forwarded to the configured endpoint. 
+Any logs coming from a registered app are forwarded to the configured endpoint. [docs][syslog-agent]
 
 #### Syslog Binding Cache
 Syslog Agents can overwhelm CAPI when querying for existing bindings. This component acts a a proxy for the CAPI Binding
@@ -70,3 +70,4 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [prom-scraper]:         docs/prom-scraper.md
 [system-metrics-agent]: docs/system-metrics-agent.md
 [architecture]:         docs/agent-architecture.png
+[syslog-agent]:         docs/syslog-agent.md
