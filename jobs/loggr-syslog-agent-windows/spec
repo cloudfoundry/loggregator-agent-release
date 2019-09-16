@@ -20,8 +20,6 @@ packages:
 - syslog-agent-windows
 
 consumes:
-- name: cloud_controller
-  type: cloud_controller
 - name: binding_cache
   type: binding_cache
 
