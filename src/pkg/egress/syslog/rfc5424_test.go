@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"strings"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
@@ -85,6 +86,34 @@ var _ = Describe("RFC5424", func() {
 
 		receivedMsgs, _ = syslog.ToRFC5424(metricEnv, "test-hostname")
 		expectConversion(receivedMsgs, `<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [counter@47450 name="some-counter" total="99" delta="1"][tags@47450 metric-tag="scallop"] `+"\n")
+	})
+
+	It("builds hostname from org, space, and app name tags", func() {
+		logEnv := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_ERR)
+		logEnv.Tags["organization_name"] = "some-org"
+		logEnv.Tags["space_name"] = "some-space"
+		logEnv.Tags["app_name"] = "some-app"
+
+		metricEnv := buildCounterEnvelope("1")
+		metricEnv.Tags = map[string]string{"metric-tag": "scallop"}
+
+		receivedMsgs, _ := syslog.ToRFC5424(logEnv, "test-hostname")
+		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 some-org.some-space.some-app test-app-id [MY-TASK/2] - [tags@47450 app_name="some-app" organization_name="some-org" source_type="MY TASK" space_name="some-space"] just a test`+"\n")
+	})
+
+	It("truncates hostname from tags if longer than 255 characters", func() {
+		logEnv := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_ERR)
+		logEnv.Tags["organization_name"] = strings.Repeat("a", 100)
+		logEnv.Tags["space_name"] = strings.Repeat("b", 100)
+		logEnv.Tags["app_name"] = strings.Repeat("c", 100)
+
+		metricEnv := buildCounterEnvelope("1")
+		metricEnv.Tags = map[string]string{"metric-tag": "scallop"}
+
+		receivedMsgs, _ := syslog.ToRFC5424(logEnv, "test-hostname")
+		expectedMsg := fmt.Sprintf(`<11>1 1970-01-01T00:00:00.012345+00:00 %s.%s.%s test-app-id [MY-TASK/2] - [tags@47450 app_name="%s" organization_name="%[1]s" source_type="MY TASK" space_name="%[2]s"] just a test`,
+			strings.Repeat("a", 100), strings.Repeat("b", 100), strings.Repeat("c", 53), strings.Repeat("c", 100))
+		expectConversion(receivedMsgs, expectedMsg+"\n")
 	})
 
 	Describe("validation", func() {

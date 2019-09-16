@@ -23,10 +23,12 @@ const (
 	tagsStructuredDataID = "tags@47450"
 )
 
-func ToRFC5424(env *loggregator_v2.Envelope, hostname string) ([][]byte, error) {
-	if len(hostname) > 255 {
-		return nil, invalidValue("Hostname", hostname)
+func ToRFC5424(env *loggregator_v2.Envelope, defaultHostname string) ([][]byte, error) {
+	if len(defaultHostname) > 255 {
+		return nil, invalidValue("Hostname", defaultHostname)
 	}
+
+	hostname := buildHostname(env, defaultHostname)
 
 	appID := env.GetSourceId()
 	if len(appID) > 48 {
@@ -59,6 +61,23 @@ func ToRFC5424(env *loggregator_v2.Envelope, hostname string) ([][]byte, error) 
 	default:
 		return nil, nil
 	}
+}
+
+func buildHostname(env *loggregator_v2.Envelope, defaultHostname string) string {
+	hostname := defaultHostname
+
+	envTags := env.GetTags()
+	orgName, orgOk := envTags["organization_name"]
+	spaceName, spaceOk := envTags["space_name"]
+	appName, appOk := envTags["app_name"]
+	if orgOk || spaceOk || appOk {
+		hostname = fmt.Sprintf("%s.%s.%s", orgName, spaceName, appName)
+		if len(hostname) > 255 {
+			hostname = hostname[:255]
+		}
+	}
+
+	return hostname
 }
 
 func invalidValue(property, value string) error {
