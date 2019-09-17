@@ -5,10 +5,15 @@ set -eo pipefail
 function main() {
   job=$1
 
-  validate
-  find_job
-  construct_endpoint
-  get_metrics
+  if [[ -z OVERRIDE_ENDPOINT ]]; then
+    validate
+    find_job
+    construct_endpoint
+    get_metrics --resolve "${server_name}:${port}:127.0.0.1"
+  else
+    endpoint=${OVERRIDE_ENDPOINT}
+    get_metrics -k
+  fi
 }
 
 function validate {
@@ -19,7 +24,7 @@ function validate {
 }
 
 function print_usage {
-    echo "usage: ./get-metrics.sh <job_name>"
+    printf "usage:\n\n./get-metrics.sh <job_name>\nOVERRIDE_ENDPOINT='https://localhost:8888/metrics' ./get-metrics.sh"
 }
 
 function find_job {
@@ -45,10 +50,10 @@ function construct_endpoint {
 
 function get_metrics {
   curl ${endpoint} \
-  --resolve "${server_name}:${port}:127.0.0.1" \
   --cacert /var/vcap/jobs/prom_scraper/config/certs/scrape_ca.crt \
   --cert /var/vcap/jobs/prom_scraper/config/certs/scrape.crt \
-  --key /var/vcap/jobs/prom_scraper/config/certs/scrape.key
+  --key /var/vcap/jobs/prom_scraper/config/certs/scrape.key \
+  $@
 }
 
 main $1
