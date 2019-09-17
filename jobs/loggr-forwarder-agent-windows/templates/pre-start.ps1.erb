@@ -4,5 +4,6 @@ LOG_DIR="/var/vcap/sys/log/loggr-forwarder-agent-windows"
 <<-POWERSHELL
 New-Item -Path #{RUN_DIR} -ItemType directory -Force
 New-Item -Path #{LOG_DIR} -ItemType directory -Force
+New-NetFirewallRule -Protocol TCP -LocalPort #{p("metrics.port")} -Direction Inbound -Action Allow -DisplayName "Metrics Exporter"
 POWERSHELL
  %>

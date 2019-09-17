@@ -1,5 +1,0 @@
-check process loggr-metric-scraper
-  with pidfile /var/vcap/sys/run/bpm/loggr-metric-scraper/loggr-metric-scraper.pid
-  start program "/var/vcap/jobs/bpm/bin/bpm start loggr-metric-scraper"
-  stop program "/var/vcap/jobs/bpm/bin/bpm stop loggr-metric-scraper"
-  group vcap

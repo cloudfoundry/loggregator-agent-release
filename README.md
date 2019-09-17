@@ -29,16 +29,6 @@ query.
 Loggregator Agent is a Cloud Foundry component that forwards logs and metrics
 into the Loggregator subsystem. More information can be found in the [docs][loggregator-agent]
 
-### System Metrics Agent
-A standalone agent to provide VM system metrics via a prometheus-scrapable endpoint. A list of metrics
-is available in the [docs][system-metrics-agent]
-
-#### Metric Scraper
-A central component for scraping `system-metrics-agents` and forwarding the metrics to the firehose. Metric Scraper
-attempts to scrape the configured port across all vms deployed to the director. If present, this job can be configured to
-communicate with the [Leadership Election Release][leadership-election] so duplicate
-scrapes are avoided in an HA environment.
-
 ### Prom Scraper
 A simple agent that reads from any local prometheus-scrapable endpoint and forwards the results to Loggregator.
 Configurable via files in colocated bosh jobs as described in the [docs][prom-scraper]
@@ -63,11 +53,9 @@ Items marked as "In Flight" on the Roadmap are tracked as new Features in
 [ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/products/jobs/loggregator-tests-with-bumped-modules/badge
 [ci-pipeline]:         https://loggregator.ci.cf-app.com/teams/main/pipelines/products?group=loggregator-agent
 [loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
-[leadersip-election]:  https://github.com/cloudfoundry/leadership-election-release
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
 
 [loggregator-agent]:    docs/loggregator-agent.md
 [prom-scraper]:         docs/prom-scraper.md
-[system-metrics-agent]: docs/system-metrics-agent.md
 [architecture]:         docs/agent-architecture.png
 [syslog-agent]:         docs/syslog-agent.md
