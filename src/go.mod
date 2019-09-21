@@ -23,8 +23,9 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/prometheus/common v0.7.0
 	github.com/prometheus/procfs v0.0.5 // indirect
+	github.com/square/certstrap v1.2.0 // indirect
 	github.com/valyala/fasthttp v1.5.0
-	golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab
+	golang.org/x/net v0.0.0-20190921015927-1a5e07d1ff72
 	golang.org/x/sys v0.0.0-20190920190810-ef0ce1748380 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20190916214212-f660b8655731 // indirect
