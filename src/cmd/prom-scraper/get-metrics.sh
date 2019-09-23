@@ -5,7 +5,7 @@ set -eo pipefail
 function main() {
   job=$1
 
-  if [[ -z OVERRIDE_ENDPOINT ]]; then
+  if [[ -z ${OVERRIDE_ENDPOINT} ]]; then
     validate
     find_job
     construct_endpoint

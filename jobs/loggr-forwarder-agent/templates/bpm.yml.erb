@@ -17,8 +17,7 @@
     "executable" => "/var/vcap/packages/forwarder-agent/forwarder-agent",
     "unsafe" => {
       "unrestricted_volumes" => [
-        { "path" => "/var/vcap/jobs", "mount_only" => true },
-        { "path" => "/var/vcap/data/jobs", "mount_only" => true },
+        { "path" => p("downstream_ingress_port_glob"), "mount_only" => true },
       ],
     },
     "env" => {

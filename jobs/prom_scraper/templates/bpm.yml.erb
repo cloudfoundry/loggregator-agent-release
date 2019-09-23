@@ -9,14 +9,18 @@
 
   certs_dir = "/var/vcap/jobs/prom_scraper/config/certs"
 
+  config_volumes = Array.new
+  if_p('config_globs') { |config_globs|
+    config_volumes = config_globs.map { |glob|
+      { "path" => glob, "mount_only" => true }
+    }
+  }
+
   process = {
     "name" => "prom_scraper",
     "executable" => "/var/vcap/packages/prom_scraper/prom-scraper",
     "unsafe" => {
-      "unrestricted_volumes" => [
-        { "path" => "/var/vcap/jobs", "mount_only" => true },
-        { "path" => "/var/vcap/data/jobs", "mount_only" => true },
-      ],
+      "unrestricted_volumes" => config_volumes
     },
     "env" => {
       "LOGGREGATOR_AGENT_ADDR" => "localhost:#{loggregator_agent_port}",
