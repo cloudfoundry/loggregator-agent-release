@@ -36,7 +36,7 @@ scrapes are avoided in an HA environment.
 
 ## More Resources and Documentation
 
-### Feedabck
+### Feedback
 
 We are always looking to gather feedback and input
 from Loggregator operators. Get in touch or file an issue if you have feature
