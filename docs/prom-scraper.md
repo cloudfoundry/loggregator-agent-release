@@ -47,7 +47,7 @@ To deploy prom scraper, add the following jobs to all instance groups and the va
 Any other components deployed on the same VM with scrapable endpoints should have tls certs signed by the `metric_scraper_ca`
 
 **Notes**
-- Prom scraper must be deployed alongside a [loggregator-agent](docs/loggregator-agent.md)
+- Prom scraper must be deployed alongside a [loggregator-agent](loggregator-agent.md)
 
 ```yaml
 jobs:
