@@ -50,6 +50,7 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 		req := fasthttp.AcquireRequest()
 		req.SetRequestURI(w.url.String())
 		req.Header.SetMethod("POST")
+		req.Header.SetContentType("text/plain")
 		req.SetBody(msg)
 
 		resp := fasthttp.AcquireResponse()
@@ -60,7 +61,7 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 		}
 
 		if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
-			return fmt.Errorf("Syslog Writer: Post responded with %d status code", resp.StatusCode())
+			return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
 		}
 
 		w.egressMetric.Add(1)

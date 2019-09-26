@@ -152,6 +152,30 @@ var _ = Describe("HTTPWriter", func() {
 		Expect(drain.messages[2].ProcessID).To(Equal("[CELL]"))
 	})
 
+	It("sets Content-Type to text/plain", func() {
+		drain := newMockOKDrain()
+
+		b := buildURLBinding(
+			drain.URL,
+			"test-app-id",
+			"test-hostname",
+		)
+
+		writer := syslog.NewHTTPSWriter(
+			b,
+			netConf,
+			skipSSLTLSConfig,
+			&testhelper.SpyMetric{},
+		)
+
+		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+		Expect(writer.Write(env1)).To(Succeed())
+
+		Expect(drain.messages).To(HaveLen(1))
+		Expect(drain.headers).To(HaveLen(1))
+		Expect(drain.headers[0]).To(HaveKeyWithValue("Content-Type", []string{"text/plain"}))
+	})
+
 	It("writes gauge metrics to the http drain", func() {
 		drain := newMockOKDrain()
 
@@ -284,6 +308,7 @@ var _ = Describe("HTTPWriter", func() {
 type SpyDrain struct {
 	*httptest.Server
 	messages []*rfc5424.Message
+	headers []http.Header
 }
 
 func newMockOKDrain() *SpyDrain {
@@ -307,6 +332,7 @@ func newMockDrain(status int) *SpyDrain {
 		Expect(err).ToNot(HaveOccurred())
 
 		drain.messages = append(drain.messages, message)
+		drain.headers = append(drain.headers, r.Header)
 		w.WriteHeader(status)
 	})
 	server := httptest.NewTLSServer(handler)
