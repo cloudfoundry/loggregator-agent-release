@@ -50,6 +50,7 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 		req := fasthttp.AcquireRequest()
 		req.SetRequestURI(w.url.String())
 		req.Header.SetMethod("POST")
+		req.Header.SetContentType("text/plain")
 		req.SetBody(msg)
 
 		resp := fasthttp.AcquireResponse()
