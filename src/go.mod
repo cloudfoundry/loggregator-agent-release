@@ -25,7 +25,7 @@ require (
 	github.com/prometheus/procfs v0.0.5 // indirect
 	github.com/square/certstrap v1.2.0 // indirect
 	github.com/valyala/fasthttp v1.5.0
-	golang.org/x/net v0.0.0-20190926025831-c00fd9afed17
+	golang.org/x/net v0.0.0-20190930134127-c5a3c61f89f3
 	golang.org/x/sys v0.0.0-20190927073244-c990c680b611 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c // indirect
