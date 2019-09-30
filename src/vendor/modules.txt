@@ -8,8 +8,6 @@ code.cloudfoundry.org/go-envstruct
 code.cloudfoundry.org/go-loggregator
 code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
-code.cloudfoundry.org/go-loggregator/metrics/testhelpers
-code.cloudfoundry.org/go-loggregator/metrics
 # code.cloudfoundry.org/go-metric-registry v0.0.0-20190930200807-cfc6a44b372f
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
@@ -194,5 +192,5 @@ google.golang.org/grpc/internal/syscall
 gopkg.in/fsnotify.v1
 # gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 gopkg.in/tomb.v1
-# gopkg.in/yaml.v2 v2.2.2
+# gopkg.in/yaml.v2 v2.2.3
 gopkg.in/yaml.v2
