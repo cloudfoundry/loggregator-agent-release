@@ -2,7 +2,7 @@ package syslog_test
 
 import (
 	"bufio"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"fmt"
 	"io"
 	"net"
@@ -45,12 +45,12 @@ var _ = Describe("TCPWriter", func() {
 	Describe("Write()", func() {
 		var (
 			writer        egress.WriteCloser
-			egressCounter *testhelper.SpyMetric
+			egressCounter *metricsHelpers.SpyMetric
 		)
 
 		BeforeEach(func() {
 			var err error
-			egressCounter = &testhelper.SpyMetric{}
+			egressCounter = &metricsHelpers.SpyMetric{}
 
 			writer = syslog.NewTCPWriter(
 				binding,
@@ -185,7 +185,7 @@ var _ = Describe("TCPWriter", func() {
 			writer := syslog.NewTCPWriter(
 				binding,
 				netConf,
-				&testhelper.SpyMetric{},
+				&metricsHelpers.SpyMetric{},
 			)
 
 			errs := make(chan error, 1)
@@ -208,7 +208,7 @@ var _ = Describe("TCPWriter", func() {
 				writer = syslog.NewTCPWriter(
 					binding,
 					netConf,
-					&testhelper.SpyMetric{},
+					&metricsHelpers.SpyMetric{},
 				)
 				Expect(err).ToNot(HaveOccurred())
 

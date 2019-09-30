@@ -1,7 +1,7 @@
 package scraper
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	metrics "code.cloudfoundry.org/go-metric-registry"
 	"fmt"
 	"github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
@@ -43,7 +43,7 @@ type MetricsEmitter interface {
 }
 
 type metricsClient interface {
-	NewGauge(name string, opts ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 }
 
 type MetricsGetter func(addr string, headers map[string]string) (*http.Response, error)
@@ -76,20 +76,20 @@ func WithMetricsClient(m metricsClient) ScrapeOption {
 	return func(s *Scraper) {
 		s.urlsScraped = m.NewGauge(
 			"last_total_attempted_scrapes",
-			metrics.WithHelpText("Count of attempted scrapes during last round of scraping."),
-			metrics.WithMetricTags(map[string]string{"unit": "total"}),
+			"Count of attempted scrapes during last round of scraping.",
+			metrics.WithMetricLabels(map[string]string{"unit": "total"}),
 		)
 
 		s.failedScrapes = m.NewGauge(
 			"last_total_failed_scrapes",
-			metrics.WithHelpText("Count of failed scrapes during last round of scraping."),
-			metrics.WithMetricTags(map[string]string{"unit": "total"}),
+			"Count of failed scrapes during last round of scraping.",
+			metrics.WithMetricLabels(map[string]string{"unit": "total"}),
 		)
 
 		s.scrapeDuration = m.NewGauge(
 			"last_total_scrape_duration",
-			metrics.WithHelpText("Time in milliseconds to scrape all targets in last round of scraping."),
-			metrics.WithMetricTags(map[string]string{"unit": "ms"}),
+			"Time in milliseconds to scrape all targets in last round of scraping.",
+			metrics.WithMetricLabels(map[string]string{"unit": "ms"}),
 		)
 	}
 }

@@ -7,6 +7,7 @@ require (
 	code.cloudfoundry.org/go-diodes v0.0.0-20190809170250-f77fb823c7ee
 	code.cloudfoundry.org/go-envstruct v1.5.0
 	code.cloudfoundry.org/go-loggregator v0.0.0-20190809213911-969cb33bee6a // pinned
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20190930200807-cfc6a44b372f
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 	code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
@@ -19,7 +20,6 @@ require (
 	github.com/klauspost/compress v1.8.4 // indirect
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
-	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/prometheus/common v0.7.0
 	github.com/prometheus/procfs v0.0.5 // indirect

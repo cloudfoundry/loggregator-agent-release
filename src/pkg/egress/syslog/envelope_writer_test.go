@@ -2,7 +2,7 @@ package syslog_test
 
 import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo"
@@ -29,7 +29,7 @@ var _ = Describe("EnvelopeWriter", func() {
 			return envelope
 		}
 
-		writer := syslog.NewEnvelopeWriter(drainGetter, nextEnvelope, &testhelper.SpyMetric{}, nil)
+		writer := syslog.NewEnvelopeWriter(drainGetter, nextEnvelope, &metricsHelpers.SpyMetric{}, nil)
 
 		go writer.Run()
 		Eventually(spyWriter1.envelopes).Should(Receive(Equal(envelope)))
@@ -49,7 +49,7 @@ var _ = Describe("EnvelopeWriter", func() {
 			}
 		}
 
-		writer := syslog.NewEnvelopeWriter(drainGetter, nextEnvelope, &testhelper.SpyMetric{}, nil)
+		writer := syslog.NewEnvelopeWriter(drainGetter, nextEnvelope, &metricsHelpers.SpyMetric{}, nil)
 
 		go writer.Run()
 		Eventually(spyWriter.envelopes).Should(HaveLen(100))
@@ -73,7 +73,7 @@ var _ = Describe("EnvelopeWriter", func() {
 			}
 		}
 
-		ingressMetric := &testhelper.SpyMetric{}
+		ingressMetric := &metricsHelpers.SpyMetric{}
 		writer := syslog.NewEnvelopeWriter(drainGetter, nextEnvelope, ingressMetric, nil)
 
 		go writer.Run()

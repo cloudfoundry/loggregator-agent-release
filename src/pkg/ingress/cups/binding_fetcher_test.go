@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
@@ -17,13 +17,13 @@ var _ = Describe("BindingFetcher", func() {
 	var (
 		getter    *SpyGetter
 		fetcher   *cups.BindingFetcher
-		metrics   *testhelper.SpyMetricClient
+		metrics   *metricsHelpers.SpyMetricsRegistry
 		maxDrains = 3
 	)
 
 	BeforeEach(func() {
 		getter = &SpyGetter{}
-		metrics = testhelper.NewMetricClient()
+		metrics = metricsHelpers.NewMetricsRegistry()
 		fetcher = cups.NewBindingFetcher(maxDrains, getter, metrics)
 	})
 

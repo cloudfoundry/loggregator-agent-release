@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	egress "code.cloudfoundry.org/loggregator-agent/pkg/egress/v2"
 
 	. "github.com/onsi/ginkgo"
@@ -21,7 +21,7 @@ var _ = Describe("Transponder", func() {
 		writer := newMockWriter()
 		close(writer.WriteOutput.Ret0)
 
-		spy := testhelper.NewMetricClient()
+		spy := metricsHelpers.NewMetricsRegistry()
 
 		tx := egress.NewTransponder(nexter, writer, 1, time.Nanosecond, spy)
 		go tx.Start()
@@ -42,7 +42,7 @@ var _ = Describe("Transponder", func() {
 				nexter.TryNextOutput.Ret1 <- true
 			}
 
-			spy := testhelper.NewMetricClient()
+			spy := metricsHelpers.NewMetricsRegistry()
 
 			tx := egress.NewTransponder(nexter, writer, 5, time.Minute, spy)
 			go tx.Start()
@@ -63,7 +63,7 @@ var _ = Describe("Transponder", func() {
 			close(nexter.TryNextOutput.Ret0)
 			close(nexter.TryNextOutput.Ret1)
 
-			spy := testhelper.NewMetricClient()
+			spy := metricsHelpers.NewMetricsRegistry()
 
 			tx := egress.NewTransponder(nexter, writer, 5, time.Millisecond, spy)
 			go tx.Start()
@@ -89,7 +89,7 @@ var _ = Describe("Transponder", func() {
 				nexter.TryNextOutput.Ret1 <- true
 			}
 
-			spy := testhelper.NewMetricClient()
+			spy := metricsHelpers.NewMetricsRegistry()
 
 			tx := egress.NewTransponder(nexter, writer, 5, time.Minute, spy)
 			go tx.Start()
@@ -109,7 +109,7 @@ var _ = Describe("Transponder", func() {
 				nexter.TryNextOutput.Ret1 <- true
 			}
 
-			spy := testhelper.NewMetricClient()
+			spy := metricsHelpers.NewMetricsRegistry()
 			tx := egress.NewTransponder(nexter, writer, 5, time.Minute, spy)
 			go tx.Start()
 
@@ -120,7 +120,7 @@ var _ = Describe("Transponder", func() {
 	})
 })
 
-func hasMetric(mc *testhelper.SpyMetricClient, metricName string, tags map[string]string) func() bool {
+func hasMetric(mc *metricsHelpers.SpyMetricsRegistry, metricName string, tags map[string]string) func() bool {
 	return func() bool {
 		return mc.HasMetric(metricName, tags)
 	}

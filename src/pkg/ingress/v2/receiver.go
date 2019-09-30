@@ -1,7 +1,7 @@
 package v2
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
@@ -14,7 +14,7 @@ type DataSetter interface {
 
 // MetricClient creates new CounterMetrics to be emitted periodically.
 type MetricClient interface {
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 type Receiver struct {

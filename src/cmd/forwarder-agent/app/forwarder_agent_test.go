@@ -15,6 +15,7 @@ import (
 
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
@@ -41,7 +42,7 @@ var _ = Describe("Main", func() {
 		testCerts  = testhelper.GenerateCerts("loggregatorCA")
 
 		forwarderAgent *app.ForwarderAgent
-		mc             *testhelper.SpyMetricClient
+		mc             *metricsHelpers.SpyMetricsRegistry
 		cfg            app.Config
 		ingressClient  *loggregator.IngressClient
 
@@ -81,7 +82,7 @@ var _ = Describe("Main", func() {
 	BeforeEach(func() {
 		fConfigDir = forwarderPortConfigDir()
 
-		mc = testhelper.NewMetricClient()
+		mc = metricsHelpers.NewMetricsRegistry()
 		cfg = app.Config{
 			GRPC: app.GRPC{
 				Port:     uint16(grpcPort),

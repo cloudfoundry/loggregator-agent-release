@@ -1,7 +1,7 @@
 package v1_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	egress "code.cloudfoundry.org/loggregator-agent/pkg/egress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/gogo/protobuf/proto"
@@ -15,12 +15,12 @@ var _ = Describe("EventMarshaller", func() {
 	var (
 		marshaller      *egress.EventMarshaller
 		mockChainWriter *mockBatchChainByteWriter
-		metricClient    *testhelper.SpyMetricClient
+		metricClient    *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
 		mockChainWriter = newMockBatchChainByteWriter()
-		metricClient = testhelper.NewMetricClient()
+		metricClient = metricsHelpers.NewMetricsRegistry()
 	})
 
 	JustBeforeEach(func() {

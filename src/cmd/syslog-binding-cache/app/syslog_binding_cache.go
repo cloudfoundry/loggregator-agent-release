@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
@@ -23,8 +23,8 @@ type SyslogBindingCache struct {
 }
 
 type Metrics interface {
-	NewCounter(name string, options ...metrics.MetricOption) metrics.Counter
-	NewGauge(name string, o ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, options ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string,  o ...metrics.MetricOption) metrics.Gauge
 }
 
 func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *SyslogBindingCache {

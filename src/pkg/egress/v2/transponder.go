@@ -1,7 +1,7 @@
 package v2
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
@@ -26,7 +26,7 @@ type Transponder struct {
 }
 
 type MetricClient interface {
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 func NewTransponder(
@@ -38,13 +38,13 @@ func NewTransponder(
 ) *Transponder {
 	droppedMetric := metricClient.NewCounter(
 		"dropped",
-		metrics.WithHelpText("Total number of dropped envelopes."),
-		metrics.WithMetricTags(map[string]string{"direction": "egress", "metric_version": "2.0"}),
+		"Total number of dropped envelopes.",
+		metrics.WithMetricLabels(map[string]string{"direction": "egress", "metric_version": "2.0"}),
 	)
 	egressMetric := metricClient.NewCounter(
 		"egress",
-		metrics.WithHelpText("Total number of envelopes successfully egressed."),
-		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
+		"Total number of envelopes successfully egressed.",
+		metrics.WithMetricLabels(map[string]string{"metric_version": "2.0"}),
 	)
 	return &Transponder{
 		nexter:        n,

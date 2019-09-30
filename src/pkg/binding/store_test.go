@@ -1,7 +1,7 @@
 package binding_test
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics/testhelpers"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -9,7 +9,7 @@ import (
 
 var _ = Describe("Store", func() {
 	It("should store and retrieve bindings", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
 		bindings := []binding.Binding{
 			{
 				AppID:    "app-1",
@@ -23,12 +23,12 @@ var _ = Describe("Store", func() {
 	})
 
 	It("should not return nil bindings", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
 		Expect(store.Get()).ToNot(BeNil())
 	})
 
 	It("should not allow setting of bindings to nil", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
 
 		bindings := []binding.Binding{
 			{
@@ -49,7 +49,7 @@ var _ = Describe("Store", func() {
 	// The race detector will cause a failure here
 	// if the store is not thread safe
 	It("should be thread safe", func() {
-		store := binding.NewStore(testhelpers.NewMetricsRegistry())
+		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
 
 		go func() {
 			for i := 0; i < 1000; i++ {
@@ -63,7 +63,7 @@ var _ = Describe("Store", func() {
 	})
 
 	It("tracks the number of bindings", func() {
-		metrics := testhelpers.NewMetricsRegistry()
+		metrics := metricsHelpers.NewMetricsRegistry()
 		store := binding.NewStore(metrics)
 		bindings := []binding.Binding{
 			{

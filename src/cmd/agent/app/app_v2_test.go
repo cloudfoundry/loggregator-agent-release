@@ -1,14 +1,13 @@
 package app_test
 
 import (
-	"net"
-
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/cmd/agent/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"net"
 )
 
 var _ = Describe("v2 App", func() {
@@ -43,7 +42,7 @@ var _ = Describe("v2 App", func() {
 			&config,
 			clientCreds,
 			serverCreds,
-			testhelper.NewMetricClient(),
+			metricsHelpers.NewMetricsRegistry(),
 			app.WithV2Lookup(spyLookup.lookup),
 		)
 		go app.Start()
@@ -73,7 +72,7 @@ var _ = Describe("v2 App", func() {
 		config.Zone = "something-bad"
 		Expect(err).ToNot(HaveOccurred())
 
-		mc := testhelper.NewMetricClient()
+		mc := metricsHelpers.NewMetricsRegistry()
 
 		app := app.NewV2App(
 			&config,

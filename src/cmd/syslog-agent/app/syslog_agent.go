@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"crypto/x509"
@@ -33,8 +33,8 @@ type SyslogAgent struct {
 }
 
 type Metrics interface {
-	NewGauge(name string, options ...metrics.MetricOption) metrics.Gauge
-	NewCounter(name string, options ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string,  options ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, options ...metrics.MetricOption) metrics.Counter
 }
 
 type BindingManager interface {
@@ -144,8 +144,8 @@ func trustedCertPool(trustedCAFile string) *x509.CertPool {
 func (s *SyslogAgent) Run() {
 	ingressDropped := s.metrics.NewCounter(
 		"dropped",
-		metrics.WithHelpText("Total number of dropped envelopes."),
-		metrics.WithMetricTags(map[string]string{"direction": "ingress"}),
+		"Total number of dropped envelopes.",
+		metrics.WithMetricLabels(map[string]string{"direction": "ingress"}),
 	)
 	diode := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))
@@ -154,8 +154,8 @@ func (s *SyslogAgent) Run() {
 
 	drainIngress := s.metrics.NewCounter(
 		"ingress",
-		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
-		metrics.WithMetricTags(map[string]string{"scope": "all_drains"}),
+		"Total number of envelopes ingressed by the agent.",
+		metrics.WithMetricLabels(map[string]string{"scope": "all_drains"}),
 	)
 	envelopeWriter := syslog.NewEnvelopeWriter(s.bindingManager.GetDrains, diode.Next, drainIngress, s.log)
 	go envelopeWriter.Run()
@@ -177,12 +177,12 @@ func (s *SyslogAgent) Run() {
 
 	im := s.metrics.NewCounter(
 		"ingress",
-		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
-		metrics.WithMetricTags(map[string]string{"scope": "agent"}),
+		"Total number of envelopes ingressed by the agent.",
+		metrics.WithMetricLabels(map[string]string{"scope": "agent"}),
 	)
 	omm := s.metrics.NewCounter(
 		"origin_mappings",
-		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
+		"Total number of envelopes where the origin tag is used as the source_id.",
 	)
 
 	rx := v2.NewReceiver(diode, im, omm)

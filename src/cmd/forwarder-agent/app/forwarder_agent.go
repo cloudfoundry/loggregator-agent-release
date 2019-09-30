@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -39,8 +39,8 @@ type ForwarderAgent struct {
 }
 
 type Metrics interface {
-	NewGauge(name string, opts ...metrics.MetricOption) metrics.Gauge
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 type BindingFetcher interface {
@@ -72,8 +72,8 @@ func (s ForwarderAgent) Run() {
 
 	ingressDropped := s.m.NewCounter(
 		"dropped",
-		metrics.WithHelpText("Total number of dropped envelopes."),
-		metrics.WithMetricTags(map[string]string{"direction": "ingress"}),
+		"Total number of dropped envelopes.",
+		metrics.WithMetricLabels(map[string]string{"direction": "ingress"}),
 	)
 	diode := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		ingressDropped.Add(float64(missed))
@@ -107,11 +107,11 @@ func (s ForwarderAgent) Run() {
 
 	im := s.m.NewCounter(
 		"ingress",
-		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
+		"Total number of envelopes ingressed by the agent.",
 	)
 	omm := s.m.NewCounter(
 		"origin_mappings",
-		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
+		"Total number of envelopes where the origin tag is used as the source_id.",
 	)
 	rx := v2.NewReceiver(diode, im, omm)
 

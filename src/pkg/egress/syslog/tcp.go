@@ -2,7 +2,7 @@ package syslog
 
 import (
 	"bytes"
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"fmt"
 	"log"
 	"net"

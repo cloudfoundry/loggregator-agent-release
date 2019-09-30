@@ -1,7 +1,7 @@
 package main
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/app"
 	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
 	"log"

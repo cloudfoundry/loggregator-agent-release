@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app"
@@ -36,7 +37,7 @@ var _ = Describe("SyslogAgent", func() {
 		aggregateAddr      string
 		syslogTLS          *syslogTCPServer
 		cupsProvider       *fakeBindingCache
-		metricClient       *testhelper.SpyMetricClient
+		metricClient       *metricsHelpers.SpyMetricsRegistry
 
 		grpcPort   = 30000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
@@ -80,7 +81,7 @@ var _ = Describe("SyslogAgent", func() {
 	})
 
 	It("has a health endpoint", func() {
-		mc := testhelper.NewMetricClient()
+		mc := metricsHelpers.NewMetricsRegistry()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
 			MetricsServer: config.MetricsServer{
@@ -121,7 +122,7 @@ var _ = Describe("SyslogAgent", func() {
 	})
 
 	var setupTestAgent = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
-		metricClient = testhelper.NewMetricClient()
+		metricClient = metricsHelpers.NewMetricsRegistry()
 		cfg := app.Config{
 			BindingsPerAppLimit: 5,
 			MetricsServer: config.MetricsServer{
@@ -248,7 +249,7 @@ func emitLogs(ctx context.Context, grpcPort int, testCerts *testhelper.TestCerts
 	}()
 }
 
-func hasMetric(mc *testhelper.SpyMetricClient, metricName string, tags map[string]string) func() bool {
+func hasMetric(mc *metricsHelpers.SpyMetricsRegistry, metricName string, tags map[string]string) func() bool {
 	return func() bool {
 		return mc.HasMetric(metricName, tags)
 	}

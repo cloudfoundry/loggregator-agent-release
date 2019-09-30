@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"sync"
 
@@ -13,7 +13,7 @@ import (
 
 // MetricClient creates new CounterMetrics to be emitted periodically.
 type MetricClient interface {
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 type BatchChainByteWriter interface {
@@ -29,8 +29,8 @@ type EventMarshaller struct {
 func NewMarshaller(mc MetricClient) *EventMarshaller {
 	egressMetric := mc.NewCounter(
 		"egress",
-		metrics.WithHelpText("Total number of envelopes successfully egressed."),
-		metrics.WithMetricTags(map[string]string{"metric_version": "1.0"}),
+		"Total number of envelopes successfully egressed.",
+		metrics.WithMetricLabels(map[string]string{"metric_version": "1.0"}),
 	)
 	return &EventMarshaller{
 		egressCounter: func(i uint64) { egressMetric.Add(float64(i)) },

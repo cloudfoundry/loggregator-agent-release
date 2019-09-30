@@ -1,12 +1,13 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"fmt"
 	"net"
 	"sync"
 
 	"code.cloudfoundry.org/loggregator-agent/cmd/agent/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -34,7 +35,7 @@ var _ = Describe("v1 App", func() {
 		app := app.NewV1App(
 			&config,
 			clientCreds,
-			testhelper.NewMetricClient(),
+			metricHelpers.NewMetricsRegistry(),
 			app.WithV1Lookup(spyLookup.lookup),
 		)
 		go app.Start()
@@ -57,7 +58,7 @@ var _ = Describe("v1 App", func() {
 		config.Zone = "something-bad"
 		Expect(err).ToNot(HaveOccurred())
 
-		mc := testhelper.NewMetricClient()
+		mc := metricHelpers.NewMetricsRegistry()
 
 		app := app.NewV1App(
 			&config,
@@ -74,7 +75,7 @@ var _ = Describe("v1 App", func() {
 	})
 })
 
-func hasMetric(mc *testhelper.SpyMetricClient, metricName string, tags map[string]string) func() bool {
+func hasMetric(mc *metricHelpers.SpyMetricsRegistry, metricName string, tags map[string]string) func() bool {
 	return func() bool {
 		return mc.HasMetric(metricName, tags)
 	}

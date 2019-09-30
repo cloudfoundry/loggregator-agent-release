@@ -1,7 +1,7 @@
 package cups_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 	"errors"
@@ -17,11 +17,11 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	var (
 		log     = log.New(GinkgoWriter, "", log.LstdFlags)
 		filter  *cups.FilteredBindingFetcher
-		metrics *testhelper.SpyMetricClient
+		metrics *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
-		metrics = testhelper.NewMetricClient()
+		metrics = metricsHelpers.NewMetricsRegistry()
 	})
 
 	It("returns valid bindings", func() {
@@ -86,7 +86,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: "blah://10.10.10.10"},
 			}
 
-			metrics = testhelper.NewMetricClient()
+			metrics = metricsHelpers.NewMetricsRegistry()
 			filter = cups.NewFilteredBindingFetcher(
 				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},

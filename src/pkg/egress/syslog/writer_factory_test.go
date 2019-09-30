@@ -1,23 +1,23 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"net/url"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 )
 
 var _ = Describe("EgressFactory", func() {
 	var (
 		f       syslog.WriterFactory
-		sm      *testhelper.SpyMetricClient
+		sm      *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
-		sm = testhelper.NewMetricClient()
+		sm = metricsHelpers.NewMetricsRegistry()
 		f = syslog.NewWriterFactory(nil, sm)
 	})
 

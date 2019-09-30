@@ -1,7 +1,6 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"errors"
 	"io"
 	"sync/atomic"
@@ -9,6 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
@@ -23,11 +23,11 @@ var _ = Describe("SyslogConnector", func() {
 		spyWaitGroup  *SpyWaitGroup
 		netConf       syslog.NetworkTimeoutConfig
 		writerFactory *stubWriterFactory
-		sm            *testhelper.SpyMetricClient
+		sm            *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
-		sm = testhelper.NewMetricClient()
+		sm = metricsHelpers.NewMetricsRegistry()
 		ctx, _ = context.WithCancel(context.Background())
 		spyWaitGroup = &SpyWaitGroup{}
 		writerFactory = &stubWriterFactory{}

@@ -1,7 +1,7 @@
 package cups
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"math"
 	"net/url"
 	"sort"
@@ -13,8 +13,8 @@ import (
 
 // Metrics is the client used to expose gauge and counter metricsClient.
 type Metrics interface {
-	NewGauge(name string, opts ...metrics.MetricOption) metrics.Gauge
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 // Getter is configured to fetch HTTP responses
@@ -34,14 +34,14 @@ type BindingFetcher struct {
 func NewBindingFetcher(limit int, g Getter, m Metrics) *BindingFetcher {
 	refreshCount := m.NewCounter(
 		"binding_refresh_count",
-		metrics.WithHelpText("Total number of binding refresh attempts made to the binding provider."),
+		"Total number of binding refresh attempts made to the binding provider.",
 	)
 
 	//TODO change to histogram
 	maxLatency := m.NewGauge(
 		"latency_for_last_binding_refresh",
-		metrics.WithHelpText("Latency in milliseconds of the last binding fetch made to the binding provider."),
-		metrics.WithMetricTags(map[string]string{"unit": "ms"}),
+		"Latency in milliseconds of the last binding fetch made to the binding provider.",
+		metrics.WithMetricLabels(map[string]string{"unit": "ms"}),
 	)
 	return &BindingFetcher{
 		limit:        limit,

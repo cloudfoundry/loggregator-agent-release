@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	ingress "code.cloudfoundry.org/loggregator-agent/pkg/ingress/v1"
 
 	. "github.com/onsi/ginkgo"
@@ -32,14 +32,14 @@ var _ = Describe("NetworkReader", func() {
 		writer        MockByteArrayWriter
 		port          int
 		address       string
-		metricClient  *testhelper.SpyMetricClient
+		metricClient  *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
 		port = randomPort() + GinkgoParallelNode()
 		address = net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 		writer = MockByteArrayWriter{}
-		metricClient = testhelper.NewMetricClient()
+		metricClient = metricsHelpers.NewMetricsRegistry()
 		var err error
 		reader, err = ingress.NewNetworkReader(address, &writer, metricClient)
 		Expect(err).NotTo(HaveOccurred())

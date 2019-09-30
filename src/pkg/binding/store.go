@@ -1,7 +1,7 @@
 package binding
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"sync"
 )
 
@@ -16,7 +16,7 @@ func NewStore(m Metrics) *Store {
 		bindings: make([]Binding, 0),
 		bindingCount: m.NewGauge(
 			"cached_bindings",
-			metrics.WithHelpText("Current number of bindings stored in the binding cache."),
+			"Current number of bindings stored in the binding cache.",
 		),
 	}
 }

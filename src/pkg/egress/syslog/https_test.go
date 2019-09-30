@@ -1,7 +1,6 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"crypto/tls"
 	"io/ioutil"
 	"net/http"
@@ -9,6 +8,7 @@ import (
 	"net/url"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 	"code.cloudfoundry.org/rfc5424"
 	. "github.com/onsi/ginkgo"
@@ -30,7 +30,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			&tls.Config{},
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -49,7 +49,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -70,7 +70,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -88,7 +88,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -112,7 +112,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -165,7 +165,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -189,7 +189,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env1 := buildGaugeEnvelope("1")
@@ -237,7 +237,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		env1 := buildCounterEnvelope("1")
@@ -267,7 +267,7 @@ var _ = Describe("HTTPWriter", func() {
 			"test-hostname",
 		)
 
-		sm := &testhelper.SpyMetric{}
+		sm := &metricsHelpers.SpyMetric{}
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
@@ -294,7 +294,7 @@ var _ = Describe("HTTPWriter", func() {
 			b,
 			netConf,
 			skipSSLTLSConfig,
-			&testhelper.SpyMetric{},
+			&metricsHelpers.SpyMetric{},
 		)
 
 		counterEnv := buildTimerEnvelope("1")

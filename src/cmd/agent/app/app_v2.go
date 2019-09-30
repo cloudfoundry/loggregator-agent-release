@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"fmt"
 	"log"
 	"math/rand"
@@ -22,8 +22,8 @@ import (
 
 // MetricClient is used to serve metrics.
 type MetricClient interface {
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
-	NewGauge(name string, opts ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 }
 
 // AppV2Option configures AppV2 options.
@@ -73,8 +73,8 @@ func (a *AppV2) Start() {
 
 	droppedMetric := a.metricClient.NewCounter(
 		"dropped",
-		metrics.WithHelpText("Total number of dropped envelopes."),
-		metrics.WithMetricTags(map[string]string{"direction": "ingress", "metric_version": "2.0"}),
+		"Total number of dropped envelopes.",
+		metrics.WithMetricLabels(map[string]string{"direction": "ingress", "metric_version": "2.0"}),
 	)
 	envelopeBuffer := diodes.NewManyToOneEnvelopeV2(10000, gendiodes.AlertFunc(func(missed int) {
 		// metric-documentation-v2: (loggregator.metron.dropped) Number of v2 envelopes
@@ -93,13 +93,13 @@ func (a *AppV2) Start() {
 
 	ingressMetric := a.metricClient.NewCounter(
 		"ingress",
-		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
-		metrics.WithMetricTags(map[string]string{"metric_version": "2.0"}),
+		"Total number of envelopes ingressed by the agent.",
+		metrics.WithMetricLabels(map[string]string{"metric_version": "2.0"}),
 	)
 	originMappings := a.metricClient.NewCounter(
 		"origin_mappings",
-		metrics.WithHelpText("Total number of envelopes where the origin tag is used as the source_id."),
-		metrics.WithMetricTags(map[string]string{"unit": "bytes/minute", "metric_version": "2.0"}),
+		"Total number of envelopes where the origin tag is used as the source_id.",
+		metrics.WithMetricLabels(map[string]string{"unit": "bytes/minute", "metric_version": "2.0"}),
 	)
 
 	tx := egress.NewTransponder(
@@ -146,8 +146,8 @@ func (a *AppV2) initializePool() *clientpoolv2.ClientPool {
 
 	avgEnvelopeSize := a.metricClient.NewGauge(
 		"average_envelopes",
-		metrics.WithHelpText("Average envelope size over the past minute."),
-		metrics.WithMetricTags(map[string]string{"unit": "bytes/minute", "metric_version": "2.0", "loggregator": "v2"}),
+		"Average envelope size over the past minute.",
+		metrics.WithMetricLabels(map[string]string{"unit": "bytes/minute", "metric_version": "2.0", "loggregator": "v2"}),
 	)
 
 	tracker := plumbing.NewEnvelopeAverager()

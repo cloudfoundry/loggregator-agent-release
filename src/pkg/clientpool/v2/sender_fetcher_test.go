@@ -4,8 +4,8 @@ import (
 	"io"
 	"net"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/clientpool/v2"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -16,11 +16,11 @@ import (
 
 var _ = Describe("PusherFetcher", func() {
 	var (
-		mc *testhelper.SpyMetricClient
+		mc *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
-		mc = testhelper.NewMetricClient()
+		mc = metricsHelpers.NewMetricsRegistry()
 	})
 
 	It("opens a stream with the ingress client", func() {

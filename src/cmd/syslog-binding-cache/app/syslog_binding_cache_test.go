@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-binding-cache/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
@@ -64,7 +65,7 @@ var _ = Describe("SyslogBindingCache", func() {
 			CacheCommonName:    "binding-cache",
 			CachePort:          cachePort,
 		}
-		sbc = app.NewSyslogBindingCache(config, testhelper.NewMetricClient(), logger)
+		sbc = app.NewSyslogBindingCache(config, metricsHelpers.NewMetricsRegistry(), logger)
 		go sbc.Run()
 	})
 

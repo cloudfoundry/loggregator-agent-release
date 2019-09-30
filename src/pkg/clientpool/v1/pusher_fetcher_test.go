@@ -4,7 +4,7 @@ import (
 	"io"
 	"net"
 
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/clientpool/v1"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 	"google.golang.org/grpc"
@@ -15,11 +15,11 @@ import (
 
 var _ = Describe("PusherFetcher", func() {
 	var (
-		mc *testhelper.SpyMetricClient
+		mc *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
-		mc = testhelper.NewMetricClient()
+		mc = metricsHelpers.NewMetricsRegistry()
 	})
 
 	It("opens a stream to the server", func() {

@@ -1,7 +1,7 @@
 package binding
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -40,11 +40,11 @@ func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Log
 		logger:          logger,
 		bindingRefreshErrorCounter: m.NewCounter(
 			"binding_refresh_error",
-			metrics.WithHelpText("Total number of failed requests to the binding provider."),
+			"Total number of failed requests to the binding provider.",
 		),
 		lastBindingCount: m.NewGauge(
 			"last_binding_refresh_count",
-			metrics.WithHelpText("Current number of bindings received from binding provider during last refresh."),
+			"Current number of bindings received from binding provider during last refresh.",
 		),
 	}
 	p.poll()

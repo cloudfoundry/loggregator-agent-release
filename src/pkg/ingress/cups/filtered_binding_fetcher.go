@@ -1,7 +1,7 @@
 package cups
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 	"fmt"
 	"log"
@@ -20,7 +20,7 @@ type IPChecker interface {
 
 // Metrics is the client used to expose gauge and counter metricsClient.
 type metricsClient interface {
-	NewGauge(name string, opts ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
 }
 
 type FilteredBindingFetcher struct {
@@ -32,16 +32,16 @@ type FilteredBindingFetcher struct {
 }
 
 func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, lc *log.Logger) *FilteredBindingFetcher {
-	opt := metrics.WithMetricTags(map[string]string{"unit": "total"})
+	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
 
 	invalidDrains := m.NewGauge(
 		"invalid_drains",
-		metrics.WithHelpText("Count of invalid drains encountered in last binding fetch. Includes blacklisted drains."),
+		"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
 		opt,
 	)
 	blacklistedDrains := m.NewGauge(
 		"blacklisted_drains",
-		metrics.WithHelpText("Count of blacklisted drains encountered in last binding fetch."),
+		"Count of blacklisted drains encountered in last binding fetch.",
 		opt,
 	)
 

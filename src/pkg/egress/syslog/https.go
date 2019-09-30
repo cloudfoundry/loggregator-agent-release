@@ -1,7 +1,7 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"crypto/tls"
 	"errors"
 	"fmt"

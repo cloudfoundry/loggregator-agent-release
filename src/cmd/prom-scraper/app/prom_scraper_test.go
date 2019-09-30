@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
@@ -32,7 +33,7 @@ var _ = Describe("PromScraper", func() {
 		cfg          app.Config
 		promServer   *stubPromServer
 		ps           *app.PromScraper
-		metricClient *testhelper.SpyMetricClient
+		metricClient *metricsHelpers.SpyMetricsRegistry
 
 		testLogger  = log.New(GinkgoWriter, "", log.LstdFlags)
 		testCerts   = testhelper.GenerateCerts("loggregatorCA")
@@ -46,7 +47,7 @@ var _ = Describe("PromScraper", func() {
 
 		spyAgent = newSpyAgent(testCerts)
 		spyConfigProvider = newSpyConfigProvider()
-		metricClient = testhelper.NewMetricClient()
+		metricClient = metricsHelpers.NewMetricsRegistry()
 
 		cfg = app.Config{
 			ClientKeyPath:          testCerts.Key("metron"),
@@ -380,7 +381,7 @@ var _ = Describe("PromScraper", func() {
 	})
 })
 
-func hasMetric(metricClient *testhelper.SpyMetricClient, name string, tags map[string]string) func() bool {
+func hasMetric(metricClient *metricsHelpers.SpyMetricsRegistry, name string, tags map[string]string) func() bool {
 	return func() bool {
 		return metricClient.HasMetric(name, tags)
 	}

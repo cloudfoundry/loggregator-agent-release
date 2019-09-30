@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"net"
 
@@ -14,7 +14,7 @@ type ByteArrayWriter interface {
 }
 
 type MetricClient interface {
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 type NetworkReader struct {
@@ -36,13 +36,13 @@ func NewNetworkReader(
 	log.Printf("udp bound to: %s", connection.LocalAddr())
 	rxErrCount := m.NewCounter(
 		"dropped",
-		metrics.WithHelpText("Total number of dropped envelopes."),
-		metrics.WithMetricTags(map[string]string{"direction": "all", "metric_version": "1.0"}),
+		"Total number of dropped envelopes.",
+		metrics.WithMetricLabels(map[string]string{"direction": "all", "metric_version": "1.0"}),
 	)
 	rxMsgCount := m.NewCounter(
 		"ingress",
-		metrics.WithHelpText("Total number of envelopes ingressed by the agent."),
-		metrics.WithMetricTags(map[string]string{"metric_version": "1.0"}),
+		"Total number of envelopes ingressed by the agent.",
+		metrics.WithMetricLabels(map[string]string{"metric_version": "1.0"}),
 	)
 
 	return &NetworkReader{

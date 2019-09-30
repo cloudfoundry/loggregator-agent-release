@@ -18,6 +18,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/app"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
 )
 
@@ -41,7 +42,7 @@ var _ = Describe("UDPForwarder", func() {
 	})
 
 	It("forwards envelopes from Loggregator V1 to V2", func() {
-		mc := testhelper.NewMetricClient()
+		mc := metricsHelpers.NewMetricsRegistry()
 		cfg := app.Config{
 			UDPPort: udpPort,
 			LoggregatorAgentGRPC: app.GRPC{

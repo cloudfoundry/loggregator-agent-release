@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
 
@@ -29,11 +30,11 @@ var _ = Describe("TLSWriter", func() {
 			WriteTimeout: time.Second,
 		}
 
-		egressCounter *testhelper.SpyMetric
+		egressCounter *metricsHelpers.SpyMetric
 	)
 
 	BeforeEach(func() {
-		egressCounter = &testhelper.SpyMetric{}
+		egressCounter = &metricsHelpers.SpyMetric{}
 
 		tlsCert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		Expect(err).ToNot(HaveOccurred())

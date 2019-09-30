@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
@@ -21,7 +21,7 @@ import (
 var _ = Describe("Manager", func() {
 	var (
 		stubBindingFetcher *stubBindingFetcher
-		spyMetricClient    *testhelper.SpyMetricClient
+		spyMetricClient    *metricsHelpers.SpyMetricsRegistry
 		spyConnector       *spyConnector
 
 		binding1 = syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com"}
@@ -31,7 +31,7 @@ var _ = Describe("Manager", func() {
 
 	BeforeEach(func() {
 		stubBindingFetcher = newStubBindingFetcher()
-		spyMetricClient = testhelper.NewMetricClient()
+		spyMetricClient = metricsHelpers.NewMetricsRegistry()
 		spyConnector = newSpyConnector()
 	})
 

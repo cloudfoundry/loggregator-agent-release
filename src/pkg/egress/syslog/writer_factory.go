@@ -1,7 +1,7 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"crypto/tls"
 	"errors"
 
@@ -9,7 +9,7 @@ import (
 )
 
 type metricClient interface {
-	NewCounter(name string, o ...metrics.MetricOption) metrics.Counter
+	NewCounter(name, helpText string, o ...metrics.MetricOption) metrics.Counter
 }
 
 type WriterFactory struct {
@@ -21,7 +21,7 @@ type WriterFactory struct {
 func NewWriterFactory(tlsConf *tls.Config, m metricClient) WriterFactory {
 	metric := m.NewCounter(
 		"egress",
-		metrics.WithHelpText("Total number of envelopes successfully egressed."),
+		"Total number of envelopes successfully egressed.",
 	)
 	return WriterFactory{
 		tlsConfig:    tlsConf,

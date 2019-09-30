@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/v1"
 	"fmt"
 	"log"
@@ -14,8 +14,8 @@ import (
 )
 
 type Metrics interface {
-	NewGauge(name string, opts ...metrics.MetricOption) metrics.Gauge
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 type UDPForwarder struct {

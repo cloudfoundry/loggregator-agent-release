@@ -1,7 +1,8 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	metrics "code.cloudfoundry.org/go-metric-registry"
+
 	"fmt"
 	"log"
 	"math/rand"
@@ -120,8 +121,8 @@ func (a *AppV1) setupGRPC() *clientpoolv1.ClientPool {
 
 	avgEnvelopeSize := a.metricClient.NewGauge(
 		"average_envelopes",
-		metrics.WithHelpText("Average envelope size over the past minute."),
-		metrics.WithMetricTags(map[string]string{"unit": "bytes/minute", "metric_version": "1.0", "loggregator": "v1"}),
+		"Average envelope size over the past minute.",
+		metrics.WithMetricLabels(map[string]string{"unit": "bytes/minute", "metric_version": "1.0", "loggregator": "v1"}),
 	)
 
 	tracker := plumbing.NewEnvelopeAverager()

@@ -1,7 +1,7 @@
 package binding
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"context"
 	"log"
 	"math/rand"
@@ -18,8 +18,8 @@ type Fetcher interface {
 }
 
 type Metrics interface {
-	NewGauge(name string, o ...metrics.MetricOption) metrics.Gauge
-	NewCounter(name string, o ...metrics.MetricOption) metrics.Counter
+	NewGauge(name, helpText string,  o ...metrics.MetricOption) metrics.Gauge
+	NewCounter(name, helpText string, o ...metrics.MetricOption) metrics.Counter
 }
 
 type Connector interface {
@@ -56,20 +56,20 @@ func NewManager(
 	idleTimeout time.Duration,
 	log *log.Logger,
 ) *Manager {
-	tagOpt := metrics.WithMetricTags(map[string]string{"unit": "count"})
+	tagOpt := metrics.WithMetricLabels(map[string]string{"unit": "count"})
 	drainCount := m.NewGauge(
 		"drains",
-		metrics.WithHelpText("Current number of syslog drain bindings."),
+		"Current number of syslog drain bindings.",
 		tagOpt,
 	)
 	aggregateDrainCount := m.NewGauge(
 		"aggregate_drains",
-		metrics.WithHelpText("Current number of aggregate drains."),
+		"Current number of aggregate drains.",
 		tagOpt,
 	)
 	activeDrains := m.NewGauge(
 		"active_drains",
-		metrics.WithHelpText("Current number of active syslog drains including app and aggregate drains."),
+		"Current number of active syslog drains including app and aggregate drains.",
 		tagOpt,
 	)
 

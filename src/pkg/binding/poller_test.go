@@ -2,7 +2,7 @@ package binding_test
 
 import (
 	"bytes"
-	"code.cloudfoundry.org/go-loggregator/metrics/testhelpers"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -21,14 +21,14 @@ var _ = Describe("Poller", func() {
 	var (
 		apiClient *fakeAPIClient
 		store     *fakeStore
-		metrics   *testhelpers.SpyMetricsRegistry
+		metrics   *metricsHelpers.SpyMetricsRegistry
 		logger    = log.New(GinkgoWriter, "", 0)
 	)
 
 	BeforeEach(func() {
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
-		metrics = testhelpers.NewMetricsRegistry()
+		metrics = metricsHelpers.NewMetricsRegistry()
 	})
 
 	It("polls for bindings on an interval", func() {

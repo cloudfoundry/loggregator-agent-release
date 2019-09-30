@@ -5,11 +5,14 @@ code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.5.0
 code.cloudfoundry.org/go-envstruct
 # code.cloudfoundry.org/go-loggregator v0.0.0-20190809213911-969cb33bee6a
-code.cloudfoundry.org/go-loggregator/metrics
 code.cloudfoundry.org/go-loggregator
 code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
 code.cloudfoundry.org/go-loggregator/metrics/testhelpers
+code.cloudfoundry.org/go-loggregator/metrics
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20190930200807-cfc6a44b372f
+code.cloudfoundry.org/go-metric-registry
+code.cloudfoundry.org/go-metric-registry/testhelpers
 # code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 code.cloudfoundry.org/rfc5424
 # code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
@@ -102,8 +105,8 @@ github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.7.0
 github.com/prometheus/common/expfmt
-github.com/prometheus/common/model
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
+github.com/prometheus/common/model
 # github.com/prometheus/procfs v0.0.5
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs

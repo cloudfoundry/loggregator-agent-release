@@ -1,7 +1,7 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"fmt"
 	"log"
 	"time"
@@ -60,8 +60,8 @@ func NewSyslogConnector(
 ) *SyslogConnector {
 	droppedMetric := m.NewCounter(
 		"dropped",
-		metrics.WithHelpText("Total number of dropped envelopes."),
-		metrics.WithMetricTags(map[string]string{"direction": "egress"}),
+		"Total number of dropped envelopes.",
+		metrics.WithMetricLabels(map[string]string{"direction": "egress"}),
 	)
 
 	sc := &SyslogConnector{

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
+	"code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
@@ -28,7 +28,7 @@ type PromScraper struct {
 type ConfigProvider func() ([]scraper.PromScraperConfig, error)
 
 type promRegistry interface {
-	NewCounter(name string, opts ...metrics.MetricOption) metrics.Counter
+	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
 func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, log *log.Logger) *PromScraper {
@@ -41,7 +41,7 @@ func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, l
 		m: m,
 		scrapeTargetTotals: m.NewCounter(
 			"scrape_targets_total",
-			metrics.WithHelpText("Total number of scrape targets identified from prom scraper config files."),
+			"Total number of scrape targets identified from prom scraper config files.",
 		),
 	}
 }
@@ -110,8 +110,8 @@ func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingre
 
 	failedScrapesTotal := p.m.NewCounter(
 		"failed_scrapes_total",
-		metrics.WithHelpText("Total number of failed scrapes for the target source_id."),
-		metrics.WithMetricTags(map[string]string{"scrape_target_source_id": scrapeConfig.SourceID}),
+		"Total number of failed scrapes for the target source_id.",
+		metrics.WithMetricLabels(map[string]string{"scrape_target_source_id": scrapeConfig.SourceID}),
 	)
 
 	for {
