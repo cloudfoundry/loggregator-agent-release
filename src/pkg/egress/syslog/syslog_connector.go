@@ -46,7 +46,9 @@ type SyslogConnector struct {
 	wg             egress.WaitGroup
 	sourceIndex    string
 	writerFactory  writerFactory
-	droppedMetric  metrics.Counter
+
+	metricClient  metricClient
+	droppedMetric metrics.Counter
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -72,7 +74,9 @@ func NewSyslogConnector(
 		wg:             wg,
 		logClient:      nullLogClient{},
 		writerFactory:  f,
-		droppedMetric:  droppedMetric,
+
+		metricClient:  m,
+		droppedMetric: droppedMetric,
 	}
 	for _, o := range opts {
 		o(sc)
@@ -119,8 +123,19 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 	anonymousUrl.User = nil
 	anonymousUrl.RawQuery = ""
 
+	drainDroppedMetric := w.metricClient.NewCounter(
+		"messages_dropped_per_drain",
+		"Total number of dropped messages.",
+		metrics.WithMetricLabels(map[string]string{
+			"direction": "egress",
+			"app_id": b.AppId,
+			"drain_url": anonymousUrl.String(),
+		}),
+	)
+
 	dw := egress.NewDiodeWriter(ctx, writer, diodes.AlertFunc(func(missed int) {
 		w.droppedMetric.Add(float64(missed))
+		drainDroppedMetric.Add(float64(missed))
 
 		w.emitErrorLog(b.AppId, fmt.Sprintf("%d messages lost in user provided syslog drain", missed))
 

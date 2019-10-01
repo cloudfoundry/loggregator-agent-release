@@ -2,6 +2,7 @@ package syslog_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"sync/atomic"
 	"time"
@@ -150,7 +151,10 @@ var _ = Describe("SyslogConnector", func() {
 				sm,
 			)
 
-			binding := syslog.Binding{Drain: "dropping://"}
+			binding := syslog.Binding{
+				Drain: "dropping://my-drain:8080/path?secret=1234",
+				AppId: "test-source-id",
+			}
 
 			writer, err := connector.Connect(ctx, binding)
 			Expect(err).ToNot(HaveOccurred())
@@ -169,6 +173,20 @@ var _ = Describe("SyslogConnector", func() {
 			metric := sm.GetMetric("dropped", map[string]string{"direction": "egress"})
 			Expect(metric).ToNot(BeNil())
 			Eventually(metric.Value).Should(BeNumerically(">=", 10000))
+
+			Eventually(func() bool {
+				return sm.HasMetric("messages_dropped_per_drain", map[string]string{
+					"direction": "egress",
+					"app_id": "test-source-id",
+					"drain_url": "dropping://my-drain:8080/path",
+				})
+			}).Should(BeTrue(), fmt.Sprintf("%#v", sm.Metrics))
+
+			Eventually(sm.GetMetric("messages_dropped_per_drain", map[string]string{
+				"direction": "egress",
+				"app_id": "test-source-id",
+				"drain_url": "dropping://my-drain:8080/path",
+			}).Value).Should(BeNumerically(">=", 10000))
 		})
 
 		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
