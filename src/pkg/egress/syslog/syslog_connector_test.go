@@ -176,16 +176,18 @@ var _ = Describe("SyslogConnector", func() {
 
 			Eventually(func() bool {
 				return sm.HasMetric("messages_dropped_per_drain", map[string]string{
-					"direction": "egress",
-					"app_id": "test-source-id",
-					"drain_url": "dropping://my-drain:8080/path",
+					"direction":  "egress",
+					"app_id":     "test-source-id",
+					"drain_type": "app",
+					"drain_url":  "dropping://my-drain:8080/path",
 				})
 			}).Should(BeTrue(), fmt.Sprintf("%#v", sm.Metrics))
 
 			Eventually(sm.GetMetric("messages_dropped_per_drain", map[string]string{
-				"direction": "egress",
-				"app_id": "test-source-id",
-				"drain_url": "dropping://my-drain:8080/path",
+				"direction":  "egress",
+				"app_id":     "test-source-id",
+				"drain_type": "app",
+				"drain_url":  "dropping://my-drain:8080/path",
 			}).Value).Should(BeNumerically(">=", 10000))
 		})
 
