@@ -18,7 +18,7 @@ type Fetcher interface {
 }
 
 type Metrics interface {
-	NewGauge(name, helpText string,  o ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, o ...metrics.MetricOption) metrics.Gauge
 	NewCounter(name, helpText string, o ...metrics.MetricOption) metrics.Counter
 }
 
@@ -32,8 +32,9 @@ type Manager struct {
 	aggregateDrains    []drainHolder
 	aggregateDrainURLs []string
 
-	pollingInterval time.Duration
-	idleTimeout     time.Duration
+	pollingInterval                    time.Duration
+	idleTimeout                        time.Duration
+	aggregateConnectionRefreshInterval time.Duration
 
 	drainCountMetric          metrics.Gauge
 	aggregateDrainCountMetric metrics.Gauge
@@ -54,6 +55,7 @@ func NewManager(
 	m Metrics,
 	pollingInterval time.Duration,
 	idleTimeout time.Duration,
+	aggregateConnectionRefreshInterval time.Duration,
 	log *log.Logger,
 ) *Manager {
 	tagOpt := metrics.WithMetricLabels(map[string]string{"unit": "count"})
@@ -74,17 +76,18 @@ func NewManager(
 	)
 
 	manager := &Manager{
-		bf:                        bf,
-		connector:                 c,
-		aggregateDrainURLs:        aggregateDrainURLs,
-		pollingInterval:           pollingInterval,
-		idleTimeout:               idleTimeout,
-		drainCountMetric:          drainCount,
-		aggregateDrainCountMetric: aggregateDrainCount,
-		activeDrainCountMetric:    activeDrains,
-		sourceDrainMap:            make(map[string]map[syslog.Binding]drainHolder),
-		sourceAccessTimes:         make(map[string]time.Time),
-		log:                       log,
+		bf:                                 bf,
+		connector:                          c,
+		aggregateDrainURLs:                 aggregateDrainURLs,
+		pollingInterval:                    pollingInterval,
+		idleTimeout:                        idleTimeout,
+		aggregateConnectionRefreshInterval: aggregateConnectionRefreshInterval,
+		drainCountMetric:                   drainCount,
+		aggregateDrainCountMetric:          aggregateDrainCount,
+		activeDrainCountMetric:             activeDrains,
+		sourceDrainMap:                     make(map[string]map[syslog.Binding]drainHolder),
+		sourceAccessTimes:                  make(map[string]time.Time),
+		log:                                log,
 	}
 
 	go manager.idleCleanupLoop()
@@ -95,19 +98,27 @@ func NewManager(
 func (m *Manager) Run() {
 	bindings, _ := m.bf.FetchBindings()
 	m.drainCountMetric.Set(float64(len(bindings)))
-	m.updateDrains(bindings)
+	m.refreshAggregateConnections()
+	m.updateAppDrains(bindings)
 
 	offset := rand.Int63n(m.pollingInterval.Nanoseconds())
-	t := time.NewTicker(m.pollingInterval + time.Duration(offset))
-	for range t.C {
-		bindings, err := m.bf.FetchBindings()
-		if err != nil {
-			m.log.Printf("failed to fetch bindings: %s", err)
-			continue
-		}
+	connectionTicker := time.NewTicker(m.aggregateConnectionRefreshInterval)
+	bindingTicker := time.NewTicker(m.pollingInterval + time.Duration(offset))
 
-		m.drainCountMetric.Set(float64(len(bindings)))
-		m.updateDrains(bindings)
+	for {
+		select {
+		case <-connectionTicker.C:
+			m.refreshAggregateConnections()
+		case <-bindingTicker.C:
+			bindings, err := m.bf.FetchBindings()
+			if err != nil {
+				m.log.Printf("failed to fetch bindings: %s", err)
+				continue
+			}
+
+			m.drainCountMetric.Set(float64(len(bindings)))
+			m.updateAppDrains(bindings)
+		}
 	}
 }
 
@@ -142,7 +153,7 @@ func (m *Manager) GetDrains(sourceID string) []egress.Writer {
 	return drains
 }
 
-func (m *Manager) updateDrains(bindings []syslog.Binding) {
+func (m *Manager) updateAppDrains(bindings []syslog.Binding) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -175,17 +186,10 @@ func (m *Manager) updateDrains(bindings []syslog.Binding) {
 			m.removeDrain(bindingWriterMap, b)
 		}
 	}
-
-	for _, drainHolder := range m.aggregateDrains {
-		drainHolder.cancel()
-	}
-
-	m.updateActiveDrainCount(-int64(len(m.aggregateDrains)))
-	m.aggregateDrains = []drainHolder{}
-	m.addAggregateDrains(m.aggregateDrainURLs)
 }
 
-func (m *Manager) addAggregateDrains(drains []string) {
+func (m *Manager) resetAggregateDrains(drains []string) {
+	var aggregateDrains []drainHolder
 	for _, drain := range drains {
 		aggregateDrainHolder := newDrainHolder()
 		writer, err := m.connector.Connect(aggregateDrainHolder.ctx, syslog.Binding{
@@ -199,9 +203,12 @@ func (m *Manager) addAggregateDrains(drains []string) {
 		}
 
 		aggregateDrainHolder.drainWriter = writer
-		m.aggregateDrains = append(m.aggregateDrains, aggregateDrainHolder)
+		aggregateDrains = append(aggregateDrains, aggregateDrainHolder)
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.aggregateDrains = aggregateDrains
 	m.aggregateDrainCountMetric.Set(float64(len(m.aggregateDrains)))
 	m.updateActiveDrainCount(int64(len(m.aggregateDrains)))
 }
@@ -256,6 +263,29 @@ func (m *Manager) idleCleanup() {
 func (m *Manager) updateActiveDrainCount(delta int64) {
 	m.activeDrainCount += delta
 	m.activeDrainCountMetric.Set(float64(m.activeDrainCount))
+}
+
+func (m *Manager) refreshAggregateConnections() {
+	drainsToBeClosed := m.getExistingDrainPointers()
+
+	m.updateActiveDrainCount(-m.activeDrainCount)
+	m.resetAggregateDrains(m.aggregateDrainURLs)
+
+	closeDrains(drainsToBeClosed)
+}
+
+func (m *Manager) getExistingDrainPointers() []*drainHolder {
+	var drainsToBeClosed []*drainHolder
+	for _, drainHolder := range m.aggregateDrains {
+		drainsToBeClosed = append(drainsToBeClosed, &drainHolder)
+	}
+	return drainsToBeClosed
+}
+
+func closeDrains(drainsToBeClosed []*drainHolder) {
+	for _, drainHolder := range drainsToBeClosed {
+		drainHolder.cancel()
+	}
 }
 
 type drainHolder struct {

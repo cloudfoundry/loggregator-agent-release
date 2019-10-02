@@ -45,7 +45,7 @@ type BindingManager interface {
 // maxRetries for the backoff, results in around an hour of total delay
 const maxRetries int = 22
 
-// NewSyslogAgent intializes and returns a new syslog agent.
+// NewSyslogAgent initializes and returns a new syslog agent.
 func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
@@ -90,6 +90,7 @@ func NewSyslogAgent(
 		m,
 		cfg.Cache.PollingInterval,
 		cfg.IdleDrainTimeout,
+		cfg.AggregateConnectionRefreshInterval,
 		l,
 	)
 

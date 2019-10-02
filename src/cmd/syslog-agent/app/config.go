@@ -41,7 +41,8 @@ type Config struct {
 	Cache         Cache
 	MetricsServer config.MetricsServer
 
-	AggregateDrainURLs []string `env:"AGGREGATE_DRAIN_URLS, report"`
+	AggregateConnectionRefreshInterval time.Duration `env:"AGGREGATE_CONNECTION_REFRESH_INTERVAL, report"`
+	AggregateDrainURLs                 []string      `env:"AGGREGATE_DRAIN_URLS, report"`
 }
 
 // LoadConfig will load the configuration for the syslog agent from the
@@ -58,6 +59,7 @@ func LoadConfig() Config {
 		GRPC: GRPC{
 			Port: 3458,
 		},
+		AggregateConnectionRefreshInterval: 1 * time.Minute,
 	}
 	if err := envstruct.Load(&cfg); err != nil {
 		panic(fmt.Sprintf("Failed to load config from environment: %s", err))

@@ -45,6 +45,7 @@ var _ = Describe("Manager", func() {
 				nil,
 				spyMetricClient, 10*time.Second,
 				10*time.Minute,
+				10*time.Minute,
 				log.New(GinkgoWriter, "", 0),
 			)
 			go m.Run()
@@ -77,6 +78,7 @@ var _ = Describe("Manager", func() {
 				spyConnector,
 				[]string{"syslog://aggregate-drain.url.com"},
 				spyMetricClient, 10*time.Second,
+				10*time.Minute,
 				10*time.Minute,
 				log.New(GinkgoWriter, "", 0),
 			)
@@ -129,7 +131,9 @@ var _ = Describe("Manager", func() {
 				stubBindingFetcher,
 				spyConnector,
 				nil,
-				spyMetricClient, 100*time.Millisecond,
+				spyMetricClient,
+				100*time.Millisecond,
+				10*time.Minute,
 				10*time.Minute,
 				log.New(GinkgoWriter, "", 0),
 			)
@@ -165,7 +169,9 @@ var _ = Describe("Manager", func() {
 			stubBindingFetcher,
 			spyConnector,
 			nil,
-			spyMetricClient, 100*time.Millisecond,
+			spyMetricClient,
+			100*time.Millisecond,
+			10*time.Minute,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -229,6 +235,7 @@ var _ = Describe("Manager", func() {
 			spyMetricClient,
 			100*time.Millisecond,
 			10*time.Minute,
+			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
 		go m.Run()
@@ -250,6 +257,7 @@ var _ = Describe("Manager", func() {
 			},
 			spyMetricClient,
 			100*time.Millisecond,
+			10*time.Minute,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -277,6 +285,7 @@ var _ = Describe("Manager", func() {
 			spyMetricClient,
 			time.Hour,
 			10*time.Minute,
+			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
 		go m.Run()
@@ -294,7 +303,7 @@ var _ = Describe("Manager", func() {
 		Expect(spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()).To(Equal(3.0))
 	})
 
-	It("re-connects the aggregate drains after updates", func() {
+	It("re-connects the aggregate drains after configured interval", func() {
 		stubBindingFetcher.bindings <- []syslog.Binding{}
 		stubBindingFetcher.bindings <- []syslog.Binding{}
 
@@ -303,8 +312,9 @@ var _ = Describe("Manager", func() {
 			spyConnector,
 			[]string{"syslog://aggregate-drain.url.com"},
 			spyMetricClient,
-			100*time.Millisecond,
 			10*time.Minute,
+			10*time.Minute,
+			100*time.Millisecond,
 			log.New(GinkgoWriter, "", 0),
 		)
 		go m.Run()
@@ -334,6 +344,7 @@ var _ = Describe("Manager", func() {
 			spyConnector,
 			nil,
 			spyMetricClient, 100*time.Millisecond,
+			10*time.Minute,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
@@ -369,8 +380,10 @@ var _ = Describe("Manager", func() {
 			stubBindingFetcher,
 			spyConnector,
 			nil,
-			spyMetricClient, 100*time.Millisecond,
+			spyMetricClient,
 			100*time.Millisecond,
+			100*time.Millisecond,
+			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
 		go m.Run()
@@ -422,6 +435,7 @@ var _ = Describe("Manager", func() {
 			nil,
 			spyMetricClient, 10*time.Millisecond,
 			10*time.Minute,
+			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)
 		go m.Run()
@@ -447,6 +461,7 @@ var _ = Describe("Manager", func() {
 			spyConnector,
 			nil,
 			spyMetricClient, 10*time.Millisecond,
+			10*time.Minute,
 			10*time.Minute,
 			log.New(GinkgoWriter, "", 0),
 		)

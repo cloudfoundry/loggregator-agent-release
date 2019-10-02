@@ -105,6 +105,7 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: metronTestCerts.Cert("metron"),
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
+			AggregateConnectionRefreshInterval: 10 * time.Minute,
 		}
 		go app.NewSyslogAgent(cfg, mc, testLogger).Run()
 
@@ -149,7 +150,8 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: metronTestCerts.Cert("metron"),
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
-			AggregateDrainURLs: aggregateDrains,
+			AggregateDrainURLs:                 aggregateDrains,
+			AggregateConnectionRefreshInterval: 10 * time.Minute,
 		}
 		go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
 		ctx, cancel := context.WithCancel(context.Background())
