@@ -123,19 +123,19 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 	anonymousUrl.User = nil
 	anonymousUrl.RawQuery = ""
 
-	drainType := "app"
+	drainScope := "app"
 	if b.AppId == "" {
-		drainType = "aggregate"
+		drainScope = "aggregate"
 	}
 
 	drainDroppedMetric := w.metricClient.NewCounter(
 		"messages_dropped_per_drain",
 		"Total number of dropped messages.",
 		metrics.WithMetricLabels(map[string]string{
-			"direction": "egress",
-			"app_id": b.AppId,
-			"drain_type": drainType,
-			"drain_url": anonymousUrl.String(),
+			"direction":  "egress",
+			"app_id":     b.AppId,
+			"drain_scope": drainScope,
+			"drain_url":  anonymousUrl.String(),
 		}),
 	)
 

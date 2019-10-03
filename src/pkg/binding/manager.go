@@ -193,7 +193,7 @@ func (m *Manager) resetAggregateDrains(drains []string) {
 	for _, drain := range drains {
 		aggregateDrainHolder := newDrainHolder()
 		writer, err := m.connector.Connect(aggregateDrainHolder.ctx, syslog.Binding{
-			AppId: "all",
+			AppId: "",
 			Drain: drain,
 			Type:  syslog.BINDING_TYPE_AGGREGATE,
 		})
