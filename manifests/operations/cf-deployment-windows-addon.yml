@@ -12,7 +12,7 @@
         ca_cert: "((forwarder_agent_metrics_tls.ca))"
         cert: "((forwarder_agent_metrics_tls.certificate))"
         key: "((forwarder_agent_metrics_tls.private_key))"
-        server_name: forwarder_agent
+        server_name: forwarder_agent_metrics
 
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=loggregator_agent_windows/properties/grpc_port?
@@ -24,7 +24,7 @@
     ca_cert: "((loggregator_agent_metrics_tls.ca))"
     cert: "((loggregator_agent_metrics_tls.certificate))"
     key: "((loggregator_agent_metrics_tls.private_key))"
-    server_name: loggregator_agent
+    server_name: loggregator_agent_metrics
 
 - type: replace
   path: /instance_groups/name=windows1803-cell/jobs/name=prom_scraper_windows/properties?/scrape?/tls?
