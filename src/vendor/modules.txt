@@ -8,7 +8,7 @@ code.cloudfoundry.org/go-envstruct
 code.cloudfoundry.org/go-loggregator
 code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20190930200807-cfc6a44b372f
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20191004164645-33b67ef0f7d1
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
 # code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a

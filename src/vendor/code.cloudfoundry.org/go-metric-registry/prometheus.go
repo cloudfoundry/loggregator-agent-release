@@ -183,7 +183,7 @@ func (p *Registry) startTLS(port int, certFile, keyFile, caFile string) {
 		p.loggr.Fatalf("unable to generate server TLS Config: %s", err)
 	}
 
-	addr := fmt.Sprintf(":%d", port)
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	s := http.Server{
 		Addr:         addr,
 		Handler:      p.mux,
