@@ -8,7 +8,7 @@ if ((Get-Item $BOSH_INSTALL_TARGET).LinkType -ne "") {
   $BOSH_INSTALL_TARGET = (Get-Item $BOSH_INSTALL_TARGET).Target
 }
 
-$env:GOROOT="C:\var\vcap\packages\golang1.12.4-windows\go"
+$env:GOROOT="C:\var\vcap\packages\golang1.13.1-windows\go"
 $env:GOPATH="${BOSH_INSTALL_TARGET}"
 $env:PATH="${env:GOROOT}\bin;${env:PATH}"
 $env:HOME="C:\var\vcap"
