@@ -9,6 +9,8 @@ builds:
     version: "2.3"
   aedc191e-0d69-46ad-50b5-4c0adbd1dd9b:
     version: "1.0"
+  db57711f-d59c-4e8b-4f90-4881532ed28f:
+    version: 2.3.2
   f4fb1ff7-51fa-434b-5db8-16e193b6b0bb:
     version: "2.0"
 format-version: "2"

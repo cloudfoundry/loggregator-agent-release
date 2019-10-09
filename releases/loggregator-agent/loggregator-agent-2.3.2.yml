@@ -1,0 +1,50 @@
+name: loggregator-agent
+version: 2.3.2
+commit_hash: 1f79662
+uncommitted_changes: false
+jobs:
+- name: loggregator_agent
+  version: 5a6275f0622e3fd403225569b446a8060d1ff93d7a1d3ea8aac9129dc8730ada
+  fingerprint: 5a6275f0622e3fd403225569b446a8060d1ff93d7a1d3ea8aac9129dc8730ada
+  sha1: sha256:2228c036f34abcdad88856af0427c91503c5fdfa580ed412e947907c6d0eb3ab
+- name: loggregator_agent_windows
+  version: 2b18e3821ef50cae1e29c14e065469ab97f70aadbb26af1d4d5f85a6684ebe5a
+  fingerprint: 2b18e3821ef50cae1e29c14e065469ab97f70aadbb26af1d4d5f85a6684ebe5a
+  sha1: sha256:9cda9601796bdf5f01ce193bcee5de32e971124cd9b35b9a839df96a345821ae
+- name: prom_scraper
+  version: 631b7512874464408014805d7c068ca9e5d1a839726437d81b12b240c0b0d11d
+  fingerprint: 631b7512874464408014805d7c068ca9e5d1a839726437d81b12b240c0b0d11d
+  sha1: sha256:a2f323ae1c33d934b604bf88c744318afc00d45f270492aab94fcf0e688c8344
+packages:
+- name: golang1.13.1
+  version: b111e01bbebf8b921606576e65b9ee3bc3775ebf4f6c17c9ea0b9d7d894069b5
+  fingerprint: b111e01bbebf8b921606576e65b9ee3bc3775ebf4f6c17c9ea0b9d7d894069b5
+  sha1: sha256:9584edcbf9d2a368f91ef1787c93c739fdc76c80b62d512c5ba1ed7b95f1a3ec
+  dependencies: []
+- name: golang1.13.1-windows
+  version: cb3c50f35be9e88a5306d826585cb3821a8a0a2f4d77e77b5958d2d8bfc8205c
+  fingerprint: cb3c50f35be9e88a5306d826585cb3821a8a0a2f4d77e77b5958d2d8bfc8205c
+  sha1: sha256:488daf66f563b996cdaaac3e0c330c6e1d006de64b4139ef534158f4e0ef5ec1
+  dependencies: []
+- name: loggregator_agent
+  version: f12ddb60e7f10b3654b6151c1c5a0abeabac6190e28902f022495b8cbc2e76a7
+  fingerprint: f12ddb60e7f10b3654b6151c1c5a0abeabac6190e28902f022495b8cbc2e76a7
+  sha1: sha256:eb63d871e349475563d537711b253e30e6a6b3c54626de1744423b642d2d30c8
+  dependencies:
+  - golang1.13.1
+- name: loggregator_agent_windows
+  version: 8a7cfc12bae7f6210d98707733222d9b7f26add04d1a7e7e175293ea3bc4c821
+  fingerprint: 8a7cfc12bae7f6210d98707733222d9b7f26add04d1a7e7e175293ea3bc4c821
+  sha1: sha256:06f878606d0ce23a33d1d0ff26de23f407dde2edf2ae503dccc6440df0e70732
+  dependencies:
+  - golang1.13.1-windows
+- name: prom_scraper
+  version: e7ec755141ecb6db3fd977452fe85914491a90e01c5687fe6a9065c77b241f47
+  fingerprint: e7ec755141ecb6db3fd977452fe85914491a90e01c5687fe6a9065c77b241f47
+  sha1: sha256:333e514250774af0ff0621a9d87fc49658edbd13536e6e245ed902a7afe93e88
+  dependencies:
+  - golang1.13.1
+license:
+  version: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  fingerprint: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  sha1: sha256:423bf4b0d11566b04fbc7cb32949a149a83a7ffc79b5a5437bff4216463fca67
