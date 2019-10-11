@@ -1,5 +1,7 @@
+<% if p('loggregator_agent.enabled') %>
 check process loggregator_agent
   with pidfile /var/vcap/sys/run/bpm/loggregator_agent/loggregator_agent.pid
   start program "/var/vcap/jobs/bpm/bin/bpm start loggregator_agent"
   stop program "/var/vcap/jobs/bpm/bin/bpm stop loggregator_agent"
   group vcap
+<% end %>

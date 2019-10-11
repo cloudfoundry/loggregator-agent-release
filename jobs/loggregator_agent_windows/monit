@@ -1,54 +1,56 @@
-<%
-  job_name = spec.job.name || name
-  instance_id = spec.id || spec.index.to_s
-  instance_zone = p("zone").empty? ? spec.az : p("zone")
-  deployment = p("deployment").empty? ? spec.deployment : p("deployment")
-  certs_dir = "/var/vcap/jobs/loggregator_agent_windows/config/certs"
+<% if p('loggregator_agent.enabled') %>
+  <%
+    job_name = spec.job.name || name
+    instance_id = spec.id || spec.index.to_s
+    instance_zone = p("zone").empty? ? spec.az : p("zone")
+    deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+    certs_dir = "/var/vcap/jobs/loggregator_agent_windows/config/certs"
 
-  router_addr = link("doppler").address
-  router_addr_with_az = link("doppler").address(azs: [spec.az])
+    router_addr = link("doppler").address
+    router_addr_with_az = link("doppler").address(azs: [spec.az])
 
-  tags = {
-      deployment: deployment,
-      job: job_name,
-      index: instance_id,
-      ip: spec.ip,
-  }
-  tags.merge!(p("tags"))
+    tags = {
+        deployment: deployment,
+        job: job_name,
+        index: instance_id,
+        ip: spec.ip,
+    }
+    tags.merge!(p("tags"))
 
-  monit = {
-    "processes" => [
-      {
-        "name" => "loggregator_agent",
-        "executable" => "/var/vcap/packages/loggregator_agent_windows/loggregator-agent.exe",
-        "args" => [],
-        "env" => {
-           "__PIPE_SYSLOG_HOST" => p('syslog_daemon_config.address'),
-           "__PIPE_SYSLOG_PORT" => p('syslog_daemon_config.port'),
-           "__PIPE_SYSLOG_TRANSPORT" => p('syslog_daemon_config.transport'),
-           "AGENT_PORT" => "#{p("grpc_port")}",
-           "AGENT_CA_FILE" => "#{certs_dir}/loggregator_ca.crt",
-           "AGENT_CERT_FILE" => "#{certs_dir}/loggregator_agent.crt",
-           "AGENT_KEY_FILE" => "#{certs_dir}/loggregator_agent.key",
-           "AGENT_CIPHER_SUITES" => p("loggregator.tls.cipher_suites").split(":").join(","),
-           "AGENT_DEPLOYMENT" => deployment,
-           "AGENT_ZONE" => instance_zone,
-           "AGENT_JOB" => job_name,
-           "AGENT_INDEX" => instance_id,
-           "AGENT_IP" => spec.ip,
-           "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
-           "AGENT_DISABLE_UDP" => "#{p("disable_udp")}",
-           "AGENT_INCOMING_UDP_PORT" => "#{p("listening_port")}",
-           "ROUTER_ADDR" => "#{router_addr}:#{p('doppler.grpc_port')}",
-           "ROUTER_ADDR_WITH_AZ" => "#{router_addr_with_az}:#{p('doppler.grpc_port')}",
-           "METRICS_PORT" => "#{p("metrics.port")}",
-           "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
-           "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
-           "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+    monit = {
+      "processes" => [
+        {
+          "name" => "loggregator_agent",
+          "executable" => "/var/vcap/packages/loggregator_agent_windows/loggregator-agent.exe",
+          "args" => [],
+          "env" => {
+             "__PIPE_SYSLOG_HOST" => p('syslog_daemon_config.address'),
+             "__PIPE_SYSLOG_PORT" => p('syslog_daemon_config.port'),
+             "__PIPE_SYSLOG_TRANSPORT" => p('syslog_daemon_config.transport'),
+             "AGENT_PORT" => "#{p("grpc_port")}",
+             "AGENT_CA_FILE" => "#{certs_dir}/loggregator_ca.crt",
+             "AGENT_CERT_FILE" => "#{certs_dir}/loggregator_agent.crt",
+             "AGENT_KEY_FILE" => "#{certs_dir}/loggregator_agent.key",
+             "AGENT_CIPHER_SUITES" => p("loggregator.tls.cipher_suites").split(":").join(","),
+             "AGENT_DEPLOYMENT" => deployment,
+             "AGENT_ZONE" => instance_zone,
+             "AGENT_JOB" => job_name,
+             "AGENT_INDEX" => instance_id,
+             "AGENT_IP" => spec.ip,
+             "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
+             "AGENT_DISABLE_UDP" => "#{p("disable_udp")}",
+             "AGENT_INCOMING_UDP_PORT" => "#{p("listening_port")}",
+             "ROUTER_ADDR" => "#{router_addr}:#{p('doppler.grpc_port')}",
+             "ROUTER_ADDR_WITH_AZ" => "#{router_addr_with_az}:#{p('doppler.grpc_port')}",
+             "METRICS_PORT" => "#{p("metrics.port")}",
+             "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
+             "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
+             "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+          }
         }
-      }
-    ]
-  }
-%>
+      ]
+    }
+  %>
 
-<%= JSON.pretty_generate(monit) %>
+  <%= JSON.pretty_generate(monit) %>
+<% end %>
