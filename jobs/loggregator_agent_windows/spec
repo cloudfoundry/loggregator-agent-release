@@ -28,7 +28,7 @@ packages:
 
 properties:
 # WINDOWS ONLY START
-  loggregator_agent.enabled:
+  enabled:
     description: "Enable v1 Firehose and v2 Logstream"
     default: true
   syslog_daemon_config.enable:

@@ -27,7 +27,7 @@ packages:
 - loggregator_agent
 
 properties:
-  loggregator_agent.enabled:
+  enabled:
     description: "Enable v1 Firehose and v2 Logstream"
     default: true
   disable_udp:
