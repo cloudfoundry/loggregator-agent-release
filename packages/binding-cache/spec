@@ -2,7 +2,7 @@
 name: binding-cache
 
 dependencies:
-- golang1.12.4
+- golang1.13.3
 
 files:
 - github.com/klauspost/cpuid/*
