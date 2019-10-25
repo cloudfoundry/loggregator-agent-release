@@ -1,11 +1,14 @@
 package syslog_test
 
 import (
+	"bytes"
 	"crypto/tls"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
@@ -176,6 +179,128 @@ var _ = Describe("HTTPWriter", func() {
 		Expect(drain.headers[0]).To(HaveKeyWithValue("Content-Type", []string{"text/plain"}))
 	})
 
+	It("batch writes syslog formatted messages to http logDNA drain", func() {
+		drain := newMockOKDrain()
+		drain.URL += "/logs.us-south.logging.cloud.ibm.com/logs/ingest"
+
+		b := buildURLBinding(
+			drain.URL,
+			"test-app-id",
+			"test-hostname",
+		)
+
+		writer := syslog.NewHTTPSWriter(
+			b,
+			netConf,
+			skipSSLTLSConfig,
+			&metricsHelpers.SpyMetric{},
+		)
+
+		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+		Expect(writer.Write(env1)).To(Succeed())
+		env2 := buildLogEnvelope("CELL", "5", "log from cell", loggregator_v2.Log_ERR)
+		Expect(writer.Write(env2)).To(Succeed())
+		env3 := buildLogEnvelope("CELL", "", "log from cell", loggregator_v2.Log_ERR)
+		Expect(writer.Write(env3)).To(Succeed())
+		for i := 0; i < 253; i++ {
+			envn := buildLogEnvelope("CELL", "", "log from cell", loggregator_v2.Log_ERR)
+			Expect(writer.Write(envn)).To(Succeed())
+		}
+
+		Expect(drain.messages).To(HaveLen(250))
+		expected := &rfc5424.Message{
+			AppName:   "test-app-id",
+			Hostname:  "test-hostname",
+			Priority:  rfc5424.Priority(14),
+			ProcessID: "[APP/1]",
+			Message:   []byte("just a test\n"),
+		}
+		Expect(drain.messages[0].AppName).To(Equal(expected.AppName))
+		Expect(drain.messages[0].Hostname).To(Equal(expected.Hostname))
+		Expect(drain.messages[0].Priority).To(BeEquivalentTo(expected.Priority))
+		Expect(drain.messages[0].ProcessID).To(Equal(expected.ProcessID))
+		Expect(drain.messages[0].Message).To(Equal(expected.Message))
+
+		expected = &rfc5424.Message{
+			AppName:   "test-app-id",
+			Hostname:  "test-hostname",
+			Priority:  rfc5424.Priority(11),
+			ProcessID: "[CELL/5]",
+			Message:   []byte("log from cell\n"),
+		}
+		Expect(drain.messages[1].AppName).To(Equal(expected.AppName))
+		Expect(drain.messages[1].Hostname).To(Equal(expected.Hostname))
+		Expect(drain.messages[1].Priority).To(BeEquivalentTo(expected.Priority))
+		Expect(drain.messages[1].ProcessID).To(Equal(expected.ProcessID))
+		Expect(drain.messages[1].Message).To(Equal(expected.Message))
+
+		Expect(drain.messages[2].ProcessID).To(Equal("[CELL]"))
+		Eventually(func() int {
+			return len(drain.messages)
+		}, 6*time.Second, time.Second).Should(Equal(256))
+	})
+
+	It("batch writes syslog formatted messages to http splunk drain", func() {
+		drain := newMockOKDrain()
+		drain.URL += "/splunkcloud"
+
+		b := buildURLBinding(
+			drain.URL,
+			"test-app-id",
+			"test-hostname",
+		)
+
+		writer := syslog.NewHTTPSWriter(
+			b,
+			netConf,
+			skipSSLTLSConfig,
+			&metricsHelpers.SpyMetric{},
+		)
+
+		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+		Expect(writer.Write(env1)).To(Succeed())
+		env2 := buildLogEnvelope("CELL", "5", "log from cell", loggregator_v2.Log_ERR)
+		Expect(writer.Write(env2)).To(Succeed())
+		env3 := buildLogEnvelope("CELL", "", "log from cell", loggregator_v2.Log_ERR)
+		Expect(writer.Write(env3)).To(Succeed())
+		for i := 0; i < 253; i++ {
+			envn := buildLogEnvelope("CELL", "", "log from cell", loggregator_v2.Log_ERR)
+			Expect(writer.Write(envn)).To(Succeed())
+		}
+
+		Expect(drain.messages).To(HaveLen(250))
+		expected := &rfc5424.Message{
+			AppName:   "test-app-id",
+			Hostname:  "test-hostname",
+			Priority:  rfc5424.Priority(14),
+			ProcessID: "[APP/1]",
+			Message:   []byte("just a test\n"),
+		}
+		Expect(drain.messages[0].AppName).To(Equal(expected.AppName))
+		Expect(drain.messages[0].Hostname).To(Equal(expected.Hostname))
+		Expect(drain.messages[0].Priority).To(BeEquivalentTo(expected.Priority))
+		Expect(drain.messages[0].ProcessID).To(Equal(expected.ProcessID))
+		Expect(drain.messages[0].Message).To(Equal(expected.Message))
+
+		expected = &rfc5424.Message{
+			AppName:   "test-app-id",
+			Hostname:  "test-hostname",
+			Priority:  rfc5424.Priority(11),
+			ProcessID: "[CELL/5]",
+			Message:   []byte("log from cell\n"),
+		}
+		Expect(drain.messages[1].AppName).To(Equal(expected.AppName))
+		Expect(drain.messages[1].Hostname).To(Equal(expected.Hostname))
+		Expect(drain.messages[1].Priority).To(BeEquivalentTo(expected.Priority))
+		Expect(drain.messages[1].ProcessID).To(Equal(expected.ProcessID))
+		Expect(drain.messages[1].Message).To(Equal(expected.Message))
+
+		Expect(drain.messages[2].ProcessID).To(Equal("[CELL]"))
+		Eventually(func() int {
+			return len(drain.messages)
+		}, 6*time.Second, time.Second).Should(Equal(256))
+	})
+
 	It("writes gauge metrics to the http drain", func() {
 		drain := newMockOKDrain()
 
@@ -308,7 +433,7 @@ var _ = Describe("HTTPWriter", func() {
 type SpyDrain struct {
 	*httptest.Server
 	messages []*rfc5424.Message
-	headers []http.Header
+	headers  []http.Header
 }
 
 func newMockOKDrain() *SpyDrain {
@@ -322,16 +447,27 @@ func newMockErrorDrain() *SpyDrain {
 func newMockDrain(status int) *SpyDrain {
 	drain := &SpyDrain{}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		message := &rfc5424.Message{}
-
 		body, err := ioutil.ReadAll(r.Body)
 		Expect(err).ToNot(HaveOccurred())
 		defer r.Body.Close()
-
-		err = message.UnmarshalBinary(body)
+		message := &rfc5424.Message{}
+		buf := bytes.NewBuffer(body)
+		b, err1 := buf.ReadBytes('\n')
+		Expect(err1).ToNot(HaveOccurred())
+		err = message.UnmarshalBinary(b)
 		Expect(err).ToNot(HaveOccurred())
 
 		drain.messages = append(drain.messages, message)
+		for buf.Len() != 0 {
+			b, err1 := buf.ReadBytes('\n')
+			if err1 != io.EOF {
+				message2 := &rfc5424.Message{}
+				err = message2.UnmarshalBinary(b)
+				Expect(err).ToNot(HaveOccurred())
+				drain.messages = append(drain.messages, message2)
+			}
+		}
+
 		drain.headers = append(drain.headers, r.Header)
 		w.WriteHeader(status)
 	})

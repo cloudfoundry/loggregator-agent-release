@@ -1,18 +1,25 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 	"github.com/valyala/fasthttp"
 )
+
+const batchSize = 250
+
+var urlMatch *regexp.Regexp
 
 type HTTPSWriter struct {
 	hostname     string
@@ -20,6 +27,9 @@ type HTTPSWriter struct {
 	url          *url.URL
 	client       *fasthttp.Client
 	egressMetric metrics.Counter
+	msgs         [][]byte
+	timer        *time.Timer
+	mutex        *sync.Mutex
 }
 
 func NewHTTPSWriter(
@@ -29,7 +39,9 @@ func NewHTTPSWriter(
 	egressMetric metrics.Counter,
 ) egress.WriteCloser {
 
+	urlMatch = regexp.MustCompile(`.*logs\..*\.logging\.cloud\.ibm\.com`)
 	client := httpClient(netConf, tlsConf)
+	newMutex := &sync.Mutex{}
 
 	return &HTTPSWriter{
 		url:          binding.URL,
@@ -37,7 +49,45 @@ func NewHTTPSWriter(
 		hostname:     binding.Hostname,
 		client:       client,
 		egressMetric: egressMetric,
+		mutex:        newMutex,
 	}
+}
+
+func newFunc(w *HTTPSWriter) func() {
+	return func() {
+		sendNow(w)
+	}
+}
+
+func sendNow(w *HTTPSWriter) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	w.timer = nil
+	increment := 0
+	var b []byte
+	for _, msg2 := range w.msgs {
+		b = append(b, msg2...)
+		increment++
+	}
+	w.msgs = [][]byte{}
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(w.url.String())
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("text/plain")
+	req.SetBody(b)
+
+	resp := fasthttp.AcquireResponse()
+
+	err := w.client.Do(req, resp)
+	if err != nil {
+		fmt.Printf("Failed with error %v\n", w.sanitizeError(w.url, err))
+	}
+	if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
+		fmt.Printf("Syslog Writer: Post responded with %d status code\n", resp.StatusCode())
+		return
+	}
+
+	w.egressMetric.Add(1)
 }
 
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
@@ -47,11 +97,43 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	for _, msg := range msgs {
+		var b []byte
+		var increment float64
+		increment = 1
+		if strings.Contains(w.url.String(), "splunkcloud") ||
+			urlMatch.MatchString(w.url.String()) {
+			w.mutex.Lock()
+			w.msgs = append(w.msgs, msg)
+			if w.timer == nil {
+				w.timer = time.AfterFunc(5*time.Second, newFunc(w))
+			}
+			if len(w.msgs) == batchSize {
+				// send
+				for _, msg2 := range w.msgs {
+					b = append(b, msg2...)
+				}
+				increment = batchSize
+				w.msgs = [][]byte{}
+			} else {
+				w.mutex.Unlock()
+				return nil
+			}
+			w.mutex.Unlock()
+		} else {
+			b = msg
+		}
+		w.mutex.Lock()
+		if w.timer != nil {
+			w.timer.Stop()
+			w.timer = nil
+		}
+		w.mutex.Unlock()
+
 		req := fasthttp.AcquireRequest()
 		req.SetRequestURI(w.url.String())
 		req.Header.SetMethod("POST")
 		req.Header.SetContentType("text/plain")
-		req.SetBody(msg)
+		req.SetBody(b)
 
 		resp := fasthttp.AcquireResponse()
 
@@ -64,7 +146,7 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 			return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
 		}
 
-		w.egressMetric.Add(1)
+		w.egressMetric.Add(increment)
 	}
 
 	return nil
