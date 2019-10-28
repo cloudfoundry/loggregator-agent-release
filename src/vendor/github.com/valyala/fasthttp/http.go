@@ -704,7 +704,7 @@ func (req *Request) parseURI() {
 	}
 	req.parsedURI = true
 
-	req.uri.parseQuick(req.Header.RequestURI(), &req.Header, req.isTLS)
+	req.uri.parse(req.Header.Host(), req.Header.RequestURI(), req.isTLS)
 }
 
 // PostArgs returns POST arguments.
@@ -830,7 +830,7 @@ func readMultipartForm(r io.Reader, boundary string, size, maxInMemoryFileSize i
 	// in multipart/form-data requests.
 
 	if size <= 0 {
-		panic(fmt.Sprintf("BUG: form size must be greater than 0. Given %d", size))
+		return nil, fmt.Errorf("form size must be greater than 0. Given %d", size)
 	}
 	lr := io.LimitReader(r, int64(size))
 	mr := multipart.NewReader(lr, boundary)
@@ -1155,7 +1155,8 @@ func (req *Request) Write(w *bufio.Writer) error {
 			// So we are free to use RequestHeader.bufKV.value as a scratch pad for
 			// the base64 encoding.
 			nl := len(uri.username) + len(uri.password) + 1
-			tl := nl + base64.StdEncoding.EncodedLen(nl)
+			nb := nl + len(strBasicSpace)
+			tl := nb + base64.StdEncoding.EncodedLen(nl)
 			if tl > cap(req.Header.bufKV.value) {
 				req.Header.bufKV.value = make([]byte, 0, tl)
 			}
@@ -1163,9 +1164,9 @@ func (req *Request) Write(w *bufio.Writer) error {
 			buf = append(buf, uri.username...)
 			buf = append(buf, strColon...)
 			buf = append(buf, uri.password...)
-			buf = buf[:tl]
-			base64.StdEncoding.Encode(buf[nl:], buf[:nl])
-			req.Header.SetBytesKV(strAuthorization, buf[nl:])
+			buf = append(buf, strBasicSpace...)
+			base64.StdEncoding.Encode(buf[nb:tl], buf[:nl])
+			req.Header.SetBytesKV(strAuthorization, buf[nl:tl])
 		}
 	}
 
