@@ -117,7 +117,7 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# golang.org/x/net v0.0.0-20191105084925-a882066a44e0
+# golang.org/x/net v0.0.0-20191108063844-7e6e90b9ea88
 golang.org/x/net/idna
 golang.org/x/net/context
 golang.org/x/net/trace
