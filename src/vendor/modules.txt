@@ -152,7 +152,7 @@ golang.org/x/text/runes
 golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
-# google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
+# google.golang.org/genproto v0.0.0-20191114150713-6bbd007550de
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.25.1
 google.golang.org/grpc/grpclog
