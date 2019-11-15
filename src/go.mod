@@ -11,6 +11,7 @@ require (
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 	code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
+	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cloudfoundry/dropsonde v1.0.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4
 	github.com/gogo/protobuf v1.3.1
@@ -27,7 +28,7 @@ require (
 	github.com/valyala/fasthttp v1.6.0
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
 	golang.org/x/net v0.0.0-20191112182307-2180aed22343
-	golang.org/x/sys v0.0.0-20191113165036-4c7a9d0fe056 // indirect
+	golang.org/x/sys v0.0.0-20191115151921-52ab43148777 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135 // indirect
 	google.golang.org/genproto v0.0.0-20191114150713-6bbd007550de // indirect
