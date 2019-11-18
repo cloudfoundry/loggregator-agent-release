@@ -27,8 +27,8 @@ require (
 	github.com/square/certstrap v1.2.0 // indirect
 	github.com/valyala/fasthttp v1.6.0
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
-	golang.org/x/net v0.0.0-20191116160921-f9c825593386
-	golang.org/x/sys v0.0.0-20191115151921-52ab43148777 // indirect
+	golang.org/x/net v0.0.0-20191118183410-d06c31c94cae
+	golang.org/x/sys v0.0.0-20191118133127-cf1e2d577169 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
