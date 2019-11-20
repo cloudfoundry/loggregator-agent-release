@@ -33,6 +33,8 @@ builds:
     version: "2.2"
   787c53c3-1b36-4acd-4120-cb8d344a288c:
     version: "3.14"
+  79c22adb-297a-4851-71d2-9d583f05ee6f:
+    version: 5.2.1
   7b7b56c0-c8cb-4be1-69c7-ad9e0782b3a1:
     version: "3.12"
   932d54b6-e027-4356-69d1-b5dbcce44182:
