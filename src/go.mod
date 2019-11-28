@@ -9,7 +9,7 @@ require (
 	code.cloudfoundry.org/go-loggregator v0.0.0-20190809213911-969cb33bee6a // pinned
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20191004164645-33b67ef0f7d1
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
-	code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
+	code.cloudfoundry.org/tlsconfig v0.0.0-20191126220907-6c65973656e3
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cloudfoundry/dropsonde v1.0.0
@@ -17,7 +17,7 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/gorilla/mux v1.7.3
-	github.com/klauspost/compress v1.9.2 // indirect
+	github.com/klauspost/compress v1.9.3 // indirect
 	github.com/onsi/ginkgo v1.10.3
 	github.com/onsi/gomega v1.7.1
 	github.com/prometheus/client_golang v1.2.1 // indirect
@@ -27,8 +27,8 @@ require (
 	github.com/square/certstrap v1.2.0 // indirect
 	github.com/valyala/fasthttp v1.6.0
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
-	golang.org/x/net v0.0.0-20191125084936-ffdde1057850
-	golang.org/x/sys v0.0.0-20191126131656-8a8471f7e56d // indirect
+	golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933
+	golang.org/x/sys v0.0.0-20191128015809-6d18c012aee9 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
