@@ -8,7 +8,7 @@ require (
 	code.cloudfoundry.org/go-envstruct v1.4.0
 	code.cloudfoundry.org/go-loggregator v7.7.0+incompatible // pinned
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
-	code.cloudfoundry.org/tlsconfig v0.0.0-20190710180242-462f72de1106
+	code.cloudfoundry.org/tlsconfig v0.0.0-20191126220907-6c65973656e3
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/beorn7/perks v1.0.1 // indirect
