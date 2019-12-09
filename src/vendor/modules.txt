@@ -8,7 +8,7 @@ code.cloudfoundry.org/go-envstruct
 code.cloudfoundry.org/go-loggregator
 code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2
 code.cloudfoundry.org/go-loggregator/conversion
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20191004164645-33b67ef0f7d1
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20191209165758-93cfd5e30bb0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
 # code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
@@ -117,7 +117,7 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# golang.org/x/net v0.0.0-20191207000613-e7e4b65ae663
+# golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 golang.org/x/net/idna
 golang.org/x/net/context
 golang.org/x/net/trace
