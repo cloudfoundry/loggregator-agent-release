@@ -24,7 +24,7 @@ require (
 	github.com/prometheus/client_golang v1.3.0 // indirect
 	github.com/prometheus/client_model v0.1.0
 	github.com/prometheus/common v0.7.0
-	github.com/valyala/fasthttp v1.7.1
+	github.com/valyala/fasthttp v1.8.0
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 	golang.org/x/sys v0.0.0-20200107162124-548cf772de50 // indirect

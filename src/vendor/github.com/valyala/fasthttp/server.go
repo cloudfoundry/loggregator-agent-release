@@ -1848,16 +1848,15 @@ func (s *Server) idleTimeout() time.Duration {
 	return s.ReadTimeout
 }
 
-func (s *Server) serveConn(c net.Conn) error {
+func (s *Server) serveConn(c net.Conn) (err error) {
 	defer atomic.AddInt32(&s.open, -1)
 
-	if proto, err := s.getNextProto(c); err != nil {
-		return err
-	} else {
-		handler, ok := s.nextProtos[proto]
-		if ok {
-			return handler(c)
-		}
+	var proto string
+	if proto, err = s.getNextProto(c); err != nil {
+		return
+	}
+	if handler, ok := s.nextProtos[proto]; ok {
+		return handler(c)
 	}
 
 	var serverName []byte
@@ -1880,7 +1879,6 @@ func (s *Server) serveConn(c net.Conn) error {
 		br *bufio.Reader
 		bw *bufio.Writer
 
-		err              error
 		timeoutResponse  *Response
 		hijackHandler    HijackHandler
 		hijackNoResponse bool
@@ -2166,7 +2164,7 @@ func (s *Server) serveConn(c net.Conn) error {
 		}
 		s.releaseCtx(ctx)
 	}
-	return err
+	return
 }
 
 func (s *Server) setState(nc net.Conn, state ConnState) {
@@ -2505,6 +2503,8 @@ func (s *Server) writeFastError(w io.Writer, statusCode int, msg string) {
 func defaultErrorHandler(ctx *RequestCtx, err error) {
 	if _, ok := err.(*ErrSmallBuffer); ok {
 		ctx.Error("Too big request header", StatusRequestHeaderFieldsTooLarge)
+	} else if netErr, ok := err.(*net.OpError); ok && netErr.Timeout() {
+		ctx.Error("Request timeout", StatusRequestTimeout)
 	} else {
 		ctx.Error("Error when parsing request", StatusBadRequest)
 	}
