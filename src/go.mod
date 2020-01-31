@@ -9,7 +9,7 @@ require (
 	code.cloudfoundry.org/go-loggregator v0.0.0-20190809213911-969cb33bee6a // pinned
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20191209165758-93cfd5e30bb0
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
-	code.cloudfoundry.org/tlsconfig v0.0.0-20200125003142-b5ccaa4fedfc
+	code.cloudfoundry.org/tlsconfig v0.0.0-20200131000646-bbe0f8da39b3
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/cloudfoundry/dropsonde v1.0.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4
