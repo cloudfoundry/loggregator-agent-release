@@ -80,16 +80,13 @@ func (s ForwarderAgent) Run() {
 	}))
 
 	downstreamAddrs := getDownstreamAddresses(s.downstreamPortsCfg, s.log)
-	clients := ingressClients(downstreamAddrs, s.grpc, s.log)
-	tagger := egress_v2.NewTagger(s.tags)
-	ew := egress_v2.NewEnvelopeWriter(
-		multiWriter{writers: clients},
-		egress_v2.NewCounterAggregator(tagger.TagEnvelope),
-	)
+	clients := ingressClients(downstreamAddrs, s.grpc, s.log, s.tags)
 	go func() {
 		for {
 			e := diode.Next()
-			ew.Write(e)
+			for _, c := range clients {
+				c.Write(e)
+			}
 		}
 	}()
 
@@ -139,17 +136,6 @@ func (c clientWriter) Close() error {
 	return c.c.CloseSend()
 }
 
-type multiWriter struct {
-	writers []Writer
-}
-
-func (mw multiWriter) Write(e *loggregator_v2.Envelope) error {
-	for _, w := range mw.writers {
-		w.Write(e)
-	}
-	return nil
-}
-
 type portConfig struct {
 	Ingress string `yaml:"ingress"`
 }
@@ -181,7 +167,8 @@ func getDownstreamAddresses(glob string, l *log.Logger) []string {
 
 func ingressClients(downstreamAddrs []string,
 	grpc GRPC,
-	l *log.Logger) []Writer {
+	l *log.Logger,
+	tags map[string]string) []Writer {
 
 	var ingressClients []Writer
 	for _, addr := range downstreamAddrs {
@@ -210,7 +197,13 @@ func ingressClients(downstreamAddrs []string,
 			il.Printf("Dropped %d logs for url %s", missed, addr)
 		}), timeoutwaitgroup.New(time.Minute))
 
-		ingressClients = append(ingressClients, dw)
+		tagger := egress_v2.NewTagger(tags)
+		ew := egress_v2.NewEnvelopeWriter(
+			dw,
+			egress_v2.NewCounterAggregator(tagger.TagEnvelope),
+		)
+
+		ingressClients = append(ingressClients, ew)
 	}
 
 	return ingressClients
