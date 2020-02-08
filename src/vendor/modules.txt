@@ -155,7 +155,7 @@ golang.org/x/text/internal/tag
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20200205142000-a86caf926a67
+# google.golang.org/genproto v0.0.0-20200207204624-4f3edf09f4f6
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.27.1
 google.golang.org/grpc/grpclog
