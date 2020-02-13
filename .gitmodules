@@ -111,4 +111,10 @@
 	url = https://github.com/loggregator/go-bindata
 [submodule "src/github.com/vito/gosub"]
 	path = src/github.com/vito/gosub
-	url = https://github.com/vito/gosub
+	url = https://github.com/loggregator/gosub
+[submodule "src/github.com/cpuguy83/go-md2man"]
+	path = src/github.com/cpuguy83/go-md2man
+	url = https://github.com/cpuguy83/go-md2man
+[submodule "src/github.com/urfave/cli"]
+	path = src/github.com/urfave/cli
+	url = https://github.com/urfave/cli
