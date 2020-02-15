@@ -18,6 +18,7 @@ require (
 	github.com/gorilla/mux v1.7.4
 	github.com/klauspost/compress v1.10.0 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
