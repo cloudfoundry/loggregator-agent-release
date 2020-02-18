@@ -2,14 +2,14 @@ package app
 
 import (
 	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/v1"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
 	"fmt"
 	"log"
 	"net/http"
 
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/conversion"
-	ingress "code.cloudfoundry.org/loggregator-agent/pkg/ingress/v1"
+	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
 )
 

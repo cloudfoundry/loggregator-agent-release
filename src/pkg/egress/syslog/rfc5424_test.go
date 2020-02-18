@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 var _ = Describe("RFC5424", func() {

@@ -7,7 +7,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/cmd/agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
 	"google.golang.org/grpc/grpclog"
 )
 

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing/batching"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing/batching"
 )
 
 type Nexter interface {

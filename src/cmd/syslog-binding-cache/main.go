@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-binding-cache/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-binding-cache/app"
 )
 
 func main() {

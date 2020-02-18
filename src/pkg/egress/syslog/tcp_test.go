@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"

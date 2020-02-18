@@ -1,7 +1,7 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"log"
 	"time"
 

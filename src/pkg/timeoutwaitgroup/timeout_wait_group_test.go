@@ -3,7 +3,7 @@ package timeoutwaitgroup_test
 import (
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/timeoutwaitgroup"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/timeoutwaitgroup"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

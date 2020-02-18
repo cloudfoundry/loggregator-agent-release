@@ -14,7 +14,7 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 
 var _ = Describe("Scraper", func() {

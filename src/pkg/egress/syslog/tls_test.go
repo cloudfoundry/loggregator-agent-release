@@ -9,8 +9,8 @@ import (
 	"time"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 

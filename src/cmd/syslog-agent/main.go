@@ -6,7 +6,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-agent/app"
 )
 
 func main() {

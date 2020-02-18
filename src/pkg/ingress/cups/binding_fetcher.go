@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 // Metrics is the client used to expose gauge and counter metricsClient.

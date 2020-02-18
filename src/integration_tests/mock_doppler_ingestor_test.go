@@ -7,7 +7,7 @@ package agent_test
 
 import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"golang.org/x/net/context"
 )
 

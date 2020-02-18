@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 )
 
 var pathTemplate = "%s/bindings"

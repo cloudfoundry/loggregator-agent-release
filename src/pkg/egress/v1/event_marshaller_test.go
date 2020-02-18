@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	egress "code.cloudfoundry.org/loggregator-agent/pkg/egress/v1"
+	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/gogo/protobuf/proto"
 

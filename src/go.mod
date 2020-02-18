@@ -1,4 +1,4 @@
-module code.cloudfoundry.org/loggregator-agent
+module code.cloudfoundry.org/loggregator-agent-release/src
 
 go 1.12
 

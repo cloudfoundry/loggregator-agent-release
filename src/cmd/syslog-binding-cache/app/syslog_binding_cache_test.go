@@ -15,10 +15,10 @@ import (
 	. "github.com/onsi/gomega"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-binding-cache/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-binding-cache/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 var _ = Describe("SyslogBindingCache", func() {

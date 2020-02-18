@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"net"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/clientpool/v1"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

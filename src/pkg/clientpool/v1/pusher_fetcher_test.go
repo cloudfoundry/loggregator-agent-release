@@ -5,8 +5,8 @@ import (
 	"net"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/clientpool/v1"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc"
 
 	. "github.com/onsi/ginkgo"

@@ -2,8 +2,8 @@ package cups_test
 
 import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	"errors"
 	"log"
 	"net"

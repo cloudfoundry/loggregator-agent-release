@@ -6,7 +6,7 @@ import (
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	egress "code.cloudfoundry.org/loggregator-agent/pkg/egress/v2"
+	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

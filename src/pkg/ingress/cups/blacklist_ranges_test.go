@@ -3,7 +3,7 @@ package cups_test
 import (
 	"net"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

@@ -10,7 +10,7 @@ import (
 
 	"code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
 type Binding struct {

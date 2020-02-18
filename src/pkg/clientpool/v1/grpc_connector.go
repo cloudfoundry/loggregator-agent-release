@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 type ClientFetcher interface {

@@ -9,10 +9,10 @@ import (
 	"net"
 	"net/http"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
-	"code.cloudfoundry.org/loggregator-agent/pkg/cache"
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/api"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/api"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"github.com/gorilla/mux"
 )
 

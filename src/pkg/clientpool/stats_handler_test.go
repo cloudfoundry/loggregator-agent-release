@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/clientpool"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc/stats"
 
 	. "github.com/onsi/ginkgo"

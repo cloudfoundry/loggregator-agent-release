@@ -1,12 +1,12 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"net"
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 type Agent struct {

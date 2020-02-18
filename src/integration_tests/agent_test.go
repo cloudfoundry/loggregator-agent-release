@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/internal/testservers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testservers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"github.com/cloudfoundry/dropsonde/emitter"
 	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/gogo/protobuf/proto"

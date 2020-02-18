@@ -1,8 +1,8 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"crypto/tls"
@@ -24,9 +24,9 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/cmd/syslog-agent/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/rfc5424"
 )
 

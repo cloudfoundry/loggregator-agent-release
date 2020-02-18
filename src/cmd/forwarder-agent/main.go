@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app"
 )
 
 func main() {

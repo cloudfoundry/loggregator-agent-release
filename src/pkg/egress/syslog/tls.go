@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
 // TLSWriter represents a syslog writer that connects over unencrypted TCP.

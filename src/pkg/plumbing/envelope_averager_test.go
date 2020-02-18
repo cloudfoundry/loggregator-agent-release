@@ -3,7 +3,7 @@ package plumbing_test
 import (
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

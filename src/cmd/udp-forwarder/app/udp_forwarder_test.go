@@ -16,10 +16,10 @@ import (
 	"google.golang.org/grpc"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 var _ = Describe("UDPForwarder", func() {

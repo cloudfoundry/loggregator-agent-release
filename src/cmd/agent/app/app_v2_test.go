@@ -2,9 +2,9 @@ package app_test
 
 import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/cmd/agent/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net"

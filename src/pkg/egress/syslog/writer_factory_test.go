@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 var _ = Describe("EgressFactory", func() {

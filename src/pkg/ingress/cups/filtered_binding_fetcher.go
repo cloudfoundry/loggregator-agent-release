@@ -2,12 +2,12 @@ package cups
 
 import (
 	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"fmt"
 	"log"
 	"net"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 var allowedSchemes = []string{"syslog", "syslog-tls", "https"}

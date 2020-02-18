@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"github.com/valyala/fasthttp"
 )
 

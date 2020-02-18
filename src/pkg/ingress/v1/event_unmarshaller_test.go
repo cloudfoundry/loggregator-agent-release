@@ -1,7 +1,7 @@
 package v1_test
 
 import (
-	ingress "code.cloudfoundry.org/loggregator-agent/pkg/ingress/v1"
+	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/gogo/protobuf/proto"
 

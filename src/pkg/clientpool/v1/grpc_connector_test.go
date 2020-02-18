@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"net"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/clientpool/v1"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

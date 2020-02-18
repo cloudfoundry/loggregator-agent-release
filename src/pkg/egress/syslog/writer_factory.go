@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
 type metricClient interface {

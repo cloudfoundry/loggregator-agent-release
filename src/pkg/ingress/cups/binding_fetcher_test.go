@@ -5,9 +5,9 @@ import (
 	"time"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"

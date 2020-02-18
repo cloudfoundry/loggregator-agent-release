@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 type Fetcher interface {

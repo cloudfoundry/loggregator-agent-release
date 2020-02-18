@@ -1,14 +1,14 @@
 package testservers
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"fmt"
 	"os"
 	"os/exec"
 
 	envstruct "code.cloudfoundry.org/go-envstruct"
-	"code.cloudfoundry.org/loggregator-agent/cmd/agent/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

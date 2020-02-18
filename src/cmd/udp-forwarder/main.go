@@ -7,7 +7,7 @@ import (
 
 	_ "net/http/pprof"
 
-	"code.cloudfoundry.org/loggregator-agent/cmd/udp-forwarder/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
 )
 
 func main() {

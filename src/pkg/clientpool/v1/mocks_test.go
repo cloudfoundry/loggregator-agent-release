@@ -3,7 +3,7 @@ package v1_test
 import (
 	"io"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )

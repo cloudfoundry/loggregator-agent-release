@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	ingress "code.cloudfoundry.org/loggregator-agent/pkg/ingress/v1"
+	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

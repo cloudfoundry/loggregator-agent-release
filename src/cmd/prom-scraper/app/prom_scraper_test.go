@@ -1,8 +1,8 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/app"
-	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/prom-scraper/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 	"fmt"
 	"github.com/onsi/gomega/gexec"
 	"io/ioutil"
@@ -17,8 +17,8 @@ import (
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"code.cloudfoundry.org/tlsconfig"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -8,7 +8,7 @@ import (
 	"time"
 	"unsafe"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 type Connector interface {

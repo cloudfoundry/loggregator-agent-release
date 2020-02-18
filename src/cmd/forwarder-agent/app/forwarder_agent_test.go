@@ -1,7 +1,7 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -16,9 +16,9 @@ import (
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/cmd/forwarder-agent/app"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"github.com/gogo/protobuf/proto"
 	"github.com/onsi/gomega/gexec"
 	"google.golang.org/grpc"

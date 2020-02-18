@@ -6,7 +6,7 @@ import (
 	"net"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
-	"code.cloudfoundry.org/loggregator-agent/pkg/diodes"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 )
 
 type ByteArrayWriter interface {

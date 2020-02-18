@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
 var _ = Describe("DiodeWriter", func() {

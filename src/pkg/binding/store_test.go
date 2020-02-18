@@ -2,7 +2,7 @@ package binding_test
 
 import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

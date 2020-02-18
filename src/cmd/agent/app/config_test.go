@@ -3,7 +3,7 @@ package app_test
 import (
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent/cmd/agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

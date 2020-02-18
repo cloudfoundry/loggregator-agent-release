@@ -7,7 +7,7 @@ import (
 	"io"
 	"log"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 
 	"google.golang.org/grpc"
 )

@@ -7,7 +7,7 @@ import (
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent/pkg/diodes"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 )
 
 type WaitGroup interface {

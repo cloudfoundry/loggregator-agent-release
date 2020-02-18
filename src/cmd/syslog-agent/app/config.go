@@ -1,8 +1,8 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	"fmt"
 	"time"
 

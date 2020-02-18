@@ -1,13 +1,13 @@
 package agent_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/tlsconfig"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
-	"code.cloudfoundry.org/loggregator-agent/internal/testservers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testservers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

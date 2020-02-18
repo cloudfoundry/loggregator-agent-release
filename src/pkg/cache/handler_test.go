@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"code.cloudfoundry.org/loggregator-agent/pkg/binding"
-	"code.cloudfoundry.org/loggregator-agent/pkg/cache"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 )
 
 var _ = Describe("Handler", func() {

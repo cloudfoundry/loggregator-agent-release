@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator"
-	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 
 type PromScraper struct {

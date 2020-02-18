@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	clientpool "code.cloudfoundry.org/loggregator-agent/pkg/clientpool/v1"
+	clientpool "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
