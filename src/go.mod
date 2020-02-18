@@ -16,7 +16,7 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.3
 	github.com/gorilla/mux v1.7.4
-	github.com/klauspost/compress v1.10.0 // indirect
+	github.com/klauspost/compress v1.10.1 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
