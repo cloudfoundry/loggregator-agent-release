@@ -1,8 +1,17 @@
-<%=
-RUN_DIR="/var/vcap/sys/run/loggregator_agent_windows"
-LOG_DIR="/var/vcap/sys/log/loggregator_agent_windows"
+<%
+has_doppler = false
+if_link("doppler") do |d|
+    has_doppler = true
+end
+%>
 <<-POWERSHELL
-New-Item -Path #{RUN_DIR} -ItemType directory -Force
-New-Item -Path #{LOG_DIR} -ItemType directory -Force
+New-Item -Path /var/vcap/sys/run/loggregator_agent_windows -ItemType directory -Force
+New-Item -Path /var/vcap/sys/log/loggregator_agent_windows -ItemType directory -Force
+
+<%unless has_doppler%>
+Remove-Item -Path /var/vcap/jobs/config/loggregator_agent_windows/ingress_port.yml
+Remove-Item -Path /var/vcap/jobs/config/loggregator_agent_windows/prom_scraper_config.yml
+<%end%>
+
 POWERSHELL
- %>
+

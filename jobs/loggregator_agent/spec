@@ -11,6 +11,7 @@ provides:
 consumes:
 - name: doppler
   type: doppler
+  optional: true
 
 templates:
   bpm.yml.erb: config/bpm.yml
@@ -22,6 +23,7 @@ templates:
   metrics_ca.crt.erb: config/certs/metrics_ca.crt
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
+  pre-start.erb: bin/pre-start
 
 packages:
 - loggregator_agent
