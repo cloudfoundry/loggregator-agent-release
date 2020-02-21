@@ -1,17 +1,27 @@
 <%
+has_doppler = false
+
+%>
+
+<%
     job_name = spec.job.name || name
     instance_id = spec.id || spec.index.to_s
     instance_zone = p("zone").empty? ? spec.az : p("zone")
     deployment = p("deployment").empty? ? spec.deployment : p("deployment")
 
-    router_addr = link("doppler").address(
-      status: 'healthy',
-    )
+    router_addr = nil
+    router_addr_with_az = nil
 
-    router_addr_with_az = link("doppler").address(
-      azs: [spec.az],
-      status: 'healthy',
-    )
+    if_link("doppler") do |doppler|
+      router_addr = doppler.address(
+        status: 'healthy',
+      )
+
+      router_addr_with_az = doppler.address(
+        azs: [spec.az],
+        status: 'healthy',
+      )
+    end
 
     tags = {
         deployment: deployment,
