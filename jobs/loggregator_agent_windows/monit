@@ -1,8 +1,16 @@
 <%
+has_doppler = false
+if_link("doppler") do |d|
+    has_doppler = true
+end
+%>
+
+<% if p('enabled') && has_doppler %>
   job_name = spec.job.name || name
   instance_id = spec.id || spec.index.to_s
   instance_zone = p("zone").empty? ? spec.az : p("zone")
   deployment = p("deployment").empty? ? spec.deployment : p("deployment")
+  certs_dir = "/var/vcap/jobs/loggregator_agent_windows/config/certs"
 
   router_addr = link("doppler").address
   router_addr_with_az = link("doppler").address(azs: [spec.az])
