@@ -1,4 +1,11 @@
-<% if p('enabled') %>
+<%
+has_doppler = false
+if_link("doppler") do |d|
+    has_doppler = true
+end
+%>
+
+<% if p('enabled') && has_doppler %>
 check process loggregator_agent
   with pidfile /var/vcap/sys/run/bpm/loggregator_agent/loggregator_agent.pid
   start program "/var/vcap/jobs/bpm/bin/bpm start loggregator_agent"
