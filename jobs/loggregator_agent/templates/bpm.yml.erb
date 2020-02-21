@@ -1,4 +1,9 @@
 <%
+has_doppler = false
+
+%>
+
+<%
     job_name = spec.job.name || name
     instance_id = spec.id || spec.index.to_s
     instance_zone = p("zone").empty? ? spec.az : p("zone")

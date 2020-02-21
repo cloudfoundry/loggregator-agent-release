@@ -1,0 +1,12 @@
+#!/bin/bash -e
+<%
+has_doppler = false
+if_link("doppler") do |d|
+    has_doppler = true
+end
+%>
+
+<% unless has_doppler %>
+rm /var/vcap/jobs/loggregator_agent/config/ingress_port.yml
+rm /var/vcap/jobs/loggregator_agent/config/prom_scraper_config.yml
+<% end %>

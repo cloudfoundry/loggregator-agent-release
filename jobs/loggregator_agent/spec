@@ -11,6 +11,7 @@ provides:
 consumes:
 - name: doppler
   type: doppler
+  optional: true
 
 templates:
   bpm.yml.erb: config/bpm.yml
