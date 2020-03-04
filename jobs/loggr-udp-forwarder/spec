@@ -14,10 +14,6 @@ templates:
 packages:
 - udp-forwarder
 
-consumes:
-- name: cloud_controller
-  type: cloud_controller
-
 properties:
   loggregator.tls.ca:
     description: |
