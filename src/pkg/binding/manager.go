@@ -199,6 +199,7 @@ func (m *Manager) resetAggregateDrains(drains []string) {
 		})
 		if err != nil {
 			m.log.Printf("failed to connect to aggregate drain %s: %s", drain, err)
+			aggregateDrainHolder.cancel()
 			continue
 		}
 
@@ -266,7 +267,7 @@ func (m *Manager) updateActiveDrainCount(delta int64) {
 }
 
 func (m *Manager) refreshAggregateConnections() {
-	drainsToBeClosed := m.getExistingDrainPointers()
+	drainsToBeClosed := m.copyDrains()
 
 	m.updateActiveDrainCount(-m.activeDrainCount)
 	m.resetAggregateDrains(m.aggregateDrainURLs)
@@ -274,15 +275,15 @@ func (m *Manager) refreshAggregateConnections() {
 	closeDrains(drainsToBeClosed)
 }
 
-func (m *Manager) getExistingDrainPointers() []*drainHolder {
-	var drainsToBeClosed []*drainHolder
+func (m *Manager) copyDrains() []drainHolder {
+	var drains []drainHolder
 	for _, drainHolder := range m.aggregateDrains {
-		drainsToBeClosed = append(drainsToBeClosed, &drainHolder)
+		drains = append(drains, drainHolder)
 	}
-	return drainsToBeClosed
+	return drains
 }
 
-func closeDrains(drainsToBeClosed []*drainHolder) {
+func closeDrains(drainsToBeClosed []drainHolder) {
 	for _, drainHolder := range drainsToBeClosed {
 		drainHolder.cancel()
 	}
