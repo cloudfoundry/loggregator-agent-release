@@ -62,7 +62,7 @@ func Build() (BuildPaths, error) {
 		return bp, nil
 	}
 
-	path, err := gexec.Build("code.cloudfoundry.org/loggregator-agent/cmd/agent", "-race")
+	path, err := gexec.Build("code.cloudfoundry.org/loggregator-agent/cmd/agent", "-race", "-mod=vendor")
 	if err != nil {
 		return bp, err
 	}
