@@ -27,8 +27,8 @@ require (
 	github.com/prometheus/common v0.9.1
 	github.com/prometheus/procfs v0.0.11 // indirect
 	github.com/valyala/fasthttp v1.9.0
-	golang.org/x/net v0.0.0-20200320181208-1c781a10960a
-	golang.org/x/sys v0.0.0-20200320181252-af34d8274f85 // indirect
+	golang.org/x/net v0.0.0-20200320220750-118fecf932d8
+	golang.org/x/sys v0.0.0-20200321134203-328b4cd54aae // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20200319113533-08878b785e9c // indirect
 	google.golang.org/grpc v1.28.0
