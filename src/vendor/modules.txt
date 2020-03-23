@@ -155,7 +155,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20200319113533-08878b785e9c
+# google.golang.org/genproto v0.0.0-20200323114720-3f67cca34472
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.28.0
 google.golang.org/grpc
