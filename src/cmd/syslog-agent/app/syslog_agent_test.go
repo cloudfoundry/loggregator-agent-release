@@ -1,9 +1,6 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
-	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -21,183 +18,263 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	"code.cloudfoundry.org/rfc5424"
+	"code.cloudfoundry.org/tlsconfig"
 )
 
 var _ = Describe("SyslogAgent", func() {
-	var (
-		syslogHTTPS        *syslogHTTPSServer
-		aggregateSyslogTLS *syslogTCPServer
-		aggregateAddr      string
-		syslogTLS          *syslogTCPServer
-		cupsProvider       *fakeBindingCache
-		metricClient       *metricsHelpers.SpyMetricsRegistry
+	Context("when binding cache is configured", func() {
+		var (
+			syslogHTTPS        *syslogHTTPSServer
+			aggregateSyslogTLS *syslogTCPServer
+			aggregateAddr      string
+			syslogTLS          *syslogTCPServer
+			cupsProvider       *fakeBindingCache
+			metricClient       *metricsHelpers.SpyMetricsRegistry
 
-		grpcPort   = 30000
-		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
+			grpcPort   = 30000
+			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
-		metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
-		bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
-		syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
-	)
+			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
+			bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
+			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
+		)
 
-	BeforeEach(func() {
-		syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
-		syslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+		BeforeEach(func() {
+			syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
+			syslogTLS = newSyslogTLSServer(syslogServerTestCerts)
 
-		aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
-		aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
+			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
-		cupsProvider = &fakeBindingCache{
-			results: []binding.Binding{
-				{
-					AppID:    "some-id",
-					Hostname: "org.space.name",
-					Drains: []string{
-						syslogHTTPS.server.URL,
+			cupsProvider = &fakeBindingCache{
+				results: []binding.Binding{
+					{
+						AppID:    "some-id",
+						Hostname: "org.space.name",
+						Drains: []string{
+							syslogHTTPS.server.URL,
+						},
+					},
+					{
+						AppID:    "some-id-tls",
+						Hostname: "org.space.name",
+						Drains: []string{
+							fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						},
 					},
 				},
-				{
-					AppID:    "some-id-tls",
-					Hostname: "org.space.name",
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+			}
+			cupsProvider.startTLS(bindingCacheTestCerts)
+		})
+
+		AfterEach(func() {
+			gexec.CleanupBuildArtifacts()
+			grpcPort++
+		})
+
+		It("has a health endpoint", func() {
+			mc := metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:     7392,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				IdleDrainTimeout: 10 * time.Minute,
+				Cache: app.Cache{
+					URL:             cupsProvider.URL,
+					CAFile:          bindingCacheTestCerts.CA(),
+					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+					CommonName:      "binding-cache",
+					PollingInterval: 10 * time.Millisecond,
+				},
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			go app.NewSyslogAgent(cfg, mc, testLogger).Run()
+
+			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "agent"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "binding_refresh_count", nil)).Should(BeTrue())
+			Eventually(hasMetric(mc, "latency_for_last_binding_refresh", map[string]string{"unit": "ms"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "all_drains"})).Should(BeTrue())
+
+			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "egress"})).Should(BeTrue())
+			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
+		})
+
+		var setupTestAgent = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
+			metricClient = metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:     7392,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				IdleDrainTimeout:    10 * time.Minute,
+				DrainSkipCertVerify: false,
+				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
+				Cache: app.Cache{
+					URL:             cupsProvider.URL,
+					CAFile:          bindingCacheTestCerts.CA(),
+					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+					CommonName:      "binding-cache",
+					PollingInterval: 10 * time.Millisecond,
+					Blacklist:       blacklist,
+				},
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateDrainURLs:                 aggregateDrains,
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
+			ctx, cancel := context.WithCancel(context.Background())
+			emitLogs(ctx, grpcPort, metronTestCerts)
+
+			return cancel
+		}
+
+		It("should not send logs to blacklisted IPs", func() {
+			url, err := url.Parse(syslogHTTPS.server.URL)
+			Expect(err).ToNot(HaveOccurred())
+
+			cancel := setupTestAgent(cups.BlacklistRanges{
+				Ranges: []cups.BlacklistRange{
+					{
+						Start: url.Hostname(),
+						End:   url.Hostname(),
 					},
 				},
-			},
-		}
-		cupsProvider.startTLS(bindingCacheTestCerts)
+			}, nil)
+			defer cancel()
+
+			Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
+		})
+
+		It("should create connections to aggregate drains", func() {
+			cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
+			defer cancel()
+
+			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Eventually(func() float64 {
+				return metricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
+			}).Should(Equal(1.0))
+
+			// 2 app drains and 1 aggregate drain
+			Eventually(func() float64 {
+				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			}, 5).Should(Equal(3.0))
+		})
+
+		It("egresses logs", func() {
+			cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
+			defer cancel()
+
+			Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
+			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
+		})
 	})
 
-	AfterEach(func() {
-		gexec.CleanupBuildArtifacts()
-		grpcPort++
-	})
+	Context("When binding-cache is not configured", func() {
+		var (
+			aggregateSyslogTLS *syslogTCPServer
+			aggregateAddr      string
+			metricClient       *metricsHelpers.SpyMetricsRegistry
 
-	It("has a health endpoint", func() {
-		mc := metricsHelpers.NewMetricsRegistry()
-		cfg := app.Config{
-			BindingsPerAppLimit: 5,
-			MetricsServer: config.MetricsServer{
-				Port:     7392,
-				CAFile:   metronTestCerts.CA(),
-				CertFile: metronTestCerts.Cert("metron"),
-				KeyFile:  metronTestCerts.Key("metron"),
-			},
-			IdleDrainTimeout: 10 * time.Minute,
-			Cache: app.Cache{
-				URL:             cupsProvider.URL,
-				CAFile:          bindingCacheTestCerts.CA(),
-				CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
-				KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
-				CommonName:      "binding-cache",
-				PollingInterval: 10 * time.Millisecond,
-			},
-			GRPC: app.GRPC{
-				Port:     grpcPort,
-				CAFile:   metronTestCerts.CA(),
-				CertFile: metronTestCerts.Cert("metron"),
-				KeyFile:  metronTestCerts.Key("metron"),
-			},
-			AggregateConnectionRefreshInterval: 10 * time.Minute,
-		}
-		go app.NewSyslogAgent(cfg, mc, testLogger).Run()
+			grpcPort   = 40000
+			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
-		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "agent"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "binding_refresh_count", nil)).Should(BeTrue())
-		Eventually(hasMetric(mc, "latency_for_last_binding_refresh", map[string]string{"unit": "ms"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "all_drains"})).Should(BeTrue())
+			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
+			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
+		)
 
-		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "egress"})).Should(BeTrue())
-		Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
-	})
+		BeforeEach(func() {
+			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
+		})
 
-	var setupTestAgent = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
-		metricClient = metricsHelpers.NewMetricsRegistry()
-		cfg := app.Config{
-			BindingsPerAppLimit: 5,
-			MetricsServer: config.MetricsServer{
-				Port:     7392,
-				CAFile:   metronTestCerts.CA(),
-				CertFile: metronTestCerts.Cert("metron"),
-				KeyFile:  metronTestCerts.Key("metron"),
-			},
-			IdleDrainTimeout:    10 * time.Minute,
-			DrainSkipCertVerify: false,
-			DrainTrustedCAFile:  syslogServerTestCerts.CA(),
-			Cache: app.Cache{
-				URL:             cupsProvider.URL,
-				CAFile:          bindingCacheTestCerts.CA(),
-				CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
-				KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
-				CommonName:      "binding-cache",
-				PollingInterval: 10 * time.Millisecond,
-				Blacklist:       blacklist,
-			},
-			GRPC: app.GRPC{
-				Port:     grpcPort,
-				CAFile:   metronTestCerts.CA(),
-				CertFile: metronTestCerts.Cert("metron"),
-				KeyFile:  metronTestCerts.Key("metron"),
-			},
-			AggregateDrainURLs:                 aggregateDrains,
-			AggregateConnectionRefreshInterval: 10 * time.Minute,
-		}
-		go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
-		ctx, cancel := context.WithCancel(context.Background())
-		emitLogs(ctx, grpcPort, metronTestCerts)
+		AfterEach(func() {
+			gexec.CleanupBuildArtifacts()
+			grpcPort++
+		})
 
-		return cancel
-	}
-
-	It("should not send logs to blacklisted IPs", func() {
-		url, err := url.Parse(syslogHTTPS.server.URL)
-		Expect(err).ToNot(HaveOccurred())
-
-		cancel := setupTestAgent(cups.BlacklistRanges{
-			Ranges: []cups.BlacklistRange{
-				{
-					Start: url.Hostname(),
-					End:   url.Hostname(),
+		var setupTestAgentNoBindingCache = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
+			metricClient = metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:     8052,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
 				},
-			},
-		}, nil)
-		defer cancel()
+				IdleDrainTimeout:    10 * time.Minute,
+				DrainSkipCertVerify: false,
+				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateDrainURLs:                 aggregateDrains,
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
+			ctx, cancel := context.WithCancel(context.Background())
+			emitLogs(ctx, grpcPort, metronTestCerts)
 
-		Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
-	})
+			return cancel
+		}
 
-	It("should create connections to aggregate drains", func() {
-		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
-		defer cancel()
+		It("should create connections to aggregate drains", func() {
+			cancel := setupTestAgentNoBindingCache(cups.BlacklistRanges{}, []string{aggregateAddr})
+			defer cancel()
 
-		Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-		Eventually(func() float64 {
-			return metricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
-		}).Should(Equal(1.0))
+			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Eventually(func() float64 {
+				return metricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
+			}).Should(Equal(1.0))
 
-		// 2 app drains and 1 aggregate drain
-		Eventually(func() float64 {
-			return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-		}, 5).Should(Equal(3.0))
-	})
+			// 0 app drains and 1 aggregate drain
+			Eventually(func() float64 {
+				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			}, 5).Should(Equal(1.0))
+		})
 
-	It("egresses logs", func() {
-		cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
-		defer cancel()
+		It("egresses logs", func() {
+			cancel := setupTestAgentNoBindingCache(cups.BlacklistRanges{}, []string{aggregateAddr})
+			defer cancel()
 
-		Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
-		Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
+			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
+		})
 	})
 })
 

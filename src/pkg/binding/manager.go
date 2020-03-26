@@ -97,12 +97,18 @@ func NewManager(
 }
 
 func (m *Manager) Run() {
-	bindings, _ := m.bf.FetchBindings()
+	bindings := []syslog.Binding{}
+	if m.bf != nil {
+		bindings, _ = m.bf.FetchBindings()
+	}
 	m.drainCountMetric.Set(float64(len(bindings)))
 	m.updateAppDrains(bindings)
 	m.refreshAggregateConnections()
 
-	offset := rand.Int63n(m.pollingInterval.Nanoseconds())
+	offset := int64(time.Second.Nanoseconds())
+	if m.pollingInterval.Nanoseconds() != 0 {
+		offset = rand.Int63n(m.pollingInterval.Nanoseconds())
+	}
 	connectionTicker := time.NewTicker(m.aggregateConnectionRefreshInterval)
 	bindingTicker := time.NewTicker(m.pollingInterval + time.Duration(offset))
 
@@ -111,14 +117,16 @@ func (m *Manager) Run() {
 		case <-connectionTicker.C:
 			m.refreshAggregateConnections()
 		case <-bindingTicker.C:
-			bindings, err := m.bf.FetchBindings()
-			if err != nil {
-				m.log.Printf("failed to fetch bindings: %s", err)
-				continue
-			}
+			if m.bf != nil {
+				bindings, err := m.bf.FetchBindings()
+				if err != nil {
+					m.log.Printf("failed to fetch bindings: %s", err)
+					continue
+				}
 
-			m.drainCountMetric.Set(float64(len(bindings)))
-			m.updateAppDrains(bindings)
+				m.drainCountMetric.Set(float64(len(bindings)))
+				m.updateAppDrains(bindings)
+			}
 		}
 	}
 }

@@ -22,6 +22,7 @@ packages:
 consumes:
 - name: binding_cache
   type: binding_cache
+  optional: true
 
 properties:
   enabled:
@@ -68,15 +69,21 @@ properties:
       When the syslog communicates with the Cloud Controller it must
       validate the Cloud Controller's certificate was signed by a trusted CA.
       This is the CA trusted by the syslog for that communication.
+      This field is required if binding cache is included.
+    default: ""
   cache.tls.cert:
     description: |
       This certificate is sent to the Cloud Controller when initiating a
       connection. It must be signed by a CA that is trusted by the Cloud
       Controller.
+      This field is required if binding cache is included.
+    default: ""
   cache.tls.key:
     description: |
       This is the private key for the certificate sent to the Cloud Controller
       when initiating a connection.
+      This field is required if binding cache is included.
+    default: ""
   cache.tls.cn:
     description: |
       When the syslog communicates with the cache it must
@@ -84,6 +91,8 @@ properties:
       names (SANs) against the hostname or IP address used to initiate the
       connection. Most of the time this should be the hostname defined in
       api.url.
+      This field is required if binding cache is included.
+    default: ""
   cache.polling_interval:
     description: |
       The interval at which the syslog will poll the Cloud Controller for
