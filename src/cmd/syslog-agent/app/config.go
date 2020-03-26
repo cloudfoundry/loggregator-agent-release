@@ -1,10 +1,11 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 	"fmt"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
 
 	"code.cloudfoundry.org/go-envstruct"
 )
@@ -20,11 +21,11 @@ type GRPC struct {
 }
 
 type Cache struct {
-	URL             string               `env:"CACHE_URL,              required, report"`
-	CAFile          string               `env:"CACHE_CA_FILE_PATH,     required, report"`
-	CertFile        string               `env:"CACHE_CERT_FILE_PATH,   required, report"`
-	KeyFile         string               `env:"CACHE_KEY_FILE_PATH,    required, report"`
-	CommonName      string               `env:"CACHE_COMMON_NAME,      required, report"`
+	URL             string               `env:"CACHE_URL,              report"`
+	CAFile          string               `env:"CACHE_CA_FILE_PATH,      report"`
+	CertFile        string               `env:"CACHE_CERT_FILE_PATH,    report"`
+	KeyFile         string               `env:"CACHE_KEY_FILE_PATH,     report"`
+	CommonName      string               `env:"CACHE_COMMON_NAME,       report"`
 	PollingInterval time.Duration        `env:"CACHE_POLLING_INTERVAL, report"`
 	Blacklist       cups.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 }

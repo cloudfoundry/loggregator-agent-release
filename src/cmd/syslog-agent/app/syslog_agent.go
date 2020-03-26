@@ -12,6 +12,9 @@ import (
 	"code.cloudfoundry.org/tlsconfig"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/tlsconfig"
+
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
@@ -71,21 +74,26 @@ func NewSyslogAgent(
 		m,
 	)
 
-	tlsClient := plumbing.NewTLSHTTPClient(
-		cfg.Cache.CertFile,
-		cfg.Cache.KeyFile,
-		cfg.Cache.CAFile,
-		cfg.Cache.CommonName,
-	)
+	var fetcher binding.Fetcher = nil
+	if cfg.Cache.CAFile != "" {
+		tlsClient := plumbing.NewTLSHTTPClient(
+			cfg.Cache.CertFile,
+			cfg.Cache.KeyFile,
+			cfg.Cache.CAFile,
+			cfg.Cache.CommonName,
+		)
 
-	cacheClient := cache.NewClient(cfg.Cache.URL, tlsClient)
-	fetcher := cups.NewFilteredBindingFetcher(
-		&cfg.Cache.Blacklist,
-		cups.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m),
-		m,
-		l,
-	)
+		cacheClient := cache.NewClient(cfg.Cache.URL, tlsClient)
+		fetcher = cups.NewFilteredBindingFetcher(
+			&cfg.Cache.Blacklist,
+			cups.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m),
+			m,
+			l,
+		)
+	}
+	// TODO figure this one out
 	aggregateFetcher := drainbinding.NewAggregateDrainFetcher(cfg.AggregateDrainURLs)
+
 	bindingManager := binding.NewManager(
 		fetcher,
 		aggregateFetcher,

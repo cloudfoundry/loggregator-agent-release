@@ -1,5 +1,4 @@
 <%
-  b = link("binding_cache")
   blacklisted_ranges = p("blacklisted_syslog_ranges")
   blacklisted_ips = blacklisted_ranges.map do |range|
     "#{range['start']}-#{range['end']}"
@@ -15,12 +14,6 @@
     "name" => "loggr-syslog-agent",
     "executable" => "/var/vcap/packages/syslog-agent/syslog-agent",
     "env" => {
-      "CACHE_CA_FILE_PATH" => "#{certs_dir}/cache_ca.crt",
-      "CACHE_CERT_FILE_PATH" => "#{certs_dir}/cache_client.crt",
-      "CACHE_KEY_FILE_PATH" => "#{certs_dir}/cache_client.key",
-      "CACHE_COMMON_NAME" => "#{p("cache.tls.cn")}",
-      "CACHE_URL" => "https://#{b.address}:#{b.p("external_port")}",
-      "CACHE_POLLING_INTERVAL" => "#{p("cache.polling_interval")}",
       "AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
       "AGENT_CERT_FILE_PATH" => "#{certs_dir}/syslog_agent.crt",
       "AGENT_KEY_FILE_PATH" => "#{certs_dir}/syslog_agent.key",
@@ -36,6 +29,15 @@
       "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
     }
   }
+
+  if_link("binding_cache") do | binding |
+    process["env"]["CACHE_CA_FILE_PATH"] = "#{certs_dir}/cache_ca.crt"
+    process["env"]["CACHE_CERT_FILE_PATH"] = "#{certs_dir}/cache_client.crt"
+    process["env"]["CACHE_KEY_FILE_PATH"] = "#{certs_dir}/cache_client.key"
+    process["env"]["CACHE_COMMON_NAME"] = "#{p("cache.tls.cn")}"
+    process["env"]["CACHE_URL"] = "https://#{binding.address}:#{binding.p("external_port")}"
+    process["env"]["CACHE_POLLING_INTERVAL"] = "#{p("cache.polling_interval")}"
+  end
 
   bpm = {"processes" => [process] }
 %>
