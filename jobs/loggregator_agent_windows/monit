@@ -5,7 +5,7 @@ if_link("doppler") do |d|
 end
 %>
 
-<% if p('enabled') && has_doppler %>
+<% if has_doppler %>
   <%
     job_name = spec.job.name || name
     instance_id = spec.id || spec.index.to_s
