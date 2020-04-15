@@ -1,16 +1,17 @@
 package metrics
 
 import (
-	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"code.cloudfoundry.org/tlsconfig"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // The Registry keeps track of registered counters and gauges. Optionally, it can
@@ -137,22 +138,29 @@ func toHistogramOpts(name, helpText string, buckets []float64, mOpts ...MetricOp
 // Options for registry initialization
 type RegistryOption func(r *Registry)
 
-// Starts an http server on the given port to host metrics.
+// Starts an http server on localhost at the given port to host metrics.
 func WithServer(port int) RegistryOption {
 	return func(r *Registry) {
-		r.start(port)
+		r.start("127.0.0.1", port)
 	}
 }
 
-// Starts an https server on the given port to host metrics.
+// Starts an https server on localhost at the given port to host metrics.
 func WithTLSServer(port int, certFile, keyFile, caFile string) RegistryOption {
 	return func(r *Registry) {
 		r.startTLS(port, certFile, keyFile, caFile)
 	}
 }
 
-func (p *Registry) start(port int) {
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+// Starts an http server on the given port to host metrics.
+func WithPublicServer(port int) RegistryOption {
+	return func(r *Registry) {
+		r.start("0.0.0.0", port)
+	}
+}
+
+func (p *Registry) start(ipAddr string, port int) {
+	addr := fmt.Sprintf("%s:%d", ipAddr, port)
 	s := http.Server{
 		Addr:         addr,
 		Handler:      p.mux,
