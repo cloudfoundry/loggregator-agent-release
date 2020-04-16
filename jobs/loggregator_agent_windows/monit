@@ -47,6 +47,7 @@ end
              "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
              "AGENT_DISABLE_UDP" => "#{p("disable_udp")}",
              "AGENT_INCOMING_UDP_PORT" => "#{p("listening_port")}",
+             "LOGS_DISABLED" => "#{p("disable_logs")}",
              "ROUTER_ADDR" => "#{router_addr}:#{p('doppler.grpc_port')}",
              "ROUTER_ADDR_WITH_AZ" => "#{router_addr_with_az}:#{p('doppler.grpc_port')}",
              "METRICS_PORT" => "#{p("metrics.port")}",

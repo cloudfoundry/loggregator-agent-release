@@ -35,6 +35,9 @@ properties:
   disable_udp:
     description: "Disable incoming UDP"
     default: false
+  disable_logs:
+    description: "Disable log egress from the agent"
+    default: false
   listening_port:
     description: "Port the agent is listening on to receive dropsonde log messages"
     default: 3457

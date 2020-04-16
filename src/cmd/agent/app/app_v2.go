@@ -1,12 +1,14 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"time"
+
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool"
@@ -14,6 +16,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
 	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -42,6 +45,10 @@ type AppV2 struct {
 	serverCreds  credentials.TransportCredentials
 	metricClient MetricClient
 	lookup       func(string) ([]net.IP, error)
+}
+
+type envelopeSetter interface {
+	Set(e *loggregator_v2.Envelope)
 }
 
 func NewV2App(
@@ -113,7 +120,14 @@ func (a *AppV2) Start() {
 	agentAddress := fmt.Sprintf("127.0.0.1:%d", a.config.GRPC.Port)
 	log.Printf("agent v2 API started on addr %s", agentAddress)
 
-	rx := ingress.NewReceiver(envelopeBuffer, ingressMetric, originMappings)
+	var es envelopeSetter
+	es = envelopeBuffer
+	if a.config.LogsDisabled {
+		es = v2.NewFilteringSetter(envelopeBuffer)
+	}
+
+	rx := ingress.NewReceiver(es, ingressMetric, originMappings)
+
 	kp := keepalive.EnforcementPolicy{
 		MinTime:             10 * time.Second,
 		PermitWithoutStream: true,

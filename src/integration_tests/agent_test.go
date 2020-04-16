@@ -1,10 +1,11 @@
 package agent_test
 
 import (
-	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"fmt"
 	"time"
+
+	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
@@ -74,6 +75,7 @@ var _ = Describe("Agent", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop()
+
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
@@ -136,6 +138,50 @@ var _ = Describe("Agent", func() {
 				"auto-tag-2": "auto-tag-value-2",
 			}),
 		}))
+	})
+
+	It("does not emit logs when LOGS_DISABLED is set to true", func() {
+		consumerServer, err := NewServer(testCerts)
+		Expect(err).ToNot(HaveOccurred())
+		defer consumerServer.Stop()
+
+		config := testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts)
+		config.LogsDisabled = true
+		agentCleanup, agentPorts := testservers.StartAgent(config)
+		defer agentCleanup()
+
+		logEnvelope := &loggregator_v2.Envelope{
+			Message: &loggregator_v2.Envelope_Log{},
+		}
+		metricEnvelope := &loggregator_v2.Envelope{
+			Message: &loggregator_v2.Envelope_Counter{},
+		}
+
+		client := agentClient(agentPorts.GRPC, testCerts)
+		sender, err := client.Sender(context.Background())
+		Expect(err).ToNot(HaveOccurred())
+
+		go func() {
+			for range time.Tick(time.Nanosecond) {
+				sender.Send(logEnvelope)
+				sender.Send(metricEnvelope)
+			}
+		}()
+
+		var rx loggregator_v2.Ingress_BatchSenderServer
+		numDopplerConnections := 5
+		for i := 0; i < numDopplerConnections; i++ {
+			Eventually(consumerServer.V2.BatchSenderInput.Arg0).Should(Receive(&rx))
+			consumerServer.V2.BatchSenderOutput.Ret0 <- nil
+		}
+		Eventually(consumerServer.V2.BatchSenderInput.Arg0).Should(Receive(&rx))
+
+		batch, err := rx.Recv()
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, envelope := range batch.Batch {
+			Expect(envelope.GetLog()).To(BeNil())
+		}
 	})
 })
 

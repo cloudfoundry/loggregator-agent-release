@@ -51,6 +51,7 @@ has_doppler = false
         "AGENT_IP" => "#{spec.ip}",
         "AGENT_TAGS" => "#{tag_str}",
         "AGENT_DISABLE_UDP" => "#{p("disable_udp")}",
+        "LOGS_DISABLED" => "#{p("disable_logs")}",
         "AGENT_INCOMING_UDP_PORT" => "#{p("listening_port")}",
         "ROUTER_ADDR" => "#{"#{router_addr}:#{p('doppler.grpc_port')}"}",
         "ROUTER_ADDR_WITH_AZ" => "#{router_addr_with_az}:#{p('doppler.grpc_port')}",

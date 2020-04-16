@@ -1,9 +1,10 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"fmt"
 	"strings"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 
 	"code.cloudfoundry.org/go-envstruct"
 	"golang.org/x/net/idna"
@@ -28,6 +29,7 @@ type Config struct {
 	IP                              string            `env:"AGENT_IP"`
 	Tags                            map[string]string `env:"AGENT_TAGS"`
 	DisableUDP                      bool              `env:"AGENT_DISABLE_UDP"`
+	LogsDisabled                    bool              `env:"LOGS_DISABLED"`
 	IncomingUDPPort                 int               `env:"AGENT_INCOMING_UDP_PORT"`
 	MetricBatchIntervalMilliseconds uint              `env:"AGENT_METRIC_BATCH_INTERVAL_MILLISECONDS"`
 	MetricSourceID                  string            `env:"AGENT_METRIC_SOURCE_ID"`
