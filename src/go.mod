@@ -11,7 +11,7 @@ require (
 	code.cloudfoundry.org/rfc5424 v0.0.0-20180905210152-236a6d29298a
 	code.cloudfoundry.org/tlsconfig v0.0.0-20200131000646-bbe0f8da39b3
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
-	github.com/cloudfoundry/dropsonde v1.0.0
+	github.com/cloudfoundry/dropsonde v1.0.0 // pinned
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4 // pinned
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.0
