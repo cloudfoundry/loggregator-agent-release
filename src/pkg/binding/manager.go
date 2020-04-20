@@ -1,12 +1,13 @@
 package binding
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"context"
 	"log"
 	"math/rand"
 	"sync"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -27,10 +28,10 @@ type Connector interface {
 }
 
 type Manager struct {
-	bf                 Fetcher
-	connector          Connector
-	aggregateDrains    []drainHolder
-	aggregateDrainURLs []string
+	bf                    Fetcher
+	aggregateDrainFetcher Fetcher
+	connector             Connector
+	aggregateDrains       []drainHolder
 
 	pollingInterval                    time.Duration
 	idleTimeout                        time.Duration
@@ -50,8 +51,8 @@ type Manager struct {
 
 func NewManager(
 	bf Fetcher,
+	af Fetcher,
 	c Connector,
-	aggregateDrainURLs []string,
 	m Metrics,
 	pollingInterval time.Duration,
 	idleTimeout time.Duration,
@@ -77,8 +78,8 @@ func NewManager(
 
 	manager := &Manager{
 		bf:                                 bf,
+		aggregateDrainFetcher:              af,
 		connector:                          c,
-		aggregateDrainURLs:                 aggregateDrainURLs,
 		pollingInterval:                    pollingInterval,
 		idleTimeout:                        idleTimeout,
 		aggregateConnectionRefreshInterval: aggregateConnectionRefreshInterval,
@@ -98,8 +99,8 @@ func NewManager(
 func (m *Manager) Run() {
 	bindings, _ := m.bf.FetchBindings()
 	m.drainCountMetric.Set(float64(len(bindings)))
-	m.refreshAggregateConnections()
 	m.updateAppDrains(bindings)
+	m.refreshAggregateConnections()
 
 	offset := rand.Int63n(m.pollingInterval.Nanoseconds())
 	connectionTicker := time.NewTicker(m.aggregateConnectionRefreshInterval)
@@ -188,17 +189,19 @@ func (m *Manager) updateAppDrains(bindings []syslog.Binding) {
 	}
 }
 
-func (m *Manager) resetAggregateDrains(drains []string) {
+func (m *Manager) resetAggregateDrains() {
 	var aggregateDrains []drainHolder
-	for _, drain := range drains {
+	bindings, err := m.aggregateDrainFetcher.FetchBindings()
+	if err != nil {
+		return
+	}
+
+	for _, b := range bindings {
 		aggregateDrainHolder := newDrainHolder()
-		writer, err := m.connector.Connect(aggregateDrainHolder.ctx, syslog.Binding{
-			AppId: "",
-			Drain: drain,
-			Type:  syslog.BINDING_TYPE_AGGREGATE,
-		})
+
+		writer, err := m.connector.Connect(aggregateDrainHolder.ctx, b)
 		if err != nil {
-			m.log.Printf("failed to connect to aggregate drain %s: %s", drain, err)
+			m.log.Printf("failed to connect to aggregate drain %s: %s", b.Drain, err)
 			aggregateDrainHolder.cancel()
 			continue
 		}
@@ -270,7 +273,7 @@ func (m *Manager) refreshAggregateConnections() {
 	drainsToBeClosed := m.copyDrains()
 
 	m.updateActiveDrainCount(-m.activeDrainCount)
-	m.resetAggregateDrains(m.aggregateDrainURLs)
+	m.resetAggregateDrains()
 
 	closeDrains(drainsToBeClosed)
 }
