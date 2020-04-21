@@ -212,6 +212,7 @@ func (m *Manager) resetAggregateDrains() {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.updateActiveDrainCount(int64(-len(m.aggregateDrains)))
 	m.aggregateDrains = aggregateDrains
 	m.aggregateDrainCountMetric.Set(float64(len(m.aggregateDrains)))
 	m.updateActiveDrainCount(int64(len(m.aggregateDrains)))
@@ -272,7 +273,6 @@ func (m *Manager) updateActiveDrainCount(delta int64) {
 func (m *Manager) refreshAggregateConnections() {
 	drainsToBeClosed := m.copyDrains()
 
-	m.updateActiveDrainCount(-m.activeDrainCount)
 	m.resetAggregateDrains()
 
 	closeDrains(drainsToBeClosed)
