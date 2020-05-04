@@ -14,7 +14,7 @@ require (
 	github.com/cloudfoundry/dropsonde v1.0.0 // pinned
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4 // pinned
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.4.0
+	github.com/golang/protobuf v1.4.1
 	github.com/gorilla/mux v1.7.4
 	github.com/klauspost/compress v1.10.5 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
