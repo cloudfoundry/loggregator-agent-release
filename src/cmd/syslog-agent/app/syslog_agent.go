@@ -8,9 +8,6 @@ import (
 	"log"
 	"time"
 
-	metrics "code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/tlsconfig"
-
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
@@ -91,7 +88,7 @@ func NewSyslogAgent(
 			l,
 		)
 	}
-	// TODO figure this one out
+
 	aggregateFetcher := drainbinding.NewAggregateDrainFetcher(cfg.AggregateDrainURLs)
 
 	bindingManager := binding.NewManager(

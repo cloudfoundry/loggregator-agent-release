@@ -11,7 +11,7 @@ import (
 // 	FetchBindings() ([]syslog.Binding, error)
 // 	DrainLimit() int
 // }
-var _ = Describe("Aggregatre Drain Binding Fetcher", func() {
+var _ = Describe("Aggregate Drain Binding Fetcher", func() {
 	var ()
 
 	BeforeEach(func() {
@@ -41,7 +41,7 @@ var _ = Describe("Aggregatre Drain Binding Fetcher", func() {
 		))
 	})
 
-	It("returns drain bindings for the drain urls", func() {
+	It("only returns valid drain bindings for the drain urls", func() {
 		bindings := []string{
 			"syslog://aggregate-drain1.url.com",
 			"B@D/aggregate-d\rain1.//l.cm",
@@ -58,5 +58,15 @@ var _ = Describe("Aggregatre Drain Binding Fetcher", func() {
 				Type:  syslog.BINDING_TYPE_LOG,
 			},
 		))
+	})
+
+	It("handles empty drain bindings", func() {
+		bindings := []string{""}
+		fetcher := drainbinding.NewAggregateDrainFetcher(bindings)
+
+		b, err := fetcher.FetchBindings()
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(len(b)).To(Equal(0))
 	})
 })
