@@ -14,6 +14,9 @@ type AggregateDrainFetcher struct {
 func NewAggregateDrainFetcher(bindings []string) *AggregateDrainFetcher {
 	drainFetcher := &AggregateDrainFetcher{}
 	for _, b := range bindings {
+		if b == "" {
+			continue
+		}
 		bindingType := syslog.BINDING_TYPE_LOG
 		urlParsed, err := url.Parse(b)
 		if err != nil {
