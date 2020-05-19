@@ -13,8 +13,8 @@ require (
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/cloudfoundry/dropsonde v1.0.0 // pinned
 	github.com/cloudfoundry/sonde-go v0.0.0-20171206171820-b33733203bb4 // pinned
-	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.4.1
+	github.com/gogo/protobuf v1.3.1 // pinned
+	github.com/golang/protobuf v1.4.1 // pinned
 	github.com/gorilla/mux v1.7.4
 	github.com/klauspost/compress v1.10.5 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
@@ -31,6 +31,6 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20200514193133-8feb7f20f2a2 // indirect
 	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.23.0 // indirect
+	google.golang.org/protobuf v1.23.0 // indirect; pinned
 	gopkg.in/yaml.v2 v2.3.0
 )
