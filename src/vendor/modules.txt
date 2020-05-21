@@ -42,7 +42,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/gorilla/mux v1.7.4
 github.com/gorilla/mux
-# github.com/klauspost/compress v1.10.5
+# github.com/klauspost/compress v1.10.6
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/zlib
@@ -118,7 +118,7 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
+# golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2
 golang.org/x/net/context
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -157,7 +157,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20200519141106-08726f379972
+# google.golang.org/genproto v0.0.0-20200521103424-e9a78aa275b7
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.29.1
 google.golang.org/grpc
