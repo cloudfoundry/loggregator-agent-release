@@ -16,6 +16,8 @@ code.cloudfoundry.org/rfc5424
 # code.cloudfoundry.org/tlsconfig v0.0.0-20200131000646-bbe0f8da39b3
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
+# github.com/andybalholm/brotli v1.0.0
+github.com/andybalholm/brotli
 # github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 github.com/apoydence/eachers
 github.com/apoydence/eachers/testhelpers
@@ -114,7 +116,7 @@ github.com/prometheus/procfs/internal/util
 github.com/square/certstrap/pkix
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.12.0
+# github.com/valyala/fasthttp v1.13.1
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless

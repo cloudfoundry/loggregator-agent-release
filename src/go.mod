@@ -25,7 +25,7 @@ require (
 	github.com/prometheus/client_golang v1.6.0 // indirect
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.10.0
-	github.com/valyala/fasthttp v1.12.0
+	github.com/valyala/fasthttp v1.13.1
 	golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2
 	golang.org/x/sys v0.0.0-20200523222454-059865788121 // indirect
 	google.golang.org/genproto v0.0.0-20200521103424-e9a78aa275b7 // indirect
