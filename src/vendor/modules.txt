@@ -120,7 +120,7 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2
+# golang.org/x/net v0.0.0-20200528225125-3c3fba18258b
 golang.org/x/net/context
 golang.org/x/net/html
 golang.org/x/net/html/atom
