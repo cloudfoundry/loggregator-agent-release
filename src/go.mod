@@ -16,11 +16,11 @@ require (
 	github.com/gogo/protobuf v1.3.1 // pinned
 	github.com/golang/protobuf v1.4.2 // pinned
 	github.com/gorilla/mux v1.7.4
-	github.com/klauspost/compress v1.10.6 // indirect
+	github.com/klauspost/compress v1.10.7 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
-	github.com/onsi/ginkgo v1.12.2
+	github.com/onsi/ginkgo v1.12.3
 	github.com/onsi/gomega v1.10.1
 	github.com/prometheus/client_golang v1.6.0 // indirect
 	github.com/prometheus/client_model v0.2.0
@@ -28,7 +28,7 @@ require (
 	github.com/valyala/fasthttp v1.13.1
 	golang.org/x/net v0.0.0-20200528225125-3c3fba18258b
 	golang.org/x/sys v0.0.0-20200523222454-059865788121 // indirect
-	google.golang.org/genproto v0.0.0-20200528191852-705c0b31589b // indirect
+	google.golang.org/genproto v0.0.0-20200601130524-0f60399e6634 // indirect
 	google.golang.org/grpc v1.29.1
 	gopkg.in/yaml.v2 v2.3.0
 )
