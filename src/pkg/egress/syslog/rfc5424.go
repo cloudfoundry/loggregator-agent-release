@@ -2,6 +2,7 @@ package syslog
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -9,6 +10,14 @@ import (
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 )
+
+var sanitizeRe1, sanitizeRe2, sanitizeRe3 *regexp.Regexp
+
+func init() {
+	sanitizeRe1 = regexp.MustCompile("\\s+")
+	sanitizeRe2 = regexp.MustCompile("[^-a-zA-Z0-9]+")
+	sanitizeRe3 = regexp.MustCompile("-+$")
+}
 
 const RFC5424TimeOffsetNum = "2006-01-02T15:04:05.999999-07:00"
 
@@ -19,8 +28,8 @@ const (
 	gaugeStructuredDataID   = "gauge@47450"
 	timerStructuredDataID   = "timer@47450"
 	counterStructuredDataID = "counter@47450"
-	eventStructuredDataID = "event@47450"
-	tagsStructuredDataID = "tags@47450"
+	eventStructuredDataID   = "event@47450"
+	tagsStructuredDataID    = "tags@47450"
 )
 
 func ToRFC5424(env *loggregator_v2.Envelope, defaultHostname string) ([][]byte, error) {
@@ -71,13 +80,17 @@ func buildHostname(env *loggregator_v2.Envelope, defaultHostname string) string 
 	spaceName, spaceOk := envTags["space_name"]
 	appName, appOk := envTags["app_name"]
 	if orgOk || spaceOk || appOk {
-		hostname = fmt.Sprintf("%s.%s.%s", orgName, spaceName, appName)
+		hostname = fmt.Sprintf("%s.%s.%s", sanitize(orgName), sanitize(spaceName), sanitize(appName))
 		if len(hostname) > 255 {
 			hostname = hostname[:255]
 		}
 	}
 
 	return hostname
+}
+
+func sanitize(originalName string) string {
+	return sanitizeRe3.ReplaceAllString(sanitizeRe2.ReplaceAllString(sanitizeRe1.ReplaceAllString(originalName, "-"), ""), "")
 }
 
 func invalidValue(property, value string) error {

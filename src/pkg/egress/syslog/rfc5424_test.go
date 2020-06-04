@@ -101,6 +101,19 @@ var _ = Describe("RFC5424", func() {
 		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 some-org.some-space.some-app test-app-id [MY-TASK/2] - [tags@47450 app_name="some-app" organization_name="some-org" source_type="MY TASK" space_name="some-space"] just a test`+"\n")
 	})
 
+	It("builds hostname from org, space, and app name tags and sanitizes the hostname", func() {
+		logEnv := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_ERR)
+		logEnv.Tags["organization_name"] = "some_org"
+		logEnv.Tags["space_name"] = "some_space"
+		logEnv.Tags["app_name"] = "some_app"
+
+		metricEnv := buildCounterEnvelope("1")
+		metricEnv.Tags = map[string]string{"metric-tag": "scallop"}
+
+		receivedMsgs, _ := syslog.ToRFC5424(logEnv, "test-hostname")
+		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 someorg.somespace.someapp test-app-id [MY-TASK/2] - [tags@47450 app_name="some_app" organization_name="some_org" source_type="MY TASK" space_name="some_space"] just a test`+"\n")
+	})
+
 	It("truncates hostname from tags if longer than 255 characters", func() {
 		logEnv := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_ERR)
 		logEnv.Tags["organization_name"] = strings.Repeat("a", 100)
