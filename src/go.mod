@@ -25,11 +25,11 @@ require (
 	github.com/prometheus/client_golang v1.6.0 // indirect
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.10.0
-	github.com/prometheus/procfs v0.1.1 // indirect
+	github.com/prometheus/procfs v0.1.3 // indirect
 	github.com/valyala/fasthttp v1.14.0
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
-	google.golang.org/genproto v0.0.0-20200612171551-7676ae05be11 // indirect
+	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1 // indirect
+	google.golang.org/genproto v0.0.0-20200615140333-fd031eab31e7 // indirect
 	google.golang.org/grpc v1.29.1
 	gopkg.in/yaml.v2 v2.3.0
 )
