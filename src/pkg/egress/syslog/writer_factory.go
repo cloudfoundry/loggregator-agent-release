@@ -1,10 +1,10 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"crypto/tls"
 	"errors"
 
+	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
@@ -13,7 +13,7 @@ type metricClient interface {
 }
 
 type WriterFactory struct {
-	tlsConfig    *tls.Config
+	tlsConfig *tls.Config
 
 	egressMetric metrics.Counter
 }
