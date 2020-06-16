@@ -1,7 +1,6 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 	"github.com/valyala/fasthttp"
 )
@@ -41,7 +41,7 @@ func NewHTTPSWriter(
 }
 
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
-	msgs, err := ToRFC5424(env, w.hostname)
+	msgs, err := NewConverter().ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}
