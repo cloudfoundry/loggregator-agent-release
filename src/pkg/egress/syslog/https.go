@@ -1,12 +1,13 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
 	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
+
+	"code.cloudfoundry.org/go-loggregator/metrics"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
@@ -41,7 +42,7 @@ func NewHTTPSWriter(
 }
 
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
-	msgs, err := ToRFC5424(env, w.hostname)
+	msgs, err := NewConverter().ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}

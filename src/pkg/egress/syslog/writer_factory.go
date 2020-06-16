@@ -1,8 +1,9 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-loggregator/metrics"
 	"errors"
+
+	"code.cloudfoundry.org/go-loggregator/metrics"
 
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 )

@@ -2,6 +2,7 @@ package syslog
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -9,6 +10,14 @@ import (
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 )
+
+var findSpaces, findInvalidCharacters, findTrailingDashes *regexp.Regexp
+
+func init() {
+	findSpaces = regexp.MustCompile("\\s+")
+	findInvalidCharacters = regexp.MustCompile("[^-a-zA-Z0-9]+")
+	findTrailingDashes = regexp.MustCompile("-+$")
+}
 
 const RFC5424TimeOffsetNum = "2006-01-02T15:04:05.999999-07:00"
 
@@ -19,14 +28,23 @@ const (
 	gaugeStructuredDataID   = "gauge@47450"
 	timerStructuredDataID   = "timer@47450"
 	counterStructuredDataID = "counter@47450"
-	eventStructuredDataID = "event@47450"
-	tagsStructuredDataID = "tags@47450"
+	eventStructuredDataID   = "event@47450"
+	tagsStructuredDataID    = "tags@47450"
 )
 
-func ToRFC5424(env *loggregator_v2.Envelope, hostname string) ([][]byte, error) {
-	if len(hostname) > 255 {
-		return nil, invalidValue("Hostname", hostname)
+type Converter struct {
+}
+
+func NewConverter() *Converter {
+	return &Converter{}
+}
+
+func (c *Converter) ToRFC5424(env *loggregator_v2.Envelope, defaultHostname string) ([][]byte, error) {
+	if len(defaultHostname) > 255 {
+		return nil, invalidValue("Hostname", defaultHostname)
 	}
+
+	hostname := c.BuildHostname(env, defaultHostname)
 
 	appID := env.GetSourceId()
 	if len(appID) > 48 {
@@ -59,6 +77,34 @@ func ToRFC5424(env *loggregator_v2.Envelope, hostname string) ([][]byte, error) 
 	default:
 		return nil, nil
 	}
+}
+
+func (c *Converter) BuildHostname(env *loggregator_v2.Envelope, defaultHostname string) string {
+	hostname := defaultHostname
+
+	envTags := env.GetTags()
+	orgName, orgOk := envTags["organization_name"]
+	spaceName, spaceOk := envTags["space_name"]
+	appName, appOk := envTags["app_name"]
+	if orgOk || spaceOk || appOk {
+		sanitizedOrgName := sanitize(orgName)
+		sanitizedSpaceName := sanitize(spaceName)
+		sanitizedAppName := sanitize(appName)
+		hostname = fmt.Sprintf("%s.%s.%s", truncate(sanitizedOrgName, 63), truncate(sanitizedSpaceName, 63), truncate(sanitizedAppName, 63))
+	}
+
+	return hostname
+}
+
+func truncate(s string, num int) string {
+	if len(s) <= num {
+		return s
+	}
+	return s[:num]
+}
+
+func sanitize(originalName string) string {
+	return findTrailingDashes.ReplaceAllString(findInvalidCharacters.ReplaceAllString(findSpaces.ReplaceAllString(originalName, "-"), ""), "")
 }
 
 func invalidValue(property, value string) error {

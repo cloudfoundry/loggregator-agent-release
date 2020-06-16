@@ -304,7 +304,7 @@ var _ = Describe("HTTPWriter", func() {
 type SpyDrain struct {
 	*httptest.Server
 	messages []*rfc5424.Message
-	headers []http.Header
+	headers  []http.Header
 }
 
 func newMockOKDrain() *SpyDrain {
