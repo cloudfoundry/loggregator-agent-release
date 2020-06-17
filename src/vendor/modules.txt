@@ -44,7 +44,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/gorilla/mux v1.7.4
 github.com/gorilla/mux
-# github.com/klauspost/compress v1.10.8
+# github.com/klauspost/compress v1.10.9
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/zlib
@@ -99,7 +99,7 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/prometheus/client_golang v1.6.0
+# github.com/prometheus/client_golang v1.7.0
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
@@ -160,7 +160,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20200616192300-fc83d8c00726
+# google.golang.org/genproto v0.0.0-20200617032506-f1bdc9086088
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.29.1
 google.golang.org/grpc
