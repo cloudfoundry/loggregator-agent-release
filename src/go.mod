@@ -28,7 +28,7 @@ require (
 	github.com/valyala/fasthttp v1.14.0
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 	golang.org/x/text v0.3.3 // indirect
-	google.golang.org/genproto v0.0.0-20200617032506-f1bdc9086088 // indirect
+	google.golang.org/genproto v0.0.0-20200618031413-b414f8b61790 // indirect
 	google.golang.org/grpc v1.29.1
 	gopkg.in/yaml.v2 v2.3.0
 )
