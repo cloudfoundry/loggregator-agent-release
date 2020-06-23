@@ -44,7 +44,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/gorilla/mux v1.7.4
 github.com/gorilla/mux
-# github.com/klauspost/compress v1.10.9
+# github.com/klauspost/compress v1.10.10
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/zlib
@@ -99,7 +99,7 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/prometheus/client_golang v1.7.0
+# github.com/prometheus/client_golang v1.7.1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
@@ -132,7 +132,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20200622182413-4b0db7f3f76b
+# golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -160,7 +160,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20200622133129-d0ee0c36e670
+# google.golang.org/genproto v0.0.0-20200623002339-fbb79eadd5eb
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.30.0
 google.golang.org/grpc
