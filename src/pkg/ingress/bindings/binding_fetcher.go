@@ -1,11 +1,12 @@
-package cups
+package bindings
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"math"
 	"net/url"
 	"sort"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -13,7 +14,7 @@ import (
 
 // Metrics is the client used to expose gauge and counter metricsClient.
 type Metrics interface {
-	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 

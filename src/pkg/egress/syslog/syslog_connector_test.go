@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 
@@ -22,7 +22,6 @@ var _ = Describe("SyslogConnector", func() {
 	var (
 		ctx           context.Context
 		spyWaitGroup  *SpyWaitGroup
-		netConf       syslog.NetworkTimeoutConfig
 		writerFactory *stubWriterFactory
 		sm            *metricsHelpers.SpyMetricsRegistry
 	)
@@ -37,7 +36,6 @@ var _ = Describe("SyslogConnector", func() {
 	It("connects to the passed syslog protocol", func() {
 		writerFactory.writer = &SleepWriterCloser{metric: func(uint64) {}}
 		connector := syslog.NewSyslogConnector(
-			netConf,
 			true,
 			spyWaitGroup,
 			writerFactory,
@@ -59,7 +57,6 @@ var _ = Describe("SyslogConnector", func() {
 		}
 
 		connector := syslog.NewSyslogConnector(
-			netConf,
 			true,
 			spyWaitGroup,
 			writerFactory,
@@ -80,7 +77,6 @@ var _ = Describe("SyslogConnector", func() {
 	It("returns an error when the writer factory returns an error", func() {
 		writerFactory.err = errors.New("unsupported protocol")
 		connector := syslog.NewSyslogConnector(
-			netConf,
 			true,
 			spyWaitGroup,
 			writerFactory,
@@ -96,7 +92,6 @@ var _ = Describe("SyslogConnector", func() {
 
 	It("returns an error for an inproperly formatted drain", func() {
 		connector := syslog.NewSyslogConnector(
-			netConf,
 			true,
 			spyWaitGroup,
 			writerFactory,
@@ -114,7 +109,6 @@ var _ = Describe("SyslogConnector", func() {
 	It("writes a LGR error for inproperly formatted drains", func() {
 		logClient := newSpyLogClient()
 		connector := syslog.NewSyslogConnector(
-			netConf,
 			true,
 			spyWaitGroup,
 			writerFactory,
@@ -144,7 +138,6 @@ var _ = Describe("SyslogConnector", func() {
 
 		It("emits a metric on dropped messages", func() {
 			connector := syslog.NewSyslogConnector(
-				netConf,
 				true,
 				spyWaitGroup,
 				writerFactory,
@@ -176,23 +169,22 @@ var _ = Describe("SyslogConnector", func() {
 
 			Eventually(func() bool {
 				return sm.HasMetric("messages_dropped_per_drain", map[string]string{
-					"direction":  "egress",
+					"direction":   "egress",
 					"drain_scope": "app",
-					"drain_url":  "dropping://my-drain:8080/path",
+					"drain_url":   "dropping://my-drain:8080/path",
 				})
 			}).Should(BeTrue(), fmt.Sprintf("%#v", sm.Metrics))
 
 			Eventually(sm.GetMetric("messages_dropped_per_drain", map[string]string{
-				"direction":  "egress",
+				"direction":   "egress",
 				"drain_scope": "app",
-				"drain_url":  "dropping://my-drain:8080/path",
+				"drain_url":   "dropping://my-drain:8080/path",
 			}).Value).Should(BeNumerically(">=", 10000))
 		})
 
 		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
 			logClient := newSpyLogClient()
 			connector := syslog.NewSyslogConnector(
-				netConf,
 				true,
 				spyWaitGroup,
 				writerFactory,
@@ -231,7 +223,6 @@ var _ = Describe("SyslogConnector", func() {
 			binding := syslog.Binding{Drain: "dropping://"}
 
 			connector := syslog.NewSyslogConnector(
-				netConf,
 				true,
 				spyWaitGroup,
 				writerFactory,
@@ -261,7 +252,6 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
-	netConf syslog.NetworkTimeoutConfig,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

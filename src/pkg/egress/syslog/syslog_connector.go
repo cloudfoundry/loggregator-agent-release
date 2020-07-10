@@ -1,12 +1,12 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"fmt"
 	"log"
-	"time"
 
 	"golang.org/x/net/context"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator"
@@ -14,10 +14,11 @@ import (
 )
 
 type Binding struct {
-	AppId    string      `json:"appId,	omitempty"`
-	Hostname string      `json:"hostname,omitempty"`
-	Drain    string      `json:"drain,	omitempty"`
-	Type     BindingType `json:"type,	omitempty"`
+	AppId        string      `json:"appId,	omitempty"`
+	Hostname     string      `json:"hostname,omitempty"`
+	Drain        string      `json:"drain,	omitempty"`
+	Type         BindingType `json:"type,	omitempty"`
+	OmitMetadata bool
 }
 
 // LogClient is used to emit logs.
@@ -33,15 +34,12 @@ func (nullLogClient) EmitLog(message string, opts ...loggregator.EmitLogOption) 
 }
 
 type writerFactory interface {
-	NewWriter(*URLBinding, NetworkTimeoutConfig) (egress.WriteCloser, error)
+	NewWriter(*URLBinding) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
 type SyslogConnector struct {
 	skipCertVerify bool
-	keepalive      time.Duration
-	ioTimeout      time.Duration
-	dialTimeout    time.Duration
 	logClient      LogClient
 	wg             egress.WaitGroup
 	sourceIndex    string
@@ -53,7 +51,6 @@ type SyslogConnector struct {
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
 func NewSyslogConnector(
-	netConf NetworkTimeoutConfig,
 	skipCertVerify bool,
 	wg egress.WaitGroup,
 	f writerFactory,
@@ -67,9 +64,6 @@ func NewSyslogConnector(
 	)
 
 	sc := &SyslogConnector{
-		keepalive:      netConf.Keepalive,
-		ioTimeout:      netConf.WriteTimeout,
-		dialTimeout:    netConf.DialTimeout,
 		skipCertVerify: skipCertVerify,
 		wg:             wg,
 		logClient:      nullLogClient{},
@@ -108,13 +102,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		return nil, err
 	}
 
-	netConf := NetworkTimeoutConfig{
-		Keepalive:    w.keepalive,
-		DialTimeout:  w.dialTimeout,
-		WriteTimeout: w.ioTimeout,
-	}
-
-	writer, err := w.writerFactory.NewWriter(urlBinding, netConf)
+	writer, err := w.writerFactory.NewWriter(urlBinding)
 	if err != nil {
 		return nil, err
 	}
@@ -132,9 +120,9 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		"messages_dropped_per_drain",
 		"Total number of dropped messages.",
 		metrics.WithMetricLabels(map[string]string{
-			"direction":  "egress",
+			"direction":   "egress",
 			"drain_scope": drainScope,
-			"drain_url":  anonymousUrl.String(),
+			"drain_url":   anonymousUrl.String(),
 		}),
 	)
 

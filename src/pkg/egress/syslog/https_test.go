@@ -16,10 +16,13 @@ import (
 )
 
 var _ = Describe("HTTPWriter", func() {
-	var netConf syslog.NetworkTimeoutConfig
-	var skipSSLTLSConfig = &tls.Config{
-		InsecureSkipVerify: true,
-	}
+	var (
+		netConf          syslog.NetworkTimeoutConfig
+		skipSSLTLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		c = syslog.NewConverter()
+	)
 
 	It("errors when ssl validation is enabled", func() {
 		drain := newMockOKDrain()
@@ -31,6 +34,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			&tls.Config{},
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -50,6 +54,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -71,6 +76,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -89,6 +95,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -113,6 +120,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -166,6 +174,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -190,6 +199,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env1 := buildGaugeEnvelope("1")
@@ -238,6 +248,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		env1 := buildCounterEnvelope("1")
@@ -273,6 +284,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			sm,
+			c,
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -295,6 +307,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
+			c,
 		)
 
 		counterEnv := buildTimerEnvelope("1")

@@ -1,4 +1,4 @@
-package cups
+package bindings
 
 import (
 	"bytes"

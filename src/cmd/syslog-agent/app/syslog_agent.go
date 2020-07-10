@@ -17,8 +17,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/drainbinding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/timeoutwaitgroup"
@@ -44,34 +43,30 @@ type BindingManager interface {
 	GetDrains(string) []egress.Writer
 }
 
-// maxRetries for the backoff, results in around an hour of total delay
-const maxRetries int = 22
-
 // NewSyslogAgent initializes and returns a new syslog agent.
 func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
 ) *SyslogAgent {
-	writerFactory := syslog.NewRetryWriterFactory(
-		syslog.NewWriterFactory(drainTLSConfig(cfg), m).NewWriter,
-		syslog.ExponentialDuration,
-		maxRetries,
-	)
-
-	connector := syslog.NewSyslogConnector(
+	writerFactory := syslog.NewWriterFactory(
+		drainTLSConfig(cfg),
 		syslog.NetworkTimeoutConfig{
 			Keepalive:    10 * time.Second,
 			DialTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
 		},
+		m,
+	)
+
+	connector := syslog.NewSyslogConnector(
 		cfg.DrainSkipCertVerify,
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
 	)
 
-	var fetcher binding.Fetcher = nil
+	var cupsFetcher binding.Fetcher = nil
 	if cfg.Cache.CAFile != "" {
 		tlsClient := plumbing.NewTLSHTTPClient(
 			cfg.Cache.CertFile,
@@ -81,19 +76,19 @@ func NewSyslogAgent(
 		)
 
 		cacheClient := cache.NewClient(cfg.Cache.URL, tlsClient)
-		fetcher = cups.NewFilteredBindingFetcher(
+		cupsFetcher = bindings.NewFilteredBindingFetcher(
 			&cfg.Cache.Blacklist,
-			cups.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m),
+			bindings.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m),
 			m,
 			l,
 		)
+		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher)
 	}
 
-	aggregateFetcher := drainbinding.NewAggregateDrainFetcher(cfg.AggregateDrainURLs)
-
+	aggregateFetcher := bindings.NewAggregateDrainFetcher(cfg.AggregateDrainURLs)
 	bindingManager := binding.NewManager(
-		fetcher,
-		aggregateFetcher,
+		cupsFetcher,
+		bindings.NewDrainParamParser(aggregateFetcher),
 		connector,
 		m,
 		cfg.Cache.PollingInterval,

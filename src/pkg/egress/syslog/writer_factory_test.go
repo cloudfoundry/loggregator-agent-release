@@ -12,13 +12,13 @@ import (
 
 var _ = Describe("EgressFactory", func() {
 	var (
-		f       syslog.WriterFactory
-		sm      *metricsHelpers.SpyMetricsRegistry
+		f  syslog.WriterFactory
+		sm *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
-		f = syslog.NewWriterFactory(nil, sm)
+		f = syslog.NewWriterFactory(nil, syslog.NetworkTimeoutConfig{}, sm)
 	})
 
 	It("returns an https writer when the url begins with https", func() {
@@ -28,10 +28,13 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
+		writer, err := f.NewWriter(urlBinding)
 		Expect(err).ToNot(HaveOccurred())
 
-		_, ok := writer.(*syslog.HTTPSWriter)
+		retryWriter, ok := writer.(*syslog.RetryWriter)
+		Expect(ok).To(BeTrue())
+
+		_, ok = retryWriter.Writer.(*syslog.HTTPSWriter)
 		Expect(ok).To(BeTrue())
 
 		metric := sm.GetMetric("egress", nil)
@@ -45,10 +48,13 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
+		writer, err := f.NewWriter(urlBinding)
 		Expect(err).ToNot(HaveOccurred())
 
-		_, ok := writer.(*syslog.TCPWriter)
+		retryWriter, ok := writer.(*syslog.RetryWriter)
+		Expect(ok).To(BeTrue())
+
+		_, ok = retryWriter.Writer.(*syslog.TCPWriter)
 		Expect(ok).To(BeTrue())
 
 		metric := sm.GetMetric("egress", nil)
@@ -62,10 +68,13 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		writer, err := f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
+		writer, err := f.NewWriter(urlBinding)
 		Expect(err).ToNot(HaveOccurred())
 
-		_, ok := writer.(*syslog.TLSWriter)
+		retryWriter, ok := writer.(*syslog.RetryWriter)
+		Expect(ok).To(BeTrue())
+
+		_, ok = retryWriter.Writer.(*syslog.TLSWriter)
 		Expect(ok).To(BeTrue())
 		metric := sm.GetMetric("egress", nil)
 		Expect(metric).ToNot(BeNil())
@@ -78,7 +87,7 @@ var _ = Describe("EgressFactory", func() {
 			URL: url,
 		}
 
-		_, err = f.NewWriter(urlBinding, syslog.NetworkTimeoutConfig{})
+		_, err = f.NewWriter(urlBinding)
 		Expect(err).To(MatchError("unsupported protocol"))
 	})
 })

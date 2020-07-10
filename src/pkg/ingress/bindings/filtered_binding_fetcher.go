@@ -1,11 +1,12 @@
-package cups
+package bindings
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"fmt"
 	"log"
 	"net"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
@@ -20,7 +21,7 @@ type IPChecker interface {
 
 // Metrics is the client used to expose gauge and counter metricsClient.
 type metricsClient interface {
-	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 }
 
 type FilteredBindingFetcher struct {

@@ -217,7 +217,6 @@ func (m *Manager) resetAggregateDrains() {
 		aggregateDrainHolder.drainWriter = writer
 		aggregateDrains = append(aggregateDrains, aggregateDrainHolder)
 	}
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.updateActiveDrainCount(int64(-len(m.aggregateDrains)))

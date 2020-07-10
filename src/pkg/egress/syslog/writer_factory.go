@@ -13,12 +13,13 @@ type metricClient interface {
 }
 
 type WriterFactory struct {
-	tlsConfig *tls.Config
-
+	tlsConfig    *tls.Config
 	egressMetric metrics.Counter
+	netConf      NetworkTimeoutConfig
 }
 
-func NewWriterFactory(tlsConf *tls.Config, m metricClient) WriterFactory {
+func NewWriterFactory(tlsConf *tls.Config, netConf NetworkTimeoutConfig, m metricClient) WriterFactory {
+
 	metric := m.NewCounter(
 		"egress",
 		"Total number of envelopes successfully egressed.",
@@ -26,35 +27,59 @@ func NewWriterFactory(tlsConf *tls.Config, m metricClient) WriterFactory {
 	return WriterFactory{
 		tlsConfig:    tlsConf,
 		egressMetric: metric,
+		netConf:      netConf,
 	}
 }
 
 func (f WriterFactory) NewWriter(
 	urlBinding *URLBinding,
-	netConf NetworkTimeoutConfig,
 ) (egress.WriteCloser, error) {
+	var o []ConverterOption
+	if urlBinding.OmitMetadata == true {
+		o = append(o, WithoutSyslogMetadata())
+	}
+	converter := NewConverter(o...)
+
+	var w egress.WriteCloser
+	var err error
 	switch urlBinding.URL.Scheme {
 	case "https":
-		return NewHTTPSWriter(
+		w, err = NewHTTPSWriter(
 			urlBinding,
-			netConf,
+			f.netConf,
 			f.tlsConfig,
 			f.egressMetric,
+			converter,
 		), nil
 	case "syslog":
-		return NewTCPWriter(
+		w, err = NewTCPWriter(
 			urlBinding,
-			netConf,
+			f.netConf,
 			f.egressMetric,
+			converter,
 		), nil
 	case "syslog-tls":
-		return NewTLSWriter(
+		w, err = NewTLSWriter(
 			urlBinding,
-			netConf,
+			f.netConf,
 			f.tlsConfig,
 			f.egressMetric,
+			converter,
 		), nil
-	default:
+	}
+
+	if w == nil {
 		return nil, errors.New("unsupported protocol")
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return NewRetryWriter(
+		urlBinding,
+		ExponentialDuration,
+		maxRetries,
+		w,
+	)
 }

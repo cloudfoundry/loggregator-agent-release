@@ -1,4 +1,4 @@
-package cups_test
+package bindings_test
 
 import (
 	"log"
@@ -12,5 +12,5 @@ import (
 func TestCups(t *testing.T) {
 	log.SetOutput(GinkgoWriter)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Ingress Suite")
+	RunSpecs(t, "Drainbinding Suite")
 }

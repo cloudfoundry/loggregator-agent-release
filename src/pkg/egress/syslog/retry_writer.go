@@ -9,59 +9,32 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
-// WriterConstructor creates syslog connections to https, syslog, and
-// syslog-tls drains
-type WriterConstructor func(
-	binding *URLBinding,
-	netConf NetworkTimeoutConfig,
-) (egress.WriteCloser, error)
-
-type RetryWriterFactory struct {
-	writerConstructor WriterConstructor
-	retryDuration     RetryDuration
-	maxRetries        int
-}
-
-func NewRetryWriterFactory(
-	wc WriterConstructor,
-	rd RetryDuration,
-	maxRetries int,
-) *RetryWriterFactory {
-	return &RetryWriterFactory{
-		wc, rd, maxRetries,
-	}
-}
-
-func (rw *RetryWriterFactory) NewWriter(
-	urlBinding *URLBinding,
-	netConf NetworkTimeoutConfig,
-) (egress.WriteCloser, error) {
-	writer, err := rw.writerConstructor(
-		urlBinding,
-		netConf,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &RetryWriter{
-		writer:        writer,
-		retryDuration: rw.retryDuration,
-		maxRetries:    rw.maxRetries,
-		binding:       urlBinding,
-	}, nil
-}
+// maxRetries for the backoff, results in around an hour of total delay
+const maxRetries int = 22
 
 // RetryDuration calculates a duration based on the number of write attempts.
 type RetryDuration func(attempt int) time.Duration
 
 // RetryWriter wraps a WriteCloser and will retry writes if the first fails.
 type RetryWriter struct {
-	writer        egress.WriteCloser
+	Writer        egress.WriteCloser //public to allow testing
 	retryDuration RetryDuration
 	maxRetries    int
 	binding       *URLBinding
+}
+
+func NewRetryWriter(
+	urlBinding *URLBinding,
+	retryDuration RetryDuration,
+	maxRetries int,
+	writer egress.WriteCloser,
+) (egress.WriteCloser, error) {
+	return &RetryWriter{
+		Writer:        writer,
+		retryDuration: retryDuration,
+		maxRetries:    maxRetries,
+		binding:       urlBinding,
+	}, nil
 }
 
 // Write will retry writes unitl maxRetries has been reached.
@@ -71,7 +44,7 @@ func (r *RetryWriter) Write(e *loggregator_v2.Envelope) error {
 	var err error
 
 	for i := 0; i < r.maxRetries; i++ {
-		err = r.writer.Write(e)
+		err = r.Writer.Write(e)
 		if err == nil {
 			return nil
 		}
@@ -91,7 +64,7 @@ func (r *RetryWriter) Write(e *loggregator_v2.Envelope) error {
 
 // Close delegates to the syslog writer.
 func (r *RetryWriter) Close() error {
-	return r.writer.Close()
+	return r.Writer.Close()
 }
 
 // ExponentialDuration returns a duration that grows exponentially with each

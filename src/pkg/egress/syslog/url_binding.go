@@ -9,10 +9,11 @@ import (
 // application is identified by AppID and Hostname. The syslog URL is
 // identified by URL.
 type URLBinding struct {
-	Context  context.Context
-	AppID    string
-	Hostname string
-	URL      *url.URL
+	Context      context.Context
+	AppID        string
+	Hostname     string
+	OmitMetadata bool
+	URL          *url.URL
 }
 
 // Scheme is a convenience wrapper around the *url.URL Scheme field
@@ -27,10 +28,11 @@ func buildBinding(c context.Context, b Binding) (*URLBinding, error) {
 	}
 
 	u := &URLBinding{
-		AppID:    b.AppId,
-		URL:      url,
-		Hostname: b.Hostname,
-		Context:  c,
+		AppID:        b.AppId,
+		OmitMetadata: b.OmitMetadata,
+		URL:          url,
+		Hostname:     b.Hostname,
+		Context:      c,
 	}
 
 	return u, nil

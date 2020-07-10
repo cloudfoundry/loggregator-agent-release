@@ -1,7 +1,6 @@
-package drainbinding
+package bindings
 
 import (
-	"fmt"
 	"net/url"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -27,7 +26,7 @@ func NewAggregateDrainFetcher(bindings []string) *AggregateDrainFetcher {
 		}
 		binding := syslog.Binding{
 			AppId: "",
-			Drain: fmt.Sprintf("%s://%s", urlParsed.Scheme, urlParsed.Host),
+			Drain: b,
 			Type:  bindingType,
 		}
 		drainFetcher.bindings = append(drainFetcher.bindings, binding)

@@ -1,4 +1,4 @@
-package cups_test
+package bindings_test
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -16,7 +16,7 @@ import (
 var _ = Describe("BindingFetcher", func() {
 	var (
 		getter    *SpyGetter
-		fetcher   *cups.BindingFetcher
+		fetcher   *bindings.BindingFetcher
 		metrics   *metricsHelpers.SpyMetricsRegistry
 		maxDrains = 3
 	)
@@ -24,7 +24,7 @@ var _ = Describe("BindingFetcher", func() {
 	BeforeEach(func() {
 		getter = &SpyGetter{}
 		metrics = metricsHelpers.NewMetricsRegistry()
-		fetcher = cups.NewBindingFetcher(maxDrains, getter, metrics)
+		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics)
 	})
 
 	BeforeEach(func() {
@@ -107,20 +107,19 @@ var _ = Describe("BindingFetcher", func() {
 				},
 			}
 
-			fetcher = cups.NewBindingFetcher(2, getter, metrics)
+			fetcher = bindings.NewBindingFetcher(2, getter, metrics)
 			bindings, err := fetcher.FetchBindings()
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(bindings).To(HaveLen(1))
 			Expect(bindings[0].Type).To(Equal(expectedType))
 		},
-		Entry("default", "syslog://v3.something.url", syslog.BINDING_TYPE_LOG),
-		Entry("logs", "syslog://v3.something.url?drain-type=logs", syslog.BINDING_TYPE_LOG),
-		Entry("metrics", "syslog://v3.something.url?drain-type=metrics", syslog.BINDING_TYPE_METRIC),
-		Entry("all", "syslog://v3.something.url?drain-type=all", syslog.BINDING_TYPE_ALL),
+			Entry("default", "syslog://v3.something.url", syslog.BINDING_TYPE_LOG),
+			Entry("logs", "syslog://v3.something.url?drain-type=logs", syslog.BINDING_TYPE_LOG),
+			Entry("metrics", "syslog://v3.something.url?drain-type=metrics", syslog.BINDING_TYPE_METRIC),
+			Entry("all", "syslog://v3.something.url?drain-type=all", syslog.BINDING_TYPE_ALL),
 		)
 	})
-
 
 	It("tracks the number of binding refreshes", func() {
 		_, err := fetcher.FetchBindings()
@@ -150,7 +149,7 @@ var _ = Describe("BindingFetcher", func() {
 				Hostname: "org.space.logspinner",
 			},
 		}
-		fetcher = cups.NewBindingFetcher(2, getter, metrics)
+		fetcher = bindings.NewBindingFetcher(2, getter, metrics)
 		bindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(bindings).To(HaveLen(1))

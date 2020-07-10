@@ -25,7 +25,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	"code.cloudfoundry.org/rfc5424"
 	"code.cloudfoundry.org/tlsconfig"
 )
@@ -123,7 +123,7 @@ var _ = Describe("SyslogAgent", func() {
 			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 		})
 
-		var setupTestAgent = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
+		var setupTestAgent = func(blacklist bindings.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
 			metricClient = metricsHelpers.NewMetricsRegistry()
 			cfg := app.Config{
 				BindingsPerAppLimit: 5,
@@ -165,21 +165,23 @@ var _ = Describe("SyslogAgent", func() {
 			url, err := url.Parse(syslogHTTPS.server.URL)
 			Expect(err).ToNot(HaveOccurred())
 
-			cancel := setupTestAgent(cups.BlacklistRanges{
-				Ranges: []cups.BlacklistRange{
+			cancel := setupTestAgent(bindings.BlacklistRanges{
+				Ranges: []bindings.BlacklistRange{
 					{
 						Start: url.Hostname(),
 						End:   url.Hostname(),
 					},
 				},
-			}, nil)
+			},
+				nil,
+			)
 			defer cancel()
 
 			Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
 		})
 
 		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
+			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{aggregateAddr})
 			defer cancel()
 
 			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
@@ -194,11 +196,46 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("egresses logs", func() {
-			cancel := setupTestAgent(cups.BlacklistRanges{}, []string{aggregateAddr})
+			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{aggregateAddr})
 			defer cancel()
 
-			Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive())
-			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
+			var msg *rfc5424.Message
+			Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive(&msg))
+			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
+
+			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive(&msg))
+			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
+		})
+
+		It("can be configured so that there's no tags", func() {
+			cupsProvider.results = []binding.Binding{
+				{
+					AppID:    "some-id",
+					Hostname: "org.space.name",
+					Drains: []string{
+						syslogHTTPS.server.URL + "?disable-metadata=true",
+					},
+				},
+				{
+					AppID:    "some-id-tls",
+					Hostname: "org.space.name",
+					Drains: []string{
+						fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					},
+				},
+			}
+			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{aggregateAddr + "?disable-metadata=true"})
+			defer cancel()
+
+			var msg *rfc5424.Message
+			Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive(&msg))
+			Expect(msg.StructuredData).To(HaveLen(0))
+
+			Eventually(syslogTLS.receivedMessages, 5).Should(Receive(&msg))
+			Expect(msg.StructuredData).To(HaveLen(0))
+
+			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive(&msg))
+			Expect(msg.StructuredData).To(HaveLen(0))
 		})
 	})
 
@@ -225,7 +262,7 @@ var _ = Describe("SyslogAgent", func() {
 			grpcPort++
 		})
 
-		var setupTestAgentNoBindingCache = func(blacklist cups.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
+		var setupTestAgentNoBindingCache = func(blacklist bindings.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
 			metricClient = metricsHelpers.NewMetricsRegistry()
 			cfg := app.Config{
 				BindingsPerAppLimit: 5,
@@ -255,7 +292,7 @@ var _ = Describe("SyslogAgent", func() {
 		}
 
 		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgentNoBindingCache(cups.BlacklistRanges{}, []string{aggregateAddr})
+			cancel := setupTestAgentNoBindingCache(bindings.BlacklistRanges{}, []string{aggregateAddr})
 			defer cancel()
 
 			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
@@ -270,7 +307,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("egresses logs", func() {
-			cancel := setupTestAgentNoBindingCache(cups.BlacklistRanges{}, []string{aggregateAddr})
+			cancel := setupTestAgentNoBindingCache(bindings.BlacklistRanges{}, []string{aggregateAddr})
 			defer cancel()
 
 			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
@@ -300,6 +337,9 @@ func emitLogs(ctx context.Context, grpcPort int, testCerts *testhelper.TestCerts
 			Log: &loggregator_v2.Log{
 				Payload: []byte("hello"),
 			},
+		},
+		Tags: map[string]string{
+			"foo": "bar",
 		},
 	}
 

@@ -1,16 +1,12 @@
-package drainbinding_test
+package bindings_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/drainbinding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-// type Fetcher interface {
-// 	FetchBindings() ([]syslog.Binding, error)
-// 	DrainLimit() int
-// }
 var _ = Describe("Aggregate Drain Binding Fetcher", func() {
 	var ()
 
@@ -18,11 +14,11 @@ var _ = Describe("Aggregate Drain Binding Fetcher", func() {
 	})
 
 	It("returns drain bindings for the drain urls", func() {
-		bindings := []string{
+		bs := []string{
 			"syslog://aggregate-drain1.url.com",
 			"syslog://aggregate-drain2.url.com?include-metrics-deprecated=true",
 		}
-		fetcher := drainbinding.NewAggregateDrainFetcher(bindings)
+		fetcher := bindings.NewAggregateDrainFetcher(bs)
 
 		b, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
@@ -35,18 +31,18 @@ var _ = Describe("Aggregate Drain Binding Fetcher", func() {
 			},
 			syslog.Binding{
 				AppId: "",
-				Drain: "syslog://aggregate-drain2.url.com",
+				Drain: "syslog://aggregate-drain2.url.com?include-metrics-deprecated=true",
 				Type:  syslog.BINDING_TYPE_AGGREGATE,
 			},
 		))
 	})
 
 	It("only returns valid drain bindings for the drain urls", func() {
-		bindings := []string{
+		bs := []string{
 			"syslog://aggregate-drain1.url.com",
 			"B@D/aggregate-d\rain1.//l.cm",
 		}
-		fetcher := drainbinding.NewAggregateDrainFetcher(bindings)
+		fetcher := bindings.NewAggregateDrainFetcher(bs)
 
 		b, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
@@ -61,8 +57,8 @@ var _ = Describe("Aggregate Drain Binding Fetcher", func() {
 	})
 
 	It("handles empty drain bindings", func() {
-		bindings := []string{""}
-		fetcher := drainbinding.NewAggregateDrainFetcher(bindings)
+		bs := []string{""}
+		fetcher := bindings.NewAggregateDrainFetcher(bs)
 
 		b, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())

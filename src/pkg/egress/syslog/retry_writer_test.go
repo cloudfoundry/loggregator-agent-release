@@ -20,13 +20,12 @@ import (
 var _ = Describe("Retry Writer", func() {
 	Describe("Write()", func() {
 		It("calls through to a syslog writer", func() {
-			writeCloser := &spyWriteCloser{
-				binding: &syslog.URLBinding{
-					URL:     &url.URL{},
-					Context: context.Background(),
-				},
+			binding := &syslog.URLBinding{
+				URL:     &url.URL{},
+				Context: context.Background(),
 			}
-			r, err := buildRetryWriter(writeCloser, 1, 0)
+			writeCloser := &spyWriteCloser{}
+			r, err := buildRetryWriter(writeCloser, binding, 1, 0)
 			Expect(err).ToNot(HaveOccurred())
 			env := &v2.Envelope{}
 
@@ -37,15 +36,15 @@ var _ = Describe("Retry Writer", func() {
 		})
 
 		It("retries writes if the delegation to syslog writer fails", func() {
+			binding := &syslog.URLBinding{
+				URL:     &url.URL{},
+				Context: context.Background(),
+			}
 			writeCloser := &spyWriteCloser{
 				returnErrCount: 1,
 				writeErr:       errors.New("write error"),
-				binding: &syslog.URLBinding{
-					URL:     &url.URL{},
-					Context: context.Background(),
-				},
 			}
-			r, err := buildRetryWriter(writeCloser, 3, 0)
+			r, err := buildRetryWriter(writeCloser, binding, 3, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_ = r.Write(&v2.Envelope{})
@@ -54,15 +53,15 @@ var _ = Describe("Retry Writer", func() {
 		})
 
 		It("returns an error when there are no more retries", func() {
+			binding := &syslog.URLBinding{
+				URL:     &url.URL{},
+				Context: context.Background(),
+			}
 			writeCloser := &spyWriteCloser{
 				returnErrCount: 3,
 				writeErr:       errors.New("write error"),
-				binding: &syslog.URLBinding{
-					URL:     &url.URL{},
-					Context: context.Background(),
-				},
 			}
-			r, err := buildRetryWriter(writeCloser, 2, 0)
+			r, err := buildRetryWriter(writeCloser, binding, 2, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = r.Write(&v2.Envelope{})
@@ -72,15 +71,15 @@ var _ = Describe("Retry Writer", func() {
 
 		It("continues retrying when context is done", func() {
 			ctx, cancel := context.WithCancel(context.Background())
+			binding := &syslog.URLBinding{
+				URL:     &url.URL{},
+				Context: ctx,
+			}
 			writeCloser := &spyWriteCloser{
 				returnErrCount: 2,
 				writeErr:       errors.New("write error"),
-				binding: &syslog.URLBinding{
-					URL:     &url.URL{},
-					Context: ctx,
-				},
 			}
-			r, err := buildRetryWriter(writeCloser, 2, 0)
+			r, err := buildRetryWriter(writeCloser, binding, 2, 0)
 			Expect(err).ToNot(HaveOccurred())
 			cancel()
 
@@ -93,12 +92,11 @@ var _ = Describe("Retry Writer", func() {
 
 	Describe("Close()", func() {
 		It("delegates to the syslog writer", func() {
-			writeCloser := &spyWriteCloser{
-				binding: &syslog.URLBinding{
-					URL: &url.URL{},
-				},
+			binding := &syslog.URLBinding{
+				URL: &url.URL{},
 			}
-			r, err := buildRetryWriter(writeCloser, 2, 0)
+			writeCloser := &spyWriteCloser{}
+			r, err := buildRetryWriter(writeCloser, binding, 2, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(r.Close()).To(Succeed())
@@ -251,19 +249,14 @@ func buildDelay(multiplier time.Duration) func(int) time.Duration {
 
 func buildRetryWriter(
 	w *spyWriteCloser,
+	urlBinding *syslog.URLBinding,
 	maxRetries int,
 	delayMultiplier time.Duration,
 ) (egress.WriteCloser, error) {
-	factory := syslog.NewRetryWriterFactory(
-		func(
-			binding *syslog.URLBinding,
-			netConf syslog.NetworkTimeoutConfig,
-		) (egress.WriteCloser, error) {
-			return w, nil
-		},
+	return syslog.NewRetryWriter(
+		urlBinding,
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
+		w,
 	)
-
-	return factory.NewWriter(w.binding, syslog.NetworkTimeoutConfig{})
 }
