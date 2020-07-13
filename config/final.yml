@@ -1,4 +1,4 @@
-name: loggregator-agent
+final_name: loggregator-agent
 blobstore:
   provider: s3
   options:
