@@ -34,7 +34,12 @@
       "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
     }
   }
-
+  if_p("drain_cipher_suites") do | ciphers |
+    if ciphers.strip.empty?
+        raise "Must specify a list of cipher suites when ssl is enabled"
+    end
+    process["env"]["DRAIN_CIPHER_SUITES"] = ciphers
+  end
   if_link("binding_cache") do | binding |
     process["env"]["CACHE_CA_FILE_PATH"] = "#{certs_dir}/cache_ca.crt"
     process["env"]["CACHE_CERT_FILE_PATH"] = "#{certs_dir}/cache_client.crt"

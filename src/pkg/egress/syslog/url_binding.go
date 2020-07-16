@@ -13,6 +13,7 @@ type URLBinding struct {
 	AppID        string
 	Hostname     string
 	OmitMetadata bool
+	InternalTls  bool
 	URL          *url.URL
 }
 
@@ -30,6 +31,7 @@ func buildBinding(c context.Context, b Binding) (*URLBinding, error) {
 	u := &URLBinding{
 		AppID:        b.AppId,
 		OmitMetadata: b.OmitMetadata,
+		InternalTls:  b.InternalTls,
 		URL:          url,
 		Hostname:     b.Hostname,
 		Context:      c,

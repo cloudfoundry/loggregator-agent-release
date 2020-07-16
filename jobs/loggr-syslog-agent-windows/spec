@@ -36,6 +36,13 @@ properties:
     default: false
   drain_ca_cert:
     description: The CA certificate for key/cert verification.
+  drain_cipher_suites:
+    description:
+      An ordered, colon-delimited list of golang supported TLS cipher suites in OpenSSL or RFC format.
+      The selected cipher suite will be negotiated according to the order of this list during a TLS handshake.
+      See https://github.com/golang/go/blob/release-branch.go1.9/src/crypto/tls/cipher_suites.go#L369-L390 for golang supported cipher suites.
+      The first four of these arn't supported.
+      See https://www.openssl.org/docs/man1.1.0/apps/ciphers.html for a mapping of OpenSSL and RFC suite names.
 
   aggregate_drains:
     description: "URLs to syslog drains that will receive all logs from all sources"

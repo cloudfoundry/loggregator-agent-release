@@ -49,8 +49,10 @@ func NewSyslogAgent(
 	m Metrics,
 	l *log.Logger,
 ) *SyslogAgent {
+	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
 	writerFactory := syslog.NewWriterFactory(
-		drainTLSConfig(cfg),
+		internalTlsConfig,
+		externalTlsConfig,
 		syslog.NetworkTimeoutConfig{
 			Keepalive:    10 * time.Second,
 			DialTimeout:  10 * time.Second,
@@ -106,10 +108,19 @@ func NewSyslogAgent(
 	}
 }
 
-func drainTLSConfig(cfg Config) *tls.Config {
+func drainTLSConfig(cfg Config) (*tls.Config, *tls.Config) {
 	certPool := trustedCertPool(cfg.DrainTrustedCAFile)
-	tlsConfig, err := tlsconfig.Build(
+	internalTlsConfig, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
+	).Client(
+		tlsconfig.WithAuthority(certPool),
+	)
+	if err != nil {
+		log.Panicf("failed to load create tls config for http client: %s", err)
+	}
+
+	externalTlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithExternalServiceDefaults(),
 	).Client(
 		tlsconfig.WithAuthority(certPool),
 	)
@@ -117,10 +128,32 @@ func drainTLSConfig(cfg Config) *tls.Config {
 	if err != nil {
 		log.Panicf("failed to load create tls config for http client: %s", err)
 	}
+	cipherSuites, err := cfg.processCipherSuites()
+	if err != nil {
+		log.Panicf("failed to load create tls config for http client: %s", err)
+	}
+	if cipherSuites != nil {
+		externalTlsConfig, err = tlsconfig.Build(
+			func(c *tls.Config) error {
+				c.MinVersion = tls.VersionTLS12
+				c.MaxVersion = tls.VersionTLS12
+				c.PreferServerCipherSuites = false
+				c.CipherSuites = *cipherSuites
+				return nil
+			},
+		).Client(
+			tlsconfig.WithAuthority(certPool),
+		)
+		if err != nil {
+			log.Panicf("failed to load create tls config for http client: %s", err)
+		}
 
-	tlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
+	}
 
-	return tlsConfig
+	internalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
+	externalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
+
+	return internalTlsConfig, externalTlsConfig
 }
 
 func trustedCertPool(trustedCAFile string) *x509.CertPool {

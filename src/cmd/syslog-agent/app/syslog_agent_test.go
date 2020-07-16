@@ -50,9 +50,9 @@ var _ = Describe("SyslogAgent", func() {
 
 		BeforeEach(func() {
 			syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
-			syslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+			syslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 
-			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
 			cupsProvider = &fakeBindingCache{
@@ -177,7 +177,7 @@ var _ = Describe("SyslogAgent", func() {
 			)
 			defer cancel()
 
-			Consistently(syslogHTTPS.receivedMessages, 5).ShouldNot(Receive())
+			Consistently(syslogHTTPS.receivedMessages, 3).ShouldNot(Receive())
 		})
 
 		It("should create connections to aggregate drains", func() {
@@ -192,7 +192,7 @@ var _ = Describe("SyslogAgent", func() {
 			// 2 app drains and 1 aggregate drain
 			Eventually(func() float64 {
 				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-			}, 5).Should(Equal(3.0))
+			}, 3).Should(Equal(3.0))
 		})
 
 		It("egresses logs", func() {
@@ -200,10 +200,10 @@ var _ = Describe("SyslogAgent", func() {
 			defer cancel()
 
 			var msg *rfc5424.Message
-			Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive(&msg))
+			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 
-			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive(&msg))
+			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 		})
 
@@ -228,15 +228,192 @@ var _ = Describe("SyslogAgent", func() {
 			defer cancel()
 
 			var msg *rfc5424.Message
-			Eventually(syslogHTTPS.receivedMessages, 5).Should(Receive(&msg))
+			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).To(HaveLen(0))
 
-			Eventually(syslogTLS.receivedMessages, 5).Should(Receive(&msg))
+			Eventually(syslogTLS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).To(HaveLen(0))
 
-			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive(&msg))
+			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).To(HaveLen(0))
 		})
+	})
+
+	Context("TLS cipher tests", func() {
+		var grpcPort = 41000
+		var aggregateSyslogTLS *syslogTCPServer
+
+		AfterEach(func() {
+			gexec.CleanupBuildArtifacts()
+			grpcPort++
+		})
+
+		var setupTestAgentAndServerNoBindingCache = func(serverCiphers tlsconfig.TLSOption, agentCiphers *string, aggregateQueryParam string) context.CancelFunc {
+			syslogServerTestCerts := testhelper.GenerateCerts("syslogCA")
+			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, serverCiphers)
+			aggregateAddr := fmt.Sprintf("syslog-tls://127.0.0.1:%s%s", aggregateSyslogTLS.port(), aggregateQueryParam)
+
+			metronTestCerts := testhelper.GenerateCerts("loggregatorCA")
+			metricClient := metricsHelpers.NewMetricsRegistry()
+			testLogger := log.New(GinkgoWriter, "", log.LstdFlags)
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:     8052,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				IdleDrainTimeout:    10 * time.Minute,
+				DrainSkipCertVerify: false,
+				DrainCipherSuites:   agentCiphers,
+				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateDrainURLs:                 []string{aggregateAddr},
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
+			ctx, cancel := context.WithCancel(context.Background())
+			emitLogs(ctx, grpcPort, metronTestCerts)
+
+			return cancel
+		}
+		Context("When drain is using default external ciphers", func() {
+			It("Can communicate with compatible server", func() {
+				cancel := setupTestAgentAndServerNoBindingCache(
+					func(c *tls.Config) error {
+						c.MinVersion = tls.VersionTLS12
+						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
+						// External ciphers not on internal list
+						c.CipherSuites = []uint16{
+							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+						}
+						return nil
+					},
+					nil,
+					"",
+				)
+
+				defer cancel()
+
+				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
+			})
+
+			It("refuses to communicate with non-compatible server", func() {
+				cancel := setupTestAgentAndServerNoBindingCache(
+					func(c *tls.Config) error {
+						c.MinVersion = tls.VersionTLS12
+						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
+						// External ciphers not on internal list
+						c.CipherSuites = []uint16{
+							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+						}
+						return nil
+					},
+					nil,
+					"",
+				)
+
+				defer cancel()
+
+				Consistently(aggregateSyslogTLS.receivedMessages, 3).ShouldNot(Receive())
+			})
+
+		})
+		Context("When drain is using overridden external ciphers", func() {
+			It("Can communicate with compatible server", func() {
+				customCipher := "RC4-SHA:TLS_RSA_WITH_RC4_128_SHA"
+
+				cancel := setupTestAgentAndServerNoBindingCache(
+					func(c *tls.Config) error {
+						c.MinVersion = tls.VersionTLS12
+						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
+						// External ciphers not on internal list
+						c.CipherSuites = []uint16{
+							tls.TLS_RSA_WITH_RC4_128_SHA,
+						}
+						return nil
+					},
+					&customCipher,
+					"",
+				)
+
+				defer cancel()
+
+				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
+			})
+			It("refuses to communicate with non-compatible server", func() {
+				customCipher := "RC4-SHA:TLS_RSA_WITH_RC4_128_SHA"
+
+				cancel := setupTestAgentAndServerNoBindingCache(
+					func(c *tls.Config) error {
+						c.MinVersion = tls.VersionTLS12
+						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
+						// External ciphers not on internal list
+						c.CipherSuites = []uint16{
+							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+						}
+						return nil
+					},
+					&customCipher,
+					"",
+				)
+
+				defer cancel()
+
+				Consistently(aggregateSyslogTLS.receivedMessages, 3).ShouldNot(Receive())
+			})
+		})
+
+		Context("When drain is using internal ciphers", func() {
+			It("Can be scraped by agent using internal ciphers", func() {
+				cancel := setupTestAgentAndServerNoBindingCache(
+					tlsconfig.WithInternalServiceDefaults(),
+					nil,
+					"?ssl-strict-internal=true",
+				)
+
+				defer cancel()
+
+				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
+			})
+			It("refuses to communicate with non-compatible server", func() {
+				cancel := setupTestAgentAndServerNoBindingCache(
+					func(c *tls.Config) error {
+						c.MinVersion = tls.VersionTLS12
+						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
+						// External ciphers not on internal list
+						c.CipherSuites = []uint16{
+							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+						}
+						return nil
+					},
+					nil,
+					"?ssl-strict-internal=true",
+				)
+
+				defer cancel()
+
+				Consistently(aggregateSyslogTLS.receivedMessages, 3).ShouldNot(Receive())
+			})
+		})
+
 	})
 
 	Context("When binding-cache is not configured", func() {
@@ -253,7 +430,7 @@ var _ = Describe("SyslogAgent", func() {
 		)
 
 		BeforeEach(func() {
-			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts)
+			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 		})
 
@@ -303,14 +480,14 @@ var _ = Describe("SyslogAgent", func() {
 			// 0 app drains and 1 aggregate drain
 			Eventually(func() float64 {
 				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-			}, 5).Should(Equal(1.0))
+			}, 3).Should(Equal(1.0))
 		})
 
 		It("egresses logs", func() {
 			cancel := setupTestAgentNoBindingCache(bindings.BlacklistRanges{}, []string{aggregateAddr})
 			defer cancel()
 
-			Eventually(aggregateSyslogTLS.receivedMessages, 5).Should(Receive())
+			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
 		})
 	})
 })
@@ -465,12 +642,12 @@ type syslogTCPServer struct {
 	receivedMessages chan *rfc5424.Message
 }
 
-func newSyslogTLSServer(syslogServerTestCerts *testhelper.TestCerts) *syslogTCPServer {
+func newSyslogTLSServer(syslogServerTestCerts *testhelper.TestCerts, ciphers tlsconfig.TLSOption) *syslogTCPServer {
 	lis, err := net.Listen("tcp", ":0")
 	Expect(err).ToNot(HaveOccurred())
 
 	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
+		ciphers,
 		tlsconfig.WithIdentityFromFile(
 			syslogServerTestCerts.Cert("localhost"),
 			syslogServerTestCerts.Key("localhost"),

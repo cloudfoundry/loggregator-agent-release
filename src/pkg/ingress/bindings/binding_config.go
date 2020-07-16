@@ -33,6 +33,10 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 		if urlParsed.Query().Get("disable-metadata") == "true" {
 			b.OmitMetadata = true
 		}
+		if urlParsed.Query().Get("ssl-strict-internal") == "true" {
+			b.InternalTls = true
+		}
+
 		processed = append(processed, b)
 	}
 

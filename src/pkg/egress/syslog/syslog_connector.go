@@ -19,6 +19,7 @@ type Binding struct {
 	Drain        string      `json:"drain,	omitempty"`
 	Type         BindingType `json:"type,	omitempty"`
 	OmitMetadata bool
+	InternalTls  bool
 }
 
 // LogClient is used to emit logs.

@@ -32,6 +32,17 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings[0].OmitMetadata).To(BeTrue())
 	})
 
+	It("sets internal tls to true if the drain contains 'ssl-strict-internal=true'", func() {
+		bs := []syslog.Binding{
+			{Drain: "https://test.org/drain?ssl-strict-internal=true"},
+		}
+		f := newStubFetcher(bs, nil)
+		wf := bindings.NewDrainParamParser(f)
+
+		configedBindings, _ := wf.FetchBindings()
+		Expect(configedBindings[0].InternalTls).To(BeTrue())
+	})
+
 	It("omits bindings with bad Drain URLs is bad", func() {
 		bs := []syslog.Binding{
 			{Drain: "   https://leading-spaces-are-invalid"},

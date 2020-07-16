@@ -18,7 +18,7 @@ var _ = Describe("EgressFactory", func() {
 
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
-		f = syslog.NewWriterFactory(nil, syslog.NetworkTimeoutConfig{}, sm)
+		f = syslog.NewWriterFactory(nil, nil, syslog.NetworkTimeoutConfig{}, sm)
 	})
 
 	It("returns an https writer when the url begins with https", func() {
