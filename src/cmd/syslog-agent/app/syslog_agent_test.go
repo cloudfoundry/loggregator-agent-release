@@ -332,7 +332,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 		Context("When drain is using overridden external ciphers", func() {
 			It("Can communicate with compatible server", func() {
-				customCipher := "RC4-SHA:TLS_RSA_WITH_RC4_128_SHA"
+				customCipher := "TLS_RSA_WITH_RC4_128_SHA"
 
 				cancel := setupTestAgentAndServerNoBindingCache(
 					func(c *tls.Config) error {
@@ -354,7 +354,7 @@ var _ = Describe("SyslogAgent", func() {
 				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
 			})
 			It("refuses to communicate with non-compatible server", func() {
-				customCipher := "RC4-SHA:TLS_RSA_WITH_RC4_128_SHA"
+				customCipher := "TLS_RSA_WITH_RC4_128_SHA"
 
 				cancel := setupTestAgentAndServerNoBindingCache(
 					func(c *tls.Config) error {
