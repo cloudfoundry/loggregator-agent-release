@@ -248,7 +248,7 @@ var _ = Describe("SyslogAgent", func() {
 			grpcPort++
 		})
 
-		var setupTestAgentAndServerNoBindingCache = func(serverCiphers tlsconfig.TLSOption, agentCiphers *string, aggregateQueryParam string) context.CancelFunc {
+		var setupTestAgentAndServerNoBindingCache = func(serverCiphers tlsconfig.TLSOption, agentCiphers string, aggregateQueryParam string) context.CancelFunc {
 			syslogServerTestCerts := testhelper.GenerateCerts("syslogCA")
 			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, serverCiphers)
 			aggregateAddr := fmt.Sprintf("syslog-tls://127.0.0.1:%s%s", aggregateSyslogTLS.port(), aggregateQueryParam)
@@ -299,7 +299,7 @@ var _ = Describe("SyslogAgent", func() {
 						}
 						return nil
 					},
-					nil,
+					"",
 					"",
 				)
 
@@ -320,7 +320,7 @@ var _ = Describe("SyslogAgent", func() {
 						}
 						return nil
 					},
-					nil,
+					"",
 					"",
 				)
 
@@ -332,7 +332,6 @@ var _ = Describe("SyslogAgent", func() {
 		})
 		Context("When drain is using overridden external ciphers", func() {
 			It("Can communicate with compatible server", func() {
-				customCipher := "TLS_RSA_WITH_RC4_128_SHA"
 
 				cancel := setupTestAgentAndServerNoBindingCache(
 					func(c *tls.Config) error {
@@ -345,7 +344,7 @@ var _ = Describe("SyslogAgent", func() {
 						}
 						return nil
 					},
-					&customCipher,
+					"TLS_RSA_WITH_RC4_128_SHA",
 					"",
 				)
 
@@ -354,7 +353,6 @@ var _ = Describe("SyslogAgent", func() {
 				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
 			})
 			It("refuses to communicate with non-compatible server", func() {
-				customCipher := "TLS_RSA_WITH_RC4_128_SHA"
 
 				cancel := setupTestAgentAndServerNoBindingCache(
 					func(c *tls.Config) error {
@@ -367,7 +365,7 @@ var _ = Describe("SyslogAgent", func() {
 						}
 						return nil
 					},
-					&customCipher,
+					"TLS_RSA_WITH_RC4_128_SHA",
 					"",
 				)
 
@@ -381,7 +379,7 @@ var _ = Describe("SyslogAgent", func() {
 			It("Can be scraped by agent using internal ciphers", func() {
 				cancel := setupTestAgentAndServerNoBindingCache(
 					tlsconfig.WithInternalServiceDefaults(),
-					nil,
+					"",
 					"?ssl-strict-internal=true",
 				)
 
@@ -404,7 +402,7 @@ var _ = Describe("SyslogAgent", func() {
 						}
 						return nil
 					},
-					nil,
+					"",
 					"?ssl-strict-internal=true",
 				)
 

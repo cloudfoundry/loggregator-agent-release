@@ -33,10 +33,10 @@ type Cache struct {
 
 // Config holds the configuration for the syslog agent
 type Config struct {
-	BindingsPerAppLimit int     `env:"BINDING_PER_APP_LIMIT,  report"`
-	DrainSkipCertVerify bool    `env:"DRAIN_SKIP_CERT_VERIFY, report"`
-	DrainCipherSuites   *string `env:"DRAIN_CIPHER_SUITES,    report"`
-	DrainTrustedCAFile  string  `env:"DRAIN_TRUSTED_CA_FILE,  report"`
+	BindingsPerAppLimit int    `env:"BINDING_PER_APP_LIMIT,  report"`
+	DrainSkipCertVerify bool   `env:"DRAIN_SKIP_CERT_VERIFY, report"`
+	DrainCipherSuites   string `env:"DRAIN_CIPHER_SUITES,    report"`
+	DrainTrustedCAFile  string `env:"DRAIN_TRUSTED_CA_FILE,  report"`
 
 	IdleDrainTimeout time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
 
@@ -117,16 +117,13 @@ func (c *Config) processCipherSuites() (*[]uint16, error) {
 		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  0xcca9,
 	}
 
-	var ciphers []string
-	if c.DrainCipherSuites == nil {
+	// default to external ciphers. empty string should be errored on the bosh
+	// templeting level
+	if len(strings.TrimSpace(c.DrainCipherSuites)) == 0 {
 		return nil, nil
 	}
-	if len(strings.TrimSpace(*c.DrainCipherSuites)) == 0 {
-		return nil, fmt.Errorf("must specify list of cipher suites when ssl is enabled")
-	} else {
-		ciphers = strings.Split(*c.DrainCipherSuites, ":")
-	}
 
+	ciphers := strings.Split(c.DrainCipherSuites, ":")
 	return convertCipherStringToInt(ciphers, cipherMap)
 }
 
