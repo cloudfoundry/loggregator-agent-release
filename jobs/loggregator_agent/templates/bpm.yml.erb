@@ -12,7 +12,12 @@ has_doppler = false
     router_addr = nil
     router_addr_with_az = nil
 
-    if_link("doppler") do |doppler|
+    if_p("doppler.override_url") do |addr|
+      router_addr = addr
+      if_p("doppler.override_az_url") do |azaddr|
+        router_addr_with_az = azaddr
+      end
+    end.else_if_link("doppler") do |doppler|
       router_addr = doppler.address(
         status: 'healthy',
       )

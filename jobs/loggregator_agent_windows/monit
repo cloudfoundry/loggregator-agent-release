@@ -13,8 +13,15 @@ end
     deployment = p("deployment").empty? ? spec.deployment : p("deployment")
     certs_dir = "/var/vcap/jobs/loggregator_agent_windows/config/certs"
 
-    router_addr = link("doppler").address
-    router_addr_with_az = link("doppler").address(azs: [spec.az])
+    if_p("doppler.override_url") do |addr|
+      router_addr = addr
+      if_p("doppler.override_az_url") do |azaddr|
+        router_addr_with_az = azaddr
+      end
+    end.else_if_link("doppler") do |doppler|
+      router_addr = doppler.address
+      router_addr_with_az = doppler.address(azs: [spec.az])
+    end
 
     tags = {
         deployment: deployment,

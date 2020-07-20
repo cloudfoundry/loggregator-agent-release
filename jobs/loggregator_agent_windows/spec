@@ -80,6 +80,10 @@ properties:
   doppler.grpc_port:
     description: Port for outgoing log messages via GRPC
     default: 8082
+  doppler.override_url:
+    description: "URL to use for dopplers instead of bosh link"
+  doppler.override_az_url:
+    description: "URL to use for dopplers AZ qualifies instead of using bosh links"
 
   loggregator.tls.ca_cert:
     description: "CA root required for key/cert verification"
