@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"code.cloudfoundry.org/go-loggregator"
+	"code.cloudfoundry.org/go-loggregator/v8"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 

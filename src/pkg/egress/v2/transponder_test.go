@@ -5,7 +5,7 @@ import (
 	"time"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
 
 	. "github.com/onsi/ginkgo"

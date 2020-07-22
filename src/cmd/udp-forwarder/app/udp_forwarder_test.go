@@ -15,7 +15,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 	"google.golang.org/grpc"
 
-	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"

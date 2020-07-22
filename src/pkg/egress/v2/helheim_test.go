@@ -5,7 +5,7 @@
 
 package v2_test
 
-import "code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+import "code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 
 type mockNexter struct {
 	TryNextCalled chan bool

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 

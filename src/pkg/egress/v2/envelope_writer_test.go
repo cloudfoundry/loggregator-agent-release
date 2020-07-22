@@ -1,7 +1,7 @@
 package v2_test
 
 import (
-	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
 	"errors"
 	. "github.com/onsi/ginkgo"
