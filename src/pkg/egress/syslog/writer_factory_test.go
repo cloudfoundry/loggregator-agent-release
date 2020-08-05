@@ -88,6 +88,6 @@ var _ = Describe("EgressFactory", func() {
 		}
 
 		_, err = f.NewWriter(urlBinding)
-		Expect(err).To(MatchError("unsupported protocol"))
+		Expect(err).To(MatchError("unsupported protocol: invalid"))
 	})
 })

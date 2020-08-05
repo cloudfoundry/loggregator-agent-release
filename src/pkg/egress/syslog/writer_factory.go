@@ -3,6 +3,7 @@ package syslog
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
@@ -74,7 +75,7 @@ func (f WriterFactory) NewWriter(
 	}
 
 	if w == nil {
-		return nil, errors.New("unsupported protocol")
+		return nil, errors.New(fmt.Sprintf("unsupported protocol: %v", urlBinding.URL.Scheme))
 	}
 
 	if err != nil {
