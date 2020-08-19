@@ -45,7 +45,11 @@
     process["env"]["CACHE_CERT_FILE_PATH"] = "#{certs_dir}/cache_client.crt"
     process["env"]["CACHE_KEY_FILE_PATH"] = "#{certs_dir}/cache_client.key"
     process["env"]["CACHE_COMMON_NAME"] = "#{p("cache.tls.cn")}"
-    process["env"]["CACHE_URL"] = "https://#{binding.address}:#{binding.p("external_port")}"
+    cache_addr = binding.address
+    if_p("binding_cache_override_url") do |addr|
+      cache_addr = addr
+    end
+    process["env"]["CACHE_URL"] = "https://#{cache_addr}:#{binding.p("external_port")}"
     process["env"]["CACHE_POLLING_INTERVAL"] = "#{p("cache.polling_interval")}"
   end
 

@@ -8,6 +8,11 @@
     drain_ca="#{certs_dir}/drain_ca.crt"
   }
 
+  cache_addr = b.address
+  if_p("binding_cache_override_url") do |addr|
+    cache_addr = addr
+  end
+
   process = {
     "name" => "syslog-agent",
     "executable" => "/var/vcap/packages/syslog-agent-windows/syslog-agent.exe",
@@ -17,7 +22,7 @@
       "CACHE_CERT_FILE_PATH" => "#{certs_dir}/cache_client.crt",
       "CACHE_KEY_FILE_PATH" => "#{certs_dir}/cache_client.key",
       "CACHE_COMMON_NAME" => p("cache.tls.cn"),
-      "CACHE_URL" => "https://#{b.address}:#{b.p("external_port")}",
+      "CACHE_URL" => "https://#{cache_addr}:#{b.p("external_port")}",
       "CACHE_POLLING_INTERVAL" => p("cache.polling_interval"),
 
       "AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
