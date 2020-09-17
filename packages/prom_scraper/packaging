@@ -3,7 +3,7 @@ set -ex
 source /var/vcap/packages/golang-1-linux/bosh/compile.env
 export GOPATH=/var/vcap
 
-go build -mod=vendor -o ${BOSH_INSTALL_TARGET}/prom-scraper ./cmd/prom-scraper
+DEBUG=x509ignoreCN=0 go build -mod=vendor -o ${BOSH_INSTALL_TARGET}/prom-scraper ./cmd/prom-scraper
 
 cp ./cmd/prom-scraper/get-metrics.sh ${BOSH_INSTALL_TARGET}/get-metrics.sh
 chmod +x ${BOSH_INSTALL_TARGET}/get-metrics.sh

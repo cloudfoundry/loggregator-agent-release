@@ -13,7 +13,7 @@ if ((Get-Item $BOSH_INSTALL_TARGET).LinkType -ne "") {
 $pkg_name="prom_scraper"
 $pkg_path="./cmd/prom-scraper"
 
-go.exe build -mod=vendor  -o "${BOSH_INSTALL_TARGET}\${pkg_name}.exe" "${pkg_path}"
+DEBUG=x509ignoreCN=0 go.exe build -mod=vendor  -o "${BOSH_INSTALL_TARGET}\${pkg_name}.exe" "${pkg_path}"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Error compiling: ${pkg_path}"
 }
