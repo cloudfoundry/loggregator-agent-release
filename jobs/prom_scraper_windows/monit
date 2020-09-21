@@ -7,11 +7,13 @@
     loggregator_agent_port = loggregator.p("metron_endpoint.grpc_port")
   }
 
+  certs_dir = "/var/vcap/jobs/prom_scraper_windows/config/certs"
+
   env = {
     "LOGGREGATOR_AGENT_ADDR" => "localhost:#{loggregator_agent_port}",
-    "CA_CERT_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_ca.crt",
-    "CLIENT_CERT_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_agent.crt",
-    "CLIENT_KEY_PATH" => "/var/vcap/jobs/prom_scraper_windows/config/certs/loggregator_agent.key",
+    "CA_CERT_PATH" => "#{certs_dir}/loggregator_ca.crt",
+    "CLIENT_CERT_PATH" => "#{certs_dir}/loggregator_agent.crt",
+    "CLIENT_KEY_PATH" => "#{certs_dir}/loggregator_agent.key",
     "CONFIG_GLOBS" => p('config_globs').join(','),
     "SCRAPE_INTERVAL" => p('scrape_interval'),
     "DEFAULT_SOURCE_ID" => "infra_#{spec.job.name}",
@@ -19,9 +21,9 @@
   }
 
   if_p('scrape.tls.ca_cert') {
-    env["SCRAPE_CA_CERT_PATH"] = "/var/vcap/jobs/prom_scraper/config/certs/scrape_ca.crt"
-    env["SCRAPE_CERT_PATH"] = "/var/vcap/jobs/prom_scraper/config/certs/scrape.crt"
-    env["SCRAPE_KEY_PATH"] = "/var/vcap/jobs/prom_scraper/config/certs/scrape.key"
+    env["SCRAPE_CA_CERT_PATH"] = "#{certs_dir}/scrape_ca.crt"
+    env["SCRAPE_CERT_PATH"] = "#{certs_dir}/scrape.crt"
+    env["SCRAPE_KEY_PATH"] = "#{certs_dir}/scrape.key"
     env["SCRAPE_COMMON_NAME"] = p('scrape.tls.cn', "")
   }
 
