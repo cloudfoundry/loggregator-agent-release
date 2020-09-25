@@ -181,8 +181,6 @@ func (s *Scraper) emitMetrics(res map[string]*io_prometheus_client.MetricFamily,
 				s.emitHistogram(sourceID, t.InstanceID, name, tags, metric)
 			case io_prometheus_client.MetricType_SUMMARY:
 				s.emitSummary(sourceID, t.InstanceID, name, tags, metric)
-			default:
-				return
 			}
 		}
 	}

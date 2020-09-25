@@ -11,9 +11,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/v8"
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 
@@ -320,9 +320,11 @@ var _ = Describe("Scraper", func() {
 			InstanceID: "some-instance-id",
 			MetricURL:  "http://some.url/metrics",
 		})
-		addResponse(tc, 200, promUntyped)
+		addResponse(tc, 200, promContainsUntyped)
 		Expect(tc.scraper.Scrape()).To(Succeed())
-		Expect(tc.metricEmitter.envelopes).To(BeEmpty())
+		Expect(tc.metricEmitter.envelopes).To(ConsistOf(
+			buildCounter("source-1", "some-instance-id", "counter_1", 1, nil),
+		))
 	})
 
 	It("scrapes the given endpoint", func() {
@@ -660,8 +662,11 @@ go_gc_duration_seconds{quantile="1"} 0.011609012
 go_gc_duration_seconds_sum 0.346341323
 go_gc_duration_seconds_count 331
 `
-	promUntyped = `
+	promContainsUntyped = `
 test 9.5e-08
+# HELP counter_1 Example metric
+# TYPE counter_1 counter
+counter_1{source_id="source-1"} 1
 `
 
 	promOutputWithTagB = `
