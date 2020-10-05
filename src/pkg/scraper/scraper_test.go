@@ -11,9 +11,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/v8"
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 
@@ -212,6 +212,23 @@ var _ = Describe("Scraper", func() {
 		})
 	})
 
+	Context("untyped metrics", func() {
+		It("emits as a gauge with a default source ID", func() {
+			tc := setup(scraper.Target{
+				ID:         "some-id",
+				InstanceID: "some-instance-id",
+				MetricURL:  "http://some.url/metrics",
+			})
+			addResponse(tc, 200, promUntyped)
+
+			Expect(tc.scraper.Scrape()).To(Succeed())
+
+			Expect(tc.metricEmitter.envelopes).To(And(
+				ContainElement(buildGauge("some-id", "some-instance-id", "test_untyped_metric", 9.5, nil)),
+			))
+		})
+	})
+
 	Context("summaries", func() {
 		It("emits a summary with a default source ID", func() {
 			tc := setup(scraper.Target{
@@ -312,17 +329,6 @@ var _ = Describe("Scraper", func() {
 			ContainElement(buildCounter("default-id", "some-instance-id", "promhttp_metric_handler_requests_total", 7, map[string]string{"code": "500"})),
 			ContainElement(buildCounter("default-id", "some-instance-id", "promhttp_metric_handler_requests_total", 8, map[string]string{"code": "503"})),
 		))
-	})
-
-	It("ignores unknown metric types", func() {
-		tc := setup(scraper.Target{
-			ID:         "some-id",
-			InstanceID: "some-instance-id",
-			MetricURL:  "http://some.url/metrics",
-		})
-		addResponse(tc, 200, promUntyped)
-		Expect(tc.scraper.Scrape()).To(Succeed())
-		Expect(tc.metricEmitter.envelopes).To(BeEmpty())
 	})
 
 	It("scrapes the given endpoint", func() {
@@ -661,7 +667,7 @@ go_gc_duration_seconds_sum 0.346341323
 go_gc_duration_seconds_count 331
 `
 	promUntyped = `
-test 9.5e-08
+test_untyped_metric 9.5
 `
 
 	promOutputWithTagB = `
