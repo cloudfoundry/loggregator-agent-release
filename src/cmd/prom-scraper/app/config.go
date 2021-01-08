@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	UseRFC339 bool `env:"USE_RFC339"`
 	// Loggregator Agent Certs
 	ClientKeyPath  string `env:"CLIENT_KEY_PATH, report, required"`
 	ClientCertPath string `env:"CLIENT_CERT_PATH, report, required"`

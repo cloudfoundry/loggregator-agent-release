@@ -1,13 +1,15 @@
 package main
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"os"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	_ "net/http/pprof"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 func main() {
@@ -16,6 +18,12 @@ func main() {
 	defer logger.Println("closing UDP Forwarder...")
 
 	cfg := app.LoadConfig(logger)
+	if cfg.UseRFC339 {
+		logger = log.New(new(plumbing.LogWriter), "", 0)
+		logger.SetOutput(new(plumbing.LogWriter))
+		logger.SetFlags(0)
+	}
+
 	m := metrics.NewRegistry(logger,
 		metrics.WithTLSServer(
 			int(cfg.MetricsServer.Port),

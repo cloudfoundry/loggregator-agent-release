@@ -10,6 +10,7 @@ import (
 
 // Config holds the configuration for the syslog binding cache
 type Config struct {
+	UseRFC339          bool          `env:"USE_RFC339"`
 	APIURL             string        `env:"API_URL,              required, report"`
 	APICAFile          string        `env:"API_CA_FILE_PATH,     required, report"`
 	APICertFile        string        `env:"API_CERT_FILE_PATH,   required, report"`

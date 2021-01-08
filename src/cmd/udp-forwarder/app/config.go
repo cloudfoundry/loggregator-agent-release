@@ -18,7 +18,8 @@ type GRPC struct {
 
 // Config holds the configuration for the UDP agent
 type Config struct {
-	UDPPort              int `env:"UDP_PORT, report"`
+	UseRFC339            bool `env:"USE_RFC339"`
+	UDPPort              int  `env:"UDP_PORT, report"`
 	LoggregatorAgentGRPC GRPC
 	DebugPort            int    `env:"DEBUG_PORT, report"`
 	Deployment           string `env:"DEPLOYMENT, report"`

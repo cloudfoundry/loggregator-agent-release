@@ -1,11 +1,13 @@
 package main
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"os"
 
+	metrics "code.cloudfoundry.org/go-metric-registry"
+
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-binding-cache/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
 func main() {
@@ -14,6 +16,12 @@ func main() {
 	defer logger.Println("stopping syslog-binding-cache")
 
 	cfg := app.LoadConfig()
+	if cfg.UseRFC339 {
+		logger = log.New(new(plumbing.LogWriter), "", 0)
+		log.SetOutput(new(plumbing.LogWriter))
+		log.SetFlags(0)
+
+	}
 	m := metrics.NewRegistry(
 		logger,
 		metrics.WithTLSServer(

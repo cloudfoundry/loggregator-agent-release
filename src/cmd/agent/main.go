@@ -12,12 +12,17 @@ import (
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-
 	rand.Seed(time.Now().UnixNano())
 	grpclog.SetLogger(log.New(ioutil.Discard, "", 0))
 
 	config, err := app.LoadConfig()
+	if cfg.UseRFC339 {
+		log.SetOutput(new(plumbing.LogWriter))
+		log.SetFlags(0)
+	} else {
+		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	}
+
 	if err != nil {
 		log.Fatalf("Unable to parse config: %s", err)
 	}
