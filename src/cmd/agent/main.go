@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc/grpclog"
 )
 
