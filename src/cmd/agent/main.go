@@ -17,7 +17,7 @@ func main() {
 	grpclog.SetLogger(log.New(ioutil.Discard, "", 0))
 
 	config, err := app.LoadConfig()
-	if cfg.UseRFC339 {
+	if config.UseRFC339 {
 		log.SetOutput(new(plumbing.LogWriter))
 		log.SetFlags(0)
 	} else {

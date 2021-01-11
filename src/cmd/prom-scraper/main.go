@@ -15,7 +15,7 @@ func main() {
 	logger.Printf("starting Prom Scraper...")
 	defer logger.Printf("closing Prom Scraper...")
 
-	cfg := app.LoadConfig(log)
+	cfg := app.LoadConfig(logger)
 	if cfg.UseRFC339 {
 		logger = log.New(new(plumbing.LogWriter), "", 0)
 		logger.SetOutput(new(plumbing.LogWriter))
