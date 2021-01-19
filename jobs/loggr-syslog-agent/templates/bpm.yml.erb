@@ -33,7 +33,7 @@
       "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
       "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
       "GODEBUG" => "x509ignoreCN=0",
-      "RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
+      "USE_RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
     }
   }
   if_p("drain_cipher_suites") do | ciphers |
