@@ -30,7 +30,7 @@ var _ = Describe("SyslogBindingCache", func() {
 
 		cachePort = 40000
 
-		capiTestCerts = testhelper.GenerateCerts("capiCA")
+		capiTestCerts         = testhelper.GenerateCerts("capiCA")
 		bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
 	)
 

@@ -33,7 +33,7 @@ type Cache struct {
 
 // Config holds the configuration for the syslog agent
 type Config struct {
-	UseRFC339           bool   `env:"USE_RFC339"`
+	UseRFC3339          bool   `env:"USE_RFC3339"`
 	BindingsPerAppLimit int    `env:"BINDING_PER_APP_LIMIT,  report"`
 	DrainSkipCertVerify bool   `env:"DRAIN_SKIP_CERT_VERIFY, report"`
 	DrainCipherSuites   string `env:"DRAIN_CIPHER_SUITES,    report"`

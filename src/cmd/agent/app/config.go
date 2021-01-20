@@ -22,7 +22,7 @@ type GRPC struct {
 
 // Config stores all configurations options for the Agent.
 type Config struct {
-	UseRFC339                       bool              `env:"USE_RFC339"`
+	UseRFC3339                      bool              `env:"USE_RFC3339"`
 	Deployment                      string            `env:"AGENT_DEPLOYMENT"`
 	Zone                            string            `env:"AGENT_ZONE"`
 	Job                             string            `env:"AGENT_JOB"`

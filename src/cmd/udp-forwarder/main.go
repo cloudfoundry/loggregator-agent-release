@@ -18,7 +18,7 @@ func main() {
 	defer logger.Println("closing UDP Forwarder...")
 
 	cfg := app.LoadConfig(logger)
-	if cfg.UseRFC339 {
+	if cfg.UseRFC3339 {
 		logger = log.New(new(plumbing.LogWriter), "", 0)
 		logger.SetOutput(new(plumbing.LogWriter))
 		logger.SetFlags(0)

@@ -6,8 +6,8 @@ import (
 	"net"
 	"sync"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
 	metricHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -68,10 +68,10 @@ var _ = Describe("v1 App", func() {
 		)
 		go app.Start()
 
-		Eventually(hasMetric(mc, "ingress",  map[string]string{"metric_version":"1.0"})).Should(BeTrue())
-		Eventually(hasMetric(mc,"egress",  map[string]string{"metric_version":"1.0"} )).Should(BeTrue())
-		Eventually(hasMetric(mc,"dropped", map[string]string{"direction":"all","metric_version":"1.0"})).Should(BeTrue())
-		Eventually(hasMetric(mc,"average_envelopes", map[string]string{"unit": "bytes/minute", "metric_version":"1.0", "loggregator":"v1"} )).Should(BeTrue())
+		Eventually(hasMetric(mc, "ingress", map[string]string{"metric_version": "1.0"})).Should(BeTrue())
+		Eventually(hasMetric(mc, "egress", map[string]string{"metric_version": "1.0"})).Should(BeTrue())
+		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "all", "metric_version": "1.0"})).Should(BeTrue())
+		Eventually(hasMetric(mc, "average_envelopes", map[string]string{"unit": "bytes/minute", "metric_version": "1.0", "loggregator": "v1"})).Should(BeTrue())
 	})
 })
 

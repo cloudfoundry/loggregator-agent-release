@@ -17,7 +17,7 @@ func main() {
 	defer logger.Println("stopping syslog-agent")
 
 	cfg := app.LoadConfig()
-	if cfg.UseRFC339 {
+	if cfg.UseRFC3339 {
 		logger = log.New(new(plumbing.LogWriter), "", 0)
 		logger.SetOutput(new(plumbing.LogWriter))
 		logger.SetFlags(0)

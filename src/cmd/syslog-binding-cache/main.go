@@ -16,7 +16,7 @@ func main() {
 	defer logger.Println("stopping syslog-binding-cache")
 
 	cfg := app.LoadConfig()
-	if cfg.UseRFC339 {
+	if cfg.UseRFC3339 {
 		logger = log.New(new(plumbing.LogWriter), "", 0)
 		log.SetOutput(new(plumbing.LogWriter))
 		log.SetFlags(0)

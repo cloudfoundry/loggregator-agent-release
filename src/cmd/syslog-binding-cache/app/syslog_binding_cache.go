@@ -24,7 +24,7 @@ type SyslogBindingCache struct {
 
 type Metrics interface {
 	NewCounter(name, helpText string, options ...metrics.MetricOption) metrics.Counter
-	NewGauge(name, helpText string,  o ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, o ...metrics.MetricOption) metrics.Gauge
 }
 
 func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *SyslogBindingCache {

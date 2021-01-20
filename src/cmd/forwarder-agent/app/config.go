@@ -19,7 +19,7 @@ type GRPC struct {
 
 // Config holds the configuration for the forwarder agent
 type Config struct {
-	UseRFC339 bool `env:"USE_RFC339"`
+	UseRFC3339 bool `env:"USE_RFC3339"`
 	// DownstreamIngressPortCfg will define consumers on localhost that will
 	// receive each envelope. It is assumed to adhere to the Loggregator Ingress
 	// Service and use the provided TLS configuration.

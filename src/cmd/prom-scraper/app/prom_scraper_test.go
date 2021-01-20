@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"code.cloudfoundry.org/tlsconfig"
@@ -99,9 +99,9 @@ var _ = Describe("PromScraper", func() {
 			promServer2 := newStubPromServer()
 			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
 				{
-					Port:       promServer.port,
-					SourceID:   "some-id",
-					InstanceID: "some-instance-id",
+					Port:           promServer.port,
+					SourceID:       "some-id",
+					InstanceID:     "some-instance-id",
 					ScrapeInterval: time.Hour,
 				},
 				{

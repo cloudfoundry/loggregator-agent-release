@@ -14,7 +14,7 @@ import (
 )
 
 type Metrics interface {
-	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 

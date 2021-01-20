@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
@@ -29,7 +29,7 @@ var _ = Describe("UDPForwarder", func() {
 		// udpPort will be incremented for each test
 		udpPort    = 10000
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts = testhelper.GenerateCerts("loggregatorCA")
+		testCerts  = testhelper.GenerateCerts("loggregatorCA")
 	)
 
 	BeforeEach(func() {
@@ -52,9 +52,9 @@ var _ = Describe("UDPForwarder", func() {
 				KeyFile:  testCerts.Key("metron"),
 			},
 			Deployment: "test-deployment",
-			Job: "test-job",
-			Index: "4",
-			IP: "127.0.0.1",
+			Job:        "test-job",
+			Index:      "4",
+			IP:         "127.0.0.1",
 		}
 		go app.NewUDPForwarder(cfg, testLogger, mc).Run()
 
