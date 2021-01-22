@@ -51,6 +51,10 @@ properties:
       TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
     default: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 
+  api.override_url:
+    description: |
+      Use to override the default use of cloud_controller bosh link as the URL
+      most commonly change to cloud_controller_ng.service.cf.internal rather than the bosh specific address
   api.tls.ca_cert:
     description: |
       When the syslog communicates with the Cloud Controller it must
