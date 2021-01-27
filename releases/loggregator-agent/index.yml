@@ -97,6 +97,8 @@ builds:
     version: 5.2.0
   f4fb1ff7-51fa-434b-5db8-16e193b6b0bb:
     version: "2.0"
+  f53aa7fc-9c54-4ac6-5f4e-cf673080f675:
+    version: 6.2.0
   f73f8b3e-1bd8-43fe-7bce-80577d825ca1:
     version: "3.6"
 format-version: "2"
