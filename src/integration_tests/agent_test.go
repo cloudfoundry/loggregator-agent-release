@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 )
 
-const eventuallyTimeout = 60 * time.Second
+const eventuallyTimeout = 10 * time.Second
 
 var _ = Describe("Agent", func() {
 	var testCerts = testhelper.GenerateCerts("loggregatorCA")
