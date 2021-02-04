@@ -22,6 +22,8 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 )
 
+const eventuallyTimeout = 60 * time.Second
+
 var _ = Describe("Agent", func() {
 	var testCerts = testhelper.GenerateCerts("loggregatorCA")
 
@@ -51,7 +53,7 @@ var _ = Describe("Agent", func() {
 		}()
 
 		var rx plumbing.DopplerIngestor_PusherServer
-		Eventually(consumerServer.V1.PusherInput.Arg0).Should(Receive(&rx))
+		Eventually(consumerServer.V1.PusherInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
 
 		e := make(chan *plumbing.EnvelopeData)
 		go func() {
@@ -65,7 +67,7 @@ var _ = Describe("Agent", func() {
 		}()
 
 		var data *plumbing.EnvelopeData
-		Eventually(e).Should(Receive(&data))
+		Eventually(e, eventuallyTimeout).Should(Receive(&data))
 
 		envelope := new(events.Envelope)
 		Expect(envelope.Unmarshal(data.Payload)).To(Succeed())
@@ -103,10 +105,10 @@ var _ = Describe("Agent", func() {
 		var rx loggregator_v2.Ingress_BatchSenderServer
 		numDopplerConnections := 5
 		for i := 0; i < numDopplerConnections; i++ {
-			Eventually(consumerServer.V2.BatchSenderInput.Arg0).Should(Receive(&rx))
+			Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
 			consumerServer.V2.BatchSenderOutput.Ret0 <- nil
 		}
-		Eventually(consumerServer.V2.BatchSenderInput.Arg0).Should(Receive(&rx))
+		Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
 
 		var envBatch *loggregator_v2.EnvelopeBatch
 		var idx int
@@ -171,10 +173,10 @@ var _ = Describe("Agent", func() {
 		var rx loggregator_v2.Ingress_BatchSenderServer
 		numDopplerConnections := 5
 		for i := 0; i < numDopplerConnections; i++ {
-			Eventually(consumerServer.V2.BatchSenderInput.Arg0).Should(Receive(&rx))
+			Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
 			consumerServer.V2.BatchSenderOutput.Ret0 <- nil
 		}
-		Eventually(consumerServer.V2.BatchSenderInput.Arg0).Should(Receive(&rx))
+		Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
 
 		batch, err := rx.Recv()
 		Expect(err).ToNot(HaveOccurred())
