@@ -1,5 +1,9 @@
 <%
   certs_dir =  "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs"
+  api_url = link("cloud_controller").address
+  if_p("api.override_url") {
+    api_url = p("api.override_url")
+  }
   process = {
     "name" => "loggr-syslog-binding-cache",
     "executable" => "/var/vcap/packages/binding-cache/binding-cache",
@@ -8,7 +12,7 @@
       "API_CERT_FILE_PATH" => "#{certs_dir}/api_client.crt",
       "API_KEY_FILE_PATH" => "#{certs_dir}/api_client.key",
       "API_COMMON_NAME" => "#{p("api.tls.cn")}",
-      "API_URL" => "https://#{link("cloud_controller").address}:9023",
+      "API_URL" => "https://#{api_url}:9023",
       "API_POLLING_INTERVAL" => "#{p("api.polling_interval")}",
       "API_BATCH_SIZE" => "#{p("api.batch_size")}",
 
