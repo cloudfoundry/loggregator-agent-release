@@ -13,6 +13,7 @@ processes:
       LOGGREGATOR_AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-udp-forwarder/config/certs/loggregator_agent.key"
       LOGGREGATOR_AGENT_ADDR: <%= "localhost:#{p('loggregator.ingress_port')}" %>
       UDP_PORT: <%= p('udp_port') %>
+      DEBUG_PORT: <%= p('debug_port') %>
       DEPLOYMENT: "<%= deployment %>"
       JOB: "<%= job_name %>"
       INDEX: "<%= instance_id %>"
