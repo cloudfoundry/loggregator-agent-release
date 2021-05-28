@@ -3,7 +3,7 @@ package app_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -101,7 +101,7 @@ var _ = Describe("SyslogBindingCache", func() {
 
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
 		var results []binding.Binding
@@ -137,7 +137,7 @@ var _ = Describe("SyslogBindingCache", func() {
 
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
 		var result []binding.Binding

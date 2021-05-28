@@ -77,7 +77,7 @@ var _ = Describe("EventMarshaller", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(mockChainWriter.WriteInput.Message).To(Receive(Equal(expected)))
 
-				metric := metricClient.GetMetric("egress", map[string]string{"metric_version":"1.0"})
+				metric := metricClient.GetMetric("egress", map[string]string{"metric_version": "1.0"})
 				Expect(metric.Value()).To(Equal(float64(1)))
 			})
 		})

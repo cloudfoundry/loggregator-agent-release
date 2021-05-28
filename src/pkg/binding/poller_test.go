@@ -2,14 +2,15 @@ package binding_test
 
 import (
 	"bytes"
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -167,7 +168,7 @@ func (c *fakeAPIClient) Get(nextID int) (*http.Response, error) {
 	b, err := json.Marshal(&binding)
 	Expect(err).ToNot(HaveOccurred())
 	resp := &http.Response{
-		Body: ioutil.NopCloser(bytes.NewReader(b)),
+		Body: io.NopCloser(bytes.NewReader(b)),
 	}
 
 	return resp, nil

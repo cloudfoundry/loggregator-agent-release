@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -41,7 +40,7 @@ func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 		return nil, err
 	}
 	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 

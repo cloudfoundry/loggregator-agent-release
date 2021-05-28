@@ -1,10 +1,11 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"log"
+
+	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
 type drainGetter func(sourceID string) []egress.Writer

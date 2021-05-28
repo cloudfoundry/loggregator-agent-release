@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
@@ -164,7 +164,7 @@ func trustedCertPool(trustedCAFile string) *x509.CertPool {
 	}
 
 	if trustedCAFile != "" {
-		cert, err := ioutil.ReadFile(trustedCAFile)
+		cert, err := os.ReadFile(trustedCAFile)
 		if err != nil {
 			log.Printf("unable to read provided custom CA: %s", err)
 			return cp

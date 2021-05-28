@@ -25,7 +25,7 @@ func (t TimerTagFilterer) Filter(env *loggregator_v2.Envelope) {
 	}
 
 	for tag := range env.GetTags() {
-		if ! t.whitelisted(tag) {
+		if !t.whitelisted(tag) {
 			delete(env.Tags, tag)
 		}
 	}

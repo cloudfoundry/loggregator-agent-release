@@ -1,11 +1,12 @@
 package agent_test
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/tlsconfig"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testservers"
 
@@ -35,7 +36,7 @@ var _ = Describe("Agent Health Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 		defer resp.Body.Close()
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(body).To(ContainSubstring("doppler_v1_streams"))

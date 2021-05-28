@@ -39,12 +39,12 @@ package testhelper
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
 type asset struct {
 	bytes []byte
 	info  os.FileInfo
@@ -1542,36 +1542,36 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"binding-cache-ca.crl": bindingCacheCaCrl,
-	"binding-cache-ca.crt": bindingCacheCaCrt,
-	"binding-cache-ca.key": bindingCacheCaKey,
-	"capi-ca.crl": capiCaCrl,
-	"capi-ca.crt": capiCaCrt,
-	"capi-ca.key": capiCaKey,
-	"doppler.crt": dopplerCrt,
-	"doppler.csr": dopplerCsr,
-	"doppler.key": dopplerKey,
-	"forwarder.crt": forwarderCrt,
-	"forwarder.csr": forwarderCsr,
-	"forwarder.key": forwarderKey,
-	"loggregator-ca.crl": loggregatorCaCrl,
-	"loggregator-ca.crt": loggregatorCaCrt,
-	"loggregator-ca.key": loggregatorCaKey,
-	"metrics-scraper.crt": metricsScraperCrt,
-	"metrics-scraper.csr": metricsScraperCsr,
-	"metrics-scraper.key": metricsScraperKey,
-	"metron.crt": metronCrt,
-	"metron.csr": metronCsr,
-	"metron.key": metronKey,
-	"prom-scraper.crt": promScraperCrt,
-	"prom-scraper.csr": promScraperCsr,
-	"prom-scraper.key": promScraperKey,
-	"router.crt": routerCrt,
-	"router.csr": routerCsr,
-	"router.key": routerKey,
-	"syslog-agent.crt": syslogAgentCrt,
-	"syslog-agent.csr": syslogAgentCsr,
-	"syslog-agent.key": syslogAgentKey,
+	"binding-cache-ca.crl":        bindingCacheCaCrl,
+	"binding-cache-ca.crt":        bindingCacheCaCrt,
+	"binding-cache-ca.key":        bindingCacheCaKey,
+	"capi-ca.crl":                 capiCaCrl,
+	"capi-ca.crt":                 capiCaCrt,
+	"capi-ca.key":                 capiCaKey,
+	"doppler.crt":                 dopplerCrt,
+	"doppler.csr":                 dopplerCsr,
+	"doppler.key":                 dopplerKey,
+	"forwarder.crt":               forwarderCrt,
+	"forwarder.csr":               forwarderCsr,
+	"forwarder.key":               forwarderKey,
+	"loggregator-ca.crl":          loggregatorCaCrl,
+	"loggregator-ca.crt":          loggregatorCaCrt,
+	"loggregator-ca.key":          loggregatorCaKey,
+	"metrics-scraper.crt":         metricsScraperCrt,
+	"metrics-scraper.csr":         metricsScraperCsr,
+	"metrics-scraper.key":         metricsScraperKey,
+	"metron.crt":                  metronCrt,
+	"metron.csr":                  metronCsr,
+	"metron.key":                  metronKey,
+	"prom-scraper.crt":            promScraperCrt,
+	"prom-scraper.csr":            promScraperCsr,
+	"prom-scraper.key":            promScraperKey,
+	"router.crt":                  routerCrt,
+	"router.csr":                  routerCsr,
+	"router.key":                  routerKey,
+	"syslog-agent.crt":            syslogAgentCrt,
+	"syslog-agent.csr":            syslogAgentCsr,
+	"syslog-agent.key":            syslogAgentKey,
 	"system-metrics-agent-ca.crl": systemMetricsAgentCaCrl,
 	"system-metrics-agent-ca.crt": systemMetricsAgentCaCrt,
 	"system-metrics-agent-ca.key": systemMetricsAgentCaKey,
@@ -1616,37 +1616,38 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
+
 var _bintree = &bintree{nil, map[string]*bintree{
-	"binding-cache-ca.crl": &bintree{bindingCacheCaCrl, map[string]*bintree{}},
-	"binding-cache-ca.crt": &bintree{bindingCacheCaCrt, map[string]*bintree{}},
-	"binding-cache-ca.key": &bintree{bindingCacheCaKey, map[string]*bintree{}},
-	"capi-ca.crl": &bintree{capiCaCrl, map[string]*bintree{}},
-	"capi-ca.crt": &bintree{capiCaCrt, map[string]*bintree{}},
-	"capi-ca.key": &bintree{capiCaKey, map[string]*bintree{}},
-	"doppler.crt": &bintree{dopplerCrt, map[string]*bintree{}},
-	"doppler.csr": &bintree{dopplerCsr, map[string]*bintree{}},
-	"doppler.key": &bintree{dopplerKey, map[string]*bintree{}},
-	"forwarder.crt": &bintree{forwarderCrt, map[string]*bintree{}},
-	"forwarder.csr": &bintree{forwarderCsr, map[string]*bintree{}},
-	"forwarder.key": &bintree{forwarderKey, map[string]*bintree{}},
-	"loggregator-ca.crl": &bintree{loggregatorCaCrl, map[string]*bintree{}},
-	"loggregator-ca.crt": &bintree{loggregatorCaCrt, map[string]*bintree{}},
-	"loggregator-ca.key": &bintree{loggregatorCaKey, map[string]*bintree{}},
-	"metrics-scraper.crt": &bintree{metricsScraperCrt, map[string]*bintree{}},
-	"metrics-scraper.csr": &bintree{metricsScraperCsr, map[string]*bintree{}},
-	"metrics-scraper.key": &bintree{metricsScraperKey, map[string]*bintree{}},
-	"metron.crt": &bintree{metronCrt, map[string]*bintree{}},
-	"metron.csr": &bintree{metronCsr, map[string]*bintree{}},
-	"metron.key": &bintree{metronKey, map[string]*bintree{}},
-	"prom-scraper.crt": &bintree{promScraperCrt, map[string]*bintree{}},
-	"prom-scraper.csr": &bintree{promScraperCsr, map[string]*bintree{}},
-	"prom-scraper.key": &bintree{promScraperKey, map[string]*bintree{}},
-	"router.crt": &bintree{routerCrt, map[string]*bintree{}},
-	"router.csr": &bintree{routerCsr, map[string]*bintree{}},
-	"router.key": &bintree{routerKey, map[string]*bintree{}},
-	"syslog-agent.crt": &bintree{syslogAgentCrt, map[string]*bintree{}},
-	"syslog-agent.csr": &bintree{syslogAgentCsr, map[string]*bintree{}},
-	"syslog-agent.key": &bintree{syslogAgentKey, map[string]*bintree{}},
+	"binding-cache-ca.crl":        &bintree{bindingCacheCaCrl, map[string]*bintree{}},
+	"binding-cache-ca.crt":        &bintree{bindingCacheCaCrt, map[string]*bintree{}},
+	"binding-cache-ca.key":        &bintree{bindingCacheCaKey, map[string]*bintree{}},
+	"capi-ca.crl":                 &bintree{capiCaCrl, map[string]*bintree{}},
+	"capi-ca.crt":                 &bintree{capiCaCrt, map[string]*bintree{}},
+	"capi-ca.key":                 &bintree{capiCaKey, map[string]*bintree{}},
+	"doppler.crt":                 &bintree{dopplerCrt, map[string]*bintree{}},
+	"doppler.csr":                 &bintree{dopplerCsr, map[string]*bintree{}},
+	"doppler.key":                 &bintree{dopplerKey, map[string]*bintree{}},
+	"forwarder.crt":               &bintree{forwarderCrt, map[string]*bintree{}},
+	"forwarder.csr":               &bintree{forwarderCsr, map[string]*bintree{}},
+	"forwarder.key":               &bintree{forwarderKey, map[string]*bintree{}},
+	"loggregator-ca.crl":          &bintree{loggregatorCaCrl, map[string]*bintree{}},
+	"loggregator-ca.crt":          &bintree{loggregatorCaCrt, map[string]*bintree{}},
+	"loggregator-ca.key":          &bintree{loggregatorCaKey, map[string]*bintree{}},
+	"metrics-scraper.crt":         &bintree{metricsScraperCrt, map[string]*bintree{}},
+	"metrics-scraper.csr":         &bintree{metricsScraperCsr, map[string]*bintree{}},
+	"metrics-scraper.key":         &bintree{metricsScraperKey, map[string]*bintree{}},
+	"metron.crt":                  &bintree{metronCrt, map[string]*bintree{}},
+	"metron.csr":                  &bintree{metronCsr, map[string]*bintree{}},
+	"metron.key":                  &bintree{metronKey, map[string]*bintree{}},
+	"prom-scraper.crt":            &bintree{promScraperCrt, map[string]*bintree{}},
+	"prom-scraper.csr":            &bintree{promScraperCsr, map[string]*bintree{}},
+	"prom-scraper.key":            &bintree{promScraperKey, map[string]*bintree{}},
+	"router.crt":                  &bintree{routerCrt, map[string]*bintree{}},
+	"router.csr":                  &bintree{routerCsr, map[string]*bintree{}},
+	"router.key":                  &bintree{routerKey, map[string]*bintree{}},
+	"syslog-agent.crt":            &bintree{syslogAgentCrt, map[string]*bintree{}},
+	"syslog-agent.csr":            &bintree{syslogAgentCsr, map[string]*bintree{}},
+	"syslog-agent.key":            &bintree{syslogAgentKey, map[string]*bintree{}},
 	"system-metrics-agent-ca.crl": &bintree{systemMetricsAgentCaCrl, map[string]*bintree{}},
 	"system-metrics-agent-ca.crt": &bintree{systemMetricsAgentCaCrt, map[string]*bintree{}},
 	"system-metrics-agent-ca.key": &bintree{systemMetricsAgentCaKey, map[string]*bintree{}},
@@ -1666,7 +1667,7 @@ func RestoreAsset(dir, name string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(_filePath(dir, name), data, info.Mode())
+	err = os.WriteFile(_filePath(dir, name), data, info.Mode())
 	if err != nil {
 		return err
 	}
@@ -1698,4 +1699,3 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-

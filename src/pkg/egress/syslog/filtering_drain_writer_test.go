@@ -1,16 +1,17 @@
 package syslog_test
 
-import(
+import (
+	"time"
+
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"time"
 )
 
 var _ = Describe("Filtering Drain Writer", func() {
-	It("filters all envelope types except log", func(){
+	It("filters all envelope types except log", func() {
 		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_LOG}
 		fakeWriter := &fakeWriter{}
 
@@ -29,9 +30,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 			SourceId:  "app-1",
 			Message: &loggregator_v2.Envelope_Counter{
 				Counter: &loggregator_v2.Counter{
-					Name:                 "some-counter",
-					Delta:                1,
-					Total:                10,
+					Name:  "some-counter",
+					Delta: 1,
+					Total: 10,
 				},
 			},
 		}
@@ -65,9 +66,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 			SourceId:  "app-1",
 			Message: &loggregator_v2.Envelope_Counter{
 				Counter: &loggregator_v2.Counter{
-					Name:                 "some-counter",
-					Delta:                1,
-					Total:                10,
+					Name:  "some-counter",
+					Delta: 1,
+					Total: 10,
 				},
 			},
 		}
@@ -111,9 +112,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 			SourceId:  "app-1",
 			Message: &loggregator_v2.Envelope_Counter{
 				Counter: &loggregator_v2.Counter{
-					Name:                 "some-counter",
-					Delta:                1,
-					Total:                10,
+					Name:  "some-counter",
+					Delta: 1,
+					Total: 10,
 				},
 			},
 		}
@@ -164,7 +165,6 @@ var _ = Describe("Filtering Drain Writer", func() {
 		)
 	})
 
-
 	It("errors on invalid binding type", func() {
 		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: 10}
 		_, err := syslog.NewFilteringDrainWriter(binding, &fakeWriter{})
@@ -176,7 +176,7 @@ type fakeWriter struct {
 	envs []*loggregator_v2.Envelope
 }
 
-func(f *fakeWriter) Write(env *loggregator_v2.Envelope) error {
+func (f *fakeWriter) Write(env *loggregator_v2.Envelope) error {
 	f.envs = append(f.envs, env)
 	return nil
 }

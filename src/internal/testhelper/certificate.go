@@ -1,9 +1,10 @@
 package testhelper
 
 import (
-	"code.cloudfoundry.org/tlsconfig/certtest"
-	"io/ioutil"
 	"log"
+	"os"
+
+	"code.cloudfoundry.org/tlsconfig/certtest"
 )
 
 type TestCerts struct {
@@ -67,7 +68,7 @@ func generateCA(caName string) (*certtest.Authority, string) {
 }
 
 func tmpFile(prefix string, caBytes []byte) string {
-	file, err := ioutil.TempFile("", prefix)
+	file, err := os.CreateTemp("", prefix)
 	if err != nil {
 		log.Fatal(err)
 	}

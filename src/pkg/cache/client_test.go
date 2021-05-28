@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -41,7 +41,7 @@ var _ = Describe("Client", func() {
 		Expect(err).ToNot(HaveOccurred())
 		spyHTTPClient.response = &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewReader(j)),
+			Body:       io.NopCloser(bytes.NewReader(j)),
 		}
 
 		Expect(client.Get()).To(Equal(bindings))
@@ -61,7 +61,7 @@ var _ = Describe("Client", func() {
 		Expect(err).ToNot(HaveOccurred())
 		spyHTTPClient.response = &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewReader(j)),
+			Body:       io.NopCloser(bytes.NewReader(j)),
 		}
 
 		Expect(client.GetAggregate()).To(Equal(bindings))
@@ -83,7 +83,7 @@ var _ = Describe("Client", func() {
 	It("returns empty bindings if cache returns a non-OK status code", func() {
 		spyHTTPClient.response = &http.Response{
 			StatusCode: http.StatusInternalServerError,
-			Body:       ioutil.NopCloser(strings.NewReader("")),
+			Body:       io.NopCloser(strings.NewReader("")),
 		}
 
 		_, err := client.Get()

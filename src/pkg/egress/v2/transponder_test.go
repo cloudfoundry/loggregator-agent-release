@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
 
 	. "github.com/onsi/ginkgo"
@@ -113,8 +113,8 @@ var _ = Describe("Transponder", func() {
 			tx := egress.NewTransponder(nexter, writer, 5, time.Minute, spy)
 			go tx.Start()
 
-			Eventually(hasMetric(spy, "egress", map[string]string{"metric_version":"2.0"}))
-			Eventually(hasMetric(spy, "dropped", map[string]string{"direction":"egress","metric_version":"2.0"}))
+			Eventually(hasMetric(spy, "egress", map[string]string{"metric_version": "2.0"}))
+			Eventually(hasMetric(spy, "dropped", map[string]string{"direction": "egress", "metric_version": "2.0"}))
 
 		})
 	})
@@ -125,4 +125,3 @@ func hasMetric(mc *metricsHelpers.SpyMetricsRegistry, metricName string, tags ma
 		return mc.HasMetric(metricName, tags)
 	}
 }
-

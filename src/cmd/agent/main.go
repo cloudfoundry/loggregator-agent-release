@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	_ "net/http/pprof"
@@ -14,7 +14,7 @@ import (
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	grpclog.SetLogger(log.New(ioutil.Discard, "", 0))
+	grpclog.SetLogger(log.New(io.Discard, "", 0))
 
 	config, err := app.LoadConfig()
 	if config.UseRFC3339 {
