@@ -11,13 +11,13 @@ type EnvelopeProcessor interface {
 }
 
 type EnvelopeWriter struct {
-	writer     Writer
+	writer    Writer
 	processor EnvelopeProcessor
 }
 
 func NewEnvelopeWriter(w Writer, ps EnvelopeProcessor) EnvelopeWriter {
 	return EnvelopeWriter{
-		writer:     w,
+		writer:    w,
 		processor: ps,
 	}
 }

@@ -1,11 +1,7 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/prom-scraper/app"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 	"fmt"
-	"github.com/onsi/gomega/gexec"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -14,6 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/prom-scraper/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
+	"github.com/onsi/gomega/gexec"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
@@ -497,7 +497,7 @@ node2_counter 6
 )
 
 func metricPortConfigDir() string {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatal(err)
 	}

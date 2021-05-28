@@ -32,6 +32,11 @@ properties:
     description: "Syslog binding cache is enabled on VM"
     default: true
 
+  aggregate_drains:
+    description: "Syslog server URLs that will receive the logs from all sources"
+    default: ""
+    example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
+
   external_port:
     description: |
       The port where the cache serves bindings

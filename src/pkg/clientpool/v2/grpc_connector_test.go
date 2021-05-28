@@ -3,11 +3,10 @@ package v2_test
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v2"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v2"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -47,7 +46,7 @@ var _ = Describe("GRPCConnector", func() {
 				})),
 			}
 			fetcher = &SpyFetcher{
-				Closer: ioutil.NopCloser(nil),
+				Closer: io.NopCloser(nil),
 				Client: SpyStream{},
 			}
 			connector = v2.MakeGRPCConnector(fetcher, balancers)
@@ -78,7 +77,7 @@ var _ = Describe("GRPCConnector", func() {
 				})),
 			}
 			fetcher := &SpyFetcher{
-				Closer: ioutil.NopCloser(nil),
+				Closer: io.NopCloser(nil),
 				Client: SpyStream{},
 			}
 			connector := v2.MakeGRPCConnector(fetcher, balancers)
@@ -99,7 +98,7 @@ var _ = Describe("GRPCConnector", func() {
 				})),
 			}
 			fetcher := &SpyFetcher{
-				Closer: ioutil.NopCloser(nil),
+				Closer: io.NopCloser(nil),
 				Client: SpyStream{},
 			}
 			connector := v2.MakeGRPCConnector(fetcher, balancers)

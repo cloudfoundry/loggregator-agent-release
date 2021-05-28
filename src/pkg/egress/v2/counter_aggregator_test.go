@@ -1,9 +1,10 @@
 package v2_test
 
 import (
+	"fmt"
+
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
-	"fmt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -11,7 +12,7 @@ import (
 var _ = Describe("CounterAggregator", func() {
 	tagger := egress.NewTagger(nil)
 
-	It("calculates separate totals for envelopes with deprecated defaultTags", func( ){
+	It("calculates separate totals for envelopes with deprecated defaultTags", func() {
 		tagger := egress.NewTagger(nil)
 
 		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)

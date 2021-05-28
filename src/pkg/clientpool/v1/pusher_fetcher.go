@@ -1,11 +1,12 @@
 package v1
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"context"
 	"fmt"
 	"io"
 	"log"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 
@@ -13,7 +14,7 @@ import (
 )
 
 type MetricClient interface {
-	NewGauge(name, helpText string,  opts ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 }
 
 type PusherFetcher struct {
@@ -37,8 +38,8 @@ func NewPusherFetcher(mc MetricClient, opts ...grpc.DialOption) *PusherFetcher {
 
 	return &PusherFetcher{
 		opts:               opts,
-		dopplerConnections: func(i float64){ dopplerConnections.Add(i) },
-		dopplerV1Streams:   func(i float64){ dopplerV1Streams.Add(i) },
+		dopplerConnections: func(i float64) { dopplerConnections.Add(i) },
+		dopplerV1Streams:   func(i float64) { dopplerV1Streams.Add(i) },
 	}
 }
 

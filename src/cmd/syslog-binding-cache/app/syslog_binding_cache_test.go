@@ -1,15 +1,16 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/tlsconfig"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"time"
+
+	"code.cloudfoundry.org/tlsconfig"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -64,6 +65,7 @@ var _ = Describe("SyslogBindingCache", func() {
 			CacheKeyFile:       bindingCacheTestCerts.Key("binding-cache"),
 			CacheCommonName:    "binding-cache",
 			CachePort:          cachePort,
+			AggregateDrains:    []string{"syslog://drain-e", "syslog://drain-f"},
 		}
 		sbc = app.NewSyslogBindingCache(config, metricsHelpers.NewMetricsRegistry(), logger)
 		go sbc.Run()
@@ -99,7 +101,7 @@ var _ = Describe("SyslogBindingCache", func() {
 
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
 		var results []binding.Binding
@@ -114,6 +116,36 @@ var _ = Describe("SyslogBindingCache", func() {
 		b = findBinding(results, "app-id-2")
 		Expect(b.Drains).To(ConsistOf("syslog://drain-c", "syslog://drain-d"))
 		Expect(b.Hostname).To(Equal("org.space.app-name-2"))
+	})
+
+	It("has an HTTP endpoint that returns aggregate drains", func() {
+		client := plumbing.NewTLSHTTPClient(
+			bindingCacheTestCerts.Cert("binding-cache"),
+			bindingCacheTestCerts.Key("binding-cache"),
+			bindingCacheTestCerts.CA(),
+			"binding-cache",
+		)
+
+		addr := fmt.Sprintf("https://localhost:%d/aggregate", cachePort)
+
+		var resp *http.Response
+		Eventually(func() error {
+			var err error
+			resp, err = client.Get(addr)
+			return err
+		}).Should(Succeed())
+
+		Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+		body, err := io.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred())
+
+		var result []binding.Binding
+		err = json.Unmarshal(body, &result)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(result).To(HaveLen(1))
+		Expect(result[0].Drains).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
 	})
 })
 

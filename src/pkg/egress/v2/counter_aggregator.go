@@ -11,13 +11,13 @@ type counterID struct {
 
 type CounterAggregator struct {
 	counterTotals map[counterID]uint64
-	processor func(env *loggregator_v2.Envelope)
+	processor     func(env *loggregator_v2.Envelope)
 }
 
 func NewCounterAggregator(processor func(env *loggregator_v2.Envelope)) *CounterAggregator {
 	return &CounterAggregator{
 		counterTotals: make(map[counterID]uint64),
-		processor:        processor,
+		processor:     processor,
 	}
 }
 

@@ -1,11 +1,12 @@
 package v2
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"context"
 	"fmt"
 	"io"
 	"log"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"google.golang.org/grpc"
@@ -37,7 +38,7 @@ func NewSenderFetcher(mc MetricClient, opts ...grpc.DialOption) *SenderFetcher {
 	fetcher := SenderFetcher{
 		opts:               opts,
 		dopplerConnections: func(i float64) { dopplerConnections.Add(i) },
-		dopplerV2Streams:  func(i float64)  { dopplerV2Streams.Add(i) },
+		dopplerV2Streams:   func(i float64) { dopplerV2Streams.Add(i) },
 	}
 	return &fetcher
 }

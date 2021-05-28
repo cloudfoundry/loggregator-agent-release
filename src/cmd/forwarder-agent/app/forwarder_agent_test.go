@@ -1,10 +1,8 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -12,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 
 	"code.cloudfoundry.org/go-loggregator/v8"
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
@@ -369,7 +369,7 @@ func (s *spyLoggregatorV2BlockingIngress) BatchSender(srv loggregator_v2.Ingress
 }
 
 func forwarderPortConfigDir() string {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -378,7 +378,7 @@ func forwarderPortConfigDir() string {
 }
 
 func createForwarderPortConfigFile(port string) {
-	fDir, err := ioutil.TempDir(fConfigDir, "")
+	fDir, err := os.MkdirTemp(fConfigDir, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -388,7 +388,7 @@ func createForwarderPortConfigFile(port string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	contents := fmt.Sprintf(forwardConfigTemplate, port)
-	if err := ioutil.WriteFile(tmpfn, []byte(contents), 0666); err != nil {
+	if err := os.WriteFile(tmpfn, []byte(contents), 0666); err != nil {
 		log.Fatal(err)
 	}
 }

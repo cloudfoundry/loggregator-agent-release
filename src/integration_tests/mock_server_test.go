@@ -1,9 +1,10 @@
 package agent_test
 
 import (
-	"code.cloudfoundry.org/tlsconfig"
 	"net"
 	"time"
+
+	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
@@ -31,7 +32,7 @@ func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
 	).Server(
 		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}

@@ -1,12 +1,12 @@
 package scraper_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -118,7 +118,7 @@ labels:
 )
 
 func metricPortConfigDir() string {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func metricPortConfigDir() string {
 }
 
 func writeScrapeConfigFile(metricConfigDir, config, fileName string) {
-	f, err := ioutil.TempFile(metricConfigDir, fileName)
+	f, err := os.CreateTemp(metricConfigDir, fileName)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,13 +1,14 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
@@ -37,12 +38,14 @@ func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *Sys
 
 func (sbc *SyslogBindingCache) Run() {
 	store := binding.NewStore(sbc.metrics)
+	aggregateStore := binding.AggregateStore{AggregateDrains: sbc.config.AggregateDrains}
 	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log)
 
 	go poller.Poll()
 
 	router := mux.NewRouter()
 	router.HandleFunc("/bindings", cache.Handler(store)).Methods(http.MethodGet)
+	router.HandleFunc("/aggregate", cache.Handler(&aggregateStore)).Methods(http.MethodGet)
 
 	sbc.startServer(router)
 }

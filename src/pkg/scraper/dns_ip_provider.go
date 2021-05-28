@@ -32,7 +32,7 @@ func NewDNSScrapeTargetProvider(sourceID, dnsFile string, port int) TargetProvid
 			ip := r[0]
 
 			targets = append(targets, Target{
-				ID: sourceID,
+				ID:        sourceID,
 				MetricURL: fmt.Sprintf("https://%s:%d/metrics", ip, port),
 			})
 		}

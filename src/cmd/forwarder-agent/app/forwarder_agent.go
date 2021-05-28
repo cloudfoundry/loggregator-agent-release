@@ -1,14 +1,14 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"net/http"
 
@@ -21,7 +21,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	egress_v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/timeoutwaitgroup"
 	"google.golang.org/grpc"
@@ -162,7 +162,7 @@ func getDownstreamAddresses(glob string, l *log.Logger) []string {
 
 	var addrs []string
 	for _, f := range files {
-		yamlFile, err := ioutil.ReadFile(f)
+		yamlFile, err := os.ReadFile(f)
 		if err != nil {
 			l.Fatalf("cannot read file: %s", err)
 		}

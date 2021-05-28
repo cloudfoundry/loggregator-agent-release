@@ -2,7 +2,7 @@ package syslog_test
 
 import (
 	"crypto/tls"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -337,7 +337,7 @@ func newMockDrain(status int) *SpyDrain {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		message := &rfc5424.Message{}
 
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		Expect(err).ToNot(HaveOccurred())
 		defer r.Body.Close()
 

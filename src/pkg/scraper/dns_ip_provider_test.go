@@ -1,10 +1,11 @@
 package scraper_test
 
 import (
+	"os"
+
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"io/ioutil"
 )
 
 var _ = Describe("DnsIpProvider", func() {
@@ -26,7 +27,7 @@ var _ = Describe("DnsIpProvider", func() {
 })
 
 func writeScrapeConfig(config string) string {
-	f, err := ioutil.TempFile("", "records.json")
+	f, err := os.CreateTemp("", "records.json")
 	Expect(err).ToNot(HaveOccurred())
 
 	_, err = f.Write([]byte(config))

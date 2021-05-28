@@ -2,7 +2,7 @@ package scraper_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -51,7 +51,7 @@ var _ = Describe("Scraper", func() {
 	var addResponse = func(tc *testContext, statusCode int, body string) {
 		tc.metricGetter.resp <- &http.Response{
 			StatusCode: statusCode,
-			Body:       ioutil.NopCloser(strings.NewReader(body)),
+			Body:       io.NopCloser(strings.NewReader(body)),
 		}
 	}
 
