@@ -37,7 +37,7 @@ var _ = Describe("SyslogAgent", func() {
 			aggregateSyslogTLS *syslogTCPServer
 			aggregateAddr      string
 			syslogTLS          *syslogTCPServer
-			cupsProvider       *fakeBindingCache
+			bindingCache       *fakeBindingCache
 			metricClient       *metricsHelpers.SpyMetricsRegistry
 
 			grpcPort   = 30000
@@ -55,7 +55,7 @@ var _ = Describe("SyslogAgent", func() {
 			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
-			cupsProvider = &fakeBindingCache{
+			bindingCache = &fakeBindingCache{
 				bindings: []binding.Binding{
 					{
 						AppID:    "some-id",
@@ -81,7 +81,7 @@ var _ = Describe("SyslogAgent", func() {
 					},
 				},
 			}
-			cupsProvider.startTLS(bindingCacheTestCerts)
+			bindingCache.startTLS(bindingCacheTestCerts)
 		})
 
 		AfterEach(func() {
@@ -101,7 +101,7 @@ var _ = Describe("SyslogAgent", func() {
 				},
 				IdleDrainTimeout: 10 * time.Minute,
 				Cache: app.Cache{
-					URL:             cupsProvider.URL,
+					URL:             bindingCache.URL,
 					CAFile:          bindingCacheTestCerts.CA(),
 					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
 					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
@@ -131,7 +131,7 @@ var _ = Describe("SyslogAgent", func() {
 			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 		})
 
-		var setupTestAgent = func(blacklist bindings.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
+		var setupTestAgent = func(blacklist bindings.BlacklistRanges) context.CancelFunc {
 			metricClient = metricsHelpers.NewMetricsRegistry()
 			cfg := app.Config{
 				BindingsPerAppLimit: 5,
@@ -145,7 +145,7 @@ var _ = Describe("SyslogAgent", func() {
 				DrainSkipCertVerify: false,
 				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
 				Cache: app.Cache{
-					URL:             cupsProvider.URL,
+					URL:             bindingCache.URL,
 					CAFile:          bindingCacheTestCerts.CA(),
 					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
 					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
@@ -159,7 +159,6 @@ var _ = Describe("SyslogAgent", func() {
 					CertFile: metronTestCerts.Cert("metron"),
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
-				AggregateDrainURLs:                 aggregateDrains,
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
 			}
 			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
@@ -180,16 +179,14 @@ var _ = Describe("SyslogAgent", func() {
 						End:   url.Hostname(),
 					},
 				},
-			},
-				nil,
-			)
+			})
 			defer cancel()
 
 			Consistently(syslogHTTPS.receivedMessages, 3).ShouldNot(Receive())
 		})
 
 		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{})
+			cancel := setupTestAgent(bindings.BlacklistRanges{})
 			defer cancel()
 
 			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
@@ -204,7 +201,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("egresses logs", func() {
-			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{})
+			cancel := setupTestAgent(bindings.BlacklistRanges{})
 			defer cancel()
 
 			var msg *rfc5424.Message
@@ -216,7 +213,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("can be configured so that there's no tags", func() {
-			cupsProvider.bindings = []binding.Binding{
+			bindingCache.bindings = []binding.Binding{
 				{
 					AppID:    "some-id",
 					Hostname: "org.space.name",
@@ -232,14 +229,14 @@ var _ = Describe("SyslogAgent", func() {
 					},
 				},
 			}
-			cupsProvider.aggregate = []binding.Binding{
+			bindingCache.aggregate = []binding.Binding{
 				{
 					Drains: []string{
 						aggregateAddr + "?disable-metadata=true",
 					},
 				},
 			}
-			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{})
+			cancel := setupTestAgent(bindings.BlacklistRanges{})
 			defer cancel()
 
 			var msg *rfc5424.Message

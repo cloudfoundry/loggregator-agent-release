@@ -25,9 +25,9 @@ func NewAggregateDrainFetcher(bindings []string, cf CacheFetcher) *AggregateDrai
 
 func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
 	if len(a.bindings) != 0 {
-		var bindingSlice []syslog.Binding
-		bindingSlice = append(bindingSlice, a.bindings...)
-		return bindingSlice, nil
+		var bindings []syslog.Binding
+		bindings = append(bindings, a.bindings...)
+		return bindings, nil
 	} else if a.cf != nil {
 		aggregate, err := a.cf.GetAggregate()
 		if err != nil {
