@@ -71,7 +71,7 @@ properties:
         - ECDHE-ECDSA-CHACHA20-POLY1305
 
   aggregate_drains:
-    description: "Syslog server URLs that will receive the logs from all sources"
+    description: "DEPRECATED: Syslog server URLs that will receive the logs from all sources. Use binding cache instead if possible"
     default: ""
     example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
 

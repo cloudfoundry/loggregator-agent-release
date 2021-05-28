@@ -10,8 +10,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 )
 
-var pathTemplate = "%s/bindings"
-
 type httpGetter interface {
 	Get(string) (*http.Response, error)
 }
@@ -29,8 +27,16 @@ func NewClient(cacheAddr string, h httpGetter) *CacheClient {
 }
 
 func (c *CacheClient) Get() ([]binding.Binding, error) {
+	return c.get("bindings")
+}
+
+func (c *CacheClient) GetAggregate() ([]binding.Binding, error) {
+	return c.get("aggregate")
+}
+
+func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 	var bindings []binding.Binding
-	resp, err := c.h.Get(fmt.Sprintf(pathTemplate, c.cacheAddr))
+	resp, err := c.h.Get(fmt.Sprintf("%s/"+path, c.cacheAddr))
 	if err != nil {
 		return nil, err
 	}

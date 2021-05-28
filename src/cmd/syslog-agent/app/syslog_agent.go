@@ -68,6 +68,7 @@ func NewSyslogAgent(
 		m,
 	)
 
+	var cacheClient *cache.CacheClient
 	var cupsFetcher binding.Fetcher = nil
 	if cfg.Cache.CAFile != "" {
 		tlsClient := plumbing.NewTLSHTTPClient(
@@ -77,7 +78,7 @@ func NewSyslogAgent(
 			cfg.Cache.CommonName,
 		)
 
-		cacheClient := cache.NewClient(cfg.Cache.URL, tlsClient)
+		cacheClient = cache.NewClient(cfg.Cache.URL, tlsClient)
 		cupsFetcher = bindings.NewFilteredBindingFetcher(
 			&cfg.Cache.Blacklist,
 			bindings.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m),
@@ -87,7 +88,7 @@ func NewSyslogAgent(
 		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher)
 	}
 
-	aggregateFetcher := bindings.NewAggregateDrainFetcher(cfg.AggregateDrainURLs)
+	aggregateFetcher := bindings.NewAggregateDrainFetcher(cfg.AggregateDrainURLs, cacheClient)
 	bindingManager := binding.NewManager(
 		cupsFetcher,
 		bindings.NewDrainParamParser(aggregateFetcher),

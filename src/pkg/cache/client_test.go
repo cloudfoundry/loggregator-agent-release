@@ -48,10 +48,34 @@ var _ = Describe("Client", func() {
 		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/bindings"))
 	})
 
+	It("returns aggregate drains from the cache", func() {
+		bindings := []binding.Binding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "host-1",
+			},
+		}
+
+		j, err := json.Marshal(bindings)
+		Expect(err).ToNot(HaveOccurred())
+		spyHTTPClient.response = &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       ioutil.NopCloser(bytes.NewReader(j)),
+		}
+
+		Expect(client.GetAggregate()).To(Equal(bindings))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/aggregate"))
+	})
+
 	It("returns empty bindings if an HTTP error occurs", func() {
 		spyHTTPClient.err = errors.New("http error")
 
 		_, err := client.Get()
+
+		Expect(err).To(MatchError("http error"))
+
+		_, err = client.GetAggregate()
 
 		Expect(err).To(MatchError("http error"))
 	})
@@ -63,6 +87,10 @@ var _ = Describe("Client", func() {
 		}
 
 		_, err := client.Get()
+
+		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
+
+		_, err = client.GetAggregate()
 
 		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
 	})

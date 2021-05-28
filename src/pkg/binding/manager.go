@@ -201,6 +201,7 @@ func (m *Manager) resetAggregateDrains() {
 	var aggregateDrains []drainHolder
 	bindings, err := m.aggregateDrainFetcher.FetchBindings()
 	if err != nil {
+		m.log.Printf("failed to connect to cache for aggregate drains: %s", err)
 		return
 	}
 

@@ -3,16 +3,49 @@ package bindings
 import (
 	"net/url"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
-type AggregateDrainFetcher struct {
-	bindings []syslog.Binding
+type CacheFetcher interface {
+	GetAggregate() ([]binding.Binding, error)
 }
 
-func NewAggregateDrainFetcher(bindings []string) *AggregateDrainFetcher {
-	drainFetcher := &AggregateDrainFetcher{}
-	for _, b := range bindings {
+type AggregateDrainFetcher struct {
+	bindings []syslog.Binding
+	cf       CacheFetcher
+}
+
+func NewAggregateDrainFetcher(bindings []string, cf CacheFetcher) *AggregateDrainFetcher {
+	drainFetcher := &AggregateDrainFetcher{cf: cf}
+	parsedDrains := parseBindings(bindings)
+	drainFetcher.bindings = parsedDrains
+	return drainFetcher
+}
+
+func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
+	if len(a.bindings) != 0 {
+		var bindingSlice []syslog.Binding
+		bindingSlice = append(bindingSlice, a.bindings...)
+		return bindingSlice, nil
+	} else if a.cf != nil {
+		aggregate, err := a.cf.GetAggregate()
+		if err != nil {
+			return []syslog.Binding{}, err
+		}
+		syslogBindings := []syslog.Binding{}
+		for _, i := range aggregate {
+			syslogBindings = append(syslogBindings, parseBindings(i.Drains)...)
+		}
+		return syslogBindings, nil
+	} else {
+		return []syslog.Binding{}, nil
+	}
+}
+
+func parseBindings(urls []string) []syslog.Binding {
+	syslogBindings := []syslog.Binding{}
+	for _, b := range urls {
 		if b == "" {
 			continue
 		}
@@ -29,15 +62,9 @@ func NewAggregateDrainFetcher(bindings []string) *AggregateDrainFetcher {
 			Drain: b,
 			Type:  bindingType,
 		}
-		drainFetcher.bindings = append(drainFetcher.bindings, binding)
+		syslogBindings = append(syslogBindings, binding)
 	}
-	return drainFetcher
-}
-
-func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
-	var bindingSlice []syslog.Binding
-	bindingSlice = append(bindingSlice, a.bindings...)
-	return bindingSlice, nil
+	return syslogBindings
 }
 
 func (a *AggregateDrainFetcher) DrainLimit() int {

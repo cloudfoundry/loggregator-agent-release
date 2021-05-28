@@ -56,7 +56,7 @@ var _ = Describe("SyslogAgent", func() {
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
 			cupsProvider = &fakeBindingCache{
-				results: []binding.Binding{
+				bindings: []binding.Binding{
 					{
 						AppID:    "some-id",
 						Hostname: "org.space.name",
@@ -69,6 +69,14 @@ var _ = Describe("SyslogAgent", func() {
 						Hostname: "org.space.name",
 						Drains: []string{
 							fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						},
+					},
+				},
+				aggregate: []binding.Binding{
+					{
+						AppID: "",
+						Drains: []string{
+							aggregateAddr,
 						},
 					},
 				},
@@ -181,7 +189,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{aggregateAddr})
+			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{})
 			defer cancel()
 
 			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
@@ -196,7 +204,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("egresses logs", func() {
-			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{aggregateAddr})
+			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{})
 			defer cancel()
 
 			var msg *rfc5424.Message
@@ -208,7 +216,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("can be configured so that there's no tags", func() {
-			cupsProvider.results = []binding.Binding{
+			cupsProvider.bindings = []binding.Binding{
 				{
 					AppID:    "some-id",
 					Hostname: "org.space.name",
@@ -224,7 +232,14 @@ var _ = Describe("SyslogAgent", func() {
 					},
 				},
 			}
-			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{aggregateAddr + "?disable-metadata=true"})
+			cupsProvider.aggregate = []binding.Binding{
+				{
+					Drains: []string{
+						aggregateAddr + "?disable-metadata=true",
+					},
+				},
+			}
+			cancel := setupTestAgent(bindings.BlacklistRanges{}, []string{})
 			defer cancel()
 
 			var msg *rfc5424.Message
@@ -551,7 +566,8 @@ func hasMetric(mc *metricsHelpers.SpyMetricsRegistry, metricName string, tags ma
 
 type fakeBindingCache struct {
 	*httptest.Server
-	results []binding.Binding
+	bindings  []binding.Binding
+	aggregate []binding.Binding
 }
 
 func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
@@ -573,16 +589,17 @@ func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 }
 
 func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/bindings" {
+	results := []binding.Binding{}
+	if r.URL.Path == "/bindings" {
+		results = f.bindings
+	} else if r.URL.Path == "/aggregate" {
+		results = f.aggregate
+	} else {
 		w.WriteHeader(500)
 		return
 	}
 
-	f.serveWithResults(w, r)
-}
-
-func (f *fakeBindingCache) serveWithResults(w http.ResponseWriter, r *http.Request) {
-	resultData, err := json.Marshal(&f.results)
+	resultData, err := json.Marshal(results)
 	if err != nil {
 		w.WriteHeader(500)
 		return

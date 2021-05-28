@@ -1,9 +1,10 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"log"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 
 	envstruct "code.cloudfoundry.org/go-envstruct"
 )
@@ -19,6 +20,7 @@ type Config struct {
 	APIPollingInterval time.Duration `env:"API_POLLING_INTERVAL, report"`
 	APIBatchSize       int           `env:"API_BATCH_SIZE, report"`
 	CipherSuites       []string      `env:"CIPHER_SUITES, report"`
+	AggregateDrains    []string      `env:"AGGREGATE_DRAINS, report"`
 
 	CacheCAFile     string `env:"CACHE_CA_FILE_PATH,     required, report"`
 	CacheCertFile   string `env:"CACHE_CERT_FILE_PATH,   required, report"`
