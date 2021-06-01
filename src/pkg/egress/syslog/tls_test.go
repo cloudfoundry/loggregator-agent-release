@@ -62,6 +62,7 @@ var _ = Describe("TLSWriter", func() {
 				InsecureSkipVerify: true,
 			},
 			egressCounter,
+			syslog.NewConverter(),
 		)
 		defer writer.Close()
 

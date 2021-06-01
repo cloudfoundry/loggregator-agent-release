@@ -1,9 +1,6 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
-	"code.cloudfoundry.org/tlsconfig"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -17,13 +14,17 @@ import (
 	"strings"
 	"time"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
+	"code.cloudfoundry.org/tlsconfig"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -90,7 +91,8 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: metronTestCerts.Cert("metron"),
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
-			IdleDrainTimeout: 10 * time.Minute,
+			DefaultDrainMetadata: true,
+			IdleDrainTimeout:     10 * time.Minute,
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
 				CAFile:          bindingCacheTestCerts.CA(),
@@ -132,9 +134,10 @@ var _ = Describe("SyslogAgent", func() {
 				CertFile: metronTestCerts.Cert("metron"),
 				KeyFile:  metronTestCerts.Key("metron"),
 			},
-			IdleDrainTimeout:    10 * time.Minute,
-			DrainSkipCertVerify: false,
-			DrainTrustedCAFile:  syslogServerTestCerts.CA(),
+			DefaultDrainMetadata: true,
+			IdleDrainTimeout:     10 * time.Minute,
+			DrainSkipCertVerify:  false,
+			DrainTrustedCAFile:   syslogServerTestCerts.CA(),
 			Cache: app.Cache{
 				URL:             cupsProvider.URL,
 				CAFile:          bindingCacheTestCerts.CA(),

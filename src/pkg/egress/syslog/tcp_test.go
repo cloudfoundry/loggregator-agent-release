@@ -2,12 +2,13 @@ package syslog_test
 
 import (
 	"bufio"
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"time"
+
+	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
@@ -56,6 +57,7 @@ var _ = Describe("TCPWriter", func() {
 				binding,
 				netConf,
 				egressCounter,
+				syslog.NewConverter(),
 			)
 			Expect(err).ToNot(HaveOccurred())
 		})
@@ -186,6 +188,7 @@ var _ = Describe("TCPWriter", func() {
 				binding,
 				netConf,
 				&metricsHelpers.SpyMetric{},
+				syslog.NewConverter(),
 			)
 
 			errs := make(chan error, 1)
@@ -209,6 +212,7 @@ var _ = Describe("TCPWriter", func() {
 					binding,
 					netConf,
 					&metricsHelpers.SpyMetric{},
+					syslog.NewConverter(),
 				)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -289,14 +293,14 @@ func buildGaugeEnvelope(srcInstance string) *loggregator_v2.Envelope {
 
 func buildTimerEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
-		Timestamp: 12345678,
-		SourceId:  "test-app-id",
+		Timestamp:  12345678,
+		SourceId:   "test-app-id",
 		InstanceId: srcInstance,
 		Message: &loggregator_v2.Envelope_Timer{
 			Timer: &loggregator_v2.Timer{
-				Name:                 "http",
-				Start:                10,
-				Stop:                 20,
+				Name:  "http",
+				Start: 10,
+				Stop:  20,
 			},
 		},
 	}
@@ -304,13 +308,13 @@ func buildTimerEnvelope(srcInstance string) *loggregator_v2.Envelope {
 
 func buildEventEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
-		Timestamp: 12345678,
-		SourceId:  "test-app-id",
+		Timestamp:  12345678,
+		SourceId:   "test-app-id",
 		InstanceId: srcInstance,
 		Message: &loggregator_v2.Envelope_Event{
 			Event: &loggregator_v2.Event{
-				Title:                "event-title",
-				Body:                 "event-body",
+				Title: "event-title",
+				Body:  "event-body",
 			},
 		},
 	}

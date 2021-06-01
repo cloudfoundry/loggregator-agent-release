@@ -1,14 +1,15 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/tlsconfig"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -17,7 +18,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/cups"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/timeoutwaitgroup"
 	"google.golang.org/grpc"
@@ -33,7 +34,7 @@ type SyslogAgent struct {
 }
 
 type Metrics interface {
-	NewGauge(name, helpText string,  options ...metrics.MetricOption) metrics.Gauge
+	NewGauge(name, helpText string, options ...metrics.MetricOption) metrics.Gauge
 	NewCounter(name, helpText string, options ...metrics.MetricOption) metrics.Counter
 }
 
@@ -52,7 +53,7 @@ func NewSyslogAgent(
 	l *log.Logger,
 ) *SyslogAgent {
 	writerFactory := syslog.NewRetryWriterFactory(
-		syslog.NewWriterFactory(drainTLSConfig(cfg), m).NewWriter,
+		syslog.NewWriterFactory(drainTLSConfig(cfg), cfg.DefaultDrainMetadata, m).NewWriter,
 		syslog.ExponentialDuration,
 		maxRetries,
 	)

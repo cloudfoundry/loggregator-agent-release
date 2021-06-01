@@ -37,6 +37,10 @@ properties:
   drain_ca_cert:
     description: The CA certificate for key/cert verification.
 
+  default_metadata:
+    description: Whether metadata is included in structured data by default
+    default: true
+
   aggregate_drains:
     description: "Syslog server URLs that will receive the logs from all sources"
     default: ""
