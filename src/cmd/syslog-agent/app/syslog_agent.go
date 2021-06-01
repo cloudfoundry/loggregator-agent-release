@@ -85,13 +85,13 @@ func NewSyslogAgent(
 			m,
 			l,
 		)
-		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher)
+		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)
 	}
 
 	aggregateFetcher := bindings.NewAggregateDrainFetcher(cfg.AggregateDrainURLs, cacheClient)
 	bindingManager := binding.NewManager(
 		cupsFetcher,
-		bindings.NewDrainParamParser(aggregateFetcher),
+		bindings.NewDrainParamParser(aggregateFetcher, cfg.DefaultDrainMetadata),
 		connector,
 		m,
 		cfg.Cache.PollingInterval,

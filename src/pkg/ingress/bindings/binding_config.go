@@ -8,12 +8,14 @@ import (
 )
 
 type DrainParamParser struct {
-	fetcher binding.Fetcher
+	fetcher              binding.Fetcher
+	defaultDrainMetadata bool
 }
 
-func NewDrainParamParser(f binding.Fetcher) *DrainParamParser {
+func NewDrainParamParser(f binding.Fetcher, defaultDrainMetadata bool) *DrainParamParser {
 	return &DrainParamParser{
-		fetcher: f,
+		fetcher:              f,
+		defaultDrainMetadata: defaultDrainMetadata,
 	}
 }
 
@@ -30,8 +32,12 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
-		if urlParsed.Query().Get("disable-metadata") == "true" {
+		if d.defaultDrainMetadata && urlParsed.Query().Get("disable-metadata") == "true" {
 			b.OmitMetadata = true
+		} else if !d.defaultDrainMetadata && urlParsed.Query().Get("disable-metadata") == "false" {
+			b.OmitMetadata = false
+		} else {
+			b.OmitMetadata = !d.defaultDrainMetadata
 		}
 		if urlParsed.Query().Get("ssl-strict-internal") == "true" {
 			b.InternalTls = true

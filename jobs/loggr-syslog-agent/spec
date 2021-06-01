@@ -40,6 +40,9 @@ properties:
     default: false
   drain_ca_cert:
     description: The CA certificate for key/cert verification.
+  default_metadata:
+    description: Whether metadata is included in structured data by default
+    default: true
   drain_cipher_suites:
     description: |
       An ordered, colon-delimited list of golang supported TLS cipher suites in OpenSSL or RFC format.

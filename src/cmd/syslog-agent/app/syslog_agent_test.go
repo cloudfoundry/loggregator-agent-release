@@ -131,7 +131,7 @@ var _ = Describe("SyslogAgent", func() {
 			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 		})
 
-		var setupTestAgent = func(blacklist bindings.BlacklistRanges) context.CancelFunc {
+		var setupTestAgent = func(changeConfig ...func(app.Config) app.Config) context.CancelFunc {
 			metricClient = metricsHelpers.NewMetricsRegistry()
 			cfg := app.Config{
 				BindingsPerAppLimit: 5,
@@ -141,9 +141,10 @@ var _ = Describe("SyslogAgent", func() {
 					CertFile: metronTestCerts.Cert("metron"),
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
-				IdleDrainTimeout:    10 * time.Minute,
-				DrainSkipCertVerify: false,
-				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
+				DefaultDrainMetadata: true,
+				IdleDrainTimeout:     10 * time.Minute,
+				DrainSkipCertVerify:  false,
+				DrainTrustedCAFile:   syslogServerTestCerts.CA(),
 				Cache: app.Cache{
 					URL:             bindingCache.URL,
 					CAFile:          bindingCacheTestCerts.CA(),
@@ -151,7 +152,6 @@ var _ = Describe("SyslogAgent", func() {
 					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
 					CommonName:      "binding-cache",
 					PollingInterval: 10 * time.Millisecond,
-					Blacklist:       blacklist,
 				},
 				GRPC: app.GRPC{
 					Port:     grpcPort,
@@ -160,6 +160,9 @@ var _ = Describe("SyslogAgent", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			for _, i := range changeConfig {
+				cfg = i(cfg)
 			}
 			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
 			ctx, cancel := context.WithCancel(context.Background())
@@ -172,21 +175,25 @@ var _ = Describe("SyslogAgent", func() {
 			url, err := url.Parse(syslogHTTPS.server.URL)
 			Expect(err).ToNot(HaveOccurred())
 
-			cancel := setupTestAgent(bindings.BlacklistRanges{
-				Ranges: []bindings.BlacklistRange{
-					{
-						Start: url.Hostname(),
-						End:   url.Hostname(),
+			cancel := setupTestAgent(func(config app.Config) app.Config {
+				config.Cache.Blacklist = bindings.BlacklistRanges{
+					Ranges: []bindings.BlacklistRange{
+						{
+							Start: url.Hostname(),
+							End:   url.Hostname(),
+						},
 					},
-				},
-			})
+				}
+				return config
+			},
+			)
 			defer cancel()
 
 			Consistently(syslogHTTPS.receivedMessages, 3).ShouldNot(Receive())
 		})
 
 		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgent(bindings.BlacklistRanges{})
+			cancel := setupTestAgent()
 			defer cancel()
 
 			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
@@ -201,11 +208,12 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("egresses logs", func() {
-			cancel := setupTestAgent(bindings.BlacklistRanges{})
+			cancel := setupTestAgent()
 			defer cancel()
 
 			var msg *rfc5424.Message
 			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
+			Expect(msg.StructuredData).ToNot(HaveLen(0))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 
 			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
@@ -236,7 +244,48 @@ var _ = Describe("SyslogAgent", func() {
 					},
 				},
 			}
-			cancel := setupTestAgent(bindings.BlacklistRanges{})
+			cancel := setupTestAgent()
+			defer cancel()
+
+			var msg *rfc5424.Message
+			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
+			Expect(msg.StructuredData).To(HaveLen(0))
+
+			Eventually(syslogTLS.receivedMessages, 3).Should(Receive(&msg))
+			Expect(msg.StructuredData).To(HaveLen(0))
+
+			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
+			Expect(msg.StructuredData).To(HaveLen(0))
+		})
+
+		It("can be configured so that there's no tags by default", func() {
+			bindingCache.bindings = []binding.Binding{
+				{
+					AppID:    "some-id",
+					Hostname: "org.space.name",
+					Drains: []string{
+						syslogHTTPS.server.URL,
+					},
+				},
+				{
+					AppID:    "some-id-tls",
+					Hostname: "org.space.name",
+					Drains: []string{
+						fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					},
+				},
+			}
+			bindingCache.aggregate = []binding.Binding{
+				{
+					Drains: []string{
+						aggregateAddr,
+					},
+				},
+			}
+			cancel := setupTestAgent(func(config app.Config) app.Config {
+				config.DefaultDrainMetadata = false
+				return config
+			})
 			defer cancel()
 
 			var msg *rfc5424.Message
@@ -250,7 +299,6 @@ var _ = Describe("SyslogAgent", func() {
 			Expect(msg.StructuredData).To(HaveLen(0))
 		})
 	})
-
 	Context("TLS cipher tests", func() {
 		var grpcPort = 41000
 		var aggregateSyslogTLS *syslogTCPServer

@@ -15,7 +15,7 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: "https://test.org/drain"},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f)
+		wf := bindings.NewDrainParamParser(f, true)
 
 		configedBindings, _ := wf.FetchBindings()
 		Expect(configedBindings[0].OmitMetadata).To(BeFalse())
@@ -26,10 +26,32 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: "https://test.org/drain?disable-metadata=true"},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f)
+		wf := bindings.NewDrainParamParser(f, true)
 
 		configedBindings, _ := wf.FetchBindings()
 		Expect(configedBindings[0].OmitMetadata).To(BeTrue())
+	})
+
+	It("sets OmitMetadata to true if global flag is off", func() {
+		bs := []syslog.Binding{
+			{Drain: "https://test.org/drain"},
+		}
+		f := newStubFetcher(bs, nil)
+		wf := bindings.NewDrainParamParser(f, false)
+
+		configedBindings, _ := wf.FetchBindings()
+		Expect(configedBindings[0].OmitMetadata).To(BeTrue())
+	})
+
+	It("sets OmitMetadata to false if global flag is off, but drain enables it", func() {
+		bs := []syslog.Binding{
+			{Drain: "https://test.org/drain?disable-metadata=false"},
+		}
+		f := newStubFetcher(bs, nil)
+		wf := bindings.NewDrainParamParser(f, false)
+
+		configedBindings, _ := wf.FetchBindings()
+		Expect(configedBindings[0].OmitMetadata).To(BeFalse())
 	})
 
 	It("sets internal tls to true if the drain contains 'ssl-strict-internal=true'", func() {
@@ -37,7 +59,7 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: "https://test.org/drain?ssl-strict-internal=true"},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f)
+		wf := bindings.NewDrainParamParser(f, true)
 
 		configedBindings, _ := wf.FetchBindings()
 		Expect(configedBindings[0].InternalTls).To(BeTrue())
@@ -49,7 +71,7 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: "https://test.org/drain?disable-metadata=true"},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f)
+		wf := bindings.NewDrainParamParser(f, true)
 
 		configedBindings, err := wf.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
@@ -59,7 +81,7 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("omits bindings with bad Drain URLs is bad", func() {
 		f := newStubFetcher(nil, errors.New("Ahhh an error"))
-		wf := bindings.NewDrainParamParser(f)
+		wf := bindings.NewDrainParamParser(f, true)
 
 		_, err := wf.FetchBindings()
 		Expect(err).To(MatchError("Ahhh an error"))
