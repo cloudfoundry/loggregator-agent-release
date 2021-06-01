@@ -36,6 +36,11 @@ properties:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
 
+  default_metadata:
+    description: Whether metadata is included in structured data by default
+    default: true
+
+
   non_app_drains:
     description: "Syslog server URLs that will receive the logs from all sources"
     default: ""

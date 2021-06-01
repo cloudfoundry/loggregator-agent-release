@@ -1,8 +1,9 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"net/url"
+
+	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,7 +20,7 @@ var _ = Describe("EgressFactory", func() {
 
 	BeforeEach(func() {
 		sm = testhelper.NewMetricClient()
-		f = syslog.NewWriterFactory(sm)
+		f = syslog.NewWriterFactory(sm, true)
 	})
 
 	It("returns an https writer when the url begins with https", func() {

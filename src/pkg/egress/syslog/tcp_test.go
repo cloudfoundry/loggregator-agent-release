@@ -2,12 +2,13 @@ package syslog_test
 
 import (
 	"bufio"
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
@@ -57,6 +58,7 @@ var _ = Describe("TCPWriter", func() {
 				netConf,
 				false,
 				egressCounter,
+				syslog.NewConverter(),
 			)
 			Expect(err).ToNot(HaveOccurred())
 		})
@@ -188,6 +190,7 @@ var _ = Describe("TCPWriter", func() {
 				netConf,
 				false,
 				&testhelper.SpyMetric{},
+				syslog.NewConverter(),
 			)
 
 			errs := make(chan error, 1)
@@ -212,6 +215,7 @@ var _ = Describe("TCPWriter", func() {
 					netConf,
 					false,
 					&testhelper.SpyMetric{},
+					syslog.NewConverter(),
 				)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -292,14 +296,14 @@ func buildGaugeEnvelope(srcInstance string) *loggregator_v2.Envelope {
 
 func buildTimerEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
-		Timestamp: 12345678,
-		SourceId:  "test-app-id",
+		Timestamp:  12345678,
+		SourceId:   "test-app-id",
 		InstanceId: srcInstance,
 		Message: &loggregator_v2.Envelope_Timer{
 			Timer: &loggregator_v2.Timer{
-				Name:                 "http",
-				Start:                10,
-				Stop:                 20,
+				Name:  "http",
+				Start: 10,
+				Stop:  20,
 			},
 		},
 	}
@@ -307,13 +311,13 @@ func buildTimerEnvelope(srcInstance string) *loggregator_v2.Envelope {
 
 func buildEventEnvelope(srcInstance string) *loggregator_v2.Envelope {
 	return &loggregator_v2.Envelope{
-		Timestamp: 12345678,
-		SourceId:  "test-app-id",
+		Timestamp:  12345678,
+		SourceId:   "test-app-id",
 		InstanceId: srcInstance,
 		Message: &loggregator_v2.Envelope_Event{
 			Event: &loggregator_v2.Event{
-				Title:                "event-title",
-				Body:                 "event-body",
+				Title: "event-title",
+				Body:  "event-body",
 			},
 		},
 	}

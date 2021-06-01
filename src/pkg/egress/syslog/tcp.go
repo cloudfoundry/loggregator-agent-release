@@ -31,7 +31,8 @@ type TCPWriter struct {
 	scheme       string
 	conn         net.Conn
 
-	egressMetric metrics.Counter
+	egressMetric    metrics.Counter
+	syslogConverter *Converter
 }
 
 // NewTCPWriter creates a new TCP syslog writer.
@@ -40,6 +41,7 @@ func NewTCPWriter(
 	netConf NetworkTimeoutConfig,
 	skipCertVerify bool,
 	egressMetric metrics.Counter,
+	converter *Converter,
 ) egress.WriteCloser {
 	dialer := &net.Dialer{
 		Timeout:   netConf.DialTimeout,
@@ -50,13 +52,14 @@ func NewTCPWriter(
 	}
 
 	w := &TCPWriter{
-		url:          binding.URL,
-		appID:        binding.AppID,
-		hostname:     binding.Hostname,
-		writeTimeout: netConf.WriteTimeout,
-		dialFunc:     df,
-		scheme:       "syslog",
-		egressMetric: egressMetric,
+		url:             binding.URL,
+		appID:           binding.AppID,
+		hostname:        binding.Hostname,
+		writeTimeout:    netConf.WriteTimeout,
+		dialFunc:        df,
+		scheme:          "syslog",
+		egressMetric:    egressMetric,
+		syslogConverter: converter,
 	}
 
 	return w
@@ -69,7 +72,7 @@ func (w *TCPWriter) Write(env *loggregator_v2.Envelope) error {
 		return err
 	}
 
-	msgs, err := NewConverter().ToRFC5424(env, w.hostname)
+	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}

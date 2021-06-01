@@ -1,11 +1,12 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+
+	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress/syslog"
@@ -27,6 +28,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			false,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -46,6 +48,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -67,6 +70,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -85,6 +89,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -109,6 +114,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -162,6 +168,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -186,6 +193,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env1 := buildGaugeEnvelope("1")
@@ -234,6 +242,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		env1 := buildCounterEnvelope("1")
@@ -269,6 +278,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			sm,
+			syslog.NewConverter(),
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
@@ -291,6 +301,7 @@ var _ = Describe("HTTPWriter", func() {
 			netConf,
 			true,
 			&testhelper.SpyMetric{},
+			syslog.NewConverter(),
 		)
 
 		counterEnv := buildTimerEnvelope("1")
