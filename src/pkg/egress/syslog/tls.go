@@ -1,11 +1,11 @@
 package syslog
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"crypto/tls"
 	"net"
 	"time"
 
+	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent/pkg/egress"
 )
 
@@ -26,6 +26,7 @@ func NewTLSWriter(
 	netConf NetworkTimeoutConfig,
 	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
+	syslogConverter *Converter,
 ) egress.WriteCloser {
 
 	dialer := &net.Dialer{
@@ -39,13 +40,14 @@ func NewTLSWriter(
 
 	w := &TLSWriter{
 		TCPWriter{
-			url:          binding.URL,
-			appID:        binding.AppID,
-			hostname:     binding.Hostname,
-			writeTimeout: netConf.WriteTimeout,
-			dialFunc:     df,
-			scheme:       "syslog-tls",
-			egressMetric: egressMetric,
+			url:             binding.URL,
+			appID:           binding.AppID,
+			hostname:        binding.Hostname,
+			writeTimeout:    netConf.WriteTimeout,
+			dialFunc:        df,
+			scheme:          "syslog-tls",
+			egressMetric:    egressMetric,
+			syslogConverter: syslogConverter,
 		},
 	}
 

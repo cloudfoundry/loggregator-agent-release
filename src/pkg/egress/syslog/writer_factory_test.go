@@ -12,13 +12,13 @@ import (
 
 var _ = Describe("EgressFactory", func() {
 	var (
-		f       syslog.WriterFactory
-		sm      *metricsHelpers.SpyMetricsRegistry
+		f  syslog.WriterFactory
+		sm *metricsHelpers.SpyMetricsRegistry
 	)
 
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
-		f = syslog.NewWriterFactory(nil, sm)
+		f = syslog.NewWriterFactory(nil, true, sm)
 	})
 
 	It("returns an https writer when the url begins with https", func() {

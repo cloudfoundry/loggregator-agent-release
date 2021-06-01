@@ -15,11 +15,12 @@ import (
 )
 
 type HTTPSWriter struct {
-	hostname     string
-	appID        string
-	url          *url.URL
-	client       *fasthttp.Client
-	egressMetric metrics.Counter
+	hostname        string
+	appID           string
+	url             *url.URL
+	client          *fasthttp.Client
+	egressMetric    metrics.Counter
+	syslogConverter *Converter
 }
 
 func NewHTTPSWriter(
@@ -27,21 +28,23 @@ func NewHTTPSWriter(
 	netConf NetworkTimeoutConfig,
 	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
+	c *Converter,
 ) egress.WriteCloser {
 
 	client := httpClient(netConf, tlsConf)
 
 	return &HTTPSWriter{
-		url:          binding.URL,
-		appID:        binding.AppID,
-		hostname:     binding.Hostname,
-		client:       client,
-		egressMetric: egressMetric,
+		url:             binding.URL,
+		appID:           binding.AppID,
+		hostname:        binding.Hostname,
+		client:          client,
+		egressMetric:    egressMetric,
+		syslogConverter: c,
 	}
 }
 
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
-	msgs, err := NewConverter().ToRFC5424(env, w.hostname)
+	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}
