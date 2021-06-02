@@ -138,6 +138,22 @@ var _ = Describe("RFC5424", func() {
 		expectConversion(receivedMsgs, expectedMsg+"\n")
 	})
 
+	It("has the option to omit tags", func() {
+		c = syslog.NewConverter(syslog.WithoutSyslogMetadata())
+
+		logEnv := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_ERR)
+		logEnv.Tags["log-tag"] = "oyster"
+
+		metricEnv := buildCounterEnvelope("1")
+		metricEnv.Tags = map[string]string{"metric-tag": "scallop"}
+
+		receivedMsgs, _ := c.ToRFC5424(logEnv, "test-hostname")
+		expectConversion(receivedMsgs, `<11>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [MY-TASK/2] - - just a test`+"\n")
+
+		receivedMsgs, _ = c.ToRFC5424(metricEnv, "test-hostname")
+		expectConversion(receivedMsgs, `<14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [1] - [counter@47450 name="some-counter" total="99" delta="1"] `+"\n")
+	})
+
 	Describe("validation", func() {
 		It("returns an error if hostname is longer than 255", func() {
 			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)

@@ -13,6 +13,7 @@
       "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/syslog_agent.crt",
       "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/syslog_agent.key",
       "AGENT_CIPHER_SUITES" => p("tls.cipher_suites").split(":").join(","),
+      "DEFUALT_DRAIN_METADATA" => "#{p("default_metadata")}",
       "AGENT_PORT" => "#{p("port")}",
       "DEBUG_PORT" => "#{p("debug_port")}",
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",

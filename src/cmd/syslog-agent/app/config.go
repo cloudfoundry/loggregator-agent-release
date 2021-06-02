@@ -1,9 +1,10 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 	"fmt"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 
 	"code.cloudfoundry.org/go-envstruct"
 )
@@ -30,9 +31,10 @@ type Cache struct {
 
 // Config holds the configuration for the syslog agent
 type Config struct {
-	BindingsPerAppLimit int           `env:"BINDING_PER_APP_LIMIT,    report"`
-	DrainSkipCertVerify bool          `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
-	IdleDrainTimeout    time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
+	BindingsPerAppLimit  int           `env:"BINDING_PER_APP_LIMIT,    report"`
+	DrainSkipCertVerify  bool          `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
+	IdleDrainTimeout     time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
+	DefaultDrainMetadata bool          `env:"DEFAULT_DRAIN_METADATA", report"`
 
 	DebugPort uint16 `env:"DEBUG_PORT, report"`
 
@@ -56,6 +58,7 @@ func LoadConfig() Config {
 		GRPC: GRPC{
 			Port: 3458,
 		},
+		DefaultDrainMetadata: true,
 	}
 	if err := envstruct.Load(&cfg); err != nil {
 		panic(fmt.Sprintf("Failed to load config from environment: %s", err))

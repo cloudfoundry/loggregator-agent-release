@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -14,6 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent/pkg/ingress/cups"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -91,6 +92,7 @@ var _ = Describe("SyslogAgent", func() {
 				CommonName:      "binding-cache",
 				PollingInterval: 10 * time.Millisecond,
 			},
+			DefaultDrainMetadata: true,
 			GRPC: app.GRPC{
 				Port:     grpcPort,
 				CAFile:   metronTestCerts.CA(),
