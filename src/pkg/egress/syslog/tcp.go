@@ -22,13 +22,14 @@ type DialFunc func(addr string) (net.Conn, error)
 // This writer is not meant to be used from multiple goroutines. The same
 // goroutine that calls `.Write()` should be the one that calls `.Close()`.
 type TCPWriter struct {
-	url          *url.URL
-	appID        string
-	hostname     string
-	dialFunc     DialFunc
-	writeTimeout time.Duration
-	scheme       string
-	conn         net.Conn
+	url             *url.URL
+	appID           string
+	hostname        string
+	dialFunc        DialFunc
+	writeTimeout    time.Duration
+	scheme          string
+	conn            net.Conn
+	syslogConverter *Converter
 
 	egressMetric metrics.Counter
 }
@@ -38,6 +39,7 @@ func NewTCPWriter(
 	binding *URLBinding,
 	netConf NetworkTimeoutConfig,
 	egressMetric metrics.Counter,
+	c *Converter,
 ) egress.WriteCloser {
 	dialer := &net.Dialer{
 		Timeout:   netConf.DialTimeout,
@@ -48,13 +50,14 @@ func NewTCPWriter(
 	}
 
 	w := &TCPWriter{
-		url:          binding.URL,
-		appID:        binding.AppID,
-		hostname:     binding.Hostname,
-		writeTimeout: netConf.WriteTimeout,
-		dialFunc:     df,
-		scheme:       "syslog",
-		egressMetric: egressMetric,
+		url:             binding.URL,
+		appID:           binding.AppID,
+		hostname:        binding.Hostname,
+		writeTimeout:    netConf.WriteTimeout,
+		dialFunc:        df,
+		scheme:          "syslog",
+		egressMetric:    egressMetric,
+		syslogConverter: c,
 	}
 
 	return w
@@ -67,7 +70,7 @@ func (w *TCPWriter) Write(env *loggregator_v2.Envelope) error {
 		return err
 	}
 
-	msgs, err := NewConverter().ToRFC5424(env, w.hostname)
+	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
 	if err != nil {
 		return err
 	}
