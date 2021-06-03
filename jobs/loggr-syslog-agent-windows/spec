@@ -42,7 +42,7 @@ properties:
     default: ""
     example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
 
-  default_metadata:
+  default_drain_metadata:
     description: Whether metadata is included in structured data by default
     default: true
 
