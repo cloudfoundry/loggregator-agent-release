@@ -31,7 +31,7 @@ properties:
   binding_cache_override_url:
     description: URL to use if required to override the default bosh-dns binding cache address
 
-  default_metadata:
+  default_drain_metadata:
     description: Whether metadata is included in structured data by default
     default: true
 
