@@ -32,9 +32,10 @@ type Cache struct {
 
 // Config holds the configuration for the syslog agent
 type Config struct {
-	BindingsPerAppLimit int    `env:"BINDING_PER_APP_LIMIT,    report"`
-	DrainSkipCertVerify bool   `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
-	DrainTrustedCAFile  string `env:"DRAIN_TRUSTED_CA_FILE, report"`
+	BindingsPerAppLimit  int    `env:"BINDING_PER_APP_LIMIT,    report"`
+	DrainSkipCertVerify  bool   `env:"DRAIN_SKIP_CERT_VERIFY,   report"`
+	DrainTrustedCAFile   string `env:"DRAIN_TRUSTED_CA_FILE, report"`
+	DefaultDrainMetadata bool   `env:"DEFAULT_DRAIN_METADATA", report"`
 
 	IdleDrainTimeout time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
 
@@ -60,6 +61,7 @@ func LoadConfig() Config {
 		GRPC: GRPC{
 			Port: 3458,
 		},
+		DefaultDrainMetadata:               true,
 		AggregateConnectionRefreshInterval: 1 * time.Minute,
 	}
 	if err := envstruct.Load(&cfg); err != nil {

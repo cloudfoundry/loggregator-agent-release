@@ -54,7 +54,7 @@ func NewSyslogAgent(
 	l *log.Logger,
 ) *SyslogAgent {
 	writerFactory := syslog.NewRetryWriterFactory(
-		syslog.NewWriterFactory(drainTLSConfig(cfg), m).NewWriter,
+		syslog.NewWriterFactory(drainTLSConfig(cfg), cfg.DefaultDrainMetadata, m).NewWriter,
 		syslog.ExponentialDuration,
 		maxRetries,
 	)

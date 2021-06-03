@@ -42,6 +42,10 @@ properties:
     default: ""
     example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
 
+  default_metadata:
+    description: Whether metadata is included in structured data by default
+    default: true
+
   tls.ca_cert:
     description: |
       TLS loggregator root CA certificate. It is required for key/cert
