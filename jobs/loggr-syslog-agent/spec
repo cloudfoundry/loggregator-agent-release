@@ -36,7 +36,7 @@ properties:
     description: If set to true the SSL hostname validation will be disabled.
     default: false
 
-  default_metadata:
+  default_drain_metadata:
     description: Whether metadata is included in structured data by default
     default: true
 
