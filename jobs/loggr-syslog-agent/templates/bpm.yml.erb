@@ -4,6 +4,10 @@
   blacklisted_ips = blacklisted_ranges.map do |range|
     "#{range['start']}-#{range['end']}"
   end.join(",")
+  default_drain_metadata = p("default_drain_metadata")
+  b.if_p("default_drain_metadata") do |d|
+    default_drain_metadata = d
+  end
 %>
 processes:
   - name: loggr-syslog-agent
@@ -15,7 +19,7 @@ processes:
       CACHE_COMMON_NAME: <%= p("cache.tls.cn") %>
       CACHE_URL: <%= "https://#{b.address}:#{b.p("external_port")}" %>
       CACHE_POLLING_INTERVAL: "<%= p("cache.polling_interval") %>"
-      DEFAULT_DRAIN_METADATA: "<%= p("default_drain_metadata") %>"
+      DEFAULT_DRAIN_METADATA: "<%=default_drain_metadata%>"
       AGENT_CA_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/loggregator_ca.crt"
       AGENT_CERT_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.crt"
       AGENT_KEY_FILE_PATH: "/var/vcap/jobs/loggr-syslog-agent/config/certs/syslog_agent.key"
