@@ -52,6 +52,9 @@
     if_p("binding_cache_override_url") do |addr|
       cache_addr = addr
     end
+    binding.if_p("default_drain_metadata") do |d|
+      process["env"]["DEFAULT_DRAIN_METADATA"] = "#{d}"
+    end
     process["env"]["CACHE_URL"] = "https://#{cache_addr}:#{binding.p("external_port")}"
     process["env"]["CACHE_POLLING_INTERVAL"] = "#{p("cache.polling_interval")}"
   end

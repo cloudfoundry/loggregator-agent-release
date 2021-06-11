@@ -26,10 +26,15 @@ provides:
   type: binding_cache
   properties:
     - external_port
+    - default_drain_metadata
 
 properties:
   enabled:
     description: "Syslog binding cache is enabled on VM"
+    default: true
+
+  default_drain_metadata:
+    description: Whether metadata is included in structured data by default
     default: true
 
   aggregate_drains:
