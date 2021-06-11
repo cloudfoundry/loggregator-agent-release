@@ -2,7 +2,10 @@
 <%
   b = link("binding_cache")
   certs_dir = "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs"
-
+  default_drain_metadata = p("default_drain_metadata")
+  b.if_p("default_drain_metadata") do |d|
+    default_drain_metadata = d
+  end
   drain_ca=""
   if_p("drain_ca_cert") {
     drain_ca="#{certs_dir}/drain_ca.crt"
@@ -29,7 +32,7 @@
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
       "DRAIN_TRUSTED_CA_FILE" => "#{drain_ca}",
       "AGGREGATE_DRAIN_URLS" => "#{p("aggregate_drains")}",
-      "DEFAULT_DRAIN_METADATA" => "#{p("default_drain_metadata")}",
+      "DEFAULT_DRAIN_METADATA" => "#{default_drain_metadata}",
 
       "METRICS_PORT" => "#{p("metrics.port")}",
       "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
