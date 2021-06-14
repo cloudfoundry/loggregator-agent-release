@@ -1,6 +1,10 @@
 <% if p("enabled") %>
 <%
   b = link("binding_cache")
+  default_drain_metadata = p("default_drain_metadata")
+  b.if_p("default_drain_metadata") do |d|
+    default_drain_metadata = d
+  end
 
   env = {
       "CACHE_CA_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/cache_ca.crt",
@@ -13,7 +17,7 @@
       "AGENT_CERT_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/syslog_agent.crt",
       "AGENT_KEY_FILE_PATH" => "/var/vcap/jobs/loggr-syslog-agent-windows/config/certs/syslog_agent.key",
       "AGENT_CIPHER_SUITES" => p("tls.cipher_suites").split(":").join(","),
-      "DEFAULT_DRAIN_METADATA" => "#{p("default_drain_metadata")}",
+      "DEFAULT_DRAIN_METADATA" => "#{default_drain_metadata}",
       "AGENT_PORT" => "#{p("port")}",
       "DEBUG_PORT" => "#{p("debug_port")}",
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
