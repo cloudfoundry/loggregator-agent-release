@@ -83,4 +83,6 @@ builds:
     version: "2.0"
   f73f8b3e-1bd8-43fe-7bce-80577d825ca1:
     version: "3.6"
+  fde1e867-5411-4334-5a4d-a7a8f46e3128:
+    version: 3.21.18
 format-version: "2"
