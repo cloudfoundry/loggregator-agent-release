@@ -9,6 +9,7 @@ import (
 	"time"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
+	"code.cloudfoundry.org/go-loggregator/v8"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 
@@ -61,11 +62,29 @@ func NewSyslogAgent(
 		m,
 	)
 
+	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
+		cfg.GRPC.CAFile,
+		cfg.GRPC.CertFile,
+		cfg.GRPC.KeyFile,
+	)
+	if err != nil {
+		l.Panicf("failed to configure client TLS: %q", err)
+	}
+
+	logClient, err := loggregator.NewIngressClient(
+		ingressTLSConfig,
+		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
+	)
+	if err != nil {
+		l.Panicf("failed to create log client for syslog connector: %q", err)
+	}
+
 	connector := syslog.NewSyslogConnector(
 		cfg.DrainSkipCertVerify,
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
+		syslog.WithLogClient(logClient, "syslog_agent"),
 	)
 
 	var cacheClient *cache.CacheClient
