@@ -133,9 +133,13 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 
 		w.emitErrorLog(b.AppId, fmt.Sprintf("%d messages lost in user provided syslog drain", missed))
 
+		errorAppOrAggregate := "for %'s app drain" + b.AppId
+		if b.AppId == "" {
+			errorAppOrAggregate = "for aggregate drain"
+		}
 		log.Printf(
-			"Dropped %d %s logs for url %s in app %s",
-			missed, urlBinding.Scheme(), anonymousUrl.String(), b.AppId,
+			"Dropped %d %s logs %s with url %s",
+			missed, urlBinding.Scheme(), errorAppOrAggregate, anonymousUrl.String(),
 		)
 	}), w.wg)
 
@@ -149,14 +153,18 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 }
 
 func (w *SyslogConnector) emitErrorLog(appID, message string) {
-	option := loggregator.WithAppInfo(appID, "LGR", "")
-	w.logClient.EmitLog(message, option)
+	options := []loggregator.EmitLogOption{}
+	if appID != "" {
+		options = append(options, loggregator.WithAppInfo(appID, "LGR", ""))
+	}
+	w.logClient.EmitLog(message, options...)
 
-	option = loggregator.WithAppInfo(
-		appID,
-		"SYS",
-		w.sourceIndex,
-	)
-	w.logClient.EmitLog(message, option)
-
+	if appID != "" {
+		options = []loggregator.EmitLogOption{loggregator.WithAppInfo(
+			appID,
+			"SYS",
+			w.sourceIndex,
+		)}
+	}
+	w.logClient.EmitLog(message, options...)
 }

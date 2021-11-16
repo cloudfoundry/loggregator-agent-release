@@ -219,6 +219,35 @@ var _ = Describe("SyslogConnector", func() {
 			Eventually(logClient.sourceInstance).Should(HaveKey("3"))
 		})
 
+		It("emits a LGR and SYS log to the log client about aggregate drains drops", func() {
+			logClient := newSpyLogClient()
+			connector := syslog.NewSyslogConnector(
+				true,
+				spyWaitGroup,
+				writerFactory,
+				sm,
+				syslog.WithLogClient(logClient, "3"),
+			)
+
+			binding := syslog.Binding{Drain: "dropping://"}
+			writer, err := connector.Connect(ctx, binding)
+			Expect(err).ToNot(HaveOccurred())
+
+			go func(w egress.Writer) {
+				for {
+					w.Write(&loggregator_v2.Envelope{
+						SourceId: "test-source-id",
+						Message: &loggregator_v2.Envelope_Log{
+							Log: &loggregator_v2.Log{},
+						},
+					})
+				}
+			}(writer)
+
+			Eventually(logClient.message).Should(ContainElement(MatchRegexp("\\d messages lost in user provided syslog drain")))
+			Eventually(logClient.appID).ShouldNot(ContainElement("app-id"))
+		})
+
 		It("does not panic on unknown dropped metrics", func() {
 			binding := syslog.Binding{Drain: "dropping://"}
 
