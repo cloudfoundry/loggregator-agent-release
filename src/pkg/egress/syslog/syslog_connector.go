@@ -134,7 +134,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		if b.AppId != "" {
 			w.emitErrorLog(b.AppId, fmt.Sprintf("%d messages lost in user provided syslog drain", missed))
 		}
-		errorAppOrAggregate := "for %'s app drain" + b.AppId
+		errorAppOrAggregate := fmt.Sprintf("for %'s app drain", b.AppId)
 		if b.AppId == "" {
 			errorAppOrAggregate = "for aggregate drain"
 		}
