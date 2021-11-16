@@ -1,0 +1,140 @@
+name: loggregator-agent
+version: 6.3.5
+commit_hash: 27a9f32
+uncommitted_changes: false
+jobs:
+- name: loggr-forwarder-agent
+  version: 2d2323f2367eacec9818cdee7c7ce01a0a0d191f71fecabb35a99f38c2bb268b
+  fingerprint: 2d2323f2367eacec9818cdee7c7ce01a0a0d191f71fecabb35a99f38c2bb268b
+  sha1: sha256:bcd7356ca0feb076c99e5c19199eb7b11856a9629538534b0163c7d2ae6729b7
+  packages:
+  - forwarder-agent
+- name: loggr-forwarder-agent-windows
+  version: 5caa9c8a63209a9fdb05a992b5902db48bacca084d83fd54f727f96be709e4a1
+  fingerprint: 5caa9c8a63209a9fdb05a992b5902db48bacca084d83fd54f727f96be709e4a1
+  sha1: sha256:89d68f65412875f50afa6d71d6c4bf5abf90daebcd1f45167f0423727365ba79
+  packages:
+  - forwarder-agent-windows
+- name: loggr-syslog-agent
+  version: 8c81feed12959df0e382d62e522e4ec22a6111d13dbf43a344b3e08faeb5609f
+  fingerprint: 8c81feed12959df0e382d62e522e4ec22a6111d13dbf43a344b3e08faeb5609f
+  sha1: sha256:dd66b05cb0ac2c5e1277c54935d3deefd14ab403bf09a29f2febf9a789a989f3
+  packages:
+  - syslog-agent
+- name: loggr-syslog-agent-windows
+  version: 8d55dac801f3f12ba4bbfb6343f910ef5d4c1cea434479171d4ddcd030d2968d
+  fingerprint: 8d55dac801f3f12ba4bbfb6343f910ef5d4c1cea434479171d4ddcd030d2968d
+  sha1: sha256:a3872d6009c5de2dc1030f717350475653e2f991fdacb468d23e6c82b3365c71
+  packages:
+  - syslog-agent-windows
+- name: loggr-syslog-binding-cache
+  version: bb9b577c826472f3140d210ea2b1aa1ca9c9dae848151d79029ec980d687b6f2
+  fingerprint: bb9b577c826472f3140d210ea2b1aa1ca9c9dae848151d79029ec980d687b6f2
+  sha1: sha256:ce2ed508cd3d9e1e9ffe12013d2337791260b3d01146d02ceb9f7be0606806b5
+  packages:
+  - binding-cache
+- name: loggr-udp-forwarder
+  version: c565003363614a7e7fe3c911fa6e64cbabb0d12a19bad9ec2fcb039378d39631
+  fingerprint: c565003363614a7e7fe3c911fa6e64cbabb0d12a19bad9ec2fcb039378d39631
+  sha1: sha256:dc0f488bee466b251163373ec75916aa90522b8b4398c78bdcd903b53e445b77
+  packages:
+  - udp-forwarder
+- name: loggregator_agent
+  version: 2a68df1dd8d596c39272c5fd2ef24cca89821ad613cb686ca0dbbdad9d77dbec
+  fingerprint: 2a68df1dd8d596c39272c5fd2ef24cca89821ad613cb686ca0dbbdad9d77dbec
+  sha1: sha256:743f53aea0565e07a577ffcad5e3114392c3c70331827d995345cc5bd0e46305
+  packages:
+  - loggregator_agent
+- name: loggregator_agent_windows
+  version: 419ec04a48b2da6addd4dbd9dd4c6b15b7f4d8ba75f9210a2b60e0b60ef18a1b
+  fingerprint: 419ec04a48b2da6addd4dbd9dd4c6b15b7f4d8ba75f9210a2b60e0b60ef18a1b
+  sha1: sha256:41cf1c40d0c6dc323246dff3068574ef93fd9c9940341d9f72712a0d4001139f
+  packages:
+  - loggregator_agent_windows
+- name: prom_scraper
+  version: 76269d2a4efb6c74b033632836fdad79d8d008a4022e759bf92a741a391cf108
+  fingerprint: 76269d2a4efb6c74b033632836fdad79d8d008a4022e759bf92a741a391cf108
+  sha1: sha256:30f74d7260eb375992bb36fd15de0c536cbb84fd7e8dcec04525b4c08aa68fc1
+  packages:
+  - prom_scraper
+- name: prom_scraper_windows
+  version: 6ce0fd74d3353fb8636b9d4cd4c72c135bc44620153079881d6c0487c0cb9d1a
+  fingerprint: 6ce0fd74d3353fb8636b9d4cd4c72c135bc44620153079881d6c0487c0cb9d1a
+  sha1: sha256:3b18a3e77cb3c8f14b58f51c3f47d82877bcf7fb520aa15d6b3f5956ea3dfffa
+  packages:
+  - prom_scraper_windows
+packages:
+- name: binding-cache
+  version: 427735b86dd628d4af419b1c44b58a744a4d06c57c7ffda495c5d04a5c6e520d
+  fingerprint: 427735b86dd628d4af419b1c44b58a744a4d06c57c7ffda495c5d04a5c6e520d
+  sha1: sha256:084f3558f5eb738f640acb3462b9a910b051e90e6c09e2b4e138dca2ff8d0034
+  dependencies:
+  - golang-1-linux
+- name: forwarder-agent
+  version: 1b8f5c9bd9d5de87cf180116620677c906bc7883f37e59507b5c50b7c9b5db48
+  fingerprint: 1b8f5c9bd9d5de87cf180116620677c906bc7883f37e59507b5c50b7c9b5db48
+  sha1: sha256:0bd0af53b075fc258df9c67b24e7241327ab898fe70708b44b2886ba871565d5
+  dependencies:
+  - golang-1-linux
+- name: forwarder-agent-windows
+  version: 6bae392709499540de008102cc10d85ac5a87ed2f9c3b3b3a2d4eaf95a348d7f
+  fingerprint: 6bae392709499540de008102cc10d85ac5a87ed2f9c3b3b3a2d4eaf95a348d7f
+  sha1: sha256:5a66389f1da7a4cf69f0201e7ab2d53de328a16c1941a3c095ecfd127895cf4c
+  dependencies:
+  - golang-1-windows
+- name: golang-1-linux
+  version: 09be70f00c6bc6dc14ef7489ca67606072dcb2a4702484f8df050b42d28a7032
+  fingerprint: 09be70f00c6bc6dc14ef7489ca67606072dcb2a4702484f8df050b42d28a7032
+  sha1: sha256:685a513a4fcb443097617029bfeb287df1e01c211710a5b41f7eb826c325abad
+  dependencies: []
+- name: golang-1-windows
+  version: 71a5057684edb90c957e689d0d33a93064fd6744c8224b9623096ed343250a9d
+  fingerprint: 71a5057684edb90c957e689d0d33a93064fd6744c8224b9623096ed343250a9d
+  sha1: sha256:267966e1e3d1274af6e2a4b83790abf6759163ad534b7470e696c3d4f5bf9203
+  dependencies: []
+- name: loggregator_agent
+  version: a6fd58c2f3953a13fa653edae7ab774918d5c81c9693779c731b64d02c744d2c
+  fingerprint: a6fd58c2f3953a13fa653edae7ab774918d5c81c9693779c731b64d02c744d2c
+  sha1: sha256:1b08936d0156c80ad27403b9bcde268d059a6c4cf50340da0977cb399d92eda2
+  dependencies:
+  - golang-1-linux
+- name: loggregator_agent_windows
+  version: 4aa8bf5caeec0dd4f1b344e877c3a73e0b7e59f18d041fddb183d687ea08f394
+  fingerprint: 4aa8bf5caeec0dd4f1b344e877c3a73e0b7e59f18d041fddb183d687ea08f394
+  sha1: sha256:f01aa4683f0b00644ed9f12674b5b90e67be14ff827fde0af59332f812d9214e
+  dependencies:
+  - golang-1-windows
+- name: prom_scraper
+  version: d8540585ae8280f0c9ebefd3e4836bc5f95a12f18e3c3cbf9594e248f1be396e
+  fingerprint: d8540585ae8280f0c9ebefd3e4836bc5f95a12f18e3c3cbf9594e248f1be396e
+  sha1: sha256:28a9892a53bbf80c1a852188e77e6a33a39fa8cea935fd636722aacdf3d4e26b
+  dependencies:
+  - golang-1-linux
+- name: prom_scraper_windows
+  version: 56233ce34fee18e00264ca8d77c85732b263c28da231eb1001e6378f776d619c
+  fingerprint: 56233ce34fee18e00264ca8d77c85732b263c28da231eb1001e6378f776d619c
+  sha1: sha256:ac51ee83fc6b964d9a327daa1039004ca9d3d39b8b6adfaa157c6258ed7a8489
+  dependencies:
+  - golang-1-windows
+- name: syslog-agent
+  version: b0afddb1dca2e7db5088a2a211fce97ab462f778c8763fcfb66e9343abf82845
+  fingerprint: b0afddb1dca2e7db5088a2a211fce97ab462f778c8763fcfb66e9343abf82845
+  sha1: sha256:396d97d4b32b8b6504adf884fd84bb955df12deff25063d17f1b891ff40b86df
+  dependencies:
+  - golang-1-linux
+- name: syslog-agent-windows
+  version: 9f8840422e4fa1e75164cc2ef241b0a3f0c1157a62607717cdb844b00c9ab9e9
+  fingerprint: 9f8840422e4fa1e75164cc2ef241b0a3f0c1157a62607717cdb844b00c9ab9e9
+  sha1: sha256:04c11ab3f916aa03488e4d168aef508e723e22fe0ddb1749cfcc4737b8251fbe
+  dependencies:
+  - golang-1-windows
+- name: udp-forwarder
+  version: 3c4d44faa2c06eb956b8e82f8fcac891d9f4053a8a4abe647eaba341f2a0b8a0
+  fingerprint: 3c4d44faa2c06eb956b8e82f8fcac891d9f4053a8a4abe647eaba341f2a0b8a0
+  sha1: sha256:cfeccf38536750e32631dd5ac94236743701b93e4aebfec6cc773559f860677c
+  dependencies:
+  - golang-1-linux
+license:
+  version: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  fingerprint: b3d3a6be0a737881904a718497cb593042aa0ec56ad91b93934e395a2f9c1a3d
+  sha1: sha256:423bf4b0d11566b04fbc7cb32949a149a83a7ffc79b5a5437bff4216463fca67
