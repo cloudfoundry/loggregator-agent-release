@@ -219,7 +219,7 @@ var _ = Describe("SyslogConnector", func() {
 			Eventually(logClient.sourceInstance).Should(HaveKey("3"))
 		})
 
-		It("emits a LGR and SYS log to the log client about aggregate drains drops", func() {
+		It("doesn't emit LGR and SYS log to the log client about aggregate drains drops", func() {
 			logClient := newSpyLogClient()
 			connector := syslog.NewSyslogConnector(
 				true,
@@ -244,8 +244,7 @@ var _ = Describe("SyslogConnector", func() {
 				}
 			}(writer)
 
-			Eventually(logClient.message).Should(ContainElement(MatchRegexp("\\d messages lost in user provided syslog drain")))
-			Eventually(logClient.appID).ShouldNot(ContainElement("app-id"))
+			Consistently(logClient.message).ShouldNot(ContainElement(MatchRegexp("\\d messages lost in user provided syslog drain")))
 		})
 
 		It("does not panic on unknown dropped metrics", func() {
