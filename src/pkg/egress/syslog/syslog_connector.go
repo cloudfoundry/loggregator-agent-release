@@ -157,12 +157,10 @@ func (w *SyslogConnector) emitErrorLog(appID, message string) {
 	option := loggregator.WithAppInfo(appID, "LGR", "")
 	w.logClient.EmitLog(message, option)
 
-	if appID != "" {
-		option = loggregator.WithAppInfo(
-			appID,
-			"SYS",
-			w.sourceIndex,
-		)
-	}
+	option = loggregator.WithAppInfo(
+		appID,
+		"SYS",
+		w.sourceIndex,
+	)
 	w.logClient.EmitLog(message, option)
 }
