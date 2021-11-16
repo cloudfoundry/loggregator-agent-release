@@ -99,7 +99,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		// Note: the scheduler ensures the URL is valid. It is unlikely that
 		// a binding with an invalid URL would make it this far. Nonetheless,
 		// we handle the error case all the same.
-		w.emitErrorLog(b.AppId, "Invalid syslog drain URL: parse failure")
+		w.emitLoggregatorErrorLog(b.AppId, "Invalid syslog drain URL: parse failure")
 		return nil, err
 	}
 
@@ -131,17 +131,8 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		w.droppedMetric.Add(float64(missed))
 		drainDroppedMetric.Add(float64(missed))
 
-		if b.AppId != "" {
-			w.emitErrorLog(b.AppId, fmt.Sprintf("%d messages lost in user provided syslog drain", missed))
-		}
-		errorAppOrAggregate := fmt.Sprintf("for %s's app drain", b.AppId)
-		if b.AppId == "" {
-			errorAppOrAggregate = "for aggregate drain"
-		}
-		log.Printf(
-			"Dropped %d %s logs %s with url %s",
-			missed, urlBinding.Scheme(), errorAppOrAggregate, anonymousUrl.String(),
-		)
+		w.emitLoggregatorErrorLog(b.AppId, fmt.Sprintf("%d messages lost in user provided syslog drain", missed))
+		w.emitStandardOutErrorLog(b.AppId, urlBinding.Scheme(), anonymousUrl.String(), missed)
 	}), w.wg)
 
 	filteredWriter, err := NewFilteringDrainWriter(b, dw)
@@ -153,7 +144,10 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 	return filteredWriter, nil
 }
 
-func (w *SyslogConnector) emitErrorLog(appID, message string) {
+func (w *SyslogConnector) emitLoggregatorErrorLog(appID, message string) {
+	if appID == "" {
+		return
+	}
 	option := loggregator.WithAppInfo(appID, "LGR", "")
 	w.logClient.EmitLog(message, option)
 
@@ -163,4 +157,14 @@ func (w *SyslogConnector) emitErrorLog(appID, message string) {
 		w.sourceIndex,
 	)
 	w.logClient.EmitLog(message, option)
+}
+func (w *SyslogConnector) emitStandardOutErrorLog(appID, scheme, url string, missed int) {
+	errorAppOrAggregate := fmt.Sprintf("for %s's app drain", appID)
+	if appID == "" {
+		errorAppOrAggregate = "for aggregate drain"
+	}
+	log.Printf(
+		"Dropped %d %s logs %s with url %s",
+		missed, scheme, errorAppOrAggregate, url,
+	)
 }
