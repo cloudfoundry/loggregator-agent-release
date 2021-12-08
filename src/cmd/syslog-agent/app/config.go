@@ -38,7 +38,7 @@ type Config struct {
 	DrainSkipCertVerify  bool          `env:"DRAIN_SKIP_CERT_VERIFY, report"`
 	DrainCipherSuites    string        `env:"DRAIN_CIPHER_SUITES,    report"`
 	DrainTrustedCAFile   string        `env:"DRAIN_TRUSTED_CA_FILE,  report"`
-	DefaultDrainMetadata bool          `env:"DEFAULT_DRAIN_METADATA", report"`
+	DefaultDrainMetadata bool          `env:"DEFAULT_DRAIN_METADATA, report"`
 	IdleDrainTimeout     time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
 
 	GRPC          GRPC
