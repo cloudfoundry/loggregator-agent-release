@@ -93,6 +93,8 @@ builds:
     version: "1.0"
   b1820df8-2a56-42d5-57a4-12d71851baab:
     version: 6.1.1
+  b34a8d6a-7e15-4487-63a6-4dcedc3eff6a:
+    version: 6.3.7
   b499f60b-0a09-4dfe-6f15-5d34181c60e1:
     version: "3.17"
   b51ff6b6-6be1-4aa3-5d33-0956af212c5b:
