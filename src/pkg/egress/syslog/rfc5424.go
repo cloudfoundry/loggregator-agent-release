@@ -5,10 +5,11 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+
+	"code.cloudfoundry.org/go-loggregator/v8/rfc5424"
 )
 
 var findSpaces, findInvalidCharacters, findTrailingDashes *regexp.Regexp
@@ -72,23 +73,15 @@ func (c *Converter) ToRFC5424(env *loggregator_v2.Envelope, defaultHostname stri
 
 	switch env.GetMessage().(type) {
 	case *loggregator_v2.Envelope_Log:
-		return [][]byte{
-			c.toRFC5424LogMessage(env, hostname, appID),
-		}, nil
+		return c.toRFC5424LogMessage(env, hostname, appID)
 	case *loggregator_v2.Envelope_Gauge:
-		return c.toRFC5424GaugeMessage(env, hostname, appID), nil
+		return c.toRFC5424GaugeMessage(env, hostname, appID)
 	case *loggregator_v2.Envelope_Timer:
-		return [][]byte{
-			c.toRFC5424TimerMessage(env, hostname, appID),
-		}, nil
+		return c.toRFC5424TimerMessage(env, hostname, appID)
 	case *loggregator_v2.Envelope_Counter:
-		return [][]byte{
-			c.toRFC5424CounterMessage(env, hostname, appID),
-		}, nil
+		return c.toRFC5424CounterMessage(env, hostname, appID)
 	case *loggregator_v2.Envelope_Event:
-		return [][]byte{
-			c.toRFC5424EventMessage(env, hostname, appID),
-		}, nil
+		return c.toRFC5424EventMessage(env, hostname, appID)
 	default:
 		return nil, nil
 	}
@@ -126,41 +119,46 @@ func (c *Converter) invalidValue(property, value string) error {
 	return fmt.Errorf("Invalid value \"%s\" for property %s \n", value, property)
 }
 
-func (c *Converter) toRFC5424CounterMessage(env *loggregator_v2.Envelope, hostname, appID string) []byte {
+func (c *Converter) toRFC5424CounterMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
 	counter := env.GetCounter()
-	sd := `[` + counterStructuredDataID + ` name="` + counter.GetName() + `" total="` + strconv.FormatUint(counter.GetTotal(), 10) + `" delta="` + strconv.FormatUint(counter.GetDelta(), 10) + `"]`
-
-	return c.toRFC5424MetricMessage(env, hostname, appID, sd)
+	sd := rfc5424.StructuredData{ID: counterStructuredDataID, Parameters: []rfc5424.SDParam{{Name: "name", Value: counter.GetName()}, {Name: "total", Value: strconv.FormatUint(counter.GetTotal(), 10)}, {Name: "delta", Value: strconv.FormatUint(counter.GetDelta(), 10)}}}
+	messageBinary, err := c.toRFC5424MetricMessage(env, hostname, appID, sd)
+	return [][]byte{messageBinary}, err
 }
 
-func (c *Converter) toRFC5424GaugeMessage(env *loggregator_v2.Envelope, hostname, appID string) [][]byte {
+func (c *Converter) toRFC5424GaugeMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
 	gauges := make([][]byte, 0, 5)
 
 	for name, g := range env.GetGauge().GetMetrics() {
-		sd := `[` + gaugeStructuredDataID + ` name="` + name + `" value="` + strconv.FormatFloat(g.GetValue(), 'g', -1, 64) + `" unit="` + g.GetUnit() + `"]`
-		gauges = append(gauges, c.toRFC5424MetricMessage(env, hostname, appID, sd))
+		sd := rfc5424.StructuredData{ID: gaugeStructuredDataID, Parameters: []rfc5424.SDParam{{Name: "name", Value: name}, {Name: "value", Value: strconv.FormatFloat(g.GetValue(), 'g', -1, 64)}, {Name: "unit", Value: g.GetUnit()}}}
+		guage, err := c.toRFC5424MetricMessage(env, hostname, appID, sd)
+		if err != nil {
+			return gauges, err
+		}
+		gauges = append(gauges, guage)
 	}
 
-	return gauges
+	return gauges, nil
 }
 
-func (c *Converter) toRFC5424TimerMessage(env *loggregator_v2.Envelope, hostname, appID string) []byte {
+func (c *Converter) toRFC5424TimerMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
 	timer := env.GetTimer()
-	sd := fmt.Sprintf(`[%s name="%s" start="%d" stop="%d"]`, timerStructuredDataID, timer.GetName(), timer.GetStart(), timer.GetStop())
-
-	return c.toRFC5424MetricMessage(env, hostname, appID, sd)
+	sd := rfc5424.StructuredData{ID: timerStructuredDataID, Parameters: []rfc5424.SDParam{{Name: "name", Value: timer.GetName()}, {Name: "start", Value: strconv.FormatInt(timer.GetStart(), 10)}, {Name: "stop", Value: strconv.FormatInt(timer.GetStop(), 10)}}}
+	messageBinary, err := c.toRFC5424MetricMessage(env, hostname, appID, sd)
+	return [][]byte{messageBinary}, err
 }
 
-func (c *Converter) toRFC5424EventMessage(env *loggregator_v2.Envelope, hostname, appID string) []byte {
+func (c *Converter) toRFC5424EventMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
 	event := env.GetEvent()
-	sd := fmt.Sprintf(`[%s title="%s" body="%s"]`, eventStructuredDataID, event.GetTitle(), event.GetBody())
+	sd := rfc5424.StructuredData{ID: eventStructuredDataID, Parameters: []rfc5424.SDParam{{Name: "title", Value: event.GetTitle()}, {Name: "body", Value: event.GetBody()}}}
 
-	return c.toRFC5424MetricMessage(env, hostname, appID, sd)
+	messageBinary, err := c.toRFC5424MetricMessage(env, hostname, appID, sd)
+	return [][]byte{messageBinary}, err
 }
 
-func (c *Converter) toRFC5424LogMessage(env *loggregator_v2.Envelope, hostname, appID string) []byte {
+func (c *Converter) toRFC5424LogMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
 	priority := c.genPriority(env.GetLog().Type)
-	ts := time.Unix(0, env.GetTimestamp()).UTC().Format(RFC5424TimeOffsetNum)
+	ts := time.Unix(0, env.GetTimestamp()).UTC()
 	hostname = c.nilify(hostname)
 	appID = c.nilify(appID)
 	pid := c.nilify(generateProcessID(
@@ -169,76 +167,82 @@ func (c *Converter) toRFC5424LogMessage(env *loggregator_v2.Envelope, hostname, 
 	))
 	msg := appendNewline(removeNulls(env.GetLog().Payload))
 
-	structuredData := c.buildTagsStructuredData(env.GetTags())
-	if structuredData == "" {
-		structuredData = "-"
+	structuredDatas := []rfc5424.StructuredData{}
+	baseSD := c.buildTagsStructuredData(env.GetTags())
+	if baseSD.ID != "" {
+		structuredDatas = append(structuredDatas, baseSD)
 	}
+	message := rfc5424.Message{
+		Priority:       rfc5424.Priority(priority),
+		Timestamp:      ts,
+		Hostname:       hostname,
+		AppName:        appID,
+		ProcessID:      pid,
+		Message:        msg,
+		StructuredData: structuredDatas,
+	}
+	messageBinary, err := message.MarshalBinary()
 
-	message := make([]byte, 0, 20+len(priority)+len(ts)+len(hostname)+len(appID)+len(pid)+len(msg))
-	message = append(message, []byte("<"+priority+">1 ")...)
-	message = append(message, []byte(ts+" ")...)
-	message = append(message, []byte(hostname+" ")...)
-	message = append(message, []byte(appID+" ")...)
-	message = append(message, []byte(pid+" - ")...)
-	message = append(message, []byte(structuredData+" ")...)
-	message = append(message, msg...)
-
-	return message
+	return [][]byte{messageBinary}, err
 }
 
-func (c *Converter) buildTagsStructuredData(tags map[string]string) string {
+func (c *Converter) buildTagsStructuredData(tags map[string]string) rfc5424.StructuredData {
 	if c.omitTags {
-		return ""
+		return rfc5424.StructuredData{}
 	}
 
 	var tagKeys []string
-	var tagsData []string
+	var tagsData []rfc5424.SDParam
 
 	for k := range tags {
 		tagKeys = append(tagKeys, k)
 	}
 
 	if len(tagKeys) == 0 {
-		return ""
+		return rfc5424.StructuredData{}
 	}
 
 	sort.Strings(tagKeys)
 
 	for _, k := range tagKeys {
-		tagsData = append(tagsData, fmt.Sprintf(`%s="%s"`, k, tags[k]))
+		tagsData = append(tagsData, rfc5424.SDParam{Name: k, Value: tags[k]})
 	}
 
-	return fmt.Sprintf("[%s %s]", tagsStructuredDataID, strings.Join(tagsData, " "))
+	return rfc5424.StructuredData{ID: tagsStructuredDataID, Parameters: tagsData}
 }
 
-func (c *Converter) toRFC5424MetricMessage(env *loggregator_v2.Envelope, hostname, appID, structuredData string) []byte {
-	ts := time.Unix(0, env.GetTimestamp()).UTC().Format(RFC5424TimeOffsetNum)
+func (c *Converter) toRFC5424MetricMessage(env *loggregator_v2.Envelope, hostname, appID string, structuredData rfc5424.StructuredData) ([]byte, error) {
+	ts := time.Unix(0, env.GetTimestamp()).UTC()
 	hostname = c.nilify(hostname)
 	appID = c.nilify(appID)
 	pid := "[" + env.InstanceId + "]"
-	priority := "14"
-
-	structuredData += c.buildTagsStructuredData(env.GetTags())
-
-	message := make([]byte, 0, 20+len(priority)+len(ts)+len(hostname)+len(appID)+len(pid)+len(structuredData))
-	message = append(message, []byte("<"+priority+">1 ")...)
-	message = append(message, []byte(ts+" ")...)
-	message = append(message, []byte(hostname+" ")...)
-	message = append(message, []byte(appID+" ")...)
-	message = append(message, []byte(pid+" - ")...)
-	message = append(message, []byte(structuredData+" \n")...)
-
-	return message
+	priority := 14
+	structuredDatas := []rfc5424.StructuredData{structuredData}
+	baseSD := c.buildTagsStructuredData(env.GetTags())
+	if baseSD.ID != "" {
+		structuredDatas = append(structuredDatas, baseSD)
+	}
+	message := rfc5424.Message{
+		Priority:       rfc5424.Priority(priority),
+		Timestamp:      ts,
+		Hostname:       hostname,
+		AppName:        appID,
+		ProcessID:      pid,
+		Message:        []byte(""),
+		StructuredData: structuredDatas, //TODO: Fix this to get both structured datas
+	}
+	messageBinary, err := message.MarshalBinary()
+	return append(messageBinary, []byte(" \n")...), err
 }
 
-func (c *Converter) genPriority(logType loggregator_v2.Log_Type) string {
+func (c *Converter) genPriority(logType loggregator_v2.Log_Type) int {
 	switch logType {
 	case loggregator_v2.Log_OUT:
-		return "14"
+		return 14
 	case loggregator_v2.Log_ERR:
-		return "11"
+		return 11
 	default:
-		return "-1"
+		return -1
 	}
 }
 
