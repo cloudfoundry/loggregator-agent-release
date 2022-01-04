@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 
+	"code.cloudfoundry.org/go-loggregator/v8/rfc5424"
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
-	"code.cloudfoundry.org/rfc5424"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
