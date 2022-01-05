@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net"
@@ -402,6 +403,34 @@ var _ = Describe("PromScraper", func() {
 				return metricClient.GetMetric("failed_scrapes_total", map[string]string{"scrape_target_source_id": "some-id"}).Value()
 			}).Should(BeNumerically(">=", 1))
 		})
+
+		It("logs on recovery", func() {
+			logBuffer := new(bytes.Buffer)
+			testLogger := log.New(logBuffer, "", log.LstdFlags)
+			promServer = newStubPromServer()
+
+			By("start scraper", func() {
+				spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
+					{
+						Port:       promServer.port,
+						SourceID:   "some-id",
+						InstanceID: "some-instance-id",
+						Path:       "metrics",
+					},
+				}
+
+				ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
+				go ps.Run()
+			})
+			By("simulate failure", func() {
+				promServer.statusCode=http.StatusGatewayTimeout
+				Eventually(logBuffer.String).Should(ContainSubstring("failed to scrape"))
+			})
+			By("simulate recovery", func() {
+				promServer.statusCode=http.StatusOK
+				Eventually(logBuffer.String).Should(ContainSubstring("has recovered"))
+			})
+		})
 	})
 })
 
@@ -414,6 +443,7 @@ func hasMetric(metricClient *metricsHelpers.SpyMetricsRegistry, name string, tag
 type stubPromServer struct {
 	resp string
 	port string
+	statusCode int
 
 	requestHeaders chan http.Header
 	requestPaths   chan string
@@ -430,6 +460,7 @@ func newStubPromServer() *stubPromServer {
 	addr := server.URL
 	tokens := strings.Split(addr, ":")
 	s.port = tokens[len(tokens)-1]
+	s.statusCode = http.StatusOK
 
 	return s
 }
@@ -457,6 +488,7 @@ func newStubHttpsPromServer(testLogger *log.Logger, scrapeCerts *testhelper.Test
 	addr := server.Listener.Addr().String()
 	tokens := strings.Split(addr, ":")
 	s.port = tokens[len(tokens)-1]
+	s.statusCode = http.StatusOK
 
 	return s
 }
@@ -464,6 +496,8 @@ func newStubHttpsPromServer(testLogger *log.Logger, scrapeCerts *testhelper.Test
 func (s *stubPromServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.requestHeaders <- req.Header
 	s.requestPaths <- req.URL.Path
+
+	w.WriteHeader(s.statusCode)
 	w.Write([]byte(s.resp))
 }
 
