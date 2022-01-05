@@ -124,12 +124,17 @@ func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingre
 		metrics.WithMetricLabels(map[string]string{"scrape_target_source_id": scrapeConfig.SourceID}),
 	)
 
+	hadError := false
 	for {
 		select {
 		case <-ticker:
 			if err := s.Scrape(); err != nil {
+				hadError=true
 				failedScrapesTotal.Add(1)
 				p.log.Printf("failed to scrape: %s", err)
+			} else if hadError {
+				hadError=false
+				p.log.Printf("%s has recovered", scrapeConfig.InstanceID)
 			}
 		case <-p.stop:
 			return
