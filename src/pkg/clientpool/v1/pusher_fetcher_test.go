@@ -5,7 +5,7 @@ import (
 	"net"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
+	v1 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc"
 
@@ -139,6 +139,4 @@ func (s *SpyIngestorServer) Pusher(p plumbing.DopplerIngestor_PusherServer) erro
 			s.envelopeData <- env
 		}
 	}
-
-	return nil
 }
