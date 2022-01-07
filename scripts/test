@@ -113,7 +113,7 @@ function run_build {
 }
 
 function run_unit {
-    pushd $PROJECT_DIR/src/code.cloudfoundry.org/loggregator-agent > /dev/null
+    pushd $PROJECT_DIR/src > /dev/null
         print_checkpoint "Running Unit Tests"
         go test -race $(go list ./...) \
             -ginkgo.randomizeAllSpecs \
