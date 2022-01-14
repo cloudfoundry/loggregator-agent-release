@@ -37,7 +37,7 @@ func (ca *CounterAggregator) Process(env *loggregator_v2.Envelope) error {
 			tagsHash: HashTags(env.GetTags()),
 		}
 
-		if c.GetTotal() == 0 {
+		if c.GetTotal() == 0 && c.GetDelta() != 0 {
 			ca.counterTotals[id] = ca.counterTotals[id] + c.GetDelta()
 		} else {
 			ca.counterTotals[id] = c.GetTotal()
