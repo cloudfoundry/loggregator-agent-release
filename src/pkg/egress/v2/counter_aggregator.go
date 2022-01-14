@@ -6,6 +6,7 @@ import (
 
 type counterID struct {
 	name     string
+	sourceID string
 	tagsHash string
 }
 
@@ -32,6 +33,7 @@ func (ca *CounterAggregator) Process(env *loggregator_v2.Envelope) error {
 
 		id := counterID{
 			name:     c.Name,
+			sourceID: env.GetSourceId(),
 			tagsHash: HashTags(env.GetTags()),
 		}
 

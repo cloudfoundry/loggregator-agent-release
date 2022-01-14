@@ -55,6 +55,20 @@ var _ = Describe("CounterAggregator", func() {
 		Expect(env3.GetCounter().GetTotal()).To(Equal(uint64(5010)))
 	})
 
+	It("maintains separate totals for different source ids", func() {
+		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)
+		env1 := buildCounterEnvelope(10, "name-1", "origin-1")
+		env1.SourceId = "source-id-1"
+		env2 := buildCounterEnvelope(10, "name-1", "origin-1")
+		env1.SourceId = "source-id-2"
+
+		Expect(aggregator.Process(env1)).ToNot(HaveOccurred())
+		Expect(aggregator.Process(env2)).ToNot(HaveOccurred())
+
+		Expect(env1.GetCounter().GetTotal()).To(Equal(uint64(10)))
+		Expect(env2.GetCounter().GetTotal()).To(Equal(uint64(10)))
+	})
+
 	It("prunes the cache of totals when there are too many unique counters", func() {
 		aggregator := egress.NewCounterAggregator(tagger.TagEnvelope)
 
