@@ -217,6 +217,7 @@ var _ = Describe("SyslogAgent", func() {
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 
 			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
+			Expect(msg.StructuredData).ToNot(HaveLen(0))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 		})
 
@@ -628,6 +629,9 @@ func emitLogs(ctx context.Context, grpcPort int, testCerts *testhelper.TestCerts
 			Log: &loggregator_v2.Log{
 				Payload: []byte("hello"),
 			},
+		},
+		Tags: map[string]string{
+			"foo": "bar",
 		},
 	}
 
