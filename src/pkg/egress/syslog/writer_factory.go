@@ -2,7 +2,6 @@ package syslog
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
@@ -37,11 +36,11 @@ func (f WriterFactory) NewWriter(
 	urlBinding *URLBinding,
 ) (egress.WriteCloser, error) {
 	var o []ConverterOption
-	if urlBinding.OmitMetadata == true {
+	if urlBinding.OmitMetadata {
 		o = append(o, WithoutSyslogMetadata())
 	}
 	tlsConfig := f.externalTlsConfig
-	if urlBinding.InternalTls == true {
+	if urlBinding.InternalTls {
 		tlsConfig = f.internalTlsConfig
 	}
 	converter := NewConverter(o...)
@@ -75,7 +74,7 @@ func (f WriterFactory) NewWriter(
 	}
 
 	if w == nil {
-		return nil, errors.New(fmt.Sprintf("unsupported protocol: %v", urlBinding.URL.Scheme))
+		return nil, fmt.Errorf("unsupported protocol: %s", urlBinding.URL.Scheme)
 	}
 
 	if err != nil {

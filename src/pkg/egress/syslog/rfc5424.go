@@ -15,7 +15,7 @@ import (
 var findSpaces, findInvalidCharacters, findTrailingDashes *regexp.Regexp
 
 func init() {
-	findSpaces = regexp.MustCompile("\\s+")
+	findSpaces = regexp.MustCompile(`\s+`)
 	findInvalidCharacters = regexp.MustCompile("[^-a-zA-Z0-9]+")
 	findTrailingDashes = regexp.MustCompile("-+$")
 }

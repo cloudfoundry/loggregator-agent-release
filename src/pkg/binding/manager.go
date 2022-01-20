@@ -288,9 +288,7 @@ func (m *Manager) refreshAggregateConnections() {
 
 func (m *Manager) copyDrains() []drainHolder {
 	var drains []drainHolder
-	for _, drainHolder := range m.aggregateDrains {
-		drains = append(drains, drainHolder)
-	}
+	drains = append(drains, m.aggregateDrains...)
 	return drains
 }
 
