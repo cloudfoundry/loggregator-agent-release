@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -44,7 +45,12 @@ func (p *ConfigProvider) Configs() ([]PromScraperConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		targets = append(targets, scraperConfig)
+		portInt, err := strconv.Atoi(scraperConfig.Port)
+		if err != nil || portInt <= 0 || portInt > 65536 {
+			p.log.Println(fmt.Sprintf("Prom scraper config at %s does not have a valid port - skipping this config file\n", f))
+		} else {
+			targets = append(targets, scraperConfig)
+		}
 	}
 
 	return targets, nil

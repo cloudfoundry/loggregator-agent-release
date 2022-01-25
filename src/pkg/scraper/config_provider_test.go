@@ -1,12 +1,14 @@
 package scraper_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -94,6 +96,50 @@ var _ = Describe("PromScraper", func() {
 			Expect(ps[0].ScrapeInterval).To(Equal(100 * time.Millisecond))
 		})
 	})
+
+	It("returns a error if port is not set", func() {
+		writeScrapeConfigFile(metricConfigDir, metricConfigEmpty, "prom_scraper_config.yml")
+
+		var buffer bytes.Buffer
+		assertableLogger := log.New(&buffer, "", log.LstdFlags)
+		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ps).To(HaveLen(0))
+		Expect(string(buffer.Bytes())).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+	})
+
+	It("returns a error if port is less than 1", func() {
+		writeScrapeConfigFile(metricConfigDir, metricConfigPortTooSmall, "prom_scraper_config.yml")
+
+		var buffer bytes.Buffer
+		assertableLogger := log.New(&buffer, "", log.LstdFlags)
+		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ps).To(HaveLen(0))
+		Expect(string(buffer.Bytes())).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+	})
+
+	It("returns a error if port is greater than 65536", func() {
+		writeScrapeConfigFile(metricConfigDir, metricConfigPortTooLarge, "prom_scraper_config.yml")
+
+		var buffer bytes.Buffer
+		assertableLogger := log.New(&buffer, "", log.LstdFlags)
+		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ps).To(HaveLen(0))
+		Expect(string(buffer.Bytes())).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+	})
+
+	It("returns a error if port is not a number", func() {
+		writeScrapeConfigFile(metricConfigDir, metricConfigPortNotANumber, "prom_scraper_config.yml")
+
+		var buffer bytes.Buffer
+		assertableLogger := log.New(&buffer, "", log.LstdFlags)
+		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ps).To(HaveLen(0))
+		Expect(string(buffer.Bytes())).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+	})
 })
 
 const (
@@ -101,6 +147,14 @@ const (
 port: 8080
 source_id: some-id
 instance_id: some-instance-id`
+
+	metricConfigEmpty        = `---`
+	metricConfigPortTooSmall = `---
+port: 0`
+	metricConfigPortTooLarge = `---
+port: 65537 `
+	metricConfigPortNotANumber = `---
+port: foo`
 
 	metricConfigWithAllFieldsSpecifiedTemplate = `---
 port: 8081
