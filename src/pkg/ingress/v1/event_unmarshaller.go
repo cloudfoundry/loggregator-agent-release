@@ -13,7 +13,7 @@ type EnvelopeWriter interface {
 }
 
 var (
-	invalidEnvelope = errors.New("Invalid Envelope")
+	errInvalidEnvelope = errors.New("Invalid Envelope")
 )
 
 // An EventUnmarshaller is an self-instrumenting tool for converting Protocol
@@ -55,7 +55,7 @@ func (u *EventUnmarshaller) UnmarshallMessage(message []byte) (*events.Envelope,
 
 	if !valid(envelope) {
 		log.Printf("eventUnmarshaller: validation failed for message %v", envelope.GetEventType())
-		return nil, invalidEnvelope
+		return nil, errInvalidEnvelope
 	}
 
 	return envelope, nil
