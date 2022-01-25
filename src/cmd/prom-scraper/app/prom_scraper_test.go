@@ -1,9 +1,7 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/app"
 	"fmt"
-	"github.com/onsi/gomega/gexec"
 	"io/ioutil"
 	"log"
 	"net"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent/cmd/prom-scraper/app"
+	"github.com/onsi/gomega/gexec"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent/internal/testhelper"
@@ -30,9 +31,9 @@ var _ = Describe("PromScraper", func() {
 		promServer *stubPromServer
 		ps         *app.PromScraper
 
-		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts  = testhelper.GenerateCerts("loggregatorCA")
-		scrapeCerts  = testhelper.GenerateCerts("scrapeCA")
+		testLogger  = log.New(GinkgoWriter, "", log.LstdFlags)
+		testCerts   = testhelper.GenerateCerts("loggregatorCA")
+		scrapeCerts = testhelper.GenerateCerts("scrapeCA")
 
 		metricConfigDir string
 	)
@@ -82,6 +83,46 @@ var _ = Describe("PromScraper", func() {
 				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
 				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
 			))
+		})
+
+		It("Doesn't scrape if there isn't a port", func() {
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, ""), "prom_scraper_config.yml")
+			promServer.resp = promOutput
+
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Consistently(spyAgent.Envelopes).Should(BeEmpty())
+		})
+
+		It("Doesn't scrape if the port is too small", func() {
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, "0"), "prom_scraper_config.yml")
+			promServer.resp = promOutput
+
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Consistently(spyAgent.Envelopes).Should(BeEmpty())
+		})
+
+		It("Doesn't scrape if the port is too big", func() {
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, "65537"), "prom_scraper_config.yml")
+			promServer.resp = promOutput
+
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Consistently(spyAgent.Envelopes).Should(BeEmpty())
+		})
+
+		It("Doesn't scrape if the port isn't a number", func() {
+			writeScrapeConfig(metricConfigDir, fmt.Sprintf(metricConfigTemplate, "foo"), "prom_scraper_config.yml")
+			promServer.resp = promOutput
+
+			ps = app.NewPromScraper(cfg, testLogger)
+			go ps.Run()
+
+			Consistently(spyAgent.Envelopes).Should(BeEmpty())
 		})
 
 		It("scrapes prometheus endpoints after the specified interval", func() {
@@ -172,7 +213,7 @@ var _ = Describe("PromScraper", func() {
 
 	Context("https", func() {
 		BeforeEach(func() {
-			promServer = newStubHttpsPromServer(testLogger, scrapeCerts,false)
+			promServer = newStubHttpsPromServer(testLogger, scrapeCerts, false)
 			writeScrapeConfig(
 				metricConfigDir,
 				fmt.Sprintf(metricConfigWithSchemeTemplate, promServer.port, "https"),
@@ -346,7 +387,6 @@ node_timex_pps_jitter_total 5
 # TYPE node2_counter counter
 node2_counter 6
 `
-
 	metricConfigTemplate = `---
 port: %s
 source_id: some-id

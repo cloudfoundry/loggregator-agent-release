@@ -1,16 +1,18 @@
 package app
 
 import (
-	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/go-loggregator"
 	"code.cloudfoundry.org/loggregator-agent/pkg/scraper"
@@ -56,7 +58,13 @@ func (p *PromScraper) scrapeConfigsFromFiles(globs []string) []promScraperConfig
 
 	var targets []promScraperConfig
 	for _, f := range files {
-		targets = append(targets, p.parseConfig(f))
+		scraperConfig := p.parseConfig(f)
+		portInt, err := strconv.Atoi(scraperConfig.Port)
+		if err != nil || portInt <= 0 || portInt > 65536 {
+			p.log.Println(fmt.Sprintf("Prom scraper config at %s does not have a valid port - skipping this config file\n", f))
+		} else {
+			targets = append(targets, scraperConfig)
+		}
 	}
 
 	return targets
