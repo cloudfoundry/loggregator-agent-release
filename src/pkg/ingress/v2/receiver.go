@@ -42,8 +42,6 @@ func (s *Receiver) Sender(sender loggregator_v2.Ingress_SenderServer) error {
 		s.dataSetter.Set(e)
 		s.ingressMetric(1)
 	}
-
-	return nil
 }
 
 func (s *Receiver) BatchSender(sender loggregator_v2.Ingress_BatchSenderServer) error {
@@ -60,8 +58,6 @@ func (s *Receiver) BatchSender(sender loggregator_v2.Ingress_BatchSenderServer) 
 		}
 		s.ingressMetric(uint64(len(envelopes.Batch)))
 	}
-
-	return nil
 }
 
 func (s *Receiver) Send(_ context.Context, b *loggregator_v2.EnvelopeBatch) (*loggregator_v2.SendResponse, error) {
