@@ -133,12 +133,10 @@ func (s *SpyIngestorServer) Pusher(p plumbing.DopplerIngestor_PusherServer) erro
 		default:
 			env, err := p.Recv()
 			if err != nil {
-				break
+				return err
 			}
 
 			s.envelopeData <- env
 		}
 	}
-
-	return nil
 }
