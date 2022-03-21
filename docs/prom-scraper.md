@@ -10,7 +10,7 @@ Prom Scraper can be used to scrape Prometheus Exposition style endpoints on loca
 
 ### Configuring scraping
 Add a config file matching one of the globs in the `config_globs` property in prom scraper.
-  - By default, prom scraper looks for a `prom-scraper-config.yml` file in each job's config directory
+  - By default, prom scraper looks for a `prom_scraper_config.yml` file in each job's config directory
   
 #### File contents
 ```yaml
@@ -23,7 +23,7 @@ headers: Optional - a map of headers to add to the scrape request
 labels: Optional - a map of labels that will be added to all metrics
 ```
 
-#### Example `prom-scraper-config.yml.erb`
+#### Example `prom_scraper_config.yml.erb`
 ```yaml
 port: 6061
 source_id: "my-job-name"
