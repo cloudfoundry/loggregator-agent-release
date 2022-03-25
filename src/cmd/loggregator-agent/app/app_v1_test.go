@@ -1,13 +1,14 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"fmt"
 	"net"
 	"sync"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+
 	metricHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
-	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/agent/app"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/loggregator-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

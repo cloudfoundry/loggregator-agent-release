@@ -4,7 +4,7 @@ name: loggregator_agent
 dependencies:
 - golang-1-linux
 files:
-- cmd/agent/**/*.go
+- cmd/loggregator-agent/**/*.go
 - pkg/**/*.go
 - vendor/**/*
 - go.mod
