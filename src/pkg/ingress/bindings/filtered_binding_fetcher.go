@@ -1,9 +1,9 @@
 package bindings
 
 import (
-	"fmt"
 	"log"
 	"net"
+	"net/url"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -14,7 +14,6 @@ import (
 var allowedSchemes = []string{"syslog", "syslog-tls", "https"}
 
 type IPChecker interface {
-	ParseHost(url string) (string, string, error)
 	ResolveAddr(host string) (net.IP, error)
 	CheckBlacklist(ip net.IP) error
 }
@@ -69,30 +68,29 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	var invalidDrains float64
 	var blacklistedDrains float64
 	for _, b := range sourceBindings {
-		scheme, host, err := f.ipChecker.ParseHost(b.Drain)
+		u, err := url.Parse(b.Drain)
 		if err != nil {
-			f.logger.Printf("failed to parse host for drain URL: %s", err)
 			invalidDrains += 1
 			continue
 		}
 
-		if invalidScheme(scheme) {
+		if invalidScheme(u.Scheme) {
+			continue
+		}
+
+		if len(u.Host) == 0 {
 			invalidDrains += 1
 			continue
 		}
 
-		ip, err := f.ipChecker.ResolveAddr(host)
+		ip, err := f.ipChecker.ResolveAddr(u.Host)
 		if err != nil {
-			msg := fmt.Sprintf("failed to resolve syslog drain host: %s", host)
-			f.logger.Println(msg, err)
 			invalidDrains += 1
 			continue
 		}
 
 		err = f.ipChecker.CheckBlacklist(ip)
 		if err != nil {
-			msg := fmt.Sprintf("syslog drain blacklisted: %s (%s)", host, ip)
-			f.logger.Println(msg, err)
 			invalidDrains += 1
 			blacklistedDrains += 1
 			continue

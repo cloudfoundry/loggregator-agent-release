@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net"
-	"net/url"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -50,14 +49,14 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		Expect(actual).To(BeNil())
 	})
 
-	Context("when syslog drain has invalid host", func() {
+	Context("when syslog drain is unparsable", func() {
 		BeforeEach(func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "syslog://some.invalid.host"},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: "://"},
 			}
 
 			filter = bindings.NewFilteredBindingFetcher(
-				&spyIPChecker{parseHostError: errors.New("parse error")},
+				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},
 				metrics,
 				log,
@@ -73,18 +72,42 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		})
 	})
 
-	Context("when syslog drain has invalid scheme", func() {
+	Context("when drain has no host", func() {
+		BeforeEach(func() {
+			input := []syslog.Binding{
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: "https:///path"},
+			}
+
+			filter = bindings.NewFilteredBindingFetcher(
+				&spyIPChecker{},
+				&SpyBindingReader{bindings: input},
+				metrics,
+				log,
+			)
+		})
+
+		It("removes the binding", func() {
+			actual, err := filter.FetchBindings()
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(Equal([]syslog.Binding{}))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+		})
+	})
+
+	Context("when syslog drain has unsupported scheme", func() {
 		var (
 			input []syslog.Binding
 		)
 
 		BeforeEach(func() {
 			input = []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "syslog://10.10.10.10"},
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "syslog-tls://10.10.10.10"},
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "https://10.10.10.10"},
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "bad-scheme://10.10.10.10"},
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "blah://10.10.10.10"},
+				{AppId: "app-id", Hostname: "known", Drain: "syslog://10.10.10.10"},
+				{AppId: "app-id", Hostname: "known", Drain: "syslog-tls://10.10.10.10"},
+				{AppId: "app-id", Hostname: "known", Drain: "https://10.10.10.10"},
+				{AppId: "app-id", Hostname: "unknown", Drain: "bad-scheme://10.10.10.10"},
+				{AppId: "app-id", Hostname: "unknown", Drain: "bad-scheme:///path"},
+				{AppId: "app-id", Hostname: "unknown", Drain: "blah://10.10.10.10"},
 			}
 
 			metrics = metricsHelpers.NewMetricsRegistry()
@@ -101,7 +124,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal(input[:3]))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(2.0))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(0.0))
 		})
 	})
 
@@ -114,7 +137,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{
 					resolveAddrError: errors.New("resolve error"),
-					parsedHost:       "some.invalid.host",
 				},
 				&SpyBindingReader{bindings: input},
 				metrics,
@@ -140,7 +162,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{
 					checkBlacklistError: errors.New("blacklist error"),
-					parsedHost:          "some.invalid.host",
 					resolvedIP:          net.ParseIP("127.0.0.1"),
 				},
 				&SpyBindingReader{bindings: input},
@@ -164,21 +185,10 @@ type spyIPChecker struct {
 	checkBlacklistError error
 	resolveAddrError    error
 	resolvedIP          net.IP
-	parseHostError      error
-	parsedHost          string
 }
 
 func (s *spyIPChecker) CheckBlacklist(net.IP) error {
 	return s.checkBlacklistError
-}
-
-func (s *spyIPChecker) ParseHost(URL string) (string, string, error) {
-	u, err := url.Parse(URL)
-	if err != nil {
-		panic(err)
-	}
-
-	return u.Scheme, s.parsedHost, s.parseHostError
 }
 
 func (s *spyIPChecker) ResolveAddr(host string) (net.IP, error) {

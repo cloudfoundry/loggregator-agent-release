@@ -2,10 +2,8 @@ package bindings
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net"
-	"net/url"
 	"strings"
 )
 
@@ -83,6 +81,7 @@ func (i *BlacklistRanges) CheckBlacklist(ip net.IP) error {
 func (i *BlacklistRanges) ResolveAddr(host string) (net.IP, error) {
 	ipAddress := net.ParseIP(host)
 	if ipAddress == nil {
+		host = strings.Split(host, ":")[0]
 		ipAddr, err := net.ResolveIPAddr("ip", host)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve DNS entry: %s", host)
@@ -91,19 +90,4 @@ func (i *BlacklistRanges) ResolveAddr(host string) (net.IP, error) {
 	}
 
 	return ipAddress, nil
-}
-
-func (i *BlacklistRanges) ParseHost(drainURL string) (string, string, error) {
-	testURL, err := url.Parse(drainURL)
-	if err != nil {
-		return "", "", err
-	}
-
-	if len(testURL.Host) == 0 {
-		return "", "", errors.New("invalid URL, detected no host")
-	}
-
-	host := strings.Split(testURL.Host, ":")[0]
-
-	return testURL.Scheme, host, nil
 }
