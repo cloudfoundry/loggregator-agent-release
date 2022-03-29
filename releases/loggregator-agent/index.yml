@@ -103,6 +103,8 @@ builds:
     version: "3.17"
   b51ff6b6-6be1-4aa3-5d33-0956af212c5b:
     version: 5.0.0
+  b58952d6-45db-430c-538d-45cf1d50b66a:
+    version: 6.3.10
   bf7a43f8-9760-4c30-6675-c555e91006bf:
     version: "3.2"
   c74ea9f3-5de6-4296-7f93-ff0817ebe3f1:
