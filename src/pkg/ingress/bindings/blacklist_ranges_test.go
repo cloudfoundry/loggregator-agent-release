@@ -73,40 +73,19 @@ var _ = Describe("BlacklistRanges", func() {
 		})
 	})
 
-	Describe("ParseHost()", func() {
-		It("does not return an error on valid URL", func() {
-			ranges, _ := bindings.NewBlacklistRanges()
-
-			for _, testUrl := range validIPs {
-				_, host, err := ranges.ParseHost(testUrl)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(host).ToNot(Equal(""))
-			}
-		})
-
-		It("returns error on malformatted URL", func() {
-			ranges, _ := bindings.NewBlacklistRanges()
-
-			for _, testUrl := range malformattedURLs {
-				_, host, err := ranges.ParseHost(testUrl)
-				Expect(err).To(HaveOccurred())
-				Expect(host).To(Equal(""))
-			}
-		})
-
-		It("returns the scheme from a valid URL", func() {
-			ranges, _ := bindings.NewBlacklistRanges()
-			scheme, _, err := ranges.ParseHost("syslog://10.10.10.10")
-			Expect(err).ToNot(HaveOccurred())
-			Expect(scheme).To(Equal("syslog"))
-		})
-	})
-
 	Describe("ResolveAddr()", func() {
 		It("does not return an error when able to resolve", func() {
 			ranges, _ := bindings.NewBlacklistRanges()
 
 			ip, err := ranges.ResolveAddr("localhost")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ip.String()).To(Equal("127.0.0.1"))
+		})
+
+		It("can resolve addresses with port", func() {
+			ranges, _ := bindings.NewBlacklistRanges()
+
+			ip, err := ranges.ResolveAddr("localhost:8080")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(ip.String()).To(Equal("127.0.0.1"))
 		})
