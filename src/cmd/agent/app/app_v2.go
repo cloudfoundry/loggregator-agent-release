@@ -137,6 +137,7 @@ func (a *AppV2) Start() {
 		rx,
 		grpc.Creds(a.serverCreds),
 		grpc.KeepaliveEnforcementPolicy(kp),
+		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
 	ingressServer.Start()
 }
