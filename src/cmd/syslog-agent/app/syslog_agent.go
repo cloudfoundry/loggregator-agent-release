@@ -247,6 +247,7 @@ func (s *SyslogAgent) Run() {
 		fmt.Sprintf("127.0.0.1:%d", s.grpc.Port),
 		rx,
 		grpc.Creds(serverCreds),
+		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
 	srv.Start()
 }

@@ -101,7 +101,7 @@ var _ = Describe("Main", func() {
 				"some-tag": "some-value",
 			},
 		}
-		ingressClient = newIngressClient(grpcPort, testCerts)
+		ingressClient = newIngressClient(grpcPort, testCerts, 1)
 	})
 
 	AfterEach(func() {
@@ -150,6 +150,39 @@ var _ = Describe("Main", func() {
 
 		Expect(proto.Equal(e1, sampleEnvelope)).To(BeTrue())
 		Expect(proto.Equal(e2, sampleEnvelope)).To(BeTrue())
+	})
+
+	It("can send a 100 sized batch of max diego size messages downstream", func() {
+		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
+
+		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
+		go forwarderAgent.Run()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		var wg sync.WaitGroup
+		defer wg.Wait()
+		defer cancel()
+
+		wg.Add(1)
+		maxBatchIngressClient := newIngressClient(grpcPort, testCerts, 100)
+		go func() {
+			defer wg.Done()
+
+			ticker := time.NewTicker(time.Second)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					for i := 0; i < 100; i++ {
+						maxBatchIngressClient.Emit(MakeSampleBigEnvelope())
+					}
+				}
+			}
+		}()
+
+		var e1 *loggregator_v2.Envelope
+		Eventually(downstream1.envelopes, 5).Should(Receive(&e1))
 	})
 
 	It("aggregates counter events before forwarding downstream", func() {
@@ -232,6 +265,21 @@ var sampleEnvelope = &loggregator_v2.Envelope{
 	},
 }
 
+func MakeSampleBigEnvelope() *loggregator_v2.Envelope {
+	return &loggregator_v2.Envelope{
+		Timestamp: time.Now().UnixNano(),
+		SourceId:  "some-id",
+		Message: &loggregator_v2.Envelope_Log{
+			Log: &loggregator_v2.Log{
+				Payload: []byte(strings.Repeat("A", 61440)),
+			},
+		},
+		Tags: map[string]string{
+			"some-tag": "some-value",
+		},
+	}
+}
+
 var sampleCounter = &loggregator_v2.Envelope{
 	Timestamp: time.Now().UnixNano(),
 	SourceId:  "some-id",
@@ -243,7 +291,7 @@ var sampleCounter = &loggregator_v2.Envelope{
 	},
 }
 
-func newIngressClient(port int, testCerts *testhelper.TestCerts) *loggregator.IngressClient {
+func newIngressClient(port int, testCerts *testhelper.TestCerts, batchSize uint) *loggregator.IngressClient {
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
 		testCerts.CA(),
 		testCerts.Cert("metron"),
@@ -254,7 +302,7 @@ func newIngressClient(port int, testCerts *testhelper.TestCerts) *loggregator.In
 		tlsConfig,
 		loggregator.WithAddr(fmt.Sprintf("127.0.0.1:%d", port)),
 		loggregator.WithLogger(log.New(GinkgoWriter, "[TEST INGRESS CLIENT] ", 0)),
-		loggregator.WithBatchMaxSize(1),
+		loggregator.WithBatchMaxSize(batchSize),
 	)
 	Expect(err).ToNot(HaveOccurred())
 	return ingressClient
