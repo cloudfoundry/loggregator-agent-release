@@ -18,9 +18,11 @@ port: Required - port on localhost where metrics endpoint is available
 source_id: Optional - the source ID to set on scraped metrics (defaults to infra_job_name) 
 instance_id: Optional - the instance ID to set on scraped metrics (defaults to "")
 scheme: Optional - the scheme to use when scraping the target metrics endpoint. Either "http" or "https" (defaults to "http")
+server_name: Required for HTTPS targets. Prom scraper uses this to set the server name for cert verification despite using localhost to resolve the request.
 path: Optional - the path to the metrics endpoint (defaults to "/metrics")
 headers: Optional - a map of headers to add to the scrape request
 labels: Optional - a map of labels that will be added to all metrics
+scrape_interval: Optional - how often to scrape the metrics endpoint
 ```
 
 #### Example `prom_scraper_config.yml.erb`
