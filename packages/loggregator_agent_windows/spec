@@ -6,7 +6,7 @@ dependencies:
 
 files:
 - exiter.ps1
-- cmd/agent/**/*.go
+- cmd/loggregator-agent/**/*.go
 - pkg/**/*.go
 - vendor/**/*
 - go.mod

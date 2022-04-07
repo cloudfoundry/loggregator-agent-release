@@ -11,7 +11,7 @@ if ((Get-Item $BOSH_INSTALL_TARGET).LinkType -ne "") {
 }
 
 $pkg_name="loggregator-agent"
-$pkg_path="./cmd/agent"
+$pkg_path="./cmd/loggregator-agent"
 
 go.exe build -mod=vendor  -o "${BOSH_INSTALL_TARGET}\${pkg_name}.exe" "${pkg_path}"
 if ($LASTEXITCODE -ne 0) {
