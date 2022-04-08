@@ -31,6 +31,7 @@ import (
 type SyslogAgent struct {
 	metrics             Metrics
 	pprofPort           uint16
+	pprofServer         *http.Server
 	debugMetrics        bool
 	bindingManager      BindingManager
 	grpc                GRPC
@@ -208,7 +209,8 @@ func trustedCertPool(trustedCAFile string) *x509.CertPool {
 func (s *SyslogAgent) Run() {
 	if s.debugMetrics {
 		s.metrics.RegisterDebugMetrics()
-		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", s.pprofPort), nil)
+		s.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.pprofPort), Handler: http.DefaultServeMux}
+		go log.Println("PPROF SERVER STOPPED " + s.pprofServer.ListenAndServe().Error())
 	}
 	ingressDropped := s.metrics.NewCounter(
 		"dropped",
@@ -261,4 +263,10 @@ func (s *SyslogAgent) Run() {
 		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
 	srv.Start()
+}
+
+func (s *SyslogAgent) Stop() {
+	if s.pprofServer != nil {
+		s.pprofServer.Close()
+	}
 }

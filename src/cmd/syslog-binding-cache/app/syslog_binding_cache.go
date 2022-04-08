@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"sync"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
@@ -19,9 +20,12 @@ import (
 )
 
 type SyslogBindingCache struct {
-	config  Config
-	log     *log.Logger
-	metrics Metrics
+	config      Config
+	pprofServer *http.Server
+	server      *http.Server
+	log         *log.Logger
+	metrics     Metrics
+	mu          sync.Mutex
 }
 
 type Metrics interface {
@@ -41,7 +45,8 @@ func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *Sys
 func (sbc *SyslogBindingCache) Run() {
 	if sbc.config.MetricsServer.DebugMetrics {
 		sbc.metrics.RegisterDebugMetrics()
-		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", sbc.config.MetricsServer.PprofPort), nil)
+		sbc.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", sbc.config.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
+		go sbc.log.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error())
 	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.AggregateStore{AggregateDrains: sbc.config.AggregateDrains}
@@ -56,6 +61,16 @@ func (sbc *SyslogBindingCache) Run() {
 	sbc.startServer(router)
 }
 
+func (sbc *SyslogBindingCache) Stop() {
+	if sbc.pprofServer != nil {
+		sbc.pprofServer.Close()
+	}
+	sbc.mu.Lock()
+	defer sbc.mu.Unlock()
+	if sbc.server != nil {
+		sbc.server.Close()
+	}
+}
 func (sbc *SyslogBindingCache) apiClient() api.Client {
 	httpClient := plumbing.NewTLSHTTPClient(
 		sbc.config.APICertFile,
@@ -77,12 +92,13 @@ func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
 	if err != nil {
 		sbc.log.Panicf("error creating listener: %s", err)
 	}
-
-	server := &http.Server{
+	sbc.mu.Lock()
+	sbc.server = &http.Server{
 		Handler:   router,
 		TLSConfig: sbc.tlsConfig(),
 	}
-	server.ServeTLS(lis, "", "")
+	sbc.mu.Unlock()
+	sbc.server.ServeTLS(lis, "", "")
 }
 
 func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {

@@ -83,7 +83,7 @@ var _ = Describe("PromScraper", func() {
 
 		It("debug metrics can be enabled", func() {
 			cfg.MetricsServer.DebugMetrics = true
-			cfg.MetricsServer.PprofPort = 1234
+			cfg.MetricsServer.PprofPort = 1235
 			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 			go ps.Run()
 

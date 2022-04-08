@@ -44,6 +44,7 @@ func WithV2Lookup(l func(string) ([]net.IP, error)) func(*AppV2) {
 
 type AppV2 struct {
 	config       *Config
+	pprofServer  *http.Server
 	clientCreds  credentials.TransportCredentials
 	serverCreds  credentials.TransportCredentials
 	metricClient MetricClient
@@ -79,7 +80,8 @@ func NewV2App(
 func (a *AppV2) Start() {
 	if a.config.MetricsServer.DebugMetrics {
 		a.metricClient.RegisterDebugMetrics()
-		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", a.config.MetricsServer.PprofPort), nil)
+		a.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", a.config.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
+		go log.Println("PPROF SERVER STOPPED " + a.pprofServer.ListenAndServe().Error())
 	}
 
 	if a.serverCreds == nil {
@@ -150,6 +152,11 @@ func (a *AppV2) Start() {
 	ingressServer.Start()
 }
 
+func (a *AppV2) Stop() {
+	if a.pprofServer != nil {
+		a.pprofServer.Close()
+	}
+}
 func (a *AppV2) initializePool() *clientpoolv2.ClientPool {
 	if a.clientCreds == nil {
 		log.Panic("Failed to load TLS client config")

@@ -24,6 +24,7 @@ type Metrics interface {
 type UDPForwarder struct {
 	grpc         GRPC
 	udpPort      int
+	pprofServer  *http.Server
 	pprofPort    uint16
 	debugMetrics bool
 	log          *log.Logger
@@ -52,7 +53,8 @@ func NewUDPForwarder(cfg Config, l *log.Logger, m Metrics) *UDPForwarder {
 func (u *UDPForwarder) Run() {
 	if u.debugMetrics {
 		u.metrics.RegisterDebugMetrics()
-		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", u.pprofPort), nil)
+		u.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", u.pprofPort), Handler: http.DefaultServeMux}
+		go log.Println("PPROF SERVER STOPPED " + u.pprofServer.ListenAndServe().Error())
 	}
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
 		u.grpc.CAFile,
@@ -92,6 +94,11 @@ func (u *UDPForwarder) Run() {
 
 	go networkReader.StartReading()
 	networkReader.StartWriting()
+}
+func (u *UDPForwarder) Stop() {
+	if u.pprofServer != nil {
+		u.pprofServer.Close()
+	}
 }
 
 type v2Writer struct {

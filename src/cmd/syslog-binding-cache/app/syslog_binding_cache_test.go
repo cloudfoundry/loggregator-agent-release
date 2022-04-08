@@ -83,6 +83,7 @@ var _ = Describe("SyslogBindingCache", func() {
 		config.MetricsServer.PprofPort = 1234
 		sbc = app.NewSyslogBindingCache(config, metricClient, logger)
 		go sbc.Run()
+		defer sbc.Stop()
 		Consistently(metricClient.GetDebugMetricsEnabled()).Should(BeFalse())
 		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
 		Expect(err).ToNot(BeNil())
@@ -90,9 +91,10 @@ var _ = Describe("SyslogBindingCache", func() {
 
 	It("debug metrics can be enabled", func() {
 		config.MetricsServer.DebugMetrics = true
-		config.MetricsServer.PprofPort = 1234
+		config.MetricsServer.PprofPort = 1235
 		sbc = app.NewSyslogBindingCache(config, metricClient, logger)
 		go sbc.Run()
+		defer sbc.Stop()
 		Eventually(metricClient.GetDebugMetricsEnabled).Should(BeTrue())
 		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
 		Expect(err).To(BeNil())
@@ -102,12 +104,14 @@ var _ = Describe("SyslogBindingCache", func() {
 	It("polls CAPI on an interval for results", func() {
 		sbc = app.NewSyslogBindingCache(config, metricClient, logger)
 		go sbc.Run()
+		defer sbc.Stop()
 		Eventually(capi.numRequests).Should(BeNumerically(">=", 2))
 	})
 
 	It("has an HTTP endpoint that returns bindings", func() {
 		sbc = app.NewSyslogBindingCache(config, metricClient, logger)
 		go sbc.Run()
+		defer sbc.Stop()
 		client := plumbing.NewTLSHTTPClient(
 			bindingCacheTestCerts.Cert("binding-cache"),
 			bindingCacheTestCerts.Key("binding-cache"),
@@ -146,6 +150,7 @@ var _ = Describe("SyslogBindingCache", func() {
 	It("has an HTTP endpoint that returns aggregate drains", func() {
 		sbc = app.NewSyslogBindingCache(config, metricClient, logger)
 		go sbc.Run()
+		defer sbc.Stop()
 		client := plumbing.NewTLSHTTPClient(
 			bindingCacheTestCerts.Cert("binding-cache"),
 			bindingCacheTestCerts.Key("binding-cache"),

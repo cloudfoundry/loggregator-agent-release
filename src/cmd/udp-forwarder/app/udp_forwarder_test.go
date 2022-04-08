@@ -58,7 +58,9 @@ var _ = Describe("UDPForwarder", func() {
 			Index:      "4",
 			IP:         "127.0.0.1",
 		}
-		go app.NewUDPForwarder(cfg, testLogger, mc).Run()
+		udpForwarder := app.NewUDPForwarder(cfg, testLogger, mc)
+		go udpForwarder.Run()
+		defer udpForwarder.Stop()
 
 		v1e := &events.Envelope{
 			Origin:    proto.String("doppler"),
@@ -119,7 +121,9 @@ var _ = Describe("UDPForwarder", func() {
 			Index:      "4",
 			IP:         "127.0.0.1",
 		}
-		go app.NewUDPForwarder(cfg, testLogger, mc).Run()
+		udpForwarder := app.NewUDPForwarder(cfg, testLogger, mc)
+		go udpForwarder.Run()
+		defer udpForwarder.Stop()
 
 		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
 		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
@@ -138,7 +142,7 @@ var _ = Describe("UDPForwarder", func() {
 				KeyFile:  testCerts.Key("metron"),
 			},
 			MetricsServer: config.MetricsServer{
-				PprofPort:    1234,
+				PprofPort:    1235,
 				DebugMetrics: true,
 			},
 			Deployment: "test-deployment",
@@ -146,7 +150,9 @@ var _ = Describe("UDPForwarder", func() {
 			Index:      "4",
 			IP:         "127.0.0.1",
 		}
-		go app.NewUDPForwarder(cfg, testLogger, mc).Run()
+		udpForwarder := app.NewUDPForwarder(cfg, testLogger, mc)
+		go udpForwarder.Run()
+		defer udpForwarder.Stop()
 
 		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
 		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))

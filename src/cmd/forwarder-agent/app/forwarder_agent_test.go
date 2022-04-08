@@ -115,6 +115,7 @@ var _ = Describe("Main", func() {
 	It("has a dropped metric with direction", func() {
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		et := map[string]string{
 			"direction": "ingress",
@@ -134,6 +135,7 @@ var _ = Describe("Main", func() {
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		cfg.MetricsServer.PprofPort = 1236
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
 		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
@@ -141,9 +143,10 @@ var _ = Describe("Main", func() {
 	})
 	It("debug metrics can be enabled", func() {
 		cfg.MetricsServer.DebugMetrics = true
-		cfg.MetricsServer.PprofPort = 1236
+		cfg.MetricsServer.PprofPort = 1237
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
 		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
@@ -157,6 +160,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -179,6 +183,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -212,6 +217,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -232,6 +238,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -254,6 +261,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup

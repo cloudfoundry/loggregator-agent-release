@@ -49,6 +49,7 @@ var _ = Describe("v2 App", func() {
 			app.WithV2Lookup(spyLookup.lookup),
 		)
 		go app.Start()
+		defer app.Stop()
 
 		Eventually(spyLookup.calledWith(expectedHost)).Should(BeTrue())
 	})
@@ -85,6 +86,7 @@ var _ = Describe("v2 App", func() {
 			app.WithV2Lookup(spyLookup.lookup),
 		)
 		go app.Start()
+		defer app.Stop()
 
 		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "egress", "metric_version": "2.0"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress", "metric_version": "2.0"})).Should(BeTrue())
@@ -127,6 +129,7 @@ var _ = Describe("v2 App", func() {
 			app.WithV2Lookup(spyLookup.lookup),
 		)
 		go app.Start()
+		defer app.Stop()
 
 		Consistently(mc.GetDebugMetricsEnabled).Should(BeFalse())
 		_, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
@@ -153,7 +156,7 @@ var _ = Describe("v2 App", func() {
 		config := buildAgentConfig("127.0.0.1", 1234)
 		config.Zone = "something-bad"
 		config.MetricsServer.DebugMetrics = true
-		config.MetricsServer.PprofPort = 1235
+		config.MetricsServer.PprofPort = 1236
 		Expect(err).ToNot(HaveOccurred())
 
 		mc := metricsHelpers.NewMetricsRegistry()
@@ -166,6 +169,7 @@ var _ = Describe("v2 App", func() {
 			app.WithV2Lookup(spyLookup.lookup),
 		)
 		go app.Start()
+		defer app.Stop()
 
 		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
 		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))

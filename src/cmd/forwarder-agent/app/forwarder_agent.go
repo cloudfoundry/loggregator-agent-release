@@ -31,6 +31,7 @@ import (
 // ForwarderAgent manages starting the forwarder agent service.
 type ForwarderAgent struct {
 	pprofPort          uint16
+	pprofServer        *http.Server
 	m                  Metrics
 	grpc               GRPC
 	downstreamPortsCfg string
@@ -73,7 +74,8 @@ func NewForwarderAgent(
 func (s *ForwarderAgent) Run() {
 	if s.debugMetrics {
 		s.m.RegisterDebugMetrics()
-		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", s.pprofPort), nil)
+		s.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.pprofPort), Handler: http.DefaultServeMux}
+		go s.log.Println("PPROF SERVER STOPPED " + s.pprofServer.ListenAndServe().Error())
 	}
 	ingressDropped := s.m.NewCounter(
 		"dropped",
@@ -130,6 +132,12 @@ func (s *ForwarderAgent) Run() {
 		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
 	srv.Start()
+}
+
+func (s *ForwarderAgent) Stop() {
+	if s.pprofServer != nil {
+		s.pprofServer.Close()
+	}
 }
 
 type clientWriter struct {
