@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
@@ -26,6 +27,7 @@ type SyslogBindingCache struct {
 type Metrics interface {
 	NewCounter(name, helpText string, options ...metrics.MetricOption) metrics.Counter
 	NewGauge(name, helpText string, o ...metrics.MetricOption) metrics.Gauge
+	RegisterDebugMetrics()
 }
 
 func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *SyslogBindingCache {
@@ -37,6 +39,10 @@ func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *Sys
 }
 
 func (sbc *SyslogBindingCache) Run() {
+	if sbc.config.MetricsServer.DebugMetrics {
+		sbc.metrics.RegisterDebugMetrics()
+		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", sbc.config.MetricsServer.PprofPort), nil)
+	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.AggregateStore{AggregateDrains: sbc.config.AggregateDrains}
 	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log)

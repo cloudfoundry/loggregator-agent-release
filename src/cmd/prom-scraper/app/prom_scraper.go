@@ -1,8 +1,6 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -10,6 +8,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/tlsconfig"
+
+	_ "net/http/pprof"
 
 	"code.cloudfoundry.org/go-loggregator/v8"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
@@ -29,6 +32,7 @@ type ConfigProvider func() ([]scraper.PromScraperConfig, error)
 
 type promRegistry interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
+	RegisterDebugMetrics()
 }
 
 func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, log *log.Logger) *PromScraper {
@@ -47,6 +51,10 @@ func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, l
 }
 
 func (p *PromScraper) Run() {
+	if p.cfg.MetricsServer.DebugMetrics {
+		p.m.RegisterDebugMetrics()
+		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", p.cfg.MetricsServer.PprofPort), nil)
+	}
 	promScraperConfigs, err := p.scrapeConfigProvider()
 	if err != nil {
 		p.log.Fatal(err)

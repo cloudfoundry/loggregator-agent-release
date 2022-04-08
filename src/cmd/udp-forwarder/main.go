@@ -6,8 +6,6 @@ import (
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
-	_ "net/http/pprof"
-
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )

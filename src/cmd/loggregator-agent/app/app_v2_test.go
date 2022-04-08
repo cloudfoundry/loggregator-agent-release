@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"fmt"
 	"net"
+	"net/http"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/loggregator-agent/app"
@@ -90,5 +92,84 @@ var _ = Describe("v2 App", func() {
 		Eventually(hasMetric(mc, "ingress", map[string]string{"metric_version": "2.0"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "origin_mappings", map[string]string{"unit": "bytes/minute", "metric_version": "2.0"})).Should(BeTrue())
 		Eventually(hasMetric(mc, "average_envelopes", map[string]string{"unit": "bytes/minute", "metric_version": "2.0", "loggregator": "v2"})).Should(BeTrue())
+	})
+
+	It("does not emit debug metrics by defualt", func() {
+		spyLookup := newSpyLookup()
+
+		clientCreds, err := plumbing.NewClientCredentials(
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+			testCerts.CA(),
+			"doppler",
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		serverCreds, err := plumbing.NewServerCredentials(
+			testCerts.Cert("router"),
+			testCerts.Key("router"),
+			testCerts.CA(),
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		config := buildAgentConfig("127.0.0.1", 1234)
+		config.Zone = "something-bad"
+		config.MetricsServer.PprofPort = 1235
+		Expect(err).ToNot(HaveOccurred())
+
+		mc := metricsHelpers.NewMetricsRegistry()
+
+		app := app.NewV2App(
+			&config,
+			clientCreds,
+			serverCreds,
+			mc,
+			app.WithV2Lookup(spyLookup.lookup),
+		)
+		go app.Start()
+
+		Consistently(mc.GetDebugMetricsEnabled).Should(BeFalse())
+		_, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
+		Expect(err).ToNot(BeNil())
+	})
+	It("can enable debug metrics", func() {
+		spyLookup := newSpyLookup()
+
+		clientCreds, err := plumbing.NewClientCredentials(
+			testCerts.Cert("metron"),
+			testCerts.Key("metron"),
+			testCerts.CA(),
+			"doppler",
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		serverCreds, err := plumbing.NewServerCredentials(
+			testCerts.Cert("router"),
+			testCerts.Key("router"),
+			testCerts.CA(),
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		config := buildAgentConfig("127.0.0.1", 1234)
+		config.Zone = "something-bad"
+		config.MetricsServer.DebugMetrics = true
+		config.MetricsServer.PprofPort = 1235
+		Expect(err).ToNot(HaveOccurred())
+
+		mc := metricsHelpers.NewMetricsRegistry()
+
+		app := app.NewV2App(
+			&config,
+			clientCreds,
+			serverCreds,
+			mc,
+			app.WithV2Lookup(spyLookup.lookup),
+		)
+		go app.Start()
+
+		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
+		Expect(err).To(BeNil())
+		Expect(resp.StatusCode).To(Equal(200))
 	})
 })

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/cloudfoundry/dropsonde/emitter"
@@ -19,6 +20,7 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/udp-forwarder/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
 
@@ -96,6 +98,60 @@ var _ = Describe("UDPForwarder", func() {
 		Expect(v2e.GetTags()["job"]).To(Equal("test-job"))
 		Expect(v2e.GetTags()["index"]).To(Equal("4"))
 		Expect(v2e.GetTags()["ip"]).To(Equal("127.0.0.1"))
+	})
+
+	It("does not have debug metrics by default", func() {
+		mc := metricsHelpers.NewMetricsRegistry()
+		cfg := app.Config{
+			UDPPort: udpPort,
+			LoggregatorAgentGRPC: app.GRPC{
+				Addr:     spyLoggregatorV2Ingress.addr,
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("metron"),
+				KeyFile:  testCerts.Key("metron"),
+			},
+			MetricsServer: config.MetricsServer{
+				PprofPort:    1234,
+				DebugMetrics: false,
+			},
+			Deployment: "test-deployment",
+			Job:        "test-job",
+			Index:      "4",
+			IP:         "127.0.0.1",
+		}
+		go app.NewUDPForwarder(cfg, testLogger, mc).Run()
+
+		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
+		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+		Expect(err).ToNot(BeNil())
+
+	})
+
+	It("can enable debug metrics", func() {
+		mc := metricsHelpers.NewMetricsRegistry()
+		cfg := app.Config{
+			UDPPort: udpPort,
+			LoggregatorAgentGRPC: app.GRPC{
+				Addr:     spyLoggregatorV2Ingress.addr,
+				CAFile:   testCerts.CA(),
+				CertFile: testCerts.Cert("metron"),
+				KeyFile:  testCerts.Key("metron"),
+			},
+			MetricsServer: config.MetricsServer{
+				PprofPort:    1234,
+				DebugMetrics: true,
+			},
+			Deployment: "test-deployment",
+			Job:        "test-job",
+			Index:      "4",
+			IP:         "127.0.0.1",
+		}
+		go app.NewUDPForwarder(cfg, testLogger, mc).Run()
+
+		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+		Expect(err).To(BeNil())
+		Expect(resp.StatusCode).To(Equal(200))
 	})
 })
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,6 +128,27 @@ var _ = Describe("Main", func() {
 
 		Expect(m).ToNot(BeNil())
 		Expect(m.Opts.ConstLabels).To(HaveKeyWithValue("direction", "ingress"))
+	})
+
+	It("debug metrics arn't enabled by default", func() {
+		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
+		cfg.MetricsServer.PprofPort = 1236
+		go forwarderAgent.Run()
+
+		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
+		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+		Expect(err).ToNot(BeNil())
+	})
+	It("debug metrics can be enabled", func() {
+		cfg.MetricsServer.DebugMetrics = true
+		cfg.MetricsServer.PprofPort = 1236
+		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
+		go forwarderAgent.Run()
+
+		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+		Expect(err).To(BeNil())
+		Expect(resp.StatusCode).To(Equal(200))
 	})
 
 	It("forwards all envelopes downstream", func() {

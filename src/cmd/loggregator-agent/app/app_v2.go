@@ -5,6 +5,8 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
@@ -27,6 +29,7 @@ import (
 type MetricClient interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
+	RegisterDebugMetrics()
 }
 
 // AppV2Option configures AppV2 options.
@@ -74,6 +77,11 @@ func NewV2App(
 }
 
 func (a *AppV2) Start() {
+	if a.config.MetricsServer.DebugMetrics {
+		a.metricClient.RegisterDebugMetrics()
+		go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", a.config.MetricsServer.PprofPort), nil)
+	}
+
 	if a.serverCreds == nil {
 		log.Panic("Failed to load TLS server config")
 	}

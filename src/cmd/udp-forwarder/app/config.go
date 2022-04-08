@@ -21,7 +21,6 @@ type Config struct {
 	UseRFC3339           bool `env:"USE_RFC3339"`
 	UDPPort              int  `env:"UDP_PORT, report"`
 	LoggregatorAgentGRPC GRPC
-	DebugPort            int    `env:"DEBUG_PORT, report"`
 	Deployment           string `env:"DEPLOYMENT, report"`
 	Job                  string `env:"JOB, report"`
 	Index                string `env:"INDEX, report"`

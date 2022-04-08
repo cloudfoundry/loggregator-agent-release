@@ -131,6 +131,78 @@ var _ = Describe("SyslogAgent", func() {
 			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
 		})
 
+		It("does not have debug metrics by default", func() {
+			mc := metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:      7392,
+					CAFile:    metronTestCerts.CA(),
+					CertFile:  metronTestCerts.Cert("metron"),
+					KeyFile:   metronTestCerts.Key("metron"),
+					PprofPort: 1234,
+				},
+				IdleDrainTimeout: 10 * time.Minute,
+				Cache: app.Cache{
+					URL:             bindingCache.URL,
+					CAFile:          bindingCacheTestCerts.CA(),
+					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+					CommonName:      "binding-cache",
+					PollingInterval: 10 * time.Millisecond,
+				},
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			go app.NewSyslogAgent(cfg, mc, testLogger).Run()
+
+			Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
+			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("can enabled default metrics", func() {
+			mc := metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:         7392,
+					CAFile:       metronTestCerts.CA(),
+					CertFile:     metronTestCerts.Cert("metron"),
+					KeyFile:      metronTestCerts.Key("metron"),
+					PprofPort:    1234,
+					DebugMetrics: true,
+				},
+				IdleDrainTimeout: 10 * time.Minute,
+				Cache: app.Cache{
+					URL:             bindingCache.URL,
+					CAFile:          bindingCacheTestCerts.CA(),
+					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+					CommonName:      "binding-cache",
+					PollingInterval: 10 * time.Millisecond,
+				},
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			go app.NewSyslogAgent(cfg, mc, testLogger).Run()
+
+			Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
+			resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+			Expect(err).To(BeNil())
+			Expect(resp.StatusCode).To(Equal(200))
+		})
+
 		var setupTestAgent = func(changeConfig ...func(app.Config) app.Config) context.CancelFunc {
 			metricClient = metricsHelpers.NewMetricsRegistry()
 			cfg := app.Config{
