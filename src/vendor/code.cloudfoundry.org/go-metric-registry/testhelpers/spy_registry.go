@@ -22,6 +22,8 @@ func NewMetricsRegistry() *SpyMetricsRegistry {
 }
 
 func (s *SpyMetricsRegistry) RegisterDebugMetrics() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.debugMetrics = true
 }
 
@@ -89,6 +91,8 @@ func (s *SpyMetricsRegistry) removeMetric(sm *SpyMetric) {
 }
 
 func (s *SpyMetricsRegistry) GetDebugMetricsEnabled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.debugMetrics
 }
 
