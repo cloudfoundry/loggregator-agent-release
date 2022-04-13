@@ -209,7 +209,7 @@ var _ = Describe("Main", func() {
 		}()
 
 		var e1 *loggregator_v2.Envelope
-		Eventually(downstream1.envelopes, 5).Should(Receive(&e1))
+		Eventually(downstream1.envelopes, 10).Should(Receive(&e1))
 	})
 
 	It("aggregates counter events before forwarding downstream", func() {
