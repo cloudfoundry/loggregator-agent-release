@@ -1,8 +1,9 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"fmt"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 
 	"code.cloudfoundry.org/go-envstruct"
 )
@@ -27,6 +28,7 @@ type Config struct {
 	GRPC                     GRPC
 	MetricsServer            config.MetricsServer
 	Tags                     map[string]string `env:"AGENT_TAGS"`
+	DebugMetrics             bool              `env:"DEBUG_METRICS, report"`
 }
 
 // LoadConfig will load the configuration for the forwarder agent from the

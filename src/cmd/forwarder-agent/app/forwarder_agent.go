@@ -31,16 +31,19 @@ import (
 // ForwarderAgent manages starting the forwarder agent service.
 type ForwarderAgent struct {
 	pprofPort          uint16
+	pprofServer        *http.Server
 	m                  Metrics
 	grpc               GRPC
 	downstreamPortsCfg string
 	log                *log.Logger
 	tags               map[string]string
+	debugMetrics       bool
 }
 
 type Metrics interface {
 	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
+	RegisterDebugMetrics()
 }
 
 type BindingFetcher interface {
@@ -58,18 +61,22 @@ func NewForwarderAgent(
 	log *log.Logger,
 ) *ForwarderAgent {
 	return &ForwarderAgent{
-		pprofPort:          cfg.MetricsServer.Port,
+		pprofPort:          cfg.MetricsServer.PprofPort,
 		grpc:               cfg.GRPC,
 		m:                  m,
 		downstreamPortsCfg: cfg.DownstreamIngressPortCfg,
 		log:                log,
 		tags:               cfg.Tags,
+		debugMetrics:       cfg.MetricsServer.DebugMetrics,
 	}
 }
 
-func (s ForwarderAgent) Run() {
-	go http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", s.pprofPort), nil)
-
+func (s *ForwarderAgent) Run() {
+	if s.debugMetrics {
+		s.m.RegisterDebugMetrics()
+		s.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.pprofPort), Handler: http.DefaultServeMux}
+		go s.log.Println("PPROF SERVER STOPPED " + s.pprofServer.ListenAndServe().Error())
+	}
 	ingressDropped := s.m.NewCounter(
 		"dropped",
 		"Total number of dropped envelopes.",
@@ -125,6 +132,12 @@ func (s ForwarderAgent) Run() {
 		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
 	srv.Start()
+}
+
+func (s *ForwarderAgent) Stop() {
+	if s.pprofServer != nil {
+		s.pprofServer.Close()
+	}
 }
 
 type clientWriter struct {

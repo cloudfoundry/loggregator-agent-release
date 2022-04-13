@@ -14,7 +14,6 @@
         "LOGGREGATOR_AGENT_KEY_FILE_PATH" => "#{certs_dir}/loggregator_agent.key",
         "LOGGREGATOR_AGENT_ADDR" => "localhost:#{p('loggregator.ingress_port')}",
         "UDP_PORT" => "#{p('udp_port')}",
-        "DEBUG_PORT" => "#{p('debug_port')}",
         "DEPLOYMENT" => "#{deployment}",
         "JOB" => "#{job_name}",
         "INDEX" => "#{instance_id}",
@@ -24,6 +23,8 @@
         "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
         "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
         "METRICS_KEY_FILE_PATH" => "#{certs_dir}/metrics.key",
+        "DEBUG_METRICS" => "#{p("metrics.debug")}",
+        "PPROF_PORT" => "#{p("metrics.pprof_port")}",
         "USE_RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
       }
     }

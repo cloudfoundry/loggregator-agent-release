@@ -116,7 +116,9 @@ var _ = Describe("SyslogAgent", func() {
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
 			}
-			go app.NewSyslogAgent(cfg, mc, testLogger).Run()
+			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
+			go syslogAgent.Run()
+			defer syslogAgent.Stop()
 
 			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress"})).Should(BeTrue())
 			Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "agent"})).Should(BeTrue())
@@ -129,6 +131,82 @@ var _ = Describe("SyslogAgent", func() {
 
 			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "egress"})).Should(BeTrue())
 			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
+		})
+
+		It("does not have debug metrics by default", func() {
+			mc := metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:      7392,
+					CAFile:    metronTestCerts.CA(),
+					CertFile:  metronTestCerts.Cert("metron"),
+					KeyFile:   metronTestCerts.Key("metron"),
+					PprofPort: 1234,
+				},
+				IdleDrainTimeout: 10 * time.Minute,
+				Cache: app.Cache{
+					URL:             bindingCache.URL,
+					CAFile:          bindingCacheTestCerts.CA(),
+					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+					CommonName:      "binding-cache",
+					PollingInterval: 10 * time.Millisecond,
+				},
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
+			go syslogAgent.Run()
+			defer syslogAgent.Stop()
+
+			Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
+			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("can enabled default metrics", func() {
+			mc := metricsHelpers.NewMetricsRegistry()
+			cfg := app.Config{
+				BindingsPerAppLimit: 5,
+				MetricsServer: config.MetricsServer{
+					Port:         7392,
+					CAFile:       metronTestCerts.CA(),
+					CertFile:     metronTestCerts.Cert("metron"),
+					KeyFile:      metronTestCerts.Key("metron"),
+					PprofPort:    1235,
+					DebugMetrics: true,
+				},
+				IdleDrainTimeout: 10 * time.Minute,
+				Cache: app.Cache{
+					URL:             bindingCache.URL,
+					CAFile:          bindingCacheTestCerts.CA(),
+					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
+					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
+					CommonName:      "binding-cache",
+					PollingInterval: 10 * time.Millisecond,
+				},
+				GRPC: app.GRPC{
+					Port:     grpcPort,
+					CAFile:   metronTestCerts.CA(),
+					CertFile: metronTestCerts.Cert("metron"),
+					KeyFile:  metronTestCerts.Key("metron"),
+				},
+				AggregateConnectionRefreshInterval: 10 * time.Minute,
+			}
+			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
+			go syslogAgent.Run()
+			defer syslogAgent.Stop()
+
+			Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
+			resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+			Expect(err).To(BeNil())
+			Expect(resp.StatusCode).To(Equal(200))
 		})
 
 		var setupTestAgent = func(changeConfig ...func(app.Config) app.Config) context.CancelFunc {
@@ -164,7 +242,9 @@ var _ = Describe("SyslogAgent", func() {
 			for _, i := range changeConfig {
 				cfg = i(cfg)
 			}
-			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
+			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
+			go syslogAgent.Run()
+			defer syslogAgent.Stop()
 			ctx, cancel := context.WithCancel(context.Background())
 			emitLogs(ctx, grpcPort, metronTestCerts)
 
@@ -338,7 +418,9 @@ var _ = Describe("SyslogAgent", func() {
 				AggregateDrainURLs:                 []string{aggregateAddr},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
 			}
-			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
+			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
+			go syslogAgent.Run()
+			defer syslogAgent.Stop()
 			ctx, cancel := context.WithCancel(context.Background())
 			emitLogs(ctx, grpcPort, metronTestCerts)
 
@@ -520,7 +602,9 @@ var _ = Describe("SyslogAgent", func() {
 				AggregateDrainURLs:                 aggregateDrains,
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
 			}
-			go app.NewSyslogAgent(cfg, metricClient, testLogger).Run()
+			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
+			go syslogAgent.Run()
+			defer syslogAgent.Stop()
 			ctx, cancel := context.WithCancel(context.Background())
 			emitLogs(ctx, grpcPort, metronTestCerts)
 

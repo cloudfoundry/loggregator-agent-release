@@ -1,8 +1,6 @@
 package app
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/tlsconfig"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -11,6 +9,11 @@ import (
 	"sync"
 	"time"
 
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/tlsconfig"
+
+	_ "net/http/pprof"
+
 	"code.cloudfoundry.org/go-loggregator/v8"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
@@ -18,6 +21,7 @@ import (
 type PromScraper struct {
 	scrapeConfigProvider ConfigProvider
 	cfg                  Config
+	pprofServer          *http.Server
 	log                  *log.Logger
 	stop                 chan struct{}
 	wg                   sync.WaitGroup
@@ -29,6 +33,7 @@ type ConfigProvider func() ([]scraper.PromScraperConfig, error)
 
 type promRegistry interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
+	RegisterDebugMetrics()
 }
 
 func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, log *log.Logger) *PromScraper {
@@ -47,6 +52,11 @@ func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, l
 }
 
 func (p *PromScraper) Run() {
+	if p.cfg.MetricsServer.DebugMetrics {
+		p.m.RegisterDebugMetrics()
+		p.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", p.cfg.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
+		go log.Println("PPROF SERVER STOPPED " + p.pprofServer.ListenAndServe().Error())
+	}
 	promScraperConfigs, err := p.scrapeConfigProvider()
 	if err != nil {
 		p.log.Fatal(err)
@@ -179,6 +189,9 @@ func (p *PromScraper) buildHttpClient(idleTimeout time.Duration, serverName stri
 func (p *PromScraper) Stop() {
 	close(p.stop)
 	p.wg.Wait()
+	if p.pprofServer != nil {
+		p.pprofServer.Close()
+	}
 }
 
 func (p *PromScraper) scrape(client *http.Client) scraper.MetricsGetter {

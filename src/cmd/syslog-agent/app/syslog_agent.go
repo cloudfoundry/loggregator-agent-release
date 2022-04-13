@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -28,6 +30,9 @@ import (
 // SyslogAgent manages starting the syslog agent service.
 type SyslogAgent struct {
 	metrics             Metrics
+	pprofPort           uint16
+	pprofServer         *http.Server
+	debugMetrics        bool
 	bindingManager      BindingManager
 	grpc                GRPC
 	log                 *log.Logger
@@ -37,6 +42,7 @@ type SyslogAgent struct {
 type Metrics interface {
 	NewGauge(name, helpText string, options ...metrics.MetricOption) metrics.Gauge
 	NewCounter(name, helpText string, options ...metrics.MetricOption) metrics.Counter
+	RegisterDebugMetrics()
 }
 
 type BindingManager interface {
@@ -121,6 +127,8 @@ func NewSyslogAgent(
 
 	return &SyslogAgent{
 		grpc:                cfg.GRPC,
+		debugMetrics:        cfg.MetricsServer.DebugMetrics,
+		pprofPort:           cfg.MetricsServer.PprofPort,
 		metrics:             m,
 		log:                 l,
 		bindingsPerAppLimit: cfg.BindingsPerAppLimit,
@@ -199,6 +207,11 @@ func trustedCertPool(trustedCAFile string) *x509.CertPool {
 }
 
 func (s *SyslogAgent) Run() {
+	if s.debugMetrics {
+		s.metrics.RegisterDebugMetrics()
+		s.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.pprofPort), Handler: http.DefaultServeMux}
+		go log.Println("PPROF SERVER STOPPED " + s.pprofServer.ListenAndServe().Error())
+	}
 	ingressDropped := s.metrics.NewCounter(
 		"dropped",
 		"Total number of dropped envelopes.",
@@ -250,4 +263,10 @@ func (s *SyslogAgent) Run() {
 		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
 	srv.Start()
+}
+
+func (s *SyslogAgent) Stop() {
+	if s.pprofServer != nil {
+		s.pprofServer.Close()
+	}
 }

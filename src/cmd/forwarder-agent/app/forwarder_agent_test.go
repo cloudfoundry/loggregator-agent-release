@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,6 +115,7 @@ var _ = Describe("Main", func() {
 	It("has a dropped metric with direction", func() {
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		et := map[string]string{
 			"direction": "ingress",
@@ -129,12 +131,36 @@ var _ = Describe("Main", func() {
 		Expect(m.Opts.ConstLabels).To(HaveKeyWithValue("direction", "ingress"))
 	})
 
+	It("debug metrics arn't enabled by default", func() {
+		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
+		cfg.MetricsServer.PprofPort = 1236
+		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
+
+		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
+		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+		Expect(err).ToNot(BeNil())
+	})
+	It("debug metrics can be enabled", func() {
+		cfg.MetricsServer.DebugMetrics = true
+		cfg.MetricsServer.PprofPort = 1237
+		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
+		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
+
+		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+		Expect(err).To(BeNil())
+		Expect(resp.StatusCode).To(Equal(200))
+	})
+
 	It("forwards all envelopes downstream", func() {
 		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
 		downstream2 := startSpyLoggregatorV2Ingress(testCerts)
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -157,6 +183,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -190,6 +217,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -210,6 +238,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
@@ -232,6 +261,7 @@ var _ = Describe("Main", func() {
 
 		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
 		go forwarderAgent.Run()
+		defer forwarderAgent.Stop()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup

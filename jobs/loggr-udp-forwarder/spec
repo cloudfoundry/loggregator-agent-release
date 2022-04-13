@@ -37,9 +37,6 @@ properties:
     description: |
       The port to listen for incoming v1 (dropsonde) envelopes via UDP.
     default: 3457
-  debug_port:
-    description: "The port where the debug server will be listening."
-    default: 14830
   deployment:
     description: "Name of deployment (added as tag on all outgoing v2 envelopes)"
     default: ""
@@ -55,6 +52,12 @@ properties:
     description: "TLS private key for metrics server signed by the metrics CA"
   metrics.server_name:
     description: "The server name used in the scrape configuration for the metrics endpoint"
+  metrics.debug:
+    description: "Enables go_ and process_ metrics along with a pprof endpoint"
+    default: false
+  metrics.pprof_port:
+    description: "If debug metrics is enabled, pprof will start at this port, ideally set to something other then 0"
+    default: 0
 
   logging.format.timestamp:
     description: "Format for timestamp in component logs. Valid values are 'deprecated' and 'rfc3339'."

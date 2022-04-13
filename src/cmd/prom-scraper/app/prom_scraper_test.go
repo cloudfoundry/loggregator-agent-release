@@ -70,6 +70,30 @@ var _ = Describe("PromScraper", func() {
 		gexec.CleanupBuildArtifacts()
 	})
 
+	Context("debug metrics", func() {
+		It("debug metrics arn't enabled by default", func() {
+			cfg.MetricsServer.PprofPort = 1234
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
+			go ps.Run()
+
+			Consistently(metricClient.GetDebugMetricsEnabled()).Should(BeFalse())
+			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.Port))
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("debug metrics can be enabled", func() {
+			cfg.MetricsServer.DebugMetrics = true
+			cfg.MetricsServer.PprofPort = 1235
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
+			go ps.Run()
+
+			Eventually(metricClient.GetDebugMetricsEnabled).Should(BeTrue())
+			resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+			Expect(err).To(BeNil())
+			Expect(resp.StatusCode).To(Equal(200))
+		})
+	})
+
 	Context("http", func() {
 		BeforeEach(func() {
 			promServer = newStubPromServer()
