@@ -75,7 +75,7 @@ func (s *ForwarderAgent) Run() {
 	if s.debugMetrics {
 		s.m.RegisterDebugMetrics()
 		s.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.pprofPort), Handler: http.DefaultServeMux}
-		go s.log.Println("PPROF SERVER STOPPED " + s.pprofServer.ListenAndServe().Error())
+		go func() { s.log.Println("PPROF SERVER STOPPED " + s.pprofServer.ListenAndServe().Error()) }()
 	}
 	ingressDropped := s.m.NewCounter(
 		"dropped",

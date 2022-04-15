@@ -81,7 +81,7 @@ func (a *AppV2) Start() {
 	if a.config.MetricsServer.DebugMetrics {
 		a.metricClient.RegisterDebugMetrics()
 		a.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", a.config.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
-		go log.Println("PPROF SERVER STOPPED " + a.pprofServer.ListenAndServe().Error())
+		go func() { log.Println("PPROF SERVER STOPPED " + a.pprofServer.ListenAndServe().Error()) }()
 	}
 
 	if a.serverCreds == nil {

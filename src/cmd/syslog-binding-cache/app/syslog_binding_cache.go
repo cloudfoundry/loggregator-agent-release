@@ -46,7 +46,7 @@ func (sbc *SyslogBindingCache) Run() {
 	if sbc.config.MetricsServer.DebugMetrics {
 		sbc.metrics.RegisterDebugMetrics()
 		sbc.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", sbc.config.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
-		go sbc.log.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error())
+		go func() { sbc.log.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error()) }()
 	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.AggregateStore{AggregateDrains: sbc.config.AggregateDrains}

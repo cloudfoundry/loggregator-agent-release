@@ -54,7 +54,7 @@ func (u *UDPForwarder) Run() {
 	if u.debugMetrics {
 		u.metrics.RegisterDebugMetrics()
 		u.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", u.pprofPort), Handler: http.DefaultServeMux}
-		go log.Println("PPROF SERVER STOPPED " + u.pprofServer.ListenAndServe().Error())
+		go func() { log.Println("PPROF SERVER STOPPED " + u.pprofServer.ListenAndServe().Error()) }()
 	}
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
 		u.grpc.CAFile,
