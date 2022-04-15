@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"net"
@@ -405,8 +404,7 @@ var _ = Describe("PromScraper", func() {
 		})
 
 		It("logs on recovery", func() {
-			logBuffer := new(bytes.Buffer)
-			testLogger := log.New(logBuffer, "", log.LstdFlags)
+			buf := &spyBuffer{}
 			promServer = newStubPromServer()
 
 			By("start scraper", func() {
@@ -419,16 +417,17 @@ var _ = Describe("PromScraper", func() {
 					},
 				}
 
+				testLogger.SetOutput(buf)
 				ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
 				go ps.Run()
 			})
 			By("simulate failure", func() {
-				promServer.statusCode=http.StatusGatewayTimeout
-				Eventually(logBuffer.String).Should(ContainSubstring("failed to scrape"))
+				promServer.statusCode = http.StatusGatewayTimeout
+				Eventually(buf.Read).Should(ContainSubstring("failed to scrape"))
 			})
 			By("simulate recovery", func() {
-				promServer.statusCode=http.StatusOK
-				Eventually(logBuffer.String).Should(ContainSubstring("has recovered"))
+				promServer.statusCode = http.StatusOK
+				Eventually(buf.Read).Should(ContainSubstring("has recovered"))
 			})
 		})
 	})
@@ -441,8 +440,8 @@ func hasMetric(metricClient *metricsHelpers.SpyMetricsRegistry, name string, tag
 }
 
 type stubPromServer struct {
-	resp string
-	port string
+	resp       string
+	port       string
 	statusCode int
 
 	requestHeaders chan http.Header
@@ -653,4 +652,22 @@ func (p *spyConfigProvider) Configs() ([]scraper.PromScraperConfig, error) {
 	}
 
 	return configsWithDefaults, nil
+}
+
+type spyBuffer struct {
+	buf []byte
+	sync.Mutex
+}
+
+func (s *spyBuffer) Read() string {
+	s.Lock()
+	defer s.Unlock()
+	return string(s.buf)
+}
+
+func (s *spyBuffer) Write(p []byte) (n int, err error) {
+	s.Lock()
+	defer s.Unlock()
+	s.buf = append(s.buf, p...)
+	return len(p), nil
 }
