@@ -77,8 +77,10 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Consistently(metricClient.GetDebugMetricsEnabled()).Should(BeFalse())
-			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.Port))
-			Expect(err).ToNot(BeNil())
+			Consistently(func() error {
+				_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+				return err
+			}).ShouldNot(BeNil())
 		})
 
 		It("debug metrics can be enabled", func() {
@@ -88,8 +90,12 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(metricClient.GetDebugMetricsEnabled).Should(BeTrue())
-			resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
-			Expect(err).To(BeNil())
+			var resp *http.Response
+			Eventually(func() error {
+				var err error
+				resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+				return err
+			}).Should(BeNil())
 			Expect(resp.StatusCode).To(Equal(200))
 		})
 	})

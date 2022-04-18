@@ -132,8 +132,10 @@ var _ = Describe("v2 App", func() {
 		defer app.Stop()
 
 		Consistently(mc.GetDebugMetricsEnabled).Should(BeFalse())
-		_, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
-		Expect(err).ToNot(BeNil())
+		Consistently(func() error {
+			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
+			return err
+		}).ShouldNot(BeNil())
 	})
 	It("can enable debug metrics", func() {
 		spyLookup := newSpyLookup()
@@ -172,8 +174,12 @@ var _ = Describe("v2 App", func() {
 		defer app.Stop()
 
 		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
-		Expect(err).To(BeNil())
+		var resp *http.Response
+		Eventually(func() error {
+			var err error
+			resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", config.MetricsServer.PprofPort))
+			return err
+		}).Should(BeNil())
 		Expect(resp.StatusCode).To(Equal(200))
 	})
 })
