@@ -58,7 +58,7 @@ var _ = Describe("HTTPWriter", func() {
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		env.SourceId = "test-app-id-012345678901234567890012345678901234567890"
+		env.SourceId = " "
 		Expect(writer.Write(env)).To(HaveOccurred())
 	})
 

@@ -134,6 +134,11 @@ func appendNewline(msg []byte) []byte {
 func generateProcessID(sourceType, sourceInstance string) string {
 	sourceType = strings.ToUpper(sourceType)
 	if sourceInstance != "" {
+		// 128 is the max size, 3 for [] and /, truncate to fit
+		// source type is almost certainly very small
+		if len(sourceType)+len(sourceInstance)+3 > 128 {
+			sourceInstance = sourceInstance[:(128 - len(sourceType) - 3)]
+		}
 		tmp := make([]byte, 0, 3+len(sourceType)+len(sourceInstance))
 		tmp = append(tmp, '[')
 		tmp = append(tmp, []byte(strings.Replace(sourceType, " ", "-", -1))...)
