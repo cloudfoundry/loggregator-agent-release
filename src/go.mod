@@ -4,9 +4,9 @@ go 1.17
 
 require (
 	code.cloudfoundry.org/go-batching v0.0.0-20171020220229-924d2a9b48ac
-	code.cloudfoundry.org/go-diodes v0.0.0-20190809170250-f77fb823c7ee
+	code.cloudfoundry.org/go-diodes v0.0.0-20220420211542-53509ccdf174
 	code.cloudfoundry.org/go-envstruct v1.5.0
-	code.cloudfoundry.org/go-loggregator/v8 v8.0.5
+	code.cloudfoundry.org/go-loggregator/v8 v8.0.6-0.20220425223300-a8327c668a4c
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3
 	code.cloudfoundry.org/tlsconfig v0.0.0-20211123175040-23cc9f05b6b3
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
@@ -20,8 +20,8 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.33.0
 	github.com/valyala/fasthttp v1.34.0
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
-	google.golang.org/grpc v1.31.0
+	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
+	google.golang.org/grpc v1.46.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -37,13 +37,14 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/poy/eachers v0.0.0-20181020210610-23942921fe77 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/square/certstrap v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f // indirect
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
+	google.golang.org/genproto v0.0.0-20220422154200-b37d22cd5731 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )

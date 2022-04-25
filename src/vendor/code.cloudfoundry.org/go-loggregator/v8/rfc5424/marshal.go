@@ -95,12 +95,8 @@ func isValidSdName(s string) bool {
 }
 
 func (m Message) assertValid() error {
-
 	// HOSTNAME        = NILVALUE / 1*255PRINTUSASCII
 	if !isPrintableUsASCII(m.Hostname) {
-		return invalidValue("Hostname", m.Hostname)
-	}
-	if len(m.Hostname) > 255 {
 		return invalidValue("Hostname", m.Hostname)
 	}
 
@@ -108,23 +104,14 @@ func (m Message) assertValid() error {
 	if !isPrintableUsASCII(m.AppName) {
 		return invalidValue("AppName", m.AppName)
 	}
-	if len(m.AppName) > 48 {
-		return invalidValue("AppName", m.AppName)
-	}
 
 	// PROCID          = NILVALUE / 1*128PRINTUSASCII
 	if !isPrintableUsASCII(m.ProcessID) {
 		return invalidValue("ProcessID", m.ProcessID)
 	}
-	if len(m.ProcessID) > 128 {
-		return invalidValue("ProcessID", m.ProcessID)
-	}
 
 	// MSGID           = NILVALUE / 1*32PRINTUSASCII
 	if !isPrintableUsASCII(m.MessageID) {
-		return invalidValue("MessageID", m.MessageID)
-	}
-	if len(m.MessageID) > 32 {
 		return invalidValue("MessageID", m.MessageID)
 	}
 
@@ -146,14 +133,34 @@ func (m Message) assertValid() error {
 
 // MarshalBinary marshals the message to a byte slice, or returns an error
 func (m Message) MarshalBinary() ([]byte, error) {
+	if len(m.Hostname) > 255 {
+		m.Hostname = m.Hostname[:255]
+	}
+
+	if len(m.AppName) > 48 {
+		m.AppName = m.AppName[:48]
+	}
+
+	if len(m.ProcessID) > 128 {
+		m.ProcessID = m.ProcessID[:128]
+	}
+
+	if len(m.MessageID) > 32 {
+		m.MessageID = m.MessageID[:32]
+	}
+
 	if err := m.assertValid(); err != nil {
 		return nil, err
 	}
 
+	format := RFC5424TimeOffsetNum
+	if m.UseUTC {
+		format = RFC5424TimeOffsetUTC
+	}
 	b := bytes.NewBuffer(nil)
 	fmt.Fprintf(b, "<%d>1 %s %s %s %s %s ",
 		m.Priority,
-		m.Timestamp.Format(RFC5424TimeOffsetNum),
+		m.Timestamp.Format(format),
 		nilify(m.Hostname),
 		nilify(m.AppName),
 		nilify(m.ProcessID),
