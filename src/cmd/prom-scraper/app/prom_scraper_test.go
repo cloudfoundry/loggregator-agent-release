@@ -351,6 +351,43 @@ var _ = Describe("PromScraper", func() {
 		})
 	})
 
+	Context("with custom certs", func() {
+		var customCerts = testhelper.GenerateCerts("custom")
+		BeforeEach(func() {
+			promServer = newStubHttpsPromServer(testLogger, customCerts, true)
+			promServer.resp = promOutput
+
+			cfg.SkipSSLValidation = false
+			cfg.ScrapeCertPath = scrapeCerts.Cert("client")
+			cfg.ScrapeKeyPath = scrapeCerts.Key("client")
+			cfg.ScrapeCACertPath = scrapeCerts.CA()
+		})
+
+		It("scrapes over mTLS", func() {
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{{
+				Port:           promServer.port,
+				SourceID:       "some-id",
+				InstanceID:     "some-instance-id",
+				Scheme:         "https",
+				ServerName:     "server",
+				CaPath:         customCerts.CA(),
+				ClientKeyPath:  customCerts.Key("client"),
+				ClientCertPath: customCerts.Cert("client"),
+			}}
+
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
+			go ps.Run()
+
+			Eventually(spyAgent.Envelopes).Should(And(
+				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
+				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
+				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
+				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+			))
+		})
+	})
+
 	Context("metrics", func() {
 		It("has scrape targets counter", func() {
 			promServer = newStubPromServer()

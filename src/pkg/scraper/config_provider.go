@@ -20,6 +20,9 @@ type PromScraperConfig struct {
 	Path           string            `yaml:"path"`
 	Headers        map[string]string `yaml:"headers"`
 	Labels         map[string]string `yaml:"labels"`
+	CaPath         string            `yaml:"ca_path"`
+	ClientKeyPath  string            `yaml:"client_key_path"`
+	ClientCertPath string            `yaml:"client_cert_path"`
 	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
 }
 

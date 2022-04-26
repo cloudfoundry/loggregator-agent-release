@@ -10,9 +10,14 @@
   certs_dir = "/var/vcap/jobs/prom_scraper/config/certs"
 
   config_volumes = Array.new
-  if_p('config_globs') { |config_globs|
-    config_volumes = config_globs.map { |glob|
-      { "path" => glob, "mount_only" => true }
+  if_p('config_globs') { |globs|
+    globs.each { |glob|
+      config_volumes.append({ "path" => glob, "mount_only" => true })
+    }
+  }
+  if_p('additional_volumes') { |globs|
+    globs.each { |glob|
+      config_volumes.append({ "path" => glob, "mount_only" => true })
     }
   }
 

@@ -29,6 +29,8 @@ properties:
   config_globs:
     description: "Files matching the globs are expected to contain information to scrape a Prometheus metrics endpoint on localhost."
     default: [/var/vcap/jobs/*/config/prom_scraper_config.yml, /var/vcap/jobs/*/config/metric_port.yml]
+  additional_volumes:
+    description: "Files matching these globs will be added to the bpm.yml but will not be attempted to be scraped"
   skip_ssl_validation:
     description: "If true, Skips SSL Validation when scraping"
     default: false

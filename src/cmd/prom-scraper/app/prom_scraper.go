@@ -151,7 +151,7 @@ func (p *PromScraper) buildScraper(scrapeConfig scraper.PromScraperConfig, clien
 		DefaultTags: scrapeConfig.Labels,
 	}
 
-	httpClient := p.buildHttpClient(scrapeConfig.ScrapeInterval, scrapeConfig.ServerName)
+	httpClient := p.buildHttpClient(scrapeConfig)
 
 	return scraper.New(
 		func() []scraper.Target {
@@ -163,19 +163,9 @@ func (p *PromScraper) buildScraper(scrapeConfig scraper.PromScraperConfig, clien
 	)
 }
 
-func (p *PromScraper) buildHttpClient(idleTimeout time.Duration, serverName string) *http.Client {
-	tlsOptions := []tlsconfig.TLSOption{tlsconfig.WithInternalServiceDefaults()}
-	clientOptions := []tlsconfig.ClientOption{withSkipSSLValidation(p.cfg.SkipSSLValidation)}
-
-	if p.cfg.ScrapeCertPath != "" && p.cfg.ScrapeKeyPath != "" {
-		tlsOptions = append(tlsOptions, tlsconfig.WithIdentityFromFile(p.cfg.ScrapeCertPath, p.cfg.ScrapeKeyPath))
-		clientOptions = append(clientOptions, tlsconfig.WithServerName(serverName))
-	}
-
-	if p.cfg.ScrapeCACertPath != "" {
-		clientOptions = append(clientOptions, tlsconfig.WithAuthorityFromFile(p.cfg.ScrapeCACertPath))
-	}
-
+func (p *PromScraper) buildHttpClient(scrapeConfig scraper.PromScraperConfig) *http.Client {
+	tlsOptions := p.tlsOptions(scrapeConfig)
+	clientOptions := p.clientOptions(scrapeConfig)
 	tlsConfig, err := tlsconfig.Build(tlsOptions...).Client(clientOptions...)
 	if err != nil {
 		p.log.Fatal(err)
@@ -185,9 +175,40 @@ func (p *PromScraper) buildHttpClient(idleTimeout time.Duration, serverName stri
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 			MaxIdleConns:    1,
-			IdleConnTimeout: idleTimeout,
+			IdleConnTimeout: scrapeConfig.ScrapeInterval,
 		},
 	}
+}
+
+func (p *PromScraper) clientOptions(scrapeConfig scraper.PromScraperConfig) []tlsconfig.ClientOption {
+	clientOptions := []tlsconfig.ClientOption{withSkipSSLValidation(p.cfg.SkipSSLValidation)}
+
+	if scrapeConfig.ServerName != "" {
+		clientOptions = append(clientOptions, tlsconfig.WithServerName(scrapeConfig.ServerName))
+	}
+
+	if p.cfg.ScrapeCACertPath != "" && scrapeConfig.CaPath == "" {
+		clientOptions = append(clientOptions, tlsconfig.WithAuthorityFromFile(p.cfg.ScrapeCACertPath))
+	} else if scrapeConfig.CaPath != "" {
+		clientOptions = append(clientOptions, tlsconfig.WithAuthorityFromFile(scrapeConfig.CaPath))
+	}
+
+	return clientOptions
+}
+
+func (p *PromScraper) tlsOptions(scrapeConfig scraper.PromScraperConfig) []tlsconfig.TLSOption {
+	tlsOptions := []tlsconfig.TLSOption{tlsconfig.WithInternalServiceDefaults()}
+
+	defaultClientCertExists := p.cfg.ScrapeCertPath != "" && p.cfg.ScrapeKeyPath != ""
+	scrapeConfigClientCertExists := scrapeConfig.ClientCertPath != "" && scrapeConfig.ClientKeyPath != ""
+
+	if defaultClientCertExists && !scrapeConfigClientCertExists {
+		tlsOptions = append(tlsOptions, tlsconfig.WithIdentityFromFile(p.cfg.ScrapeCertPath, p.cfg.ScrapeKeyPath))
+	} else if scrapeConfigClientCertExists {
+		tlsOptions = append(tlsOptions, tlsconfig.WithIdentityFromFile(scrapeConfig.ClientCertPath, scrapeConfig.ClientKeyPath))
+	}
+
+	return tlsOptions
 }
 
 // Stops cancel future scrapes and wait for any current scrapes to complete

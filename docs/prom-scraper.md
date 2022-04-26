@@ -23,6 +23,14 @@ path: Optional - the path to the metrics endpoint (defaults to "/metrics")
 headers: Optional - a map of headers to add to the scrape request
 labels: Optional - a map of labels that will be added to all metrics
 scrape_interval: Optional - how often to scrape the metrics endpoint
+
+# NOTE: if you would like to override the use of certificates
+# ensure that you include a blob that includes your cert and key files
+# in the prom scraper job's additional_volumes property so that
+# it will not be blocked from viewing these files by bpm.
+ca_path: Optional - path to ca to override the default scraping ca.
+client_key_path: Optional - path to a client key to provide to override default mutual tls client key
+client_cert_path: Optional - path to a client cert to provide to override default mutual tls client cert
 ```
 
 #### Example `prom_scraper_config.yml.erb`
