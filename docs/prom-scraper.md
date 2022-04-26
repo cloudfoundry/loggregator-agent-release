@@ -51,10 +51,10 @@ Any other components deployed on the same VM with scrapable endpoints should hav
 **Notes**
 - Prom scraper must be deployed alongside a [loggregator-agent](loggregator-agent.md)
 - Prom scraper is subject to the same limitations as syslog-agent. As such, certain fields may be truncated
-  or cause some consumers to drop the message if they are too long. This includes the sourceid(which must be less then or equal to 48 characters.
-  the instance id, which must be shorter to or equal to 125 characters combined with the source type. Org, space, and app names will be truncated at 63 characters each.
-  metrics labels should also be shorter then 32 characters. Some consumers can ignore this limit, but not complient to syslog. These will not effect metrics-agent users
-  or loggregator users, only syslog users(which includes log-cache).
+  or cause some consumers to drop the message if they are too long. This includes: the sourceid, which must be less then or equal to 48 characters;
+  the instance id, which must be shorter to or equal to 125 characters combined with the source type; Org, space, and app names will be truncated at 63 characters each.
+  metrics labels should also be shorter then 32 characters. Some consumers can ignore this limit, but it is not complient to the syslog rfc. These will not effect metrics-agent users
+  or loggregator users, only syslog users(noteably log-cache).
 
 ```yaml
 jobs:
