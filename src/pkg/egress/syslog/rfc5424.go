@@ -56,20 +56,9 @@ func NewConverter(opts ...ConverterOption) *Converter {
 }
 
 func (c *Converter) ToRFC5424(env *loggregator_v2.Envelope, defaultHostname string) ([][]byte, error) {
-	if len(defaultHostname) > 255 {
-		return nil, c.invalidValue("Hostname", defaultHostname)
-	}
-
 	hostname := c.BuildHostname(env, defaultHostname)
 
 	appID := env.GetSourceId()
-	if len(appID) > 48 {
-		return nil, c.invalidValue("AppName", appID)
-	}
-
-	if len(env.InstanceId) > 128 {
-		return nil, c.invalidValue("AppName", appID)
-	}
 
 	switch env.GetMessage().(type) {
 	case *loggregator_v2.Envelope_Log:

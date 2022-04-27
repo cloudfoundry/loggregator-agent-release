@@ -86,7 +86,7 @@ func convertTimer(v2e *loggregator_v2.Envelope) []*events.Envelope {
 	v1e := createBaseV1(v2e)
 	timer := v2e.GetTimer()
 	v1e.EventType = events.Envelope_HttpStartStop.Enum()
-	instanceIndex, err := strconv.Atoi(v2e.InstanceId)
+	instanceIndex, err := strconv.ParseInt(v2e.InstanceId, 10, 32)
 	if err != nil {
 		instanceIndex = 0
 	}
@@ -223,7 +223,7 @@ func extractGaugeValues(metric *loggregator_v2.GaugeValue) (string, float64, boo
 }
 
 func instanceIndex(v2e *loggregator_v2.Envelope) int32 {
-	defaultIndex, err := strconv.Atoi(v2e.InstanceId)
+	defaultIndex, err := strconv.ParseInt(v2e.InstanceId, 10, 32)
 	if err != nil {
 		defaultIndex = 0
 	}

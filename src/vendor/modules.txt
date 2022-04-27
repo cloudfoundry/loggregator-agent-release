@@ -1,13 +1,13 @@
 # code.cloudfoundry.org/go-batching v0.0.0-20171020220229-924d2a9b48ac
 ## explicit
 code.cloudfoundry.org/go-batching
-# code.cloudfoundry.org/go-diodes v0.0.0-20190809170250-f77fb823c7ee
-## explicit
+# code.cloudfoundry.org/go-diodes v0.0.0-20220420211542-53509ccdf174
+## explicit; go 1.18
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.5.0
 ## explicit; go 1.12
 code.cloudfoundry.org/go-envstruct
-# code.cloudfoundry.org/go-loggregator/v8 v8.0.5
+# code.cloudfoundry.org/go-loggregator/v8 v8.0.6-0.20220425223300-a8327c668a4c
 ## explicit; go 1.16
 code.cloudfoundry.org/go-loggregator/v8
 code.cloudfoundry.org/go-loggregator/v8/conversion
@@ -126,6 +126,8 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
+# github.com/poy/eachers v0.0.0-20181020210610-23942921fe77
+## explicit
 # github.com/prometheus/client_golang v1.12.1
 ## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
@@ -155,7 +157,7 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+# golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/html
@@ -167,7 +169,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f
+# golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -194,11 +196,11 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto v0.0.0-20200825200019-8632dd797987
-## explicit; go 1.11
+# google.golang.org/genproto v0.0.0-20220422154200-b37d22cd5731
+## explicit; go 1.15
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.31.0
-## explicit; go 1.11
+# google.golang.org/grpc v1.46.0
+## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -207,15 +209,17 @@ google.golang.org/grpc/balancer/base
 google.golang.org/grpc/balancer/grpclb/state
 google.golang.org/grpc/balancer/roundrobin
 google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/channelz
 google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/credentials
-google.golang.org/grpc/credentials/internal
+google.golang.org/grpc/credentials/insecure
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
+google.golang.org/grpc/internal/balancer/gracefulswitch
 google.golang.org/grpc/internal/balancerload
 google.golang.org/grpc/internal/binarylog
 google.golang.org/grpc/internal/buffer
@@ -226,12 +230,17 @@ google.golang.org/grpc/internal/grpclog
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
 google.golang.org/grpc/internal/grpcutil
+google.golang.org/grpc/internal/metadata
+google.golang.org/grpc/internal/pretty
+google.golang.org/grpc/internal/resolver
 google.golang.org/grpc/internal/resolver/dns
 google.golang.org/grpc/internal/resolver/passthrough
+google.golang.org/grpc/internal/resolver/unix
 google.golang.org/grpc/internal/serviceconfig
 google.golang.org/grpc/internal/status
 google.golang.org/grpc/internal/syscall
 google.golang.org/grpc/internal/transport
+google.golang.org/grpc/internal/transport/networktype
 google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
 google.golang.org/grpc/peer

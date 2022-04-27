@@ -31,6 +31,7 @@ import "time"
 type Message struct {
 	Priority       Priority
 	Timestamp      time.Time
+	UseUTC         bool
 	Hostname       string
 	AppName        string
 	ProcessID      string

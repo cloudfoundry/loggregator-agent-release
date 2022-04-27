@@ -167,29 +167,36 @@ var _ = Describe("RFC5424", func() {
 		expectConversion(receivedMsgs, expectedMsg+"\n")
 	})
 
-	Describe("validation", func() {
-		It("returns an error if hostname is longer than 255", func() {
-			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
-			_, err := c.ToRFC5424(env, invalidHostname)
-			Expect(err).To(HaveOccurred())
-		})
+	It("truncates hostname if is longer than 255", func() {
+		env := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_OUT)
+		receivedMsgs, err := c.ToRFC5424(env, strings.Repeat("A", 300))
+		Expect(err).ToNot(HaveOccurred())
+		expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 %s test-app-id [MY-TASK/2] - [tags@47450 source_type="MY TASK"] just a test`, strings.Repeat("A", 255))
+		expectConversion(receivedMsgs, expectedMsg+"\n")
+	})
 
-		It("returns an error if app name is longer than 48", func() {
-			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
-			env.SourceId = invalidAppName
-			_, err := c.ToRFC5424(env, "test-hostname")
-			Expect(err).To(HaveOccurred())
-		})
+	It("truncates app_name if is longer than 48", func() {
+		env := buildLogEnvelope("MY TASK", "2", "just a test", loggregator_v2.Log_OUT)
+		env.SourceId = strings.Repeat("A", 300)
+		receivedMsgs, err := c.ToRFC5424(env, "host")
+		Expect(err).ToNot(HaveOccurred())
+		expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host %s [MY-TASK/2] - [tags@47450 source_type="MY TASK"] just a test`, strings.Repeat("A", 48))
+		expectConversion(receivedMsgs, expectedMsg+"\n")
+	})
+
+	It("truncates processid if is longer than 128", func() {
+		env := buildLogEnvelope("MY TASK", strings.Repeat("A", 300), "just a test", loggregator_v2.Log_OUT)
+		receivedMsgs, err := c.ToRFC5424(env, "host")
+		Expect(err).ToNot(HaveOccurred())
+		expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host test-app-id [MY-TASK/%s] - [tags@47450 source_type="MY TASK"] just a test`, strings.Repeat("A", 118))
+		expectConversion(receivedMsgs, expectedMsg+"\n")
+	})
+
+	Describe("validation", func() {
 
 		It("returns an error if app name includes unprintable characters", func() {
 			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
 			env.SourceId = "   "
-			_, err := c.ToRFC5424(env, "test-hostname")
-			Expect(err).To(HaveOccurred())
-		})
-
-		It("returns an error if process ID is longer than 128", func() {
-			env := buildLogEnvelope("MY TASK", invalidProcessID, "just a test", 20)
 			_, err := c.ToRFC5424(env, "test-hostname")
 			Expect(err).To(HaveOccurred())
 		})
@@ -199,9 +206,3 @@ var _ = Describe("RFC5424", func() {
 func expectConversion(received [][]byte, expected string) bool {
 	return Expect(received).To(Equal([][]byte{[]byte(expected)}), fmt.Sprintf("\n%s\n%s", string(received[0]), expected))
 }
-
-var (
-	invalidHostname  = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras tortor elit, ultricies in suscipit et, euismod quis velit. Duis et auctor mauris. Suspendisse et aliquet justo. Nunc fermentum lorem dolor, eu fermentum quam vulputate id. Morbi gravida ut elit sed."
-	invalidAppName   = "Lorem ipsum dolor sit amet, consectetur posuere. HA!"
-	invalidProcessID = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras tortor elit, ultricies in suscipit et, euismod quis velit. Duis et auctor mauris. Suspendisse et aliquet justo. Nunc fermentum lorem dolor,"
-)

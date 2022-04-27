@@ -156,7 +156,7 @@ func (m *Message) readPriority(r io.RuneScanner) error {
 		}
 
 		// We have a complete integer expression
-		priority, err := strconv.ParseInt(string(rv.Bytes()), 10, 32)
+		priority, err := strconv.ParseInt(rv.String(), 10, 32)
 		if err != nil {
 			return badFormat("Priority")
 		}
@@ -208,6 +208,7 @@ func (m *Message) readTimestamp(r io.RuneScanner) error {
 
 	m.Timestamp, err = time.Parse(RFC5424TimeOffsetUTC, timestampString)
 	if err == nil {
+		m.UseUTC = true
 		return nil
 	}
 
@@ -254,7 +255,10 @@ func (m *Message) readStructuredData(r io.RuneScanner) (err error) {
 	if ch == '-' {
 		return nil
 	}
-	r.UnreadRune()
+	err = r.UnreadRune()
+	if err != nil {
+		return err
+	}
 
 	for {
 		ch, _, err := r.ReadRune()
@@ -263,10 +267,16 @@ func (m *Message) readStructuredData(r io.RuneScanner) (err error) {
 		} else if err != nil {
 			return err // hard to reach without underlying IO error
 		} else if ch == ' ' {
-			r.UnreadRune()
+			err = r.UnreadRune()
+			if err != nil {
+				return err
+			}
 			return nil
 		} else if ch == '[' {
-			r.UnreadRune()
+			err = r.UnreadRune()
+			if err != nil {
+				return err
+			}
 			sde, err := readSDElement(r)
 			if err != nil {
 				return err
@@ -327,8 +337,11 @@ func readSdID(r io.RuneScanner) (string, error) {
 			return "", err
 		}
 		if ch == ' ' || ch == ']' {
-			r.UnreadRune()
-			return string(rv.Bytes()), nil
+			err = r.UnreadRune()
+			if err != nil {
+				return "", err
+			}
+			return rv.String(), nil
 		}
 		rv.WriteRune(ch)
 	}
@@ -373,8 +386,11 @@ func readSdParamName(r io.RuneScanner) (string, error) {
 			return "", err
 		}
 		if ch == '=' {
-			r.UnreadRune()
-			return string(rv.Bytes()), nil
+			err = r.UnreadRune()
+			if err != nil {
+				return "", err
+			}
+			return rv.String(), nil
 		}
 		rv.WriteRune(ch)
 	}
@@ -407,7 +423,7 @@ func readSdParamValue(r io.RuneScanner) (string, error) {
 			continue
 		}
 		if ch == '"' {
-			return string(rv.Bytes()), nil
+			return rv.String(), nil
 		}
 		rv.WriteRune(ch)
 	}
@@ -435,8 +451,11 @@ func readWord(r io.RuneScanner) (string, error) {
 		} else if ch != ' ' {
 			rv.WriteRune(ch)
 		} else {
-			r.UnreadRune()
-			rvString := string(rv.Bytes())
+			err = r.UnreadRune()
+			if err != nil {
+				return "", err
+			}
+			rvString := rv.String()
 			if rvString == "-" {
 				rvString = ""
 			}
