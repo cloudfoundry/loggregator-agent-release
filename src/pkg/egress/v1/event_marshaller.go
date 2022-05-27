@@ -1,9 +1,10 @@
 package v1
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"sync"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/gogo/protobuf/proto"
