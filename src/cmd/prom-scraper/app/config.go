@@ -1,9 +1,10 @@
 package app
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	"log"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 
 	"code.cloudfoundry.org/go-envstruct"
 )

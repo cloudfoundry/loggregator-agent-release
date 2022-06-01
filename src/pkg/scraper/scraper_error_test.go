@@ -1,8 +1,9 @@
 package scraper_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 	"errors"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

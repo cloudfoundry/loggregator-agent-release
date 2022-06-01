@@ -1,8 +1,9 @@
 package v2
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing/batching"

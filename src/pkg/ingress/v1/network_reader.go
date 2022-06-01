@@ -1,9 +1,10 @@
 package v1
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"log"
 	"net"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"

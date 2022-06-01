@@ -1,8 +1,9 @@
 package v2
 
 import (
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 	"strconv"
+
+	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
 )
 
 type Tagger struct {

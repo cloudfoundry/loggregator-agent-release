@@ -1,11 +1,12 @@
 package binding
 
 import (
-	"code.cloudfoundry.org/go-metric-registry"
 	"encoding/json"
 	"log"
 	"net/http"
 	"time"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
 )
 
 type Poller struct {
