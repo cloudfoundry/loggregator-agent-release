@@ -1,8 +1,8 @@
 Loggregator Agent Release
-[![slack.cloudfoundry.org][slack-badge]][loggregator-slack]
-[![CI Badge][ci-badge]][ci-pipeline]
 ===================================================
 A collection of composable agents used for interacting with Loggregator and Syslog
+
+If you have any questions, or want to get attention for a PR or issue please reach out on the [#logging-and-metrics channel in the cloudfoundry slack](https://cloudfoundry.slack.com/archives/CUW93AF3M)
 
 ## Agents Architecture
 
@@ -42,17 +42,7 @@ We are always looking to gather feedback and input
 from Loggregator operators. Get in touch or file an issue if you have feature
 suggestions you'd like to see added.
 
-### Pivotal Tracker
 
-Items marked as "In Flight" on the Roadmap are tracked as new Features in
-[Pivotal Tracker][loggregator-tracker].
-
-
-[slack-badge]:         https://slack.cloudfoundry.org/badge.svg
-[loggregator-slack]:   https://cloudfoundry.slack.com/archives/loggregator
-[ci-badge]:            https://loggregator.ci.cf-app.com/api/v1/pipelines/products/jobs/loggregator-tests-with-bumped-modules/badge
-[ci-pipeline]:         https://loggregator.ci.cf-app.com/teams/main/pipelines/products?group=loggregator-agent
-[loggregator-tracker]: https://www.pivotaltracker.com/n/projects/993188
 [ingress-port]:        https://github.com/cloudfoundry/loggregator-agent-release/blob/develop/jobs/loggr-syslog-agent/templates/ingress_port.yml.erb
 
 [loggregator-agent]:    docs/loggregator-agent.md
