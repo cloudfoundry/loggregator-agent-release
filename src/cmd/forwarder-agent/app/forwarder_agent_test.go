@@ -38,7 +38,8 @@ var (
 
 var _ = Describe("Main", func() {
 	var (
-		grpcPort   = 20000
+		grpcPort int
+
 		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 		testCerts  = testhelper.GenerateCerts("loggregatorCA")
 
@@ -81,6 +82,8 @@ var _ = Describe("Main", func() {
 	)
 
 	BeforeEach(func() {
+		grpcPort = 20000 + GinkgoParallelProcess()
+
 		fConfigDir = forwarderPortConfigDir()
 
 		mc = metricsHelpers.NewMetricsRegistry()
@@ -109,7 +112,6 @@ var _ = Describe("Main", func() {
 		os.RemoveAll(fConfigDir)
 
 		gexec.CleanupBuildArtifacts()
-		grpcPort++
 	})
 
 	It("has a dropped metric with direction", func() {
