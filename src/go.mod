@@ -14,7 +14,7 @@ require (
 	github.com/cloudfoundry/sonde-go v0.0.0-20220324234026-9851b3a0dce2 // pinned
 	github.com/gogo/protobuf v1.3.2 // pinned
 	github.com/golang/protobuf v1.5.2 // pinned
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/prometheus/client_model v0.2.0
