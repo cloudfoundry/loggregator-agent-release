@@ -19,7 +19,7 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.34.0
-	github.com/valyala/fasthttp v1.34.0
+	github.com/valyala/fasthttp v1.37.0
 	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
 	google.golang.org/grpc v1.46.0
 	gopkg.in/yaml.v2 v2.4.0
