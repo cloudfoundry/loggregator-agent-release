@@ -36,11 +36,11 @@ var _ = Describe("UDPForwarder", func() {
 
 	BeforeEach(func() {
 		spyLoggregatorV2Ingress = startSpyLoggregatorV2Ingress(testCerts)
+		udpPort = 10000 + GinkgoParallelProcess()
 	})
 
 	AfterEach(func() {
 		gexec.CleanupBuildArtifacts()
-		udpPort++
 	})
 
 	It("forwards envelopes from Loggregator V1 to V2", func() {
