@@ -44,7 +44,7 @@ func LoadConfig(log *log.Logger) Config {
 		log.Fatal(err)
 	}
 
-	envstruct.WriteReport(&cfg)
+	envstruct.WriteReport(&cfg) //nolint:errcheck
 
 	return cfg
 }

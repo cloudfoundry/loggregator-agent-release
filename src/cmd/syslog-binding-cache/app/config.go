@@ -43,7 +43,7 @@ func LoadConfig() Config {
 		log.Panicf("Failed to load config from environment: %s", err)
 	}
 
-	envstruct.WriteReport(&cfg)
+	envstruct.WriteReport(&cfg) //nolint:errcheck
 
 	return cfg
 }
