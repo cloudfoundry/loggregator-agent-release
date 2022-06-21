@@ -243,7 +243,7 @@ func (p *PromScraper) scrape(client *http.Client) scraper.MetricsGetter {
 
 func withSkipSSLValidation(skipSSLValidation bool) tlsconfig.ClientOption {
 	return func(tlsConfig *tls.Config) error {
-		tlsConfig.InsecureSkipVerify = skipSSLValidation
+		tlsConfig.InsecureSkipVerify = skipSSLValidation //nolint:gosec
 		return nil
 	}
 }

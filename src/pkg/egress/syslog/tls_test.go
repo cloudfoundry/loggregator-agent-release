@@ -41,7 +41,7 @@ var _ = Describe("TLSWriter", func() {
 
 		tlsConfig = &tls.Config{
 			Certificates:       []tls.Certificate{tlsCert},
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, //nolint:gosec
 		}
 	})
 
@@ -59,7 +59,7 @@ var _ = Describe("TLSWriter", func() {
 			binding,
 			netConf,
 			&tls.Config{
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: true, //nolint:gosec
 			},
 			egressCounter,
 			syslog.NewConverter(),

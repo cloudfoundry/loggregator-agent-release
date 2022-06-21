@@ -178,8 +178,8 @@ func drainTLSConfig(cfg Config) (*tls.Config, *tls.Config) {
 
 	}
 
-	internalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
-	externalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
+	internalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify //nolint:gosec
+	externalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify //nolint:gosec
 
 	return internalTlsConfig, externalTlsConfig
 }
