@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 	"os"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"

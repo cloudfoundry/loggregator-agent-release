@@ -12,7 +12,7 @@ import (
 
 	"net/http"
 
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/v9"

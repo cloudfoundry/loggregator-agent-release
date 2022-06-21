@@ -12,7 +12,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 
 	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
