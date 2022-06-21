@@ -12,7 +12,7 @@ import (
 
 func TestClientpool(t *testing.T) {
 	log.SetOutput(GinkgoWriter)
-	grpclog.SetLogger(log.New(GinkgoWriter, "", 0))
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2(GinkgoWriter, GinkgoWriter, GinkgoWriter))
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Clientpool V2 Suite")
