@@ -433,6 +433,33 @@ var _ = Describe("Manager", func() {
 		}).Should(Equal(2.0))
 	})
 
+	It("bad drains don't report on active drains", func() {
+		stubAppBindingFetcher.bindings <- []syslog.Binding{
+			{AppId: "app-1", Hostname: "host-1", Drain: "bad://drain1.url.com"},
+			{AppId: "app-1", Hostname: "host-2", Drain: "bad://drain2.url.com"},
+		}
+
+		m := binding.NewManager(
+			stubAppBindingFetcher,
+			stubAggregateBindingFetcher,
+			spyConnector,
+			spyMetricClient,
+			10*time.Millisecond,
+			10*time.Millisecond,
+			10*time.Minute,
+			log.New(GinkgoWriter, "", 0),
+		)
+		go m.Run()
+
+		Eventually(func() []egress.Writer {
+			return m.GetDrains("app-1")
+		}).Should(HaveLen(0))
+
+		Consistently(func() float64 {
+			return spyMetricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+		}).Should(Equal(0.0))
+	})
+
 	It("maintains current state on error", func() {
 		stubAppBindingFetcher.bindings <- []syslog.Binding{
 			binding1,
