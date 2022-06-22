@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//go:generate hel --type BatchChainByteWriter --output mock_writer_test.go
-
 // MetricClient creates new CounterMetrics to be emitted periodically.
 type MetricClient interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter

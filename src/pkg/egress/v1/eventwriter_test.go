@@ -11,12 +11,12 @@ import (
 
 var _ = Describe("EventWriter", func() {
 	var (
-		mockWriter  *MockEnvelopeWriter
+		mockWriter  *mockEnvelopeWriter
 		eventWriter *egress.EventWriter
 	)
 
 	BeforeEach(func() {
-		mockWriter = &MockEnvelopeWriter{}
+		mockWriter = newMockEnvelopeWriter()
 		eventWriter = egress.New("Africa")
 	})
 
@@ -31,10 +31,11 @@ var _ = Describe("EventWriter", func() {
 			}
 			eventWriter.Emit(event)
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			Expect(mockWriter.Events[0].GetOrigin()).To(Equal("Africa"))
-			Expect(mockWriter.Events[0].GetEventType()).To(Equal(events.Envelope_ValueMetric))
-			Expect(mockWriter.Events[0].GetValueMetric()).To(Equal(event))
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			e := <-mockWriter.WriteInput.Event
+			Expect(e.GetOrigin()).To(Equal("Africa"))
+			Expect(e.GetEventType()).To(Equal(events.Envelope_ValueMetric))
+			Expect(e.GetValueMetric()).To(Equal(event))
 		})
 
 		It("returns an error with a sane message when emitting without a writer", func() {
@@ -64,8 +65,8 @@ var _ = Describe("EventWriter", func() {
 			}
 			eventWriter.EmitEnvelope(event)
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			Expect(mockWriter.Events[0]).To(Equal(event))
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			Expect(<-mockWriter.WriteInput.Event).To(Equal(event))
 		})
 
 		It("returns an error with a sane message when emitting without a writer", func() {
