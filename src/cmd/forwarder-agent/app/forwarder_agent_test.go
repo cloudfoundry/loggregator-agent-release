@@ -354,6 +354,7 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	lis, err := net.Listen("tcp", ":0")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -410,6 +411,7 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	lis, err := net.Listen("tcp", ":0")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
