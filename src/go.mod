@@ -24,6 +24,7 @@ require (
 
 require (
 	code.cloudfoundry.org/go-loggregator/v9 v9.0.2
+	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	google.golang.org/protobuf v1.28.1
 )
 
@@ -36,6 +37,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
@@ -46,8 +48,11 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.6 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/spf13/cobra v1.0.0 // indirect
+	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/square/certstrap v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.12 // indirect
