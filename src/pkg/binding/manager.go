@@ -262,10 +262,11 @@ func (m *Manager) idleCleanup() {
 	for sID, ts := range m.sourceAccessTimes {
 		if ts.Before(currentTime.Add(-m.idleTimeout)) {
 			for b, dh := range m.sourceDrainMap[sID] {
-				dh.cancel()
-
-				m.sourceDrainMap[sID][b] = newDrainHolder()
-				m.updateActiveDrainCount(-1)
+				if dh.drainWriter != nil {
+					dh.cancel()
+					m.sourceDrainMap[sID][b] = newDrainHolder()
+					m.updateActiveDrainCount(-1)
+				}
 			}
 
 			delete(m.sourceAccessTimes, sID)
