@@ -151,7 +151,7 @@ var _ = Describe("TCPWriter", func() {
 			actual, err := buf.ReadString('\n')
 			Expect(err).ToNot(HaveOccurred())
 
-			expected := fmt.Sprintf("128 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [OTHER/1] - [tags@47450 source_type=\"OTHER\"] no null `` please\n")
+			expected := "128 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [OTHER/1] - [tags@47450 source_type=\"OTHER\"] no null `` please\n"
 			Expect(actual).To(Equal(expected))
 		})
 
