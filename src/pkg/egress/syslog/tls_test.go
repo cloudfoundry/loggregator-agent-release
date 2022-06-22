@@ -76,7 +76,8 @@ var _ = Describe("TLSWriter", func() {
 			// connection before the dial will succeed. We should probably
 			// investigate.
 			empty := make([]byte, 0)
-			conn.Read(empty)
+			_, err = conn.Read(empty)
+			Expect(err).ToNot(HaveOccurred())
 		}()
 
 		Expect(writer.Write(env)).To(Succeed())

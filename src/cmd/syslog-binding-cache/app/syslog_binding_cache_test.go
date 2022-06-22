@@ -250,7 +250,12 @@ func (f *fakeCC) serveWithResults(w http.ResponseWriter, r *http.Request) {
 		resultData = []byte(`{"results": {}}`)
 	}
 
-	w.Write(resultData)
+	_, err = w.Write(resultData)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+
 	if f.withEmptyResult {
 		f.count++
 	}

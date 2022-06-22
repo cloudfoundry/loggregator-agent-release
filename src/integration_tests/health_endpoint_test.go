@@ -19,7 +19,7 @@ var _ = Describe("Agent Health Endpoint", func() {
 		testCerts := testhelper.GenerateCerts("loggregatorCA")
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
-		defer consumerServer.Stop()
+		defer consumerServer.Stop() // nolint:errcheck
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)

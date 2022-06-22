@@ -25,7 +25,7 @@ var _ = Describe("DiodeWriter", func() {
 		spyAlerter := &SpyAlerter{}
 		dw := egress.NewDiodeWriter(context.TODO(), spyWriter, spyAlerter, spyWaitGroup)
 
-		dw.Write(expectedEnv)
+		_ = dw.Write(expectedEnv)
 
 		Eventually(spyWriter.calledWith).Should(Equal([]*loggregator_v2.Envelope{
 			expectedEnv,
@@ -56,7 +56,7 @@ var _ = Describe("DiodeWriter", func() {
 			}
 			spyAlerter := &SpyAlerter{}
 			dw := egress.NewDiodeWriter(context.TODO(), spyWriter, spyAlerter, spyWaitGroup)
-			dw.Write(nil)
+			_ = dw.Write(nil)
 		}()
 		Eventually(done).Should(BeClosed())
 	})
@@ -73,7 +73,7 @@ var _ = Describe("DiodeWriter", func() {
 
 		e := &loggregator_v2.Envelope{}
 		for i := 0; i < 100; i++ {
-			dw.Write(e)
+			_ = dw.Write(e)
 		}
 		cancel()
 		spyWriter.WriteBlocked(false)
@@ -92,7 +92,7 @@ var _ = Describe("DiodeWriter", func() {
 
 		go func() {
 			for {
-				dw.Write(&loggregator_v2.Envelope{})
+				_ = dw.Write(&loggregator_v2.Envelope{})
 			}
 		}()
 

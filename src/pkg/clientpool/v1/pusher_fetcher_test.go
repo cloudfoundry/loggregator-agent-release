@@ -42,7 +42,8 @@ var _ = Describe("PusherFetcher", func() {
 		}
 		Eventually(f).ShouldNot(HaveOccurred())
 
-		pusher.Send(&plumbing.EnvelopeData{})
+		err := pusher.Send(&plumbing.EnvelopeData{})
+		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(server.envelopeData).Should(Receive())
 		Expect(closer.Close()).To(Succeed())
@@ -79,7 +80,8 @@ var _ = Describe("PusherFetcher", func() {
 		}
 		Eventually(f).ShouldNot(HaveOccurred())
 
-		closer.Close()
+		err := closer.Close()
+		Expect(err).ToNot(HaveOccurred())
 		tags := map[string]string{"metric_version": "2.0"}
 		Expect(mc.GetMetric("doppler_connections", tags).Value()).To(Equal(0.0))
 		Expect(mc.GetMetric("doppler_v1_streams", tags).Value()).To(Equal(0.0))
@@ -118,7 +120,7 @@ func (s *SpyIngestorServer) Start() error {
 	s.addr = lis.Addr().String()
 	plumbing.RegisterDopplerIngestorServer(s.server, s)
 
-	go s.server.Serve(lis)
+	go s.server.Serve(lis) // nolint:errcheck
 
 	return nil
 }

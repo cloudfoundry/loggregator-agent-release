@@ -157,7 +157,8 @@ var _ = Describe("TCPWriter", func() {
 
 		It("emits an egress metric for each message", func() {
 			env := buildLogEnvelope("OTHER", "1", "no null `\x00` please", loggregator_v2.Log_OUT)
-			writer.Write(env)
+			err := writer.Write(env)
+			Expect(err).To(BeNil())
 
 			Expect(egressCounter.Value()).To(BeNumerically("==", 1))
 		})

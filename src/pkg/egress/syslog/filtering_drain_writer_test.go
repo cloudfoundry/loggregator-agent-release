@@ -40,8 +40,10 @@ var _ = Describe("Filtering Drain Writer", func() {
 		drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
 		Expect(err).ToNot(HaveOccurred())
 
-		drain.Write(logEnv)
-		drain.Write(metricEnv)
+		err = drain.Write(logEnv)
+		Expect(err).To(BeNil())
+		err = drain.Write(metricEnv)
+		Expect(err).To(BeNil())
 
 		Expect(fakeWriter.envs).To(HaveLen(1))
 		Expect(fakeWriter.envs[0]).To(Equal(logEnv))
@@ -84,9 +86,14 @@ var _ = Describe("Filtering Drain Writer", func() {
 		drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
 		Expect(err).ToNot(HaveOccurred())
 
-		drain.Write(logEnv)
-		drain.Write(counterEnv)
-		drain.Write(gaugeEnv)
+		err = drain.Write(logEnv)
+		Expect(err).To(BeNil())
+
+		err = drain.Write(counterEnv)
+		Expect(err).To(BeNil())
+
+		err = drain.Write(gaugeEnv)
+		Expect(err).To(BeNil())
 
 		Expect(fakeWriter.envs).To(HaveLen(2))
 		Expect(fakeWriter.envs[0]).To(Equal(counterEnv))
@@ -122,8 +129,10 @@ var _ = Describe("Filtering Drain Writer", func() {
 		drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
 		Expect(err).ToNot(HaveOccurred())
 
-		drain.Write(logEnv)
-		drain.Write(metricEnv)
+		err = drain.Write(logEnv)
+		Expect(err).To(BeNil())
+		err = drain.Write(metricEnv)
+		Expect(err).To(BeNil())
 
 		Expect(fakeWriter.envs).To(HaveLen(2))
 		Expect(fakeWriter.envs[0]).To(Equal(logEnv))
@@ -137,7 +146,8 @@ var _ = Describe("Filtering Drain Writer", func() {
 		drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
 		Expect(err).ToNot(HaveOccurred())
 
-		drain.Write(env)
+		err = drain.Write(env)
+		Expect(err).To(BeNil())
 
 		Expect(fakeWriter.envs).To(HaveLen(0))
 	},
@@ -153,7 +163,8 @@ var _ = Describe("Filtering Drain Writer", func() {
 			drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
 			Expect(err).ToNot(HaveOccurred())
 
-			drain.Write(env)
+			err = drain.Write(env)
+			Expect(err).To(BeNil())
 
 			Expect(fakeWriter.envs).To(HaveLen(1))
 		},

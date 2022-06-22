@@ -40,8 +40,8 @@ func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 		return nil, err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {

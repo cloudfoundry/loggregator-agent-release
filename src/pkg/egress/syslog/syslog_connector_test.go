@@ -154,12 +154,13 @@ var _ = Describe("SyslogConnector", func() {
 
 			go func(w egress.Writer) {
 				for {
-					w.Write(&loggregator_v2.Envelope{
+					e := w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 						Message: &loggregator_v2.Envelope_Log{
 							Log: &loggregator_v2.Log{},
 						},
 					})
+					Expect(e).ToNot(HaveOccurred())
 				}
 			}(writer)
 
@@ -198,12 +199,13 @@ var _ = Describe("SyslogConnector", func() {
 
 			go func(w egress.Writer) {
 				for {
-					w.Write(&loggregator_v2.Envelope{
+					e := w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 						Message: &loggregator_v2.Envelope_Log{
 							Log: &loggregator_v2.Log{},
 						},
 					})
+					Expect(e).ToNot(HaveOccurred())
 				}
 			}(writer)
 
@@ -235,12 +237,13 @@ var _ = Describe("SyslogConnector", func() {
 
 			go func(w egress.Writer) {
 				for {
-					w.Write(&loggregator_v2.Envelope{
+					e := w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 						Message: &loggregator_v2.Envelope_Log{
 							Log: &loggregator_v2.Log{},
 						},
 					})
+					Expect(e).ToNot(HaveOccurred())
 				}
 			}(writer)
 
@@ -262,9 +265,10 @@ var _ = Describe("SyslogConnector", func() {
 
 			f := func() {
 				for i := 0; i < 50000; i++ {
-					writer.Write(&loggregator_v2.Envelope{
+					e := writer.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 					})
+					Expect(e).ToNot(HaveOccurred())
 				}
 			}
 			Expect(f).ToNot(Panic())

@@ -90,11 +90,11 @@ var _ = Describe("CounterAggregator", func() {
 		Expect(env1.GetCounter().GetTotal()).To(Equal(uint64(500)))
 
 		for i := 0; i < 10000; i++ {
-			aggregator.Process(buildCounterEnvelope(10, fmt.Sprint("name-", i), "origin-1"))
+			_ = aggregator.Process(buildCounterEnvelope(10, fmt.Sprint("name-", i), "origin-1"))
 		}
 
 		env2 := buildCounterEnvelope(10, "unique-name", "origin-1")
-		aggregator.Process(env2)
+		_ = aggregator.Process(env2)
 
 		Expect(env2.GetCounter().GetTotal()).To(Equal(uint64(10)))
 	})

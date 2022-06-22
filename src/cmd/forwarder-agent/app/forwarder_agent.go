@@ -100,7 +100,7 @@ func (s *ForwarderAgent) Run() {
 	go func() {
 		for {
 			e := diode.Next()
-			ew.Write(e)
+			ew.Write(e) //nolint:errcheck
 		}
 	}()
 
@@ -163,7 +163,7 @@ type multiWriter struct {
 
 func (mw multiWriter) Write(e *loggregator_v2.Envelope) error {
 	for _, w := range mw.writers {
-		w.Write(e)
+		w.Write(e) //nolint:errcheck
 	}
 	return nil
 }

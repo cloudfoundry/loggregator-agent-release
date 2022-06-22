@@ -787,7 +787,10 @@ func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(resultData)
+	_, err = w.Write(resultData)
+	if err != nil {
+		w.WriteHeader(500)
+	}
 }
 
 type syslogHTTPSServer struct {

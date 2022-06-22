@@ -106,7 +106,7 @@ var _ = Describe("Main", func() {
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(fConfigDir)
+		_ = os.RemoveAll(fConfigDir)
 
 		gexec.CleanupBuildArtifacts()
 		grpcPort++
@@ -363,13 +363,13 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 	loggregator_v2.RegisterIngressServer(grpcServer, s)
 
 	s.close = func() {
-		lis.Close()
+		_ = lis.Close()
 	}
 	s.addr = lis.Addr().String()
 	port := strings.Split(s.addr, ":")
 
 	createForwarderPortConfigFile(port[len(port)-1])
-	go grpcServer.Serve(lis)
+	go grpcServer.Serve(lis) // nolint:errcheck
 
 	return s
 }
@@ -420,13 +420,13 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 	loggregator_v2.RegisterIngressServer(grpcServer, s)
 
 	s.close = func() {
-		lis.Close()
+		_ = lis.Close()
 	}
 	s.addr = lis.Addr().String()
 
 	port := strings.Split(s.addr, ":")
 	createForwarderPortConfigFile(port[len(port)-1])
-	go grpcServer.Serve(lis)
+	go grpcServer.Serve(lis) // nolint:errcheck
 
 	return s
 }

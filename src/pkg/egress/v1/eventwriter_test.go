@@ -29,7 +29,8 @@ var _ = Describe("EventWriter", func() {
 				Value: proto.Float64(13),
 				Unit:  proto.String("giraffes"),
 			}
-			eventWriter.Emit(event)
+			err := eventWriter.Emit(event)
+			Expect(err).To(BeNil())
 
 			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
 			e := <-mockWriter.WriteInput.Event
@@ -63,7 +64,8 @@ var _ = Describe("EventWriter", func() {
 					Unit:  proto.String("giraffes"),
 				},
 			}
-			eventWriter.EmitEnvelope(event)
+			err := eventWriter.EmitEnvelope(event)
+			Expect(err).To(BeNil())
 
 			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
 			Expect(<-mockWriter.WriteInput.Event).To(Equal(event))

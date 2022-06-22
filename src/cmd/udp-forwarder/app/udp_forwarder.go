@@ -102,7 +102,7 @@ func (u *UDPForwarder) Run() {
 }
 func (u *UDPForwarder) Stop() {
 	if u.pprofServer != nil {
-		u.pprofServer.Close()
+		u.pprofServer.Close() //nolint:errcheck
 	}
 }
 
