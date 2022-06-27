@@ -168,6 +168,8 @@ var _ = Describe("UDPForwarder", func() {
 })
 
 type spyLoggregatorV2Ingress struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	addr      string
 	close     func()
 	envelopes chan *loggregator_v2.Envelope

@@ -19,6 +19,8 @@ type MetricClient interface {
 }
 
 type Receiver struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	dataSetter           DataSetter
 	ingressMetric        func(uint64)
 	originMappingsMetric func(uint64)

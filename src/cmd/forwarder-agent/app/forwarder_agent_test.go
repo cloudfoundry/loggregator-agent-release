@@ -374,6 +374,8 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 }
 
 type spyLoggregatorV2Ingress struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	addr      string
 	close     func()
 	envelopes chan *loggregator_v2.Envelope
@@ -428,6 +430,8 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 }
 
 type spyLoggregatorV2BlockingIngress struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	addr  string
 	close func()
 }

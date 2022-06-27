@@ -35,6 +35,8 @@ func (m *mockDopplerIngestorServerV1) Pusher(arg0 plumbing.DopplerIngestor_Pushe
 }
 
 type mockIngressServerV2 struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	SendCalled chan bool
 	SendInput  struct {
 		Arg0 chan context.Context
