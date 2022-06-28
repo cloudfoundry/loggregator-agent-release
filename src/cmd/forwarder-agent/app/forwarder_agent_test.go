@@ -20,9 +20,9 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	"github.com/gogo/protobuf/proto"
 	"github.com/onsi/gomega/gexec"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -374,6 +374,8 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 }
 
 type spyLoggregatorV2Ingress struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	addr      string
 	close     func()
 	envelopes chan *loggregator_v2.Envelope
@@ -428,6 +430,8 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 }
 
 type spyLoggregatorV2BlockingIngress struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	addr  string
 	close func()
 }

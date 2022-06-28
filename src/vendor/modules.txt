@@ -1,13 +1,13 @@
 # code.cloudfoundry.org/go-batching v0.0.0-20171020220229-924d2a9b48ac
 ## explicit
 code.cloudfoundry.org/go-batching
-# code.cloudfoundry.org/go-diodes v0.0.0-20220420211542-53509ccdf174
+# code.cloudfoundry.org/go-diodes v0.0.0-20220601181242-ac2da19efd60
 ## explicit; go 1.18
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.5.0
 ## explicit; go 1.12
 code.cloudfoundry.org/go-envstruct
-# code.cloudfoundry.org/go-loggregator/v8 v8.0.6-0.20220425223300-a8327c668a4c
+# code.cloudfoundry.org/go-loggregator/v8 v8.0.6-0.20220627224345-4b007d7cf474
 ## explicit; go 1.16
 code.cloudfoundry.org/go-loggregator/v8
 code.cloudfoundry.org/go-loggregator/v8/conversion
@@ -17,8 +17,8 @@ code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2
 ## explicit; go 1.18
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.0.0-20211123175040-23cc9f05b6b3
-## explicit; go 1.16
+# code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921
+## explicit; go 1.17
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
 # github.com/andybalholm/brotli v1.0.4
@@ -34,23 +34,18 @@ github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.2
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/cloudfoundry/dropsonde v1.0.0
-## explicit
+# github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
+## explicit; go 1.18
 github.com/cloudfoundry/dropsonde/emitter
-# github.com/cloudfoundry/sonde-go v0.0.0-20220324234026-9851b3a0dce2
+# github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
 ## explicit; go 1.17
 github.com/cloudfoundry/sonde-go/events
-# github.com/fsnotify/fsnotify v1.4.9
-## explicit; go 1.13
+# github.com/fsnotify/fsnotify v1.5.4
+## explicit; go 1.16
 github.com/fsnotify/fsnotify
 # github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0
 ## explicit; go 1.13
 github.com/go-task/slim-sprig
-# github.com/gogo/protobuf v1.3.2
-## explicit; go 1.15
-github.com/gogo/protobuf/gogoproto
-github.com/gogo/protobuf/proto
-github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
 github.com/golang/protobuf/jsonpb
@@ -127,8 +122,6 @@ github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/gbytes
 github.com/onsi/gomega/gexec
-github.com/onsi/gomega/gstruct
-github.com/onsi/gomega/gstruct/errors
 github.com/onsi/gomega/internal
 github.com/onsi/gomega/internal/gutil
 github.com/onsi/gomega/matchers
@@ -137,8 +130,6 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/poy/eachers v0.0.0-20181020210610-23942921fe77
-## explicit
 # github.com/prometheus/client_golang v1.12.1
 ## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
@@ -168,7 +159,7 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
+# golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/html
@@ -180,7 +171,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
+# golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -207,10 +198,11 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20210106214847-113979e3529a
-## explicit; go 1.12
+# golang.org/x/tools v0.1.11
+## explicit; go 1.17
 golang.org/x/tools/go/ast/inspector
-# google.golang.org/genproto v0.0.0-20220422154200-b37d22cd5731
+golang.org/x/tools/internal/typeparams
+# google.golang.org/genproto v0.0.0-20220627200112-0a929928cb33
 ## explicit; go 1.15
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.47.0

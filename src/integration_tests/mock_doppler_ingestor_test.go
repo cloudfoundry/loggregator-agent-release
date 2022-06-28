@@ -12,6 +12,8 @@ import (
 )
 
 type mockDopplerIngestorServerV1 struct {
+	plumbing.UnimplementedDopplerIngestorServer
+
 	PusherCalled chan bool
 	PusherInput  struct {
 		Arg0 chan plumbing.DopplerIngestor_PusherServer
@@ -35,6 +37,8 @@ func (m *mockDopplerIngestorServerV1) Pusher(arg0 plumbing.DopplerIngestor_Pushe
 }
 
 type mockIngressServerV2 struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	SendCalled chan bool
 	SendInput  struct {
 		Arg0 chan context.Context

@@ -13,13 +13,12 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"github.com/cloudfoundry/dropsonde/emitter"
 	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/gogo/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/proto"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
 )
 
 const eventuallyTimeout = 10 * time.Second
@@ -40,6 +39,7 @@ var _ = Describe("Agent", func() {
 		Expect(err).ToNot(HaveOccurred())
 		eventEmitter := emitter.NewEventEmitter(udpEmitter, "some-origin")
 
+		done := make(chan struct{})
 		go func() {
 			event := &events.CounterEvent{
 				Name:  proto.String("some-name"),
@@ -48,9 +48,15 @@ var _ = Describe("Agent", func() {
 			}
 
 			for {
-				eventEmitter.Emit(event)
+				select {
+				case <-done:
+					return
+				default:
+					eventEmitter.Emit(event)
+				}
 			}
 		}()
+		defer close(done)
 
 		var rx plumbing.DopplerIngestor_PusherServer
 		Eventually(consumerServer.V1.PusherInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
@@ -70,7 +76,7 @@ var _ = Describe("Agent", func() {
 		Eventually(e, eventuallyTimeout).Should(Receive(&data))
 
 		envelope := new(events.Envelope)
-		Expect(envelope.Unmarshal(data.Payload)).To(Succeed())
+		Expect(proto.Unmarshal(data.Payload, envelope)).To(Succeed())
 	})
 
 	It("accepts connections on the v2 API", func() {
@@ -131,14 +137,10 @@ var _ = Describe("Agent", func() {
 
 		Expect(len(envBatch.Batch)).ToNot(BeZero())
 
-		Expect(*envBatch.Batch[idx]).To(MatchFields(IgnoreExtras, Fields{
-			"Message": Equal(&loggregator_v2.Envelope_Log{
-				Log: &loggregator_v2.Log{Payload: []byte("some-message")},
-			}),
-			"Tags": Equal(map[string]string{
-				"auto-tag-1": "auto-tag-value-1",
-				"auto-tag-2": "auto-tag-value-2",
-			}),
+		Expect(proto.Equal(envBatch.Batch[idx].GetLog(), &loggregator_v2.Log{Payload: []byte("some-message")}))
+		Expect(envBatch.Batch[idx].Tags).To(Equal(map[string]string{
+			"auto-tag-1": "auto-tag-value-1",
+			"auto-tag-2": "auto-tag-value-2",
 		}))
 	})
 

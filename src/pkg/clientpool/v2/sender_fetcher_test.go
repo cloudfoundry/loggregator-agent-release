@@ -99,7 +99,7 @@ func (s *SpyIngestorServer) Start() error {
 
 	s.server = grpc.NewServer()
 	s.addr = lis.Addr().String()
-	loggregator_v2.RegisterIngressServer(s.server, &spyV2IngressServer{s})
+	loggregator_v2.RegisterIngressServer(s.server, &spyV2IngressServer{spyIngestorServer: s})
 
 	go s.server.Serve(lis)
 
@@ -112,6 +112,8 @@ func (s *SpyIngestorServer) Stop() {
 }
 
 type spyV2IngressServer struct {
+	loggregator_v2.UnimplementedIngressServer
+
 	spyIngestorServer *SpyIngestorServer
 }
 

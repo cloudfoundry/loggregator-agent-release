@@ -2,7 +2,7 @@ package v1
 
 import (
 	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 type Tagger struct {

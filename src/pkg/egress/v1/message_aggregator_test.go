@@ -5,7 +5,7 @@ import (
 
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
