@@ -9,7 +9,7 @@ import (
 
 var _ = Describe("BatchEnvelopeWriter", func() {
 	It("processes each envelope before writing", func() {
-		mockWriter := newMockWriter()
+		mockWriter := newMockBatchWriter()
 		close(mockWriter.WriteOutput.Ret0)
 
 		tagger := v2.NewTagger(nil)
@@ -22,7 +22,7 @@ var _ = Describe("BatchEnvelopeWriter", func() {
 		Expect(ew.Write(envs)).ToNot(HaveOccurred())
 
 		var batch []*loggregator_v2.Envelope
-		Eventually(mockWriter.WriteInput.Msg).Should(Receive(&batch))
+		Eventually(mockWriter.WriteInput.Msgs).Should(Receive(&batch))
 
 		Expect(batch).To(HaveLen(2))
 		Expect(batch[0].GetCounter().GetTotal()).To(Equal(uint64(10)))

@@ -18,7 +18,7 @@ var _ = Describe("Transponder", func() {
 		nexter := newMockNexter()
 		nexter.TryNextOutput.Ret0 <- envelope
 		nexter.TryNextOutput.Ret1 <- true
-		writer := newMockWriter()
+		writer := newMockBatchWriter()
 		close(writer.WriteOutput.Ret0)
 
 		spy := metricsHelpers.NewMetricsRegistry()
@@ -27,14 +27,14 @@ var _ = Describe("Transponder", func() {
 		go tx.Start()
 
 		Eventually(nexter.TryNextCalled).Should(Receive())
-		Eventually(writer.WriteInput.Msg).Should(Receive(Equal([]*loggregator_v2.Envelope{envelope})))
+		Eventually(writer.WriteInput.Msgs).Should(Receive(Equal([]*loggregator_v2.Envelope{envelope})))
 	})
 
 	Describe("batching", func() {
 		It("emits once the batch count has been reached", func() {
 			envelope := &loggregator_v2.Envelope{SourceId: "uuid"}
 			nexter := newMockNexter()
-			writer := newMockWriter()
+			writer := newMockBatchWriter()
 			close(writer.WriteOutput.Ret0)
 
 			for i := 0; i < 6; i++ {
@@ -48,14 +48,14 @@ var _ = Describe("Transponder", func() {
 			go tx.Start()
 
 			var batch []*loggregator_v2.Envelope
-			Eventually(writer.WriteInput.Msg).Should(Receive(&batch))
+			Eventually(writer.WriteInput.Msgs).Should(Receive(&batch))
 			Expect(batch).To(HaveLen(5))
 		})
 
 		It("emits once the batch interval has been reached", func() {
 			envelope := &loggregator_v2.Envelope{SourceId: "uuid"}
 			nexter := newMockNexter()
-			writer := newMockWriter()
+			writer := newMockBatchWriter()
 			close(writer.WriteOutput.Ret0)
 
 			nexter.TryNextOutput.Ret0 <- envelope
@@ -69,14 +69,14 @@ var _ = Describe("Transponder", func() {
 			go tx.Start()
 
 			var batch []*loggregator_v2.Envelope
-			Eventually(writer.WriteInput.Msg).Should(Receive(&batch))
+			Eventually(writer.WriteInput.Msgs).Should(Receive(&batch))
 			Expect(batch).To(HaveLen(1))
 		})
 
 		It("clears batch upon egress failure", func() {
 			envelope := &loggregator_v2.Envelope{SourceId: "uuid"}
 			nexter := newMockNexter()
-			writer := newMockWriter()
+			writer := newMockBatchWriter()
 
 			go func() {
 				for {
@@ -101,7 +101,7 @@ var _ = Describe("Transponder", func() {
 		It("emits egress and dropped metric", func() {
 			envelope := &loggregator_v2.Envelope{SourceId: "uuid"}
 			nexter := newMockNexter()
-			writer := newMockWriter()
+			writer := newMockBatchWriter()
 			close(writer.WriteOutput.Ret0)
 
 			for i := 0; i < 6; i++ {
