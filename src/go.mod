@@ -10,9 +10,8 @@ require (
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3
 	code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
-	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d // pinned
-	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435 // pinned
-	github.com/golang/protobuf v1.5.2 // pinned
+	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
+	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
 	github.com/gorilla/mux v1.8.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
@@ -32,6 +31,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
