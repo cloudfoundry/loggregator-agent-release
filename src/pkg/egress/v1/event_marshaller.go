@@ -7,7 +7,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 //go:generate hel --type BatchChainByteWriter --output mock_writer_test.go

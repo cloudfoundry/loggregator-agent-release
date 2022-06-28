@@ -20,9 +20,9 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	"github.com/gogo/protobuf/proto"
 	"github.com/onsi/gomega/gexec"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

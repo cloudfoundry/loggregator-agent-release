@@ -12,7 +12,6 @@ require (
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d // pinned
 	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435 // pinned
-	github.com/gogo/protobuf v1.3.2 // pinned
 	github.com/golang/protobuf v1.5.2 // pinned
 	github.com/gorilla/mux v1.8.0
 	github.com/onsi/ginkgo v1.16.5
