@@ -3,7 +3,7 @@ package v2_test
 import (
 	"fmt"
 
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	clientpool "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v2"
 
 	. "github.com/onsi/ginkgo"

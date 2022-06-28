@@ -9,8 +9,8 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	v1 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
 
-	"code.cloudfoundry.org/go-loggregator/v8"
-	"code.cloudfoundry.org/go-loggregator/v8/conversion"
+	"code.cloudfoundry.org/go-loggregator/v9"
+	"code.cloudfoundry.org/go-loggregator/v9/conversion"
 	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
 )

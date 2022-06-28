@@ -14,7 +14,7 @@ import (
 
 	_ "net/http/pprof"
 
-	"code.cloudfoundry.org/go-loggregator/v8"
+	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 

@@ -1,7 +1,7 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"

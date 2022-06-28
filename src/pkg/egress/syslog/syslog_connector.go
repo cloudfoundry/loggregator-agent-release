@@ -9,7 +9,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/go-diodes"
-	"code.cloudfoundry.org/go-loggregator/v8"
+	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 

@@ -1,6 +1,6 @@
 package v2
 
-import "code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+import "code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 
 type setter interface {
 	Set(e *loggregator_v2.Envelope)

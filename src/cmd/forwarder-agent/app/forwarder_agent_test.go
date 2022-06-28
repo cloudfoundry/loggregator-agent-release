@@ -14,8 +14,8 @@ import (
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 
-	"code.cloudfoundry.org/go-loggregator/v8"
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v9"
+	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"

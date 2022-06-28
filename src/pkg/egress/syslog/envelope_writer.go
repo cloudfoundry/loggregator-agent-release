@@ -3,7 +3,7 @@ package syslog
 import (
 	"log"
 
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )

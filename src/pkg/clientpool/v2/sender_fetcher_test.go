@@ -4,7 +4,7 @@ import (
 	"io"
 	"net"
 
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v2"
 	"golang.org/x/net/context"

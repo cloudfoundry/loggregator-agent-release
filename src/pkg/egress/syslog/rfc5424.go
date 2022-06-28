@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 
-	"code.cloudfoundry.org/go-loggregator/v8/rfc5424"
+	"code.cloudfoundry.org/go-loggregator/v9/rfc5424"
 )
 
 var findSpaces, findInvalidCharacters, findTrailingDashes *regexp.Regexp

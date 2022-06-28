@@ -6,7 +6,6 @@ require (
 	code.cloudfoundry.org/go-batching v0.0.0-20171020220229-924d2a9b48ac
 	code.cloudfoundry.org/go-diodes v0.0.0-20220601181242-ac2da19efd60
 	code.cloudfoundry.org/go-envstruct v1.5.0
-	code.cloudfoundry.org/go-loggregator/v8 v8.0.6-0.20220627224345-4b007d7cf474
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3
 	code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921
 	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
@@ -23,7 +22,10 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require google.golang.org/protobuf v1.28.0
+require (
+	code.cloudfoundry.org/go-loggregator/v9 v9.0.0
+	google.golang.org/protobuf v1.28.0
+)
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
