@@ -36,7 +36,7 @@ var _ = Describe("EventUnmarshaller", func() {
 		It("unmarshalls bytes", func() {
 			output, _ := unmarshaller.UnmarshallMessage(message)
 
-			Expect(output).To(Equal(event))
+			Expect(proto.Equal(output, event)).To(BeTrue())
 		})
 
 		It("handles bad input gracefully", func() {
@@ -83,7 +83,7 @@ var _ = Describe("EventUnmarshaller", func() {
 					Tags:        map[string]string{"source_id": "fake-origin-3"},
 				}
 
-				Expect(output).To(Equal(eventWithSourceID))
+				Expect(proto.Equal(output, eventWithSourceID)).To(BeTrue())
 			})
 		})
 	})
@@ -93,7 +93,7 @@ var _ = Describe("EventUnmarshaller", func() {
 			unmarshaller.Write(message)
 
 			Expect(mockWriter.Events).To(HaveLen(1))
-			Expect(mockWriter.Events[0]).To(Equal(event))
+			Expect(proto.Equal(mockWriter.Events[0], event)).To(BeTrue())
 		})
 
 		It("returns an error when it can't unmarshal", func() {
