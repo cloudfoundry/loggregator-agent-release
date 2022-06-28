@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package plumbing;
 
+option go_package = "code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing";
+
 service Doppler {
   rpc Subscribe(SubscriptionRequest) returns (stream Response) {}
   rpc BatchSubscribe(SubscriptionRequest) returns (stream BatchResponse) {}

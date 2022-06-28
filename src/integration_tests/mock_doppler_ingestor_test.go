@@ -12,6 +12,8 @@ import (
 )
 
 type mockDopplerIngestorServerV1 struct {
+	plumbing.UnimplementedDopplerIngestorServer
+
 	PusherCalled chan bool
 	PusherInput  struct {
 		Arg0 chan plumbing.DopplerIngestor_PusherServer

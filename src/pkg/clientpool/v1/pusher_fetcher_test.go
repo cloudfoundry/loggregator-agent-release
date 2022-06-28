@@ -92,6 +92,8 @@ var _ = Describe("PusherFetcher", func() {
 })
 
 type SpyIngestorServer struct {
+	plumbing.UnimplementedDopplerIngestorServer
+
 	addr         string
 	server       *grpc.Server
 	stop         chan struct{}
