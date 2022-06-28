@@ -15,7 +15,6 @@ import (
 	"github.com/cloudfoundry/sonde-go/events"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	. "github.com/onsi/ginkgo"
@@ -40,6 +39,7 @@ var _ = Describe("Agent", func() {
 		Expect(err).ToNot(HaveOccurred())
 		eventEmitter := emitter.NewEventEmitter(udpEmitter, "some-origin")
 
+		done := make(chan struct{})
 		go func() {
 			event := &events.CounterEvent{
 				Name:  proto.String("some-name"),
@@ -48,9 +48,15 @@ var _ = Describe("Agent", func() {
 			}
 
 			for {
-				eventEmitter.Emit(event)
+				select {
+				case <-done:
+					return
+				default:
+					eventEmitter.Emit(event)
+				}
 			}
 		}()
+		defer close(done)
 
 		var rx plumbing.DopplerIngestor_PusherServer
 		Eventually(consumerServer.V1.PusherInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
@@ -70,7 +76,7 @@ var _ = Describe("Agent", func() {
 		Eventually(e, eventuallyTimeout).Should(Receive(&data))
 
 		envelope := new(events.Envelope)
-		Expect(protojson.Unmarshal(data.Payload, envelope)).To(Succeed())
+		Expect(proto.Unmarshal(data.Payload, envelope)).To(Succeed())
 	})
 
 	It("accepts connections on the v2 API", func() {
