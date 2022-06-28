@@ -1305,7 +1305,7 @@ func (ctx *RequestCtx) RedirectBytes(uri []byte, statusCode int) {
 }
 
 func (ctx *RequestCtx) redirect(uri []byte, statusCode int) {
-	ctx.Response.Header.SetCanonical(strLocation, uri)
+	ctx.Response.Header.setNonSpecial(strLocation, uri)
 	statusCode = getRedirectStatusCode(statusCode)
 	ctx.Response.SetStatusCode(statusCode)
 }
@@ -1554,34 +1554,6 @@ func (s *Server) getNextProto(c net.Conn) (proto string, err error) {
 	return
 }
 
-// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
-// connections. It's used by ListenAndServe, ListenAndServeTLS and
-// ListenAndServeTLSEmbed so dead TCP connections (e.g. closing laptop mid-download)
-// eventually go away.
-type tcpKeepaliveListener struct {
-	*net.TCPListener
-	keepalive       bool
-	keepalivePeriod time.Duration
-}
-
-func (ln tcpKeepaliveListener) Accept() (net.Conn, error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return nil, err
-	}
-	if err := tc.SetKeepAlive(ln.keepalive); err != nil {
-		tc.Close() //nolint:errcheck
-		return nil, err
-	}
-	if ln.keepalivePeriod > 0 {
-		if err := tc.SetKeepAlivePeriod(ln.keepalivePeriod); err != nil {
-			tc.Close() //nolint:errcheck
-			return nil, err
-		}
-	}
-	return tc, nil
-}
-
 // ListenAndServe serves HTTP requests from the given TCP4 addr.
 //
 // Pass custom listener to Serve if you need listening on non-TCP4 media
@@ -1592,13 +1564,6 @@ func (s *Server) ListenAndServe(addr string) error {
 	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
 		return err
-	}
-	if tcpln, ok := ln.(*net.TCPListener); ok {
-		return s.Serve(tcpKeepaliveListener{
-			TCPListener:     tcpln,
-			keepalive:       s.TCPKeepalive,
-			keepalivePeriod: s.TCPKeepalivePeriod,
-		})
 	}
 	return s.Serve(ln)
 }
@@ -1638,13 +1603,6 @@ func (s *Server) ListenAndServeTLS(addr, certFile, keyFile string) error {
 	if err != nil {
 		return err
 	}
-	if tcpln, ok := ln.(*net.TCPListener); ok {
-		return s.ServeTLS(tcpKeepaliveListener{
-			TCPListener:     tcpln,
-			keepalive:       s.TCPKeepalive,
-			keepalivePeriod: s.TCPKeepalivePeriod,
-		}, certFile, keyFile)
-	}
 	return s.ServeTLS(ln, certFile, keyFile)
 }
 
@@ -1663,13 +1621,6 @@ func (s *Server) ListenAndServeTLSEmbed(addr string, certData, keyData []byte) e
 	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
 		return err
-	}
-	if tcpln, ok := ln.(*net.TCPListener); ok {
-		return s.ServeTLSEmbed(tcpKeepaliveListener{
-			TCPListener:     tcpln,
-			keepalive:       s.TCPKeepalive,
-			keepalivePeriod: s.TCPKeepalivePeriod,
-		}, certData, keyData)
 	}
 	return s.ServeTLSEmbed(ln, certData, keyData)
 }
@@ -1910,7 +1861,27 @@ func (s *Server) Shutdown() error {
 
 func acceptConn(s *Server, ln net.Listener, lastPerIPErrorTime *time.Time) (net.Conn, error) {
 	for {
-		c, err := ln.Accept()
+		var c net.Conn
+		var err error
+		if tl, ok := ln.(*net.TCPListener); ok && s.TCPKeepalive {
+			tc, err := tl.AcceptTCP()
+			if err != nil {
+				return nil, err
+			}
+			if err := tc.SetKeepAlive(s.TCPKeepalive); err != nil {
+				tc.Close() //nolint:errcheck
+				return nil, err
+			}
+			if s.TCPKeepalivePeriod > 0 {
+				if err := tc.SetKeepAlivePeriod(s.TCPKeepalivePeriod); err != nil {
+					tc.Close() //nolint:errcheck
+					return nil, err
+				}
+			}
+			c = tc
+		} else {
+			c, err = ln.Accept()
+		}
 		if err != nil {
 			if c != nil {
 				panic("BUG: net.Listener returned non-nil conn and non-nil error")
@@ -2127,7 +2098,6 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 		hijackNoResponse bool
 
 		connectionClose bool
-		isHTTP11        bool
 
 		continueReadingRequest bool = true
 	)
@@ -2323,8 +2293,8 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 			}
 		}
 
+		// store req.ConnectionClose so even if it was changed inside of handler
 		connectionClose = s.DisableKeepalive || ctx.Request.Header.ConnectionClose()
-		isHTTP11 = ctx.Request.Header.IsHTTP11()
 
 		if serverName != nil {
 			ctx.Response.Header.SetServerBytes(serverName)
@@ -2354,10 +2324,6 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 		hijackNoResponse = ctx.hijackNoResponse && hijackHandler != nil
 		ctx.hijackNoResponse = false
 
-		if s.MaxRequestsPerConn > 0 && connRequestNum >= uint64(s.MaxRequestsPerConn) {
-			ctx.SetConnectionClose()
-		}
-
 		if writeTimeout > 0 {
 			if err := c.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
 				panic(fmt.Sprintf("BUG: error in SetWriteDeadline(%v): %v", writeTimeout, err))
@@ -2371,14 +2337,17 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 			previousWriteTimeout = 0
 		}
 
-		connectionClose = connectionClose || ctx.Response.ConnectionClose() || (s.CloseOnShutdown && atomic.LoadInt32(&s.stop) == 1)
+		connectionClose = connectionClose ||
+			(s.MaxRequestsPerConn > 0 && connRequestNum >= uint64(s.MaxRequestsPerConn)) ||
+			ctx.Response.Header.ConnectionClose() ||
+			(s.CloseOnShutdown && atomic.LoadInt32(&s.stop) == 1)
 		if connectionClose {
-			ctx.Response.Header.SetCanonical(strConnection, strClose)
-		} else if !isHTTP11 {
-			// Set 'Connection: keep-alive' response header for non-HTTP/1.1 request.
+			ctx.Response.Header.SetConnectionClose()
+		} else if !ctx.Request.Header.IsHTTP11() {
+			// Set 'Connection: keep-alive' response header for HTTP/1.0 request.
 			// There is no need in setting this header for http/1.1, since in http/1.1
 			// connections are keep-alive by default.
-			ctx.Response.Header.SetCanonical(strConnection, strKeepAlive)
+			ctx.Response.Header.setNonSpecial(strConnection, strKeepAlive)
 		}
 
 		if serverName != nil && len(ctx.Response.Header.Server()) == 0 {
