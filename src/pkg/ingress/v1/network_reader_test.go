@@ -36,7 +36,7 @@ var _ = Describe("NetworkReader", func() {
 	)
 
 	BeforeEach(func() {
-		port = randomPort() + GinkgoParallelNode()
+		port = randomPort() + GinkgoParallelProcess()
 		address = net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 		writer = MockByteArrayWriter{}
 		metricClient = metricsHelpers.NewMetricsRegistry()
