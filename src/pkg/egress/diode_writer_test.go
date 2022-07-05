@@ -45,15 +45,20 @@ var _ = Describe("DiodeWriter", func() {
 		Eventually(spyWriter.CloseCalled).Should(Equal(int64(1)))
 	})
 
-	It("is not blocked when underlying writer is blocked", func(done Done) {
-		spyWaitGroup := &SpyWaitGroup{}
-		defer close(done)
-		spyWriter := &SpyWriter{
-			blockWrites: true,
-		}
-		spyAlerter := &SpyAlerter{}
-		dw := egress.NewDiodeWriter(context.TODO(), spyWriter, spyAlerter, spyWaitGroup)
-		dw.Write(nil)
+	It("is not blocked when underlying writer is blocked", func() {
+		done := make(chan interface{})
+		go func() {
+			defer GinkgoRecover()
+			defer close(done)
+			spyWaitGroup := &SpyWaitGroup{}
+			spyWriter := &SpyWriter{
+				blockWrites: true,
+			}
+			spyAlerter := &SpyAlerter{}
+			dw := egress.NewDiodeWriter(context.TODO(), spyWriter, spyAlerter, spyWaitGroup)
+			dw.Write(nil)
+		}()
+		Eventually(done).Should(BeClosed())
 	})
 
 	It("flushes existing messages after close", func() {
