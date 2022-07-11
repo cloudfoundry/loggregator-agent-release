@@ -15,7 +15,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/prometheus/common v0.35.0
+	github.com/prometheus/common v0.36.0
 	github.com/valyala/fasthttp v1.38.0
 	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e
 	google.golang.org/grpc v1.47.0
