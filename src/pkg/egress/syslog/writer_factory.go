@@ -1,15 +1,61 @@
 package syslog
 
 import (
-	"crypto/tls"
-	"fmt"
-
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"crypto/tls"
+	"fmt"
 )
 
 type metricClient interface {
 	NewCounter(name, helpText string, o ...metrics.MetricOption) metrics.Counter
+}
+
+type WriterKind int
+
+const (
+	Https WriterKind = iota
+	Syslog
+	SyslogTLS
+	Unsupported
+	GenericError
+)
+
+type WriterFactoryError struct {
+	Kind    WriterKind
+	Message string
+}
+
+func (e WriterFactoryError) StringKind() string {
+	switch e.Kind {
+	case Https:
+		return "https"
+	case Syslog:
+		return "syslog"
+	case SyslogTLS:
+		return "syslogTLS"
+	case Unsupported:
+		return "unsupported protocol"
+	}
+	return "error"
+}
+
+func (e WriterFactoryError) Error() string {
+	return fmt.Sprintf("%s: %s", e.StringKind(), e.Message)
+}
+
+func NewWriterFactoryError(kind WriterKind, message string) error {
+	return WriterFactoryError{
+		Kind:    kind,
+		Message: message,
+	}
+}
+
+func NewWriterFactoryErrorf(kind WriterKind, format string, a ...any) error {
+	return WriterFactoryError{
+		Kind:    kind,
+		Message: fmt.Sprintf(format, a...),
+	}
 }
 
 type WriterFactory struct {
@@ -56,6 +102,9 @@ func (f WriterFactory) NewWriter(
 			f.egressMetric,
 			converter,
 		), nil
+		if err != nil {
+			err = NewWriterFactoryError(Https, err.Error())
+		}
 	case "syslog":
 		w, err = NewTCPWriter(
 			urlBinding,
@@ -63,21 +112,35 @@ func (f WriterFactory) NewWriter(
 			f.egressMetric,
 			converter,
 		), nil
+		if err != nil {
+			err = NewWriterFactoryError(Syslog, err.Error())
+		}
 	case "syslog-tls":
+		tlsClonedConfig := tlsConfig.Clone()
+		if len(urlBinding.Certificate) > 0 && len(urlBinding.PrivateKey) > 0 {
+			credentials, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
+			if err != nil {
+				err = NewWriterFactoryErrorf(SyslogTLS, "failed to load certificate: %s", err.Error())
+				return nil, err
+			}
+			tlsClonedConfig.Certificates = []tls.Certificate{credentials}
+		}
 		w, err = NewTLSWriter(
 			urlBinding,
 			f.netConf,
-			tlsConfig,
+			tlsClonedConfig,
 			f.egressMetric,
 			converter,
 		), nil
 	}
 
 	if w == nil {
-		return nil, fmt.Errorf("unsupported protocol: %s", urlBinding.URL.Scheme)
+		err = NewWriterFactoryError(Unsupported, urlBinding.URL.Scheme)
+		return nil, err
 	}
 
 	if err != nil {
+		err = NewWriterFactoryError(GenericError, err.Error())
 		return nil, err
 	}
 

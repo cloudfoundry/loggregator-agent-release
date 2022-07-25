@@ -12,9 +12,12 @@ var _ = Describe("Store", func() {
 		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
 		bindings := []binding.Binding{
 			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "host-1", AppID: "app-1"},
+				},
 			},
 		}
 
@@ -32,9 +35,12 @@ var _ = Describe("Store", func() {
 
 		bindings := []binding.Binding{
 			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "host-1", AppID: "app-1"},
+				},
 			},
 		}
 
@@ -67,15 +73,19 @@ var _ = Describe("Store", func() {
 		store := binding.NewStore(metrics)
 		bindings := []binding.Binding{
 			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "host-1", AppID: "app-1"},
+					{Hostname: "host-2", AppID: "app-2"},
+				},
 			},
 		}
 
 		store.Set(bindings)
 
 		Expect(metrics.GetMetric("cached_bindings", nil).Value()).
-			To(BeNumerically("==", 1))
+			To(BeNumerically("==", 2))
 	})
 })

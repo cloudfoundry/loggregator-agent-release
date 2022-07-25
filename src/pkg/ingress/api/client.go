@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	pathTemplate = "%s/internal/v4/syslog_drain_urls?batch_size=%d&next_id=%d"
+	pathTemplate = "%s/internal/v5/syslog_drain_urls?batch_size=%d&next_id=%d"
 )
 
 type Client struct {

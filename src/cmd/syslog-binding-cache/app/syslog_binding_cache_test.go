@@ -39,13 +39,41 @@ var _ = Describe("SyslogBindingCache", func() {
 
 	BeforeEach(func() {
 		r := results{
-			"app-id-1": appBindings{
-				Drains:   []string{"syslog://drain-a", "syslog://drain-b"},
-				Hostname: "org.space.app-name",
+			{
+
+				Url:  "syslog://drain-a",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "org.space.app-name", AppID: "app-id-1"},
+				},
 			},
-			"app-id-2": appBindings{
-				Drains:   []string{"syslog://drain-c", "syslog://drain-d"},
-				Hostname: "org.space.app-name-2",
+			{
+
+				Url:  "syslog://drain-b",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "org.space.app-name", AppID: "app-id-1"},
+				},
+			},
+			{
+
+				Url:  "syslog://drain-c",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "org.space.app-name-2", AppID: "app-id-2"},
+				},
+			},
+			{
+
+				Url:  "syslog://drain-d",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "org.space.app-name-2", AppID: "app-id-2"},
+				},
 			},
 		}
 
@@ -143,14 +171,16 @@ var _ = Describe("SyslogBindingCache", func() {
 		err = json.Unmarshal(body, &results)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(results).To(HaveLen(2))
-		b := findBinding(results, "app-id-1")
-		Expect(b.Drains).To(ConsistOf("syslog://drain-a", "syslog://drain-b"))
-		Expect(b.Hostname).To(Equal("org.space.app-name"))
+		Expect(results).To(HaveLen(4))
+		b := findBindings(results, "app-id-1")
+		Expect(b[0].Url).To(Equal("syslog://drain-a"))
+		Expect(b[1].Url).To(Equal("syslog://drain-b"))
+		Expect(b[0].Apps[0].Hostname).To(Equal("org.space.app-name"))
 
-		b = findBinding(results, "app-id-2")
-		Expect(b.Drains).To(ConsistOf("syslog://drain-c", "syslog://drain-d"))
-		Expect(b.Hostname).To(Equal("org.space.app-name-2"))
+		b = findBindings(results, "app-id-2")
+		Expect(b[0].Url).To(Equal("syslog://drain-c"))
+		Expect(b[1].Url).To(Equal("syslog://drain-d"))
+		Expect(b[0].Apps[0].Hostname).To(Equal("org.space.app-name-2"))
 	})
 
 	It("has an HTTP endpoint that returns aggregate drains", func() {
@@ -178,21 +208,16 @@ var _ = Describe("SyslogBindingCache", func() {
 		body, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
-		var result []binding.Binding
+		var result []string
 		err = json.Unmarshal(body, &result)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(result).To(HaveLen(1))
-		Expect(result[0].Drains).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
+		Expect(result).To(HaveLen(2))
+		Expect(result).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
 	})
 })
 
-type results map[string]appBindings
-
-type appBindings struct {
-	Drains   []string `json:"drains"`
-	Hostname string   `json:"hostname"`
-}
+type results []binding.Binding
 
 type fakeCC struct {
 	*httptest.Server
@@ -222,7 +247,7 @@ func (f *fakeCC) startTLS(testCerts *testhelper.TestCerts) {
 
 func (f *fakeCC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	atomic.AddInt64(&f.called, 1)
-	if r.URL.Path != "/internal/v4/syslog_drain_urls" {
+	if r.URL.Path != "/internal/v5/syslog_drain_urls" {
 		w.WriteHeader(500)
 		return
 	}
@@ -265,11 +290,15 @@ func (f *fakeCC) numRequests() int64 {
 	return atomic.LoadInt64(&f.called)
 }
 
-func findBinding(bindings []binding.Binding, appID string) binding.Binding {
+func findBindings(bindings []binding.Binding, appID string) []binding.Binding {
+	var bindingResult []binding.Binding
 	for _, b := range bindings {
-		if b.AppID == appID {
-			return b
+		for _, a := range b.Apps {
+			if appID == a.AppID {
+				bindingResult = append(bindingResult, b)
+			}
 		}
 	}
-	panic(fmt.Sprintf("unable to find binding with appID %s", appID))
+	//panic(fmt.Sprintf("unable to find binding with appID %s", appID))
+	return bindingResult
 }

@@ -43,7 +43,9 @@ var _ = Describe("SyslogConnector", func() {
 		)
 
 		binding := syslog.Binding{
-			Drain: "foo://",
+			Drain: syslog.Drain{
+				Url: "foo://",
+			},
 		}
 		_, err := connector.Connect(ctx, binding)
 		Expect(err).ToNot(HaveOccurred())
@@ -64,7 +66,9 @@ var _ = Describe("SyslogConnector", func() {
 		)
 
 		binding := syslog.Binding{
-			Drain: "slow://",
+			Drain: syslog.Drain{
+				Url: "slow://",
+			},
 		}
 		writer, err := connector.Connect(ctx, binding)
 		Expect(err).ToNot(HaveOccurred())
@@ -84,7 +88,9 @@ var _ = Describe("SyslogConnector", func() {
 		)
 
 		binding := syslog.Binding{
-			Drain: "bla://some-domain.tld",
+			Drain: syslog.Drain{
+				Url: "bla://some-domain.tld",
+			},
 		}
 		_, err := connector.Connect(ctx, binding)
 		Expect(err).To(MatchError("unsupported protocol"))
@@ -99,7 +105,9 @@ var _ = Describe("SyslogConnector", func() {
 		)
 
 		binding := syslog.Binding{
-			Drain: "://syslog/laksjdflk:asdfdsaf:2232",
+			Drain: syslog.Drain{
+				Url: "://syslog/laksjdflk:asdfdsaf:2232",
+			},
 		}
 
 		_, err := connector.Connect(ctx, binding)
@@ -118,7 +126,9 @@ var _ = Describe("SyslogConnector", func() {
 
 		binding := syslog.Binding{
 			AppId: "some-app-id",
-			Drain: "://syslog/laksjdflk:asdfdsaf:2232",
+			Drain: syslog.Drain{
+				Url: "://syslog/laksjdflk:asdfdsaf:2232",
+			},
 		}
 
 		_, _ = connector.Connect(ctx, binding)
@@ -145,7 +155,9 @@ var _ = Describe("SyslogConnector", func() {
 			)
 
 			binding := syslog.Binding{
-				Drain: "dropping://my-drain:8080/path?secret=1234",
+				Drain: syslog.Drain{
+					Url: "dropping://my-drain:8080/path?secret=1234",
+				},
 				AppId: "test-source-id",
 			}
 
@@ -193,7 +205,11 @@ var _ = Describe("SyslogConnector", func() {
 				syslog.WithLogClient(logClient, "3"),
 			)
 
-			binding := syslog.Binding{AppId: "app-id", Drain: "dropping://"}
+			binding := syslog.Binding{AppId: "app-id",
+				Drain: syslog.Drain{
+					Url: "dropping://",
+				},
+			}
 			writer, err := connector.Connect(ctx, binding)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -231,7 +247,7 @@ var _ = Describe("SyslogConnector", func() {
 				syslog.WithLogClient(logClient, "3"),
 			)
 
-			binding := syslog.Binding{Drain: "dropping://"}
+			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}
 			writer, err := connector.Connect(ctx, binding)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -251,7 +267,7 @@ var _ = Describe("SyslogConnector", func() {
 		})
 
 		It("does not panic on unknown dropped metrics", func() {
-			binding := syslog.Binding{Drain: "dropping://"}
+			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}
 
 			connector := syslog.NewSyslogConnector(
 				true,

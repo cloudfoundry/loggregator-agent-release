@@ -41,13 +41,22 @@ var _ = Describe("Poller", func() {
 
 	It("calls the api client and stores the result", func() {
 		apiClient.bindings <- response{
-			Results: map[string]struct {
-				Drains   []string
-				Hostname string
-			}{
-				"app-id-1": {
-					Drains:   []string{"drain-1", "drain-2"},
-					Hostname: "app-hostname",
+			Results: []binding.Binding{
+				{
+					Url:  "drain-1",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
+				},
+				{
+					Url:  "drain-2",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
 				},
 			},
 		}
@@ -57,35 +66,66 @@ var _ = Describe("Poller", func() {
 
 		var expected []binding.Binding
 		Eventually(store.bindings).Should(Receive(&expected))
-		Expect(expected).To(ConsistOf(binding.Binding{
-			AppID:    "app-id-1",
-			Drains:   []string{"drain-1", "drain-2"},
-			Hostname: "app-hostname",
+		Expect(expected).To(ConsistOf([]binding.Binding{
+			{
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+			{
+				Url:  "drain-2",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
 		}))
 	})
 
 	It("fetches the next page of bindings and stores the result", func() {
 		apiClient.bindings <- response{
 			NextID: 2,
-			Results: map[string]struct {
-				Drains   []string
-				Hostname string
-			}{
-				"app-id-1": {
-					Drains:   []string{"drain-1", "drain-2"},
-					Hostname: "app-hostname",
+			Results: []binding.Binding{
+				{
+					Url:  "drain-1",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
+				},
+				{
+					Url:  "drain-2",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
 				},
 			},
 		}
 
 		apiClient.bindings <- response{
-			Results: map[string]struct {
-				Drains   []string
-				Hostname string
-			}{
-				"app-id-2": {
-					Drains:   []string{"drain-3", "drain-4"},
-					Hostname: "app-hostname",
+			Results: []binding.Binding{
+				{
+					Url:  "drain-3",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-2"},
+					},
+				},
+				{
+					Url:  "drain-4",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-2"},
+					},
 				},
 			},
 		}
@@ -96,15 +136,39 @@ var _ = Describe("Poller", func() {
 		var expected []binding.Binding
 		Eventually(store.bindings).Should(Receive(&expected))
 		Expect(expected).To(ConsistOf(
-			binding.Binding{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1", "drain-2"},
-				Hostname: "app-hostname",
-			},
-			binding.Binding{
-				AppID:    "app-id-2",
-				Drains:   []string{"drain-3", "drain-4"},
-				Hostname: "app-hostname",
+			[]binding.Binding{
+				{
+					Url:  "drain-1",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
+				},
+				{
+					Url:  "drain-2",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
+				},
+				{
+					Url:  "drain-3",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-2"},
+					},
+				},
+				{
+					Url:  "drain-4",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-2"},
+					},
+				},
 			},
 		))
 
@@ -124,12 +188,23 @@ var _ = Describe("Poller", func() {
 
 	It("tracks the number of bindings returned from CAPI", func() {
 		apiClient.bindings <- response{
-			Results: map[string]struct {
-				Drains   []string
-				Hostname string
-			}{
-				"app-id-1": {},
-				"app-id-2": {},
+			Results: []binding.Binding{
+				{
+					Url:  "drain-1",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-1"},
+					},
+				},
+				{
+					Url:  "drain-2",
+					Cert: "cert",
+					Key:  "key",
+					Apps: []binding.App{
+						{Hostname: "app-hostname", AppID: "app-id-2"},
+					},
+				},
 			},
 		}
 		binding.NewPoller(apiClient, time.Hour, store, metrics, logger)
@@ -137,6 +212,53 @@ var _ = Describe("Poller", func() {
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 2))
 	})
+
+	It("tracks the isolated CalculateBindingsCount call", func() {
+		noBinding := []binding.Binding{}
+		singleBinding := []binding.Binding{
+			{
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+			{
+				Url:  "drain-2",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+		}
+		multipleBindings := []binding.Binding{
+			{
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+			{
+				Url:  "drain-2",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-2"},
+				},
+			},
+		}
+		Expect(binding.CalculateBindingCount(noBinding)).
+			To(BeNumerically("==", 0))
+		Expect(binding.CalculateBindingCount(singleBinding)).
+			To(BeNumerically("==", 1))
+		Expect(binding.CalculateBindingCount(multipleBindings)).
+			To(BeNumerically("==", 2))
+	})
+
 })
 
 type fakeAPIClient struct {
@@ -165,10 +287,12 @@ func (c *fakeAPIClient) Get(nextID int) (*http.Response, error) {
 	default:
 	}
 
+	var body []byte
 	b, err := json.Marshal(&binding)
 	Expect(err).ToNot(HaveOccurred())
+	body = b
 	resp := &http.Response{
-		Body: io.NopCloser(bytes.NewReader(b)),
+		Body: io.NopCloser(bytes.NewReader(body)),
 	}
 
 	return resp, nil
@@ -193,6 +317,11 @@ func (c *fakeStore) Set(b []binding.Binding) {
 }
 
 type response struct {
+	Results []binding.Binding
+	NextID  int `json:"next_id"`
+}
+
+type legacyResponse struct {
 	Results map[string]struct {
 		Drains   []string
 		Hostname string

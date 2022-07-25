@@ -16,9 +16,12 @@ var _ = Describe("Handler", func() {
 	It("should write results from the store", func() {
 		bindings := []binding.Binding{
 			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "host-1", AppID: "app-1"},
+				},
 			},
 		}
 
@@ -33,10 +36,31 @@ var _ = Describe("Handler", func() {
 
 		Expect(rw.Body.String()).To(MatchJSON(j))
 	})
+
+	It("should write results from the aggregateStore", func() {
+		aggregateDrains := []string{
+			"drain-1",
+			"drain-2",
+		}
+
+		handler := cache.AggregateHandler(newStubAggregateStore(aggregateDrains))
+		rw := httptest.NewRecorder()
+		req, err := http.NewRequest(http.MethodGet, "/aggregate", nil)
+		Expect(err).ToNot(HaveOccurred())
+		handler.ServeHTTP(rw, req)
+
+		j, err := json.Marshal(&aggregateDrains)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rw.Body.String()).To(MatchJSON(j))
+	})
 })
 
 type stubStore struct {
 	bindings []binding.Binding
+}
+
+type stubAggregateStore struct {
+	AggregateDrains []string
 }
 
 func newStubStore(bindings []binding.Binding) *stubStore {
@@ -45,6 +69,14 @@ func newStubStore(bindings []binding.Binding) *stubStore {
 	}
 }
 
+func newStubAggregateStore(aggregateDrains []string) *stubAggregateStore {
+	return &stubAggregateStore{aggregateDrains}
+}
+
 func (s *stubStore) Get() []binding.Binding {
 	return s.bindings
+}
+
+func (as *stubAggregateStore) Get() []string {
+	return as.AggregateDrains
 }

@@ -12,7 +12,7 @@ import (
 var _ = Describe("Drain Param Config", func() {
 	It("sets OmitMetadata to false if the drain doesn't contain 'disable-metadata=true'", func() {
 		bs := []syslog.Binding{
-			{Drain: "https://test.org/drain"},
+			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, true)
@@ -23,7 +23,7 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("sets OmitMetadata to true if the drain contains 'disable-metadata=true'", func() {
 		bs := []syslog.Binding{
-			{Drain: "https://test.org/drain?disable-metadata=true"},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?disable-metadata=true"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, true)
@@ -34,7 +34,7 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("sets OmitMetadata to true if global flag is off", func() {
 		bs := []syslog.Binding{
-			{Drain: "https://test.org/drain"},
+			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, false)
@@ -45,7 +45,7 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("sets OmitMetadata to false if global flag is off, but drain enables it", func() {
 		bs := []syslog.Binding{
-			{Drain: "https://test.org/drain?disable-metadata=false"},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?disable-metadata=false"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, false)
@@ -56,7 +56,7 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("sets internal tls to true if the drain contains 'ssl-strict-internal=true'", func() {
 		bs := []syslog.Binding{
-			{Drain: "https://test.org/drain?ssl-strict-internal=true"},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?ssl-strict-internal=true"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, true)
@@ -67,8 +67,8 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("omits bindings with bad Drain URLs is bad", func() {
 		bs := []syslog.Binding{
-			{Drain: "   https://leading-spaces-are-invalid"},
-			{Drain: "https://test.org/drain?disable-metadata=true"},
+			{Drain: syslog.Drain{Url: "   https://leading-spaces-are-invalid"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?disable-metadata=true"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, true)
@@ -76,7 +76,7 @@ var _ = Describe("Drain Param Config", func() {
 		configedBindings, err := wf.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(configedBindings).To(HaveLen(1))
-		Expect(configedBindings[0].Drain).To(Equal("https://test.org/drain?disable-metadata=true"))
+		Expect(configedBindings[0].Drain).To(Equal(syslog.Drain{Url: "https://test.org/drain?disable-metadata=true"}))
 	})
 
 	It("omits bindings with bad Drain URLs is bad", func() {

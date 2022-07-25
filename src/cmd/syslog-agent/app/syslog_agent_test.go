@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -46,6 +47,13 @@ var _ = Describe("SyslogAgent", func() {
 			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
 			bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
 			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
+			drainTestCerts        = testhelper.GenerateCerts("syslogCA")
+
+			drainTestCertFile = drainTestCerts.Cert("localhost")
+			drainTestKeyFile  = drainTestCerts.Key("localhost")
+
+			drainTestCert, _ = ioutil.ReadFile(drainTestCertFile)
+			drainTestKey, _  = ioutil.ReadFile(drainTestKeyFile)
 		)
 
 		BeforeEach(func() {
@@ -54,32 +62,24 @@ var _ = Describe("SyslogAgent", func() {
 
 			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
-
 			bindingCache = &fakeBindingCache{
 				bindings: []binding.Binding{
 					{
-						AppID:    "some-id",
-						Hostname: "org.space.name",
-						Drains: []string{
-							syslogHTTPS.server.URL,
+						Url: syslogHTTPS.server.URL,
+						Apps: []binding.App{
+							{Hostname: "org.space.name", AppID: "some-id"},
 						},
 					},
 					{
-						AppID:    "some-id-tls",
-						Hostname: "org.space.name",
-						Drains: []string{
-							fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						Cert: string(drainTestCert),
+						Key:  string(drainTestKey),
+						Apps: []binding.App{
+							{Hostname: "org.space.name", AppID: "some-id-tls"},
 						},
 					},
 				},
-				aggregate: []binding.Binding{
-					{
-						AppID: "",
-						Drains: []string{
-							aggregateAddr,
-						},
-					},
-				},
+				aggregate: []string{aggregateAddr},
 			}
 			bindingCache.startTLS(bindingCacheTestCerts)
 		})
@@ -310,27 +310,19 @@ var _ = Describe("SyslogAgent", func() {
 		It("can be configured so that there's no tags", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
-					AppID:    "some-id",
-					Hostname: "org.space.name",
-					Drains: []string{
-						syslogHTTPS.server.URL + "?disable-metadata=true",
+					Url: syslogHTTPS.server.URL + "?disable-metadata=true",
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id"},
 					},
 				},
 				{
-					AppID:    "some-id-tls",
-					Hostname: "org.space.name",
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
 					},
 				},
 			}
-			bindingCache.aggregate = []binding.Binding{
-				{
-					Drains: []string{
-						aggregateAddr + "?disable-metadata=true",
-					},
-				},
-			}
+			bindingCache.aggregate = []string{aggregateAddr + "?disable-metadata=true"}
 			cancel := setupTestAgent()
 			defer cancel()
 
@@ -348,27 +340,19 @@ var _ = Describe("SyslogAgent", func() {
 		It("can be configured so that there's no tags by default", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
-					AppID:    "some-id",
-					Hostname: "org.space.name",
-					Drains: []string{
-						syslogHTTPS.server.URL,
+					Url: syslogHTTPS.server.URL,
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id"},
 					},
 				},
 				{
-					AppID:    "some-id-tls",
-					Hostname: "org.space.name",
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
 					},
 				},
 			}
-			bindingCache.aggregate = []binding.Binding{
-				{
-					Drains: []string{
-						aggregateAddr,
-					},
-				},
-			}
+			bindingCache.aggregate = []string{aggregateAddr}
 			cancel := setupTestAgent(func(config app.Config) app.Config {
 				config.DefaultDrainMetadata = false
 				return config
@@ -744,7 +728,7 @@ func hasMetric(mc *metricsHelpers.SpyMetricsRegistry, metricName string, tags ma
 type fakeBindingCache struct {
 	*httptest.Server
 	bindings  []binding.Binding
-	aggregate []binding.Binding
+	aggregate []string
 }
 
 func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
@@ -766,17 +750,22 @@ func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 }
 
 func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var results []binding.Binding
+	var bindingResults []binding.Binding
+	var aggregateResults []string
+	var resultData []byte
+	var err error
+
 	if r.URL.Path == "/bindings" {
-		results = f.bindings
+		bindingResults = f.bindings
+		resultData, err = json.Marshal(bindingResults)
 	} else if r.URL.Path == "/aggregate" {
-		results = f.aggregate
+		aggregateResults = f.aggregate
+		resultData, err = json.Marshal(aggregateResults)
 	} else {
 		w.WriteHeader(500)
 		return
 	}
 
-	resultData, err := json.Marshal(results)
 	if err != nil {
 		w.WriteHeader(500)
 		return

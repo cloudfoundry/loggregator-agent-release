@@ -3,6 +3,7 @@ package syslog
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -16,10 +17,20 @@ import (
 type Binding struct {
 	AppId        string      `json:"appId,omitempty"`
 	Hostname     string      `json:"hostname,omitempty"`
-	Drain        string      `json:"drain,omitempty"`
+	Drain        Drain       `json:"drain,omitempty"`
 	Type         BindingType `json:"type,omitempty"`
 	OmitMetadata bool
 	InternalTls  bool
+}
+
+type Drain struct {
+	Url         string      `json:"url"`
+	Credentials Credentials `json:"credentials"`
+}
+
+type Credentials struct {
+	Cert string `json:"cert"`
+	Key  string `json:"key"`
 }
 
 // LogClient is used to emit logs.
@@ -105,6 +116,9 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 
 	writer, err := w.writerFactory.NewWriter(urlBinding)
 	if err != nil {
+		if errString := err.Error(); strings.HasPrefix(errString, "syslogTLS:") {
+			w.emitLoggregatorErrorLog(b.AppId, errString)
+		}
 		return nil, err
 	}
 

@@ -23,10 +23,16 @@ type client interface {
 	Get(int) (*http.Response, error)
 }
 
+type App struct {
+	Hostname string `json:"hostname"`
+	AppID    string `json:"appid"`
+}
+
 type Binding struct {
-	AppID    string   `json:"app_id"`
-	Drains   []string `json:"drains"`
-	Hostname string   `json:"hostname"`
+	Url  string `json:"url"`
+	Cert string `json:"cert"`
+	Key  string `json:"key"`
+	Apps []App  `json:"apps"`
 }
 
 type Setter interface {
@@ -71,40 +77,38 @@ func (p *Poller) poll() {
 			return
 		}
 		var aResp apiResponse
+
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
 		if err != nil {
 			p.logger.Printf("failed to decode JSON: %s", err)
 			return
 		}
 
-		bindings = append(bindings, p.toBindings(aResp)...)
+		bindings = append(bindings, aResp.Results...)
 		nextID = aResp.NextID
 
 		if nextID == 0 {
 			break
 		}
 	}
-
-	p.lastBindingCount.Set(float64(len(bindings)))
+	p.lastBindingCount.Set(CalculateBindingCount(bindings))
 	p.store.Set(bindings)
 }
 
-func (p *Poller) toBindings(aResp apiResponse) []Binding {
-	var bindings []Binding
-	for k, v := range aResp.Results {
-		bindings = append(bindings, Binding{
-			AppID:    k,
-			Drains:   v.Drains,
-			Hostname: v.Hostname,
-		})
+func CalculateBindingCount(bindings []Binding) float64 {
+	apps := make(map[string]bool)
+	for _, b := range bindings {
+		for _, a := range b.Apps {
+			if _, ok := apps[a.AppID]; ok {
+				continue
+			}
+			apps[a.AppID] = true
+		}
 	}
-	return bindings
+	return float64(len(apps))
 }
 
 type apiResponse struct {
-	Results map[string]struct {
-		Drains   []string
-		Hostname string
-	}
-	NextID int `json:"next_id"`
+	Results []Binding
+	NextID  int `json:"next_id"`
 }

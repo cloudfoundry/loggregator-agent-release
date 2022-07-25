@@ -3,12 +3,11 @@ package bindings
 import (
 	"net/url"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 type CacheFetcher interface {
-	GetAggregate() ([]binding.Binding, error)
+	GetAggregate() ([]string, error)
 }
 
 type AggregateDrainFetcher struct {
@@ -34,9 +33,7 @@ func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
 			return []syslog.Binding{}, err
 		}
 		syslogBindings := []syslog.Binding{}
-		for _, i := range aggregate {
-			syslogBindings = append(syslogBindings, parseBindings(i.Drains)...)
-		}
+		syslogBindings = append(syslogBindings, parseBindings(aggregate)...)
 		return syslogBindings, nil
 	} else {
 		return []syslog.Binding{}, nil
@@ -59,7 +56,7 @@ func parseBindings(urls []string) []syslog.Binding {
 		}
 		binding := syslog.Binding{
 			AppId: "",
-			Drain: b,
+			Drain: syslog.Drain{Url: b},
 			Type:  bindingType,
 		}
 		syslogBindings = append(syslogBindings, binding)

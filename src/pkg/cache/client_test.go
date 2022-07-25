@@ -31,9 +31,12 @@ var _ = Describe("Client", func() {
 	It("returns bindings from the cache", func() {
 		bindings := []binding.Binding{
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "host-1", AppID: "app-id-1"},
+				},
 			},
 		}
 
@@ -49,12 +52,8 @@ var _ = Describe("Client", func() {
 	})
 
 	It("returns aggregate drains from the cache", func() {
-		bindings := []binding.Binding{
-			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
-			},
+		bindings := []string{
+			"syslog://aggregate-drain-1",
 		}
 
 		j, err := json.Marshal(bindings)
@@ -107,6 +106,11 @@ func newSpyHTTPClient() *spyHTTPClient {
 }
 
 func (s *spyHTTPClient) Get(url string) (*http.Response, error) {
+	s.requestURL = url
+	return s.response, s.err
+}
+
+func (s *spyHTTPClient) GetAggregate(url string) (*http.Response, error) {
 	s.requestURL = url
 	return s.response, s.err
 }
