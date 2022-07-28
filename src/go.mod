@@ -24,7 +24,7 @@ require (
 
 require (
 	code.cloudfoundry.org/go-loggregator/v9 v9.0.2
-	google.golang.org/protobuf v1.28.0
+	google.golang.org/protobuf v1.28.1
 )
 
 require (
