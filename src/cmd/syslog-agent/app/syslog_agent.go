@@ -106,7 +106,7 @@ func NewSyslogAgent(
 		cacheClient = cache.NewClient(cfg.Cache.URL, tlsClient)
 		cupsFetcher = bindings.NewFilteredBindingFetcher(
 			&cfg.Cache.Blacklist,
-			bindings.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m),
+			bindings.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m, cfg.LegacyBehaviour),
 			m,
 			l,
 		)

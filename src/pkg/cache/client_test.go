@@ -48,6 +48,26 @@ var _ = Describe("Client", func() {
 		}
 
 		Expect(client.Get()).To(Equal(bindings))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/bindings"))
+	})
+
+	It("returns legacy bindings from the cache", func() {
+		bindings := []binding.LegacyBinding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "host-1",
+			},
+		}
+
+		j, err := json.Marshal(bindings)
+		Expect(err).ToNot(HaveOccurred())
+		spyHTTPClient.response = &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(j)),
+		}
+
+		Expect(client.LegacyGet()).To(Equal(bindings))
 		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/bindings"))
 	})
 
@@ -106,6 +126,11 @@ func newSpyHTTPClient() *spyHTTPClient {
 }
 
 func (s *spyHTTPClient) Get(url string) (*http.Response, error) {
+	s.requestURL = url
+	return s.response, s.err
+}
+
+func (s *spyHTTPClient) LegacyGet(url string) (*http.Response, error) {
 	s.requestURL = url
 	return s.response, s.err
 }

@@ -153,7 +153,7 @@ var _ = Describe("SyslogBindingCache", func() {
 			"binding-cache",
 		)
 
-		addr := fmt.Sprintf("https://localhost:%d/bindings", cachePort)
+		addr := fmt.Sprintf("https://localhost:%d/v2/bindings", cachePort)
 
 		var resp *http.Response
 		Eventually(func() error {
@@ -214,6 +214,47 @@ var _ = Describe("SyslogBindingCache", func() {
 
 		Expect(result).To(HaveLen(2))
 		Expect(result).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
+	})
+
+	It("has an HTTP endpoint that returns legacy bindings", func() {
+		sbc = app.NewSyslogBindingCache(config, metricClient, logger)
+		go sbc.Run()
+		defer sbc.Stop()
+		client := plumbing.NewTLSHTTPClient(
+			bindingCacheTestCerts.Cert("binding-cache"),
+			bindingCacheTestCerts.Key("binding-cache"),
+			bindingCacheTestCerts.CA(),
+			"binding-cache",
+		)
+
+		addr := fmt.Sprintf("https://localhost:%d/bindings", cachePort)
+
+		var resp *http.Response
+		Eventually(func() error {
+			var err error
+			resp, err = client.Get(addr)
+			return err
+		}).Should(Succeed())
+
+		Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+		body, err := io.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred())
+
+		var results []binding.LegacyBinding
+		err = json.Unmarshal(body, &results)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(results).To(HaveLen(2))
+		Expect(results[0].AppID).To(Equal("app-id-1"))
+		Expect(results[0].Drains[0]).To(Equal("syslog://drain-a"))
+		Expect(results[0].Drains[1]).To(Equal("syslog://drain-b"))
+		Expect(results[0].Hostname).To(Equal("org.space.app-name"))
+
+		Expect(results[1].AppID).To(Equal("app-id-2"))
+		Expect(results[1].Drains[0]).To(Equal("syslog://drain-c"))
+		Expect(results[1].Drains[1]).To(Equal("syslog://drain-d"))
+		Expect(results[1].Hostname).To(Equal("org.space.app-name-2"))
 	})
 })
 

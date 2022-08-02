@@ -13,6 +13,7 @@ type Poller struct {
 	apiClient       client
 	pollingInterval time.Duration
 	store           Setter
+	legacyStore     LegacySetter
 
 	logger                     *log.Logger
 	bindingRefreshErrorCounter metrics.Counter
@@ -35,15 +36,26 @@ type Binding struct {
 	Apps []App  `json:"apps"`
 }
 
-type Setter interface {
-	Set([]Binding)
+type LegacyBinding struct {
+	AppID    string   `json:"app_id"`
+	Drains   []string `json:"drains"`
+	Hostname string   `json:"hostname"`
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger) *Poller {
+type Setter interface {
+	Set(bindings []Binding, bindingCount int)
+}
+
+type LegacySetter interface {
+	Set([]LegacyBinding)
+}
+
+func NewPoller(ac client, pi time.Duration, s Setter, legacyStore LegacySetter, m Metrics, logger *log.Logger) *Poller {
 	p := &Poller{
 		apiClient:       ac,
 		pollingInterval: pi,
 		store:           s,
+		legacyStore:     legacyStore,
 		logger:          logger,
 		bindingRefreshErrorCounter: m.NewCounter(
 			"binding_refresh_error",
@@ -77,7 +89,6 @@ func (p *Poller) poll() {
 			return
 		}
 		var aResp apiResponse
-
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
 		if err != nil {
 			p.logger.Printf("failed to decode JSON: %s", err)
@@ -91,11 +102,14 @@ func (p *Poller) poll() {
 			break
 		}
 	}
-	p.lastBindingCount.Set(CalculateBindingCount(bindings))
-	p.store.Set(bindings)
+
+	bindingCount := CalculateBindingCount(bindings)
+	p.lastBindingCount.Set(float64(bindingCount))
+	p.store.Set(bindings, bindingCount)
+	p.legacyStore.Set(ToLegacyBindings(bindings))
 }
 
-func CalculateBindingCount(bindings []Binding) float64 {
+func CalculateBindingCount(bindings []Binding) int {
 	apps := make(map[string]bool)
 	for _, b := range bindings {
 		for _, a := range b.Apps {
@@ -105,7 +119,44 @@ func CalculateBindingCount(bindings []Binding) float64 {
 			apps[a.AppID] = true
 		}
 	}
-	return float64(len(apps))
+	return len(apps)
+}
+
+type legacyMold struct {
+	Drains   []string
+	hostname string
+}
+
+func ToLegacyBindings(bindings []Binding) []LegacyBinding {
+	var legacyBindings []LegacyBinding
+	remodel := make(map[string]legacyMold)
+	for _, b := range bindings {
+		for _, a := range b.Apps {
+			if val, ok := remodel[a.AppID]; ok {
+				drain := b.Url
+				// This logic prevents duplicate URLs for the same application
+				drainExists := false
+				for _, existingDrain := range remodel[a.AppID].Drains {
+					if drain == existingDrain {
+						drainExists = true
+						break
+					}
+				}
+				if drainExists == false {
+					remodel[a.AppID] = legacyMold{Drains: append(val.Drains, drain), hostname: a.Hostname}
+				}
+			} else {
+				drain := b.Url
+				remodel[a.AppID] = legacyMold{Drains: []string{drain}, hostname: a.Hostname}
+			}
+		}
+	}
+
+	for appID, app := range remodel {
+		legacyBinding := LegacyBinding{appID, app.Drains, app.hostname}
+		legacyBindings = append(legacyBindings, legacyBinding)
+	}
+	return legacyBindings
 }
 
 type apiResponse struct {

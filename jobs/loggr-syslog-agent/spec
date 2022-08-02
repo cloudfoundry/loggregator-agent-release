@@ -160,3 +160,7 @@ properties:
   logging.format.timestamp:
     description: "Format for timestamp in component logs. Valid values are 'deprecated' and 'rfc3339'."
     default: "deprecated"
+
+  legacy_behaviour:
+    description: "Setting to true supports v4 of the cloud controller syslog-drain API"
+    default: true

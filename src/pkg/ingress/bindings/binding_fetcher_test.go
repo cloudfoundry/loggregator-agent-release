@@ -23,7 +23,7 @@ var _ = Describe("BindingFetcher", func() {
 	BeforeEach(func() {
 		getter = &SpyGetter{}
 		metrics = metricsHelpers.NewMetricsRegistry()
-		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics)
+		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, false)
 	})
 
 	BeforeEach(func() {
@@ -66,6 +66,31 @@ var _ = Describe("BindingFetcher", func() {
 				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}},
 			},
 		}
+
+		getter.legacyBindings = []binding.LegacyBinding{
+			{
+				AppID: "9be15160-4845-4f05-b089-40e827ba61f1",
+				Drains: []string{
+					"syslog://v3.zzz-not-included.url",
+					"syslog://v3.other.url",
+					"syslog://v3.zzz-not-included-again.url",
+					"https://v3.other.url",
+					"syslog://v3.other-included.url"},
+				Hostname: "org.space.logspinner",
+			},
+			{
+				AppID: "testAppID",
+				Drains: []string{
+					"syslog://v3.zzz-not-included.url",
+					"syslog://v3.other.url",
+					"syslog://v3.zzz-not-included-again.url",
+					"https://v3.other.url",
+					"syslog://v3.other-included.url",
+				},
+				Hostname: "org.space.logspinner",
+			},
+		}
+
 	})
 
 	It("remodels the bindings into molds without filtering them", func() {
@@ -78,13 +103,13 @@ var _ = Describe("BindingFetcher", func() {
 	})
 
 	It("returns the max number of v3 bindings by app id", func() {
-		bindings, err := fetcher.FetchBindings()
+		fetchedBindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(bindings).To(HaveLen(6))
+		Expect(fetchedBindings).To(HaveLen(6))
 
 		appID := "9be15160-4845-4f05-b089-40e827ba61f1"
 		otherAppID := "testAppID"
-		Expect(bindings).To(ConsistOf([]syslog.Binding{
+		expectedSyslogBindings := []syslog.Binding{
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner",
@@ -115,7 +140,52 @@ var _ = Describe("BindingFetcher", func() {
 				Hostname: "org.space.logspinner",
 				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
 			},
-		}))
+		}
+		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
+	})
+
+	It("returns the max number of v3 bindings by app id in legacy mode", func() {
+		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, true)
+		fetchedBindings, err := fetcher.FetchBindings()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(fetchedBindings).To(HaveLen(6))
+
+		appID := "9be15160-4845-4f05-b089-40e827ba61f1"
+		otherAppID := "testAppID"
+		expectedSyslogBindings := []syslog.Binding{
+			{
+				AppId:    appID,
+				Hostname: "org.space.logspinner",
+				Drain:    syslog.Drain{Url: "https://v3.other.url"},
+			},
+			{
+				AppId:    appID,
+				Hostname: "org.space.logspinner",
+				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url"},
+			},
+			{
+				AppId:    appID,
+				Hostname: "org.space.logspinner",
+				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+			},
+			{
+				AppId:    otherAppID,
+				Hostname: "org.space.logspinner",
+				Drain:    syslog.Drain{Url: "https://v3.other.url"},
+			},
+			{
+				AppId:    otherAppID,
+				Hostname: "org.space.logspinner",
+				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url"},
+			},
+			{
+				AppId:    otherAppID,
+				Hostname: "org.space.logspinner",
+				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+			},
+		}
+		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
+
 	})
 
 	Describe("Binding Type", func() {
@@ -127,7 +197,7 @@ var _ = Describe("BindingFetcher", func() {
 				},
 			}
 
-			fetcher = bindings.NewBindingFetcher(2, getter, metrics)
+			fetcher = bindings.NewBindingFetcher(2, getter, metrics, false)
 			bindings, err := fetcher.FetchBindings()
 			Expect(err).ToNot(HaveOccurred())
 
@@ -166,7 +236,7 @@ var _ = Describe("BindingFetcher", func() {
 				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
 			},
 		}
-		fetcher = bindings.NewBindingFetcher(2, getter, metrics)
+		fetcher = bindings.NewBindingFetcher(2, getter, metrics, false)
 		bindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(bindings).To(HaveLen(1))
@@ -190,11 +260,17 @@ var _ = Describe("BindingFetcher", func() {
 })
 
 type SpyGetter struct {
-	bindings []binding.Binding
-	err      error
+	bindings       []binding.Binding
+	legacyBindings []binding.LegacyBinding
+	err            error
 }
 
 func (s *SpyGetter) Get() ([]binding.Binding, error) {
 	time.Sleep(10 * time.Millisecond)
 	return s.bindings, s.err
+}
+
+func (s *SpyGetter) LegacyGet() ([]binding.LegacyBinding, error) {
+	time.Sleep(10 * time.Millisecond)
+	return s.legacyBindings, s.err
 }

@@ -27,6 +27,27 @@ var _ = Describe("Handler", func() {
 
 		handler := cache.Handler(newStubStore(bindings))
 		rw := httptest.NewRecorder()
+		req, err := http.NewRequest(http.MethodGet, "/v2/bindings", nil)
+		Expect(err).ToNot(HaveOccurred())
+		handler.ServeHTTP(rw, req)
+
+		j, err := json.Marshal(&bindings)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(rw.Body.String()).To(MatchJSON(j))
+	})
+
+	It("should write results from the legacy store", func() {
+		bindings := []binding.LegacyBinding{
+			{
+				AppID:    "app-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "host-1",
+			},
+		}
+
+		handler := cache.LegacyHandler(newStubLegacyStore(bindings))
+		rw := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/bindings", nil)
 		Expect(err).ToNot(HaveOccurred())
 		handler.ServeHTTP(rw, req)
@@ -59,6 +80,10 @@ type stubStore struct {
 	bindings []binding.Binding
 }
 
+type stubLegacyStore struct {
+	bindings []binding.LegacyBinding
+}
+
 type stubAggregateStore struct {
 	AggregateDrains []string
 }
@@ -69,11 +94,21 @@ func newStubStore(bindings []binding.Binding) *stubStore {
 	}
 }
 
+func newStubLegacyStore(bindings []binding.LegacyBinding) *stubLegacyStore {
+	return &stubLegacyStore{
+		bindings: bindings,
+	}
+}
+
 func newStubAggregateStore(aggregateDrains []string) *stubAggregateStore {
 	return &stubAggregateStore{aggregateDrains}
 }
 
 func (s *stubStore) Get() []binding.Binding {
+	return s.bindings
+}
+
+func (s *stubLegacyStore) Get() []binding.LegacyBinding {
 	return s.bindings
 }
 

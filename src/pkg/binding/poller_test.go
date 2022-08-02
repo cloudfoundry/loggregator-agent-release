@@ -20,20 +20,22 @@ import (
 
 var _ = Describe("Poller", func() {
 	var (
-		apiClient *fakeAPIClient
-		store     *fakeStore
-		metrics   *metricsHelpers.SpyMetricsRegistry
-		logger    = log.New(GinkgoWriter, "", 0)
+		apiClient   *fakeAPIClient
+		store       *fakeStore
+		legacyStore *fakeLegacyStore
+		metrics     *metricsHelpers.SpyMetricsRegistry
+		logger      = log.New(GinkgoWriter, "", 0)
 	)
 
 	BeforeEach(func() {
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
+		legacyStore = newFakeLegacyStore()
 		metrics = metricsHelpers.NewMetricsRegistry()
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -61,12 +63,12 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
-		var expected []binding.Binding
-		Eventually(store.bindings).Should(Receive(&expected))
-		Expect(expected).To(ConsistOf([]binding.Binding{
+		var expectedBindings []binding.Binding
+		Eventually(store.bindings).Should(Receive(&expectedBindings))
+		Expect(expectedBindings).To(ConsistOf([]binding.Binding{
 			{
 				Url:  "drain-1",
 				Cert: "cert",
@@ -82,6 +84,16 @@ var _ = Describe("Poller", func() {
 				Apps: []binding.App{
 					{Hostname: "app-hostname", AppID: "app-id-1"},
 				},
+			},
+		}))
+
+		var expectedLegacyBindings []binding.LegacyBinding
+		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
+		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1", "drain-2"},
+				Hostname: "app-hostname",
 			},
 		}))
 	})
@@ -130,12 +142,12 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
-		var expected []binding.Binding
-		Eventually(store.bindings).Should(Receive(&expected))
-		Expect(expected).To(ConsistOf(
+		var expectedBindings []binding.Binding
+		Eventually(store.bindings).Should(Receive(&expectedBindings))
+		Expect(expectedBindings).To(ConsistOf(
 			[]binding.Binding{
 				{
 					Url:  "drain-1",
@@ -172,11 +184,26 @@ var _ = Describe("Poller", func() {
 			},
 		))
 
+		var expectedLegacyBindings []binding.LegacyBinding
+		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
+		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1", "drain-2"},
+				Hostname: "app-hostname",
+			},
+			{
+				AppID:    "app-id-2",
+				Drains:   []string{"drain-3", "drain-4"},
+				Hostname: "app-hostname",
+			},
+		}))
+
 		Expect(apiClient.requestedIDs).To(ConsistOf(0, 2))
 	})
 
 	It("tracks the number of API errors", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
@@ -207,7 +234,7 @@ var _ = Describe("Poller", func() {
 				},
 			},
 		}
-		binding.NewPoller(apiClient, time.Hour, store, metrics, logger)
+		binding.NewPoller(apiClient, time.Hour, store, legacyStore, metrics, logger)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 2))
@@ -257,6 +284,70 @@ var _ = Describe("Poller", func() {
 			To(BeNumerically("==", 1))
 		Expect(binding.CalculateBindingCount(multipleBindings)).
 			To(BeNumerically("==", 2))
+	})
+
+	It("tracks the correct transformation to LegacyBindings", func() {
+		noBinding := []binding.Binding{}
+		singleBinding := []binding.Binding{
+			{
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+			{
+				Url:  "drain-2",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+		}
+		multipleBindings := []binding.Binding{
+			{
+				Url:  "drain-1",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-1"},
+				},
+			},
+			{
+				Url:  "drain-2",
+				Cert: "cert",
+				Key:  "key",
+				Apps: []binding.App{
+					{Hostname: "app-hostname", AppID: "app-id-2"},
+				},
+			},
+		}
+		expectedSingleLegacyBindings := []binding.LegacyBinding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1", "drain-2"},
+				Hostname: "app-hostname",
+			},
+		}
+		expectedMultiLegacyBindings := []binding.LegacyBinding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "app-hostname",
+			},
+			{
+				AppID:    "app-id-2",
+				Drains:   []string{"drain-2"},
+				Hostname: "app-hostname",
+			},
+		}
+
+		Expect(binding.ToLegacyBindings(noBinding)).To(ConsistOf([]binding.LegacyBinding{}))
+		Expect(binding.ToLegacyBindings(singleBinding)).To(ConsistOf(expectedSingleLegacyBindings))
+		Expect(binding.ToLegacyBindings(multipleBindings)).To(ConsistOf(expectedMultiLegacyBindings))
+
 	})
 
 })
@@ -312,19 +403,25 @@ func newFakeStore() *fakeStore {
 	}
 }
 
-func (c *fakeStore) Set(b []binding.Binding) {
+func (c *fakeStore) Set(b []binding.Binding, bindingCount int) {
+	c.bindings <- b
+}
+
+type fakeLegacyStore struct {
+	bindings chan []binding.LegacyBinding
+}
+
+func newFakeLegacyStore() *fakeLegacyStore {
+	return &fakeLegacyStore{
+		bindings: make(chan []binding.LegacyBinding, 100),
+	}
+}
+
+func (c *fakeLegacyStore) Set(b []binding.LegacyBinding) {
 	c.bindings <- b
 }
 
 type response struct {
 	Results []binding.Binding
 	NextID  int `json:"next_id"`
-}
-
-type legacyResponse struct {
-	Results map[string]struct {
-		Drains   []string
-		Hostname string
-	}
-	NextID int `json:"next_id"`
 }

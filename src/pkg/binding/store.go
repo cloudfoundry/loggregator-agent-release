@@ -28,15 +28,42 @@ func (s *Store) Get() []Binding {
 	return s.bindings
 }
 
-func (s *Store) Set(bindings []Binding) {
+func (s *Store) Set(bindings []Binding, bindingCount int) {
 	if bindings == nil {
 		bindings = []Binding{}
+		bindingCount = 0
 	}
 
 	s.mu.Lock()
 	s.bindings = bindings
-	s.bindingCount.Set(CalculateBindingCount(s.bindings))
+	s.bindingCount.Set(float64(bindingCount))
 	s.mu.Unlock()
+}
+
+type LegacyStore struct {
+	mu             sync.Mutex
+	legacyBindings []LegacyBinding
+}
+
+func (s *LegacyStore) Get() []LegacyBinding {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.legacyBindings
+}
+
+func (s *LegacyStore) Set(bindings []LegacyBinding) {
+	if bindings == nil {
+		bindings = []LegacyBinding{}
+	}
+	s.mu.Lock()
+	s.legacyBindings = bindings
+	s.mu.Unlock()
+}
+
+func NewLegacyStore() *LegacyStore {
+	return &LegacyStore{
+		legacyBindings: make([]LegacyBinding, 0),
+	}
 }
 
 type AggregateStore struct {
