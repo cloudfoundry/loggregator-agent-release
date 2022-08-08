@@ -54,7 +54,11 @@ func NewPromScraper(cfg Config, configProvider ConfigProvider, m promRegistry, l
 func (p *PromScraper) Run() {
 	if p.cfg.MetricsServer.DebugMetrics {
 		p.m.RegisterDebugMetrics()
-		p.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", p.cfg.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
+		p.pprofServer = &http.Server{
+			Addr:              fmt.Sprintf("127.0.0.1:%d", p.cfg.MetricsServer.PprofPort),
+			Handler:           http.DefaultServeMux,
+			ReadHeaderTimeout: 2 * time.Second,
+		}
 		go func() { log.Println("PPROF SERVER STOPPED " + p.pprofServer.ListenAndServe().Error()) }()
 	}
 	promScraperConfigs, err := p.scrapeConfigProvider()

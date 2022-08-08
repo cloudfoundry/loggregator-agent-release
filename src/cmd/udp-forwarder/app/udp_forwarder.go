@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	v1 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
@@ -53,7 +54,11 @@ func NewUDPForwarder(cfg Config, l *log.Logger, m Metrics) *UDPForwarder {
 func (u *UDPForwarder) Run() {
 	if u.debugMetrics {
 		u.metrics.RegisterDebugMetrics()
-		u.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", u.pprofPort), Handler: http.DefaultServeMux}
+		u.pprofServer = &http.Server{
+			Addr:              fmt.Sprintf("127.0.0.1:%d", u.pprofPort),
+			Handler:           http.DefaultServeMux,
+			ReadHeaderTimeout: 2 * time.Second,
+		}
 		go func() { log.Println("PPROF SERVER STOPPED " + u.pprofServer.ListenAndServe().Error()) }()
 	}
 	tlsConfig, err := loggregator.NewIngressTLSConfig(

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
+	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
@@ -45,7 +46,11 @@ func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *Sys
 func (sbc *SyslogBindingCache) Run() {
 	if sbc.config.MetricsServer.DebugMetrics {
 		sbc.metrics.RegisterDebugMetrics()
-		sbc.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", sbc.config.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
+		sbc.pprofServer = &http.Server{
+			Addr:              fmt.Sprintf("127.0.0.1:%d", sbc.config.MetricsServer.PprofPort),
+			Handler:           http.DefaultServeMux,
+			ReadHeaderTimeout: 2 * time.Second,
+		}
 		go func() { sbc.log.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error()) }()
 	}
 	store := binding.NewStore(sbc.metrics)
@@ -94,8 +99,9 @@ func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
 	}
 	sbc.mu.Lock()
 	sbc.server = &http.Server{
-		Handler:   router,
-		TLSConfig: sbc.tlsConfig(),
+		Handler:           router,
+		TLSConfig:         sbc.tlsConfig(),
+		ReadHeaderTimeout: 2 * time.Second,
 	}
 	sbc.mu.Unlock()
 	sbc.server.ServeTLS(lis, "", "")
