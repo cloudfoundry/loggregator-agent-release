@@ -17,6 +17,16 @@ var _ = Describe("EgressFactory", func() {
 		sm *metricsHelpers.SpyMetricsRegistry
 	)
 
+	type egressMetric struct {
+		name string
+		tags map[string]string
+	}
+
+	type testCase struct {
+		URLBinding syslog.URLBinding
+		metric     egressMetric
+	}
+
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
 		f = syslog.NewWriterFactory(&tls.Config{}, &tls.Config{}, syslog.NetworkTimeoutConfig{}, sm) //nolint:gosec
@@ -38,9 +48,6 @@ var _ = Describe("EgressFactory", func() {
 
 			_, ok = retryWriter.Writer.(*syslog.HTTPSWriter)
 			Expect(ok).To(BeTrue())
-
-			metric := sm.GetMetric("egress", nil)
-			Expect(metric).ToNot(BeNil())
 		})
 	})
 
@@ -60,9 +67,6 @@ var _ = Describe("EgressFactory", func() {
 
 			_, ok = retryWriter.Writer.(*syslog.TCPWriter)
 			Expect(ok).To(BeTrue())
-
-			metric := sm.GetMetric("egress", nil)
-			Expect(metric).ToNot(BeNil())
 		})
 	})
 
@@ -82,8 +86,6 @@ var _ = Describe("EgressFactory", func() {
 
 			_, ok = retryWriter.Writer.(*syslog.TLSWriter)
 			Expect(ok).To(BeTrue())
-			metric := sm.GetMetric("egress", nil)
-			Expect(metric).ToNot(BeNil())
 		})
 
 		Context("when the certificate or private key is invalid", func() {
@@ -158,4 +160,32 @@ var _ = Describe("EgressFactory", func() {
 			Expect(err).To(MatchError(`unsupported protocol: "invalid", binding: "invalid://syslog.example.com"`))
 		})
 	})
+
+	DescribeTable("metrics", func(u string, aggregate bool) {
+		url, err := url.Parse(u)
+		Expect(err).ToNot(HaveOccurred())
+		appID := "app-id"
+		tags := map[string]string{"direction": "egress", "drain_scope": "app", "drain_url": u}
+		if aggregate {
+			appID = ""
+			tags["drain_scope"] = "aggregate"
+		}
+		urlBinding := &syslog.URLBinding{
+			URL:   url,
+			AppID: appID,
+		}
+
+		_, err = f.NewWriter(urlBinding)
+		Expect(err).ToNot(HaveOccurred())
+
+		metric := sm.GetMetric("egress", tags)
+		Expect(metric).ToNot(BeNil())
+	},
+		Entry("https aggregate drain", "https://syslog.example.com", true),
+		Entry("https app drain", "https://syslog.example.com", false),
+		Entry("syslog aggregate drain", "syslog://syslog.example.com", true),
+		Entry("syslog app drain", "syslog://syslog.example.com", false),
+		Entry("syslog-tls aggregate drain", "syslog-tls://syslog.example.com", true),
+		Entry("syslog-tls app drain", "syslog-tls://syslog.example.com", false),
+	)
 })

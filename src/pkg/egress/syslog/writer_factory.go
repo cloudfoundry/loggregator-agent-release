@@ -59,18 +59,15 @@ type WriterFactory struct {
 	externalTlsConfig *tls.Config
 	egressMetric      metrics.Counter
 	netConf           NetworkTimeoutConfig
+	m                 metricClient
 }
 
 func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient) WriterFactory {
-	metric := m.NewCounter(
-		"egress",
-		"Total number of envelopes successfully egressed.",
-	)
 	return WriterFactory{
 		internalTlsConfig: internalTlsConfig,
 		externalTlsConfig: externalTlsConfig,
-		egressMetric:      metric,
 		netConf:           netConf,
+		m:                 m,
 	}
 }
 
@@ -102,6 +99,22 @@ func (f WriterFactory) NewWriter(
 			return nil, err
 		}
 	}
+
+	drainScope := "app"
+	if urlBinding.AppID == "" {
+		drainScope = "aggregate"
+	}
+
+	f.egressMetric = f.m.NewCounter(
+		"egress",
+		"Total number of envelopes successfully egressed.",
+		metrics.WithMetricLabels(map[string]string{
+			"direction":   "egress",
+			"drain_scope": drainScope,
+			"drain_url":   urlBinding.URL.String(),
+		}),
+	)
+
 	var w egress.WriteCloser
 	switch urlBinding.URL.Scheme {
 	case "https":
