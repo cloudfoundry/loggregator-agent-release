@@ -80,7 +80,11 @@ func NewV2App(
 func (a *AppV2) Start() {
 	if a.config.MetricsServer.DebugMetrics {
 		a.metricClient.RegisterDebugMetrics()
-		a.pprofServer = &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", a.config.MetricsServer.PprofPort), Handler: http.DefaultServeMux}
+		a.pprofServer = &http.Server{
+			Addr:              fmt.Sprintf("127.0.0.1:%d", a.config.MetricsServer.PprofPort),
+			Handler:           http.DefaultServeMux,
+			ReadHeaderTimeout: 2 * time.Second,
+		}
 		go func() { log.Println("PPROF SERVER STOPPED " + a.pprofServer.ListenAndServe().Error()) }()
 	}
 
