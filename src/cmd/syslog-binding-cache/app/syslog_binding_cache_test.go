@@ -208,12 +208,12 @@ var _ = Describe("SyslogBindingCache", func() {
 		body, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
-		var result []string
+		var result []binding.LegacyBinding
 		err = json.Unmarshal(body, &result)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(result).To(HaveLen(2))
-		Expect(result).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
+		Expect(result).To(HaveLen(1))
+		Expect(result[0].Drains).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
 	})
 
 	It("has an HTTP endpoint that returns legacy bindings", func() {

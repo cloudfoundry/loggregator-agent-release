@@ -70,6 +70,11 @@ type AggregateStore struct {
 	AggregateDrains []string
 }
 
-func (store *AggregateStore) Get() []string {
-	return store.AggregateDrains
+func (store *AggregateStore) Get() []LegacyBinding {
+	return []LegacyBinding{
+		{
+			AppID:  "",
+			Drains: store.AggregateDrains,
+		},
+	}
 }

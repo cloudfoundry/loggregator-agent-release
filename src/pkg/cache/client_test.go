@@ -72,8 +72,12 @@ var _ = Describe("Client", func() {
 	})
 
 	It("returns aggregate drains from the cache", func() {
-		bindings := []string{
-			"syslog://aggregate-drain-1",
+		bindings := []binding.LegacyBinding{
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "host-1",
+			},
 		}
 
 		j, err := json.Marshal(bindings)

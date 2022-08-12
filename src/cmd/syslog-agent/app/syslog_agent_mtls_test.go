@@ -5,22 +5,18 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
-	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/go-loggregator/v9/rfc5424"
-	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
@@ -30,22 +26,23 @@ import (
 	"code.cloudfoundry.org/tlsconfig"
 )
 
-var _ = Describe("SyslogAgent", func() {
+var _ = Describe("SyslogAgent supporting mtls", func() {
 	Context("when binding cache is configured", func() {
 		var (
 			syslogHTTPS        *syslogHTTPSServer
 			aggregateSyslogTLS *syslogTCPServer
 			aggregateAddr      string
 			syslogTLS          *syslogTCPServer
-			bindingCache       *fakeLegacyBindingCache
+			bindingCache       *fakeBindingCache
 			metricClient       *metricsHelpers.SpyMetricsRegistry
 
-			grpcPort   = 30000
+			grpcPort   = 50000
 			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
 			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
 			bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
 			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
+			drainCredentials      = newCredentials("syslogCA", "localhost")
 		)
 
 		BeforeEach(func() {
@@ -54,20 +51,21 @@ var _ = Describe("SyslogAgent", func() {
 
 			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
-			bindingCache = &fakeLegacyBindingCache{
-				bindings: []binding.LegacyBinding{
+
+			bindingCache = &fakeBindingCache{
+				bindings: []binding.Binding{
 					{
-						AppID:    "some-id",
-						Hostname: "org.space.name",
-						Drains: []string{
-							syslogHTTPS.server.URL,
+						Url: syslogHTTPS.server.URL,
+						Apps: []binding.App{
+							{Hostname: "org.space.name", AppID: "some-id"},
 						},
 					},
 					{
-						AppID:    "some-id-tls",
-						Hostname: "org.space.name",
-						Drains: []string{
-							fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						Cert: drainCredentials.cert,
+						Key:  drainCredentials.key,
+						Apps: []binding.App{
+							{Hostname: "org.space.name", AppID: "some-id-tls"},
 						},
 					},
 				},
@@ -114,7 +112,6 @@ var _ = Describe("SyslogAgent", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				LegacyBehaviour:                    true,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
 			go syslogAgent.Run()
@@ -160,7 +157,7 @@ var _ = Describe("SyslogAgent", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				LegacyBehaviour:                    true,
+				LegacyBehaviour:                    false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
 			go syslogAgent.Run()
@@ -201,7 +198,7 @@ var _ = Describe("SyslogAgent", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				LegacyBehaviour:                    true,
+				LegacyBehaviour:                    false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
 			go syslogAgent.Run()
@@ -246,7 +243,7 @@ var _ = Describe("SyslogAgent", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				LegacyBehaviour:                    true,
+				LegacyBehaviour:                    false,
 			}
 			for _, i := range changeConfig {
 				cfg = i(cfg)
@@ -311,19 +308,17 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("can be configured so that there's no tags", func() {
-			bindingCache.bindings = []binding.LegacyBinding{
+			bindingCache.bindings = []binding.Binding{
 				{
-					AppID:    "some-id",
-					Hostname: "org.space.name",
-					Drains: []string{
-						syslogHTTPS.server.URL + "?disable-metadata=true",
+					Url: fmt.Sprintf("%s?disable-metadata=true", syslogHTTPS.server.URL),
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id"},
 					},
 				},
 				{
-					AppID:    "some-id-tls",
-					Hostname: "org.space.name",
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
 					},
 				},
 			}
@@ -334,6 +329,7 @@ var _ = Describe("SyslogAgent", func() {
 					},
 				},
 			}
+
 			cancel := setupTestAgent()
 			defer cancel()
 
@@ -349,19 +345,17 @@ var _ = Describe("SyslogAgent", func() {
 		})
 
 		It("can be configured so that there's no tags by default", func() {
-			bindingCache.bindings = []binding.LegacyBinding{
+			bindingCache.bindings = []binding.Binding{
 				{
-					AppID:    "some-id",
-					Hostname: "org.space.name",
-					Drains: []string{
-						syslogHTTPS.server.URL,
+					Url: syslogHTTPS.server.URL,
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id"},
 					},
 				},
 				{
-					AppID:    "some-id-tls",
-					Hostname: "org.space.name",
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
 					},
 				},
 			}
@@ -390,7 +384,7 @@ var _ = Describe("SyslogAgent", func() {
 		})
 	})
 	Context("TLS cipher tests", func() {
-		var grpcPort = 41000
+		var grpcPort = 51000
 		var aggregateSyslogTLS *syslogTCPServer
 
 		AfterEach(func() {
@@ -426,7 +420,7 @@ var _ = Describe("SyslogAgent", func() {
 				},
 				AggregateDrainURLs:                 []string{aggregateAddr},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				LegacyBehaviour:                    true,
+				LegacyBehaviour:                    false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
 			go syslogAgent.Run()
@@ -442,6 +436,7 @@ var _ = Describe("SyslogAgent", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -465,6 +460,7 @@ var _ = Describe("SyslogAgent", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
@@ -488,6 +484,7 @@ var _ = Describe("SyslogAgent", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_RSA_WITH_RC4_128_SHA,
@@ -508,6 +505,7 @@ var _ = Describe("SyslogAgent", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
@@ -541,6 +539,7 @@ var _ = Describe("SyslogAgent", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
+						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -568,7 +567,7 @@ var _ = Describe("SyslogAgent", func() {
 			aggregateAddr      string
 			metricClient       *metricsHelpers.SpyMetricsRegistry
 
-			grpcPort   = 40000
+			grpcPort   = 60000
 			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
 			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
@@ -606,7 +605,7 @@ var _ = Describe("SyslogAgent", func() {
 				},
 				AggregateDrainURLs:                 aggregateDrains,
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				LegacyBehaviour:                    true,
+				LegacyBehaviour:                    false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
 			go syslogAgent.Run()
@@ -644,7 +643,7 @@ var _ = Describe("SyslogAgent", func() {
 		var (
 			metricClient *metricsHelpers.SpyMetricsRegistry
 
-			grpcPort   = 40000
+			grpcPort   = 70000
 			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
 			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
@@ -676,7 +675,7 @@ var _ = Describe("SyslogAgent", func() {
 			},
 			AggregateDrainURLs:                 []string{},
 			AggregateConnectionRefreshInterval: 10 * time.Minute,
-			LegacyBehaviour:                    true,
+			LegacyBehaviour:                    false,
 		}
 
 		It("should error when creating the TLS client for the logclient", func() {
@@ -685,75 +684,13 @@ var _ = Describe("SyslogAgent", func() {
 	})
 })
 
-func emitLogs(ctx context.Context, grpcPort int, testCerts *testhelper.TestCerts) {
-	tlsConfig, err := loggregator.NewIngressTLSConfig(
-		testCerts.CA(),
-		testCerts.Cert("metron"),
-		testCerts.Key("metron"),
-	)
-	Expect(err).ToNot(HaveOccurred())
-	ingressClient, err := loggregator.NewIngressClient(
-		tlsConfig,
-		loggregator.WithAddr(fmt.Sprintf("127.0.0.1:%d", grpcPort)),
-		loggregator.WithLogger(log.New(GinkgoWriter, "[TEST INGRESS CLIENT] ", 0)),
-		loggregator.WithBatchMaxSize(1),
-	)
-	Expect(err).ToNot(HaveOccurred())
-
-	e := &loggregator_v2.Envelope{
-		Timestamp: time.Now().UnixNano(),
-		SourceId:  "some-id",
-		Message: &loggregator_v2.Envelope_Log{
-			Log: &loggregator_v2.Log{
-				Payload: []byte("hello"),
-			},
-		},
-		Tags: map[string]string{
-			"foo": "bar",
-		},
-	}
-
-	eTLS := &loggregator_v2.Envelope{
-		Timestamp: time.Now().UnixNano(),
-		SourceId:  "some-id-tls",
-		Message: &loggregator_v2.Envelope_Log{
-			Log: &loggregator_v2.Log{
-				Payload: []byte("hello"),
-			},
-		},
-		Tags: map[string]string{
-			"foo": "bar",
-		},
-	}
-
-	go func() {
-		ticker := time.NewTicker(10 * time.Millisecond)
-		for {
-			select {
-			case <-ticker.C:
-				ingressClient.Emit(e)
-				ingressClient.Emit(eTLS)
-			case <-ctx.Done():
-
-				return
-			}
-		}
-	}()
-}
-
-func hasMetric(mc *metricsHelpers.SpyMetricsRegistry, metricName string, tags map[string]string) func() bool {
-	return func() bool {
-		return mc.HasMetric(metricName, tags)
-	}
-}
-
-type fakeLegacyBindingCache struct {
+type fakeBindingCache struct {
 	*httptest.Server
-	bindings  []binding.LegacyBinding
+	bindings  []binding.Binding
 	aggregate []binding.LegacyBinding
 }
 
-func (f *fakeLegacyBindingCache) startTLS(testCerts *testhelper.TestCerts) {
+func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 	tlsConfig, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
 		tlsconfig.WithIdentityFromFile(
@@ -771,125 +708,52 @@ func (f *fakeLegacyBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 	f.Server.StartTLS()
 }
 
-func (f *fakeLegacyBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	results := []binding.LegacyBinding{}
-	if r.URL.Path == "/bindings" {
-		results = f.bindings
-	} else if r.URL.Path == "/aggregate" {
-		results = f.aggregate
-	} else {
+func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		results []byte
+		err     error
+	)
+
+	switch r.URL.Path {
+	case "/v2/bindings":
+		results, err = json.Marshal(f.bindings)
+	case "/bindings":
+		results, err = json.Marshal(binding.ToLegacyBindings(f.bindings))
+	case "/aggregate":
+		results, err = json.Marshal(f.aggregate)
+	default:
 		w.WriteHeader(500)
 		return
 	}
 
-	resultData, err := json.Marshal(results)
 	if err != nil {
 		w.WriteHeader(500)
 		return
 	}
 
-	_, err = w.Write(resultData)
+	w.Write(results)
+}
+
+type credentials struct {
+	cert string
+	key  string
+}
+
+func newCredentials(ca, commonName string) *credentials {
+	testCerts := testhelper.GenerateCerts(ca)
+	certFileName := testCerts.Cert(commonName)
+	keyFileName := testCerts.Key(commonName)
+
+	cert, err := ioutil.ReadFile(certFileName)
 	if err != nil {
-		w.WriteHeader(500)
+		return nil
 	}
-}
-
-type syslogHTTPSServer struct {
-	receivedMessages chan *rfc5424.Message
-	server           *httptest.Server
-}
-
-func newSyslogHTTPSServer(syslogServerTestCerts *testhelper.TestCerts) *syslogHTTPSServer {
-	syslogServer := syslogHTTPSServer{
-		receivedMessages: make(chan *rfc5424.Message, 100),
-	}
-
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		msg := &rfc5424.Message{}
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			panic(err)
-		}
-
-		err = msg.UnmarshalBinary(data)
-		if err != nil {
-			panic(err)
-		}
-
-		syslogServer.receivedMessages <- msg
-	}))
-
-	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
-		tlsconfig.WithIdentityFromFile(
-			syslogServerTestCerts.Cert("localhost"),
-			syslogServerTestCerts.Key("localhost"),
-		),
-	).Server()
+	key, err := ioutil.ReadFile(keyFileName)
 	if err != nil {
-		panic(err)
+		return nil
 	}
-
-	server.TLS = tlsConfig
-	server.StartTLS()
-
-	syslogServer.server = server
-	return &syslogServer
-}
-
-type syslogTCPServer struct {
-	lis              net.Listener
-	receivedMessages chan *rfc5424.Message
-}
-
-func newSyslogTLSServer(syslogServerTestCerts *testhelper.TestCerts, ciphers tlsconfig.TLSOption) *syslogTCPServer {
-	lis, err := net.Listen("tcp", "127.0.0.1:")
-	Expect(err).ToNot(HaveOccurred())
-
-	tlsConfig, err := tlsconfig.Build(
-		ciphers,
-		tlsconfig.WithIdentityFromFile(
-			syslogServerTestCerts.Cert("localhost"),
-			syslogServerTestCerts.Key("localhost"),
-		),
-	).Server()
-	if err != nil {
-		panic(err)
+	return &credentials{
+		cert: string(cert),
+		key:  string(key),
 	}
-	tlsLis := tls.NewListener(lis, tlsConfig)
-	m := &syslogTCPServer{
-		receivedMessages: make(chan *rfc5424.Message, 100),
-		lis:              tlsLis,
-	}
-	go m.accept()
-	return m
-}
-
-func (m *syslogTCPServer) accept() {
-	for {
-		conn, err := m.lis.Accept()
-		if err != nil {
-			return
-		}
-		go m.handleConn(conn)
-	}
-}
-
-func (m *syslogTCPServer) handleConn(conn net.Conn) {
-	for {
-		var msg rfc5424.Message
-
-		_, err := msg.ReadFrom(conn)
-		if err != nil {
-			return
-		}
-
-		m.receivedMessages <- &msg
-	}
-}
-
-func (m *syslogTCPServer) port() string {
-	tokens := strings.Split(m.lis.Addr().String(), ":")
-	return tokens[len(tokens)-1]
 }

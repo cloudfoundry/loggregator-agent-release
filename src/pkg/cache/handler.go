@@ -17,7 +17,7 @@ type LegacyGetter interface {
 }
 
 type AggregateGetter interface {
-	Get() []string
+	Get() []binding.LegacyBinding
 }
 
 func Handler(store Getter) http.HandlerFunc {

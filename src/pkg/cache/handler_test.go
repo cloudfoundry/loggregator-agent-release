@@ -59,9 +59,11 @@ var _ = Describe("Handler", func() {
 	})
 
 	It("should write results from the aggregateStore", func() {
-		aggregateDrains := []string{
-			"drain-1",
-			"drain-2",
+		aggregateDrains := []binding.LegacyBinding{
+			{
+				AppID:  "",
+				Drains: []string{"drain-1", "drain-2"},
+			},
 		}
 
 		handler := cache.AggregateHandler(newStubAggregateStore(aggregateDrains))
@@ -85,7 +87,7 @@ type stubLegacyStore struct {
 }
 
 type stubAggregateStore struct {
-	AggregateDrains []string
+	AggregateDrains []binding.LegacyBinding
 }
 
 func newStubStore(bindings []binding.Binding) *stubStore {
@@ -100,7 +102,7 @@ func newStubLegacyStore(bindings []binding.LegacyBinding) *stubLegacyStore {
 	}
 }
 
-func newStubAggregateStore(aggregateDrains []string) *stubAggregateStore {
+func newStubAggregateStore(aggregateDrains []binding.LegacyBinding) *stubAggregateStore {
 	return &stubAggregateStore{aggregateDrains}
 }
 
@@ -112,6 +114,6 @@ func (s *stubLegacyStore) Get() []binding.LegacyBinding {
 	return s.bindings
 }
 
-func (as *stubAggregateStore) Get() []string {
+func (as *stubAggregateStore) Get() []binding.LegacyBinding {
 	return as.AggregateDrains
 }
