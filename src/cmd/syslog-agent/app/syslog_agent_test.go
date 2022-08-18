@@ -734,7 +734,6 @@ func emitLogs(ctx context.Context, grpcPort int, testCerts *testhelper.TestCerts
 				ingressClient.Emit(e)
 				ingressClient.Emit(eTLS)
 			case <-ctx.Done():
-
 				return
 			}
 		}

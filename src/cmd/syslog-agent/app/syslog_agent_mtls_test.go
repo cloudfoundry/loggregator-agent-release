@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,15 +40,18 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			grpcPort   = 50000
 			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
-			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
-			bindingCacheTestCerts = testhelper.GenerateCerts("bindingCacheCA")
-			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
-			drainCredentials      = newCredentials("syslogCA", "localhost")
+			metronTestCerts           = testhelper.GenerateCerts("loggregatorCA")
+			bindingCacheTestCerts     = testhelper.GenerateCerts("bindingCacheCA")
+			syslogServerTestCerts     = testhelper.GenerateCerts("syslogCA")
+			drainCredentials          = newCredentials("syslogCA", "localhost")
+			untrustedDrainCredentials = newCredentials("untrustedSyslogCA", "unknown-localhost")
 		)
 
 		BeforeEach(func() {
 			syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
-			syslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
+			syslogTLS = newSyslogmTLSServer(syslogServerTestCerts,
+				tlsconfig.WithInternalServiceDefaults(),
+				drainCredentials.caFileName)
 
 			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
@@ -301,10 +305,16 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).ToNot(HaveLen(0))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
+			Expect(string(msg.Message)).To(Equal("hello\n"))
 
 			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).ToNot(HaveLen(0))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
+
+			Eventually(syslogTLS.receivedMessages, 3).Should(Receive(&msg))
+			Expect(msg.StructuredData).ToNot(HaveLen(0))
+			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
+			Expect(string(msg.Message)).To(Equal("hello\n"))
 		})
 
 		It("can be configured so that there's no tags", func() {
@@ -316,7 +326,9 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					},
 				},
 				{
-					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Url:  fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Cert: drainCredentials.cert,
+					Key:  drainCredentials.key,
 					Apps: []binding.App{
 						{Hostname: "org.space.name", AppID: "some-id-tls"},
 					},
@@ -353,7 +365,9 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					},
 				},
 				{
-					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Cert: drainCredentials.cert,
+					Key:  drainCredentials.key,
 					Apps: []binding.App{
 						{Hostname: "org.space.name", AppID: "some-id-tls"},
 					},
@@ -381,6 +395,61 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 
 			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).To(HaveLen(0))
+		})
+
+		It("will not accept untrusted certs", func() {
+			bindingCache.bindings = []binding.Binding{
+				{
+					Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Cert: untrustedDrainCredentials.cert,
+					Key:  untrustedDrainCredentials.key,
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					},
+				},
+			}
+			cancel := setupTestAgent()
+			defer cancel()
+
+			var msg *rfc5424.Message
+			Consistently(syslogTLS.receivedMessages, 3).ShouldNot(Receive(&msg))
+		})
+
+		It("will not accept empty drain certs", func() {
+			bindingCache.bindings = []binding.Binding{
+				{
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					},
+				},
+			}
+			cancel := setupTestAgent()
+			defer cancel()
+
+			var msg *rfc5424.Message
+			Consistently(syslogTLS.receivedMessages, 3).ShouldNot(Receive(&msg))
+		})
+
+		It("will not activate drains with invalid certs", func() {
+			bindingCache.bindings = []binding.Binding{
+				{
+					Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Cert: "a cert that is not a cert",
+					Key:  "a key that is not a key",
+					Apps: []binding.App{
+						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					},
+				},
+			}
+			bindingCache.aggregate = []binding.LegacyBinding{}
+			cancel := setupTestAgent()
+			defer cancel()
+
+			Eventually(hasMetric(metricClient, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Consistently(func() float64 {
+				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			}, 2).Should(Equal(0.0))
 		})
 	})
 	Context("TLS cipher tests", func() {
@@ -735,8 +804,11 @@ func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type credentials struct {
-	cert string
-	key  string
+	cert         string
+	key          string
+	certFileName string
+	keyFileName  string
+	caFileName   string
 }
 
 func newCredentials(ca, commonName string) *credentials {
@@ -752,8 +824,39 @@ func newCredentials(ca, commonName string) *credentials {
 	if err != nil {
 		return nil
 	}
+
 	return &credentials{
-		cert: string(cert),
-		key:  string(key),
+		cert:         string(cert),
+		key:          string(key),
+		certFileName: certFileName,
+		keyFileName:  keyFileName,
+		caFileName:   testCerts.CA(),
 	}
+}
+
+func newSyslogmTLSServer(syslogServerTestCerts *testhelper.TestCerts,
+	ciphers tlsconfig.TLSOption, caFileName string) *syslogTCPServer {
+	lis, err := net.Listen("tcp", ":0")
+	Expect(err).ToNot(HaveOccurred())
+	pool := tlsconfig.FromEmptyPool(
+		tlsconfig.WithCertsFromFile(caFileName),
+	)
+	tlsConfig, err := tlsconfig.Build(
+		ciphers,
+		tlsconfig.WithIdentityFromFile(
+			syslogServerTestCerts.Cert("localhost"),
+			syslogServerTestCerts.Key("localhost"),
+		),
+		tlsconfig.TLSOption(tlsconfig.WithClientAuthenticationBuilder(pool)),
+	).Server()
+	if err != nil {
+		panic(err)
+	}
+	tlsLis := tls.NewListener(lis, tlsConfig)
+	m := &syslogTCPServer{
+		receivedMessages: make(chan *rfc5424.Message, 100),
+		lis:              tlsLis,
+	}
+	go m.accept()
+	return m
 }
