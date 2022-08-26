@@ -3,9 +3,9 @@ package app
 import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
+	"crypto/rand"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"time"
 

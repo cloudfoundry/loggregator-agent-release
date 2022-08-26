@@ -354,8 +354,9 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	Expect(err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
@@ -410,8 +411,9 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	Expect(err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
@@ -476,7 +478,7 @@ func createForwarderPortConfigFile(port string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	contents := fmt.Sprintf(forwardConfigTemplate, port)
-	if err := os.WriteFile(tmpfn, []byte(contents), 0666); err != nil {
+	if err := os.WriteFile(tmpfn, []byte(contents), 0600); err != nil {
 		log.Fatal(err)
 	}
 }

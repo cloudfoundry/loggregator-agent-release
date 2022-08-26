@@ -46,7 +46,7 @@ var _ = Describe("TLSWriter", func() {
 	})
 
 	It("speaks TLS", func() {
-		listener, err := tls.Listen("tcp", ":0", tlsConfig)
+		listener, err := tls.Listen("tcp", "127.0.0.1:0", tlsConfig)
 		Expect(err).ToNot(HaveOccurred())
 
 		url, _ := url.Parse(fmt.Sprintf("syslog-tls://%s", listener.Addr()))
@@ -76,7 +76,8 @@ var _ = Describe("TLSWriter", func() {
 			// connection before the dial will succeed. We should probably
 			// investigate.
 			empty := make([]byte, 0)
-			conn.Read(empty)
+			_, err = conn.Read(empty)
+			Expect(err).ToNot(HaveOccurred())
 		}()
 
 		Expect(writer.Write(env)).To(Succeed())

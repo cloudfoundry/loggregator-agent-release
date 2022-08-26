@@ -1,8 +1,8 @@
 package v1
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
 	"net"
 )
 
@@ -54,6 +54,7 @@ func (b *Balancer) NextHostPort() (string, error) {
 		return "", fmt.Errorf("lookup failed with addr %s", b.addr)
 	}
 
+	ri, err := rand.Int(rand.Reader)
 	return net.JoinHostPort(ips[rand.Int()%len(ips)].String(), port), nil
 
 }

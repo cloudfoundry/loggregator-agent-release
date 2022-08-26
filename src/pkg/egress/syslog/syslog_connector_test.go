@@ -262,9 +262,10 @@ var _ = Describe("SyslogConnector", func() {
 
 			f := func() {
 				for i := 0; i < 50000; i++ {
-					writer.Write(&loggregator_v2.Envelope{
+					err = writer.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 					})
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 			Expect(f).ToNot(Panic())

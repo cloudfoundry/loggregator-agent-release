@@ -11,21 +11,21 @@ import (
 	"github.com/cloudfoundry/sonde-go/events"
 )
 
-type mockConn struct {
-	WriteCalled chan bool
-	WriteInput  struct {
-		Data chan []byte
-	}
-	WriteOutput struct {
-		Ret0 chan error
-	}
-}
+// type mockConn struct {
+// 	WriteCalled chan bool
+// 	WriteInput  struct {
+// 		Data chan []byte
+// 	}
+// 	WriteOutput struct {
+// 		Ret0 chan error
+// 	}
+// }
 
-func (m *mockConn) Write(data []byte) error {
-	m.WriteCalled <- true
-	m.WriteInput.Data <- data
-	return <-m.WriteOutput.Ret0
-}
+// func (m *mockConn) Write(data []byte) error {
+// 	m.WriteCalled <- true
+// 	m.WriteInput.Data <- data
+// 	return <-m.WriteOutput.Ret0
+// }
 
 type MockByteArrayWriter struct {
 	data [][]byte
@@ -71,17 +71,17 @@ func (m *mockBatchChainByteWriter) Write(message []byte) (err error) {
 	return <-m.WriteOutput.Err
 }
 
-type mockDroppedMessageCounter struct {
-	DropCalled chan bool
-	DropInput  struct {
-		Count chan uint32
-	}
-}
+// type mockDroppedMessageCounter struct {
+// 	DropCalled chan bool
+// 	DropInput  struct {
+// 		Count chan uint32
+// 	}
+// }
 
-func (m *mockDroppedMessageCounter) Drop(count uint32) {
-	m.DropCalled <- true
-	m.DropInput.Count <- count
-}
+// func (m *mockDroppedMessageCounter) Drop(count uint32) {
+// 	m.DropCalled <- true
+// 	m.DropInput.Count <- count
+// }
 
 type MockEnvelopeWriter struct {
 	Events     []*events.Envelope

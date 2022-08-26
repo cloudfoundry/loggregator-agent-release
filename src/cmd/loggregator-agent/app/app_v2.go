@@ -1,9 +1,9 @@
 package app
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	_ "net/http/pprof"

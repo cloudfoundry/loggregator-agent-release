@@ -120,7 +120,7 @@ func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingre
 	defer p.wg.Done()
 
 	s := p.buildScraper(scrapeConfig, ingressClient)
-	ticker := time.Tick(scrapeConfig.ScrapeInterval)
+	ticker := time.NewTicker(scrapeConfig.ScrapeInterval)
 
 	failedScrapesTotal := p.m.NewCounter(
 		"failed_scrapes_total",

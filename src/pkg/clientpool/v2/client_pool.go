@@ -1,8 +1,8 @@
 package v2
 
 import (
+	"crypto/rand"
 	"errors"
-	"math/rand"
 	"sync/atomic"
 	"unsafe"
 

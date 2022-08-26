@@ -29,7 +29,8 @@ var _ = Describe("EventWriter", func() {
 				Value: proto.Float64(13),
 				Unit:  proto.String("giraffes"),
 			}
-			eventWriter.Emit(event)
+			err := eventWriter.Emit(event)
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(mockWriter.Events).To(HaveLen(1))
 			Expect(mockWriter.Events[0].GetOrigin()).To(Equal("Africa"))
@@ -62,7 +63,8 @@ var _ = Describe("EventWriter", func() {
 					Unit:  proto.String("giraffes"),
 				},
 			}
-			eventWriter.EmitEnvelope(event)
+			err := eventWriter.EmitEnvelope(event)
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(mockWriter.Events).To(HaveLen(1))
 			Expect(mockWriter.Events[0]).To(Equal(event))

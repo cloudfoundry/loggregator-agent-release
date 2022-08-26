@@ -540,7 +540,10 @@ func (s *stubPromServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.requestPaths <- req.URL.Path
 
 	w.WriteHeader(s.statusCode)
-	w.Write([]byte(s.resp))
+	_, err := w.Write([]byte(s.resp))
+	if err != nil {
+		log.Fatalf("Error writing response: %v", err)
+	}
 }
 
 func buildGauge(name, sourceID, instanceID string, value float64) *loggregator_v2.Envelope {

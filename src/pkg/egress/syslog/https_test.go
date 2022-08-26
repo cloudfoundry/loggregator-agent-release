@@ -288,7 +288,8 @@ var _ = Describe("HTTPWriter", func() {
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		writer.Write(env)
+		err := writer.Write(env)
+		Expect(err).ToNot(HaveOccurred())
 
 		Expect(sm.Value()).To(BeNumerically("==", 1))
 	})

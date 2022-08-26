@@ -7,54 +7,54 @@ package v2_test
 
 import (
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
-	metrics "code.cloudfoundry.org/go-metric-registry"
 )
 
-type mockWriter struct {
-	WriteCalled chan bool
-	WriteInput  struct {
-		Arg0 chan *loggregator_v2.Envelope
-	}
-	WriteOutput struct {
-		Ret0 chan error
-	}
-}
+// type mockWriter struct {
+// 	WriteCalled chan bool
+// 	WriteInput  struct {
+// 		Arg0 chan *loggregator_v2.Envelope
+// 	}
+// 	WriteOutput struct {
+// 		Ret0 chan error
+// 	}
+// }
 
-func newMockWriter() *mockWriter {
-	m := &mockWriter{}
-	m.WriteCalled = make(chan bool, 100)
-	m.WriteInput.Arg0 = make(chan *loggregator_v2.Envelope, 100)
-	m.WriteOutput.Ret0 = make(chan error, 100)
-	return m
-}
-func (m *mockWriter) Write(arg0 *loggregator_v2.Envelope) error {
-	m.WriteCalled <- true
-	m.WriteInput.Arg0 <- arg0
-	return <-m.WriteOutput.Ret0
-}
+// func newMockWriter() *mockWriter {
+// 	m := &mockWriter{}
+// 	m.WriteCalled = make(chan bool, 100)
+// 	m.WriteInput.Arg0 = make(chan *loggregator_v2.Envelope, 100)
+// 	m.WriteOutput.Ret0 = make(chan error, 100)
+// 	return m
+// }
 
-type mockEnvelopeProcessor struct {
-	ProcessCalled chan bool
-	ProcessInput  struct {
-		Arg0 chan *loggregator_v2.Envelope
-	}
-	ProcessOutput struct {
-		Ret0 chan error
-	}
-}
+// func (m *mockWriter) Write(arg0 *loggregator_v2.Envelope) error {
+// 	m.WriteCalled <- true
+// 	m.WriteInput.Arg0 <- arg0
+// 	return <-m.WriteOutput.Ret0
+// }
 
-func newMockEnvelopeProcessor() *mockEnvelopeProcessor {
-	m := &mockEnvelopeProcessor{}
-	m.ProcessCalled = make(chan bool, 100)
-	m.ProcessInput.Arg0 = make(chan *loggregator_v2.Envelope, 100)
-	m.ProcessOutput.Ret0 = make(chan error, 100)
-	return m
-}
-func (m *mockEnvelopeProcessor) Process(arg0 *loggregator_v2.Envelope) error {
-	m.ProcessCalled <- true
-	m.ProcessInput.Arg0 <- arg0
-	return <-m.ProcessOutput.Ret0
-}
+// type mockEnvelopeProcessor struct {
+// 	ProcessCalled chan bool
+// 	ProcessInput  struct {
+// 		Arg0 chan *loggregator_v2.Envelope
+// 	}
+// 	ProcessOutput struct {
+// 		Ret0 chan error
+// 	}
+// }
+
+// func newMockEnvelopeProcessor() *mockEnvelopeProcessor {
+// 	m := &mockEnvelopeProcessor{}
+// 	m.ProcessCalled = make(chan bool, 100)
+// 	m.ProcessInput.Arg0 = make(chan *loggregator_v2.Envelope, 100)
+// 	m.ProcessOutput.Ret0 = make(chan error, 100)
+// 	return m
+// }
+// func (m *mockEnvelopeProcessor) Process(arg0 *loggregator_v2.Envelope) error {
+// 	m.ProcessCalled <- true
+// 	m.ProcessInput.Arg0 <- arg0
+// 	return <-m.ProcessOutput.Ret0
+// }
 
 type mockNexter struct {
 	TryNextCalled chan bool
@@ -99,48 +99,48 @@ func (m *mockBatchWriter) Write(msgs []*loggregator_v2.Envelope) error {
 	return <-m.WriteOutput.Ret0
 }
 
-type mockMetricClient struct {
-	NewCounterCalled chan bool
-	NewCounterInput  struct {
-		Name, HelpText chan string
-		Opts           chan []metrics.MetricOption
-	}
-	NewCounterOutput struct {
-		Ret0 chan metrics.Counter
-	}
-}
+// type mockMetricClient struct {
+// 	NewCounterCalled chan bool
+// 	NewCounterInput  struct {
+// 		Name, HelpText chan string
+// 		Opts           chan []metrics.MetricOption
+// 	}
+// 	NewCounterOutput struct {
+// 		Ret0 chan metrics.Counter
+// 	}
+// }
 
-func newMockMetricClient() *mockMetricClient {
-	m := &mockMetricClient{}
-	m.NewCounterCalled = make(chan bool, 100)
-	m.NewCounterInput.Name = make(chan string, 100)
-	m.NewCounterInput.HelpText = make(chan string, 100)
-	m.NewCounterInput.Opts = make(chan []metrics.MetricOption, 100)
-	m.NewCounterOutput.Ret0 = make(chan metrics.Counter, 100)
-	return m
-}
-func (m *mockMetricClient) NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter {
-	m.NewCounterCalled <- true
-	m.NewCounterInput.Name <- name
-	m.NewCounterInput.HelpText <- helpText
-	m.NewCounterInput.Opts <- opts
-	return <-m.NewCounterOutput.Ret0
-}
+// func newMockMetricClient() *mockMetricClient {
+// 	m := &mockMetricClient{}
+// 	m.NewCounterCalled = make(chan bool, 100)
+// 	m.NewCounterInput.Name = make(chan string, 100)
+// 	m.NewCounterInput.HelpText = make(chan string, 100)
+// 	m.NewCounterInput.Opts = make(chan []metrics.MetricOption, 100)
+// 	m.NewCounterOutput.Ret0 = make(chan metrics.Counter, 100)
+// 	return m
+// }
+// func (m *mockMetricClient) NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter {
+// 	m.NewCounterCalled <- true
+// 	m.NewCounterInput.Name <- name
+// 	m.NewCounterInput.HelpText <- helpText
+// 	m.NewCounterInput.Opts <- opts
+// 	return <-m.NewCounterOutput.Ret0
+// }
 
-type mockCounter struct {
-	AddCalled chan bool
-	AddInput  struct {
-		Arg0 chan float64
-	}
-}
+// type mockCounter struct {
+// 	AddCalled chan bool
+// 	AddInput  struct {
+// 		Arg0 chan float64
+// 	}
+// }
 
-func newMockCounter() *mockCounter {
-	m := &mockCounter{}
-	m.AddCalled = make(chan bool, 100)
-	m.AddInput.Arg0 = make(chan float64, 100)
-	return m
-}
-func (m *mockCounter) Add(arg0 float64) {
-	m.AddCalled <- true
-	m.AddInput.Arg0 <- arg0
-}
+// func newMockCounter() *mockCounter {
+// 	m := &mockCounter{}
+// 	m.AddCalled = make(chan bool, 100)
+// 	m.AddInput.Arg0 = make(chan float64, 100)
+// 	return m
+// }
+// func (m *mockCounter) Add(arg0 float64) {
+// 	m.AddCalled <- true
+// 	m.AddInput.Arg0 <- arg0
+// }

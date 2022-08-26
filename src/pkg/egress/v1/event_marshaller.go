@@ -63,6 +63,10 @@ func (m *EventMarshaller) Write(envelope *events.Envelope) {
 		return
 	}
 
-	writer.Write(envelopeBytes)
+	err = writer.Write(envelopeBytes)
+	if err != nil {
+		log.Printf("write error: %v", err)
+		return
+	}
 	m.egressCounter(1)
 }

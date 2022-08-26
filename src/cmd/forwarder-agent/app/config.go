@@ -44,7 +44,9 @@ func LoadConfig() Config {
 		panic(fmt.Sprintf("Failed to load config from environment: %s", err))
 	}
 
-	envstruct.WriteReport(&cfg)
+	if err := envstruct.WriteReport(&cfg); err != nil {
+		panic(fmt.Sprintf("Failed to print a report of the from environment: %s", err))
+	}
 
 	return cfg
 }

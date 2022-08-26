@@ -93,7 +93,9 @@ var _ = Describe("ConnManager", func() {
 		It("recycles the connections after max writes", func() {
 			e := &loggregator_v2.Envelope{SourceId: "some-uuid"}
 			f := func() int {
-				connManager.Write([]*loggregator_v2.Envelope{e})
+				err := connManager.Write([]*loggregator_v2.Envelope{e})
+				Expect(err).ToNot(HaveOccurred())
+
 				return connector.called()
 			}
 			Eventually(f).Should(Equal(2))

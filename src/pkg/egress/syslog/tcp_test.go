@@ -34,7 +34,7 @@ var _ = Describe("TCPWriter", func() {
 
 	BeforeEach(func() {
 		var err error
-		listener, err = net.Listen("tcp", ":0")
+		listener, err = net.Listen("tcp", "127.0.0.1:0")
 		Expect(err).ToNot(HaveOccurred())
 		binding.URL, _ = url.Parse(fmt.Sprintf("syslog://%s", listener.Addr()))
 	})
@@ -151,13 +151,14 @@ var _ = Describe("TCPWriter", func() {
 			actual, err := buf.ReadString('\n')
 			Expect(err).ToNot(HaveOccurred())
 
-			expected := fmt.Sprintf("128 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [OTHER/1] - [tags@47450 source_type=\"OTHER\"] no null `` please\n")
+			expected := "128 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [OTHER/1] - [tags@47450 source_type=\"OTHER\"] no null `` please\n"
 			Expect(actual).To(Equal(expected))
 		})
 
 		It("emits an egress metric for each message", func() {
 			env := buildLogEnvelope("OTHER", "1", "no null `\x00` please", loggregator_v2.Log_OUT)
-			writer.Write(env)
+			err := writer.Write(env)
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(egressCounter.Value()).To(BeNumerically("==", 1))
 		})

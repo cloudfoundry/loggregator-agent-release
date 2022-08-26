@@ -1,8 +1,8 @@
 package v1
 
 import (
+	"crypto/rand"
 	"errors"
-	"math/rand"
 	"sync/atomic"
 	"unsafe"
 )
