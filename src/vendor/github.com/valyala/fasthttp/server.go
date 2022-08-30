@@ -421,7 +421,7 @@ type Server struct {
 	// We need to know our listeners and idle connections so we can close them in Shutdown().
 	ln []net.Listener
 
-	idleConns   map[net.Conn]struct{}
+	idleConns   map[net.Conn]time.Time
 	idleConnsMu sync.Mutex
 
 	mu   sync.Mutex
@@ -510,11 +510,11 @@ func CompressHandler(h RequestHandler) RequestHandler {
 //
 // Level is the desired compression level:
 //
-//     * CompressNoCompression
-//     * CompressBestSpeed
-//     * CompressBestCompression
-//     * CompressDefaultCompression
-//     * CompressHuffmanOnly
+//   - CompressNoCompression
+//   - CompressBestSpeed
+//   - CompressBestCompression
+//   - CompressDefaultCompression
+//   - CompressHuffmanOnly
 func CompressHandlerLevel(h RequestHandler, level int) RequestHandler {
 	return func(ctx *RequestCtx) {
 		h(ctx)
@@ -532,18 +532,18 @@ func CompressHandlerLevel(h RequestHandler, level int) RequestHandler {
 //
 // brotliLevel is the desired compression level for brotli.
 //
-//     * CompressBrotliNoCompression
-//     * CompressBrotliBestSpeed
-//     * CompressBrotliBestCompression
-//     * CompressBrotliDefaultCompression
+//   - CompressBrotliNoCompression
+//   - CompressBrotliBestSpeed
+//   - CompressBrotliBestCompression
+//   - CompressBrotliDefaultCompression
 //
 // otherLevel is the desired compression level for gzip and deflate.
 //
-//     * CompressNoCompression
-//     * CompressBestSpeed
-//     * CompressBestCompression
-//     * CompressDefaultCompression
-//     * CompressHuffmanOnly
+//   - CompressNoCompression
+//   - CompressBestSpeed
+//   - CompressBestCompression
+//   - CompressDefaultCompression
+//   - CompressHuffmanOnly
 func CompressHandlerBrotliLevel(h RequestHandler, brotliLevel, otherLevel int) RequestHandler {
 	return func(ctx *RequestCtx) {
 		h(ctx)
@@ -626,8 +626,8 @@ type HijackHandler func(c net.Conn)
 //
 // The server skips calling the handler in the following cases:
 //
-//     * 'Connection: close' header exists in either request or response.
-//     * Unexpected error during response writing to the connection.
+//   - 'Connection: close' header exists in either request or response.
+//   - Unexpected error during response writing to the connection.
 //
 // The server stops processing requests from hijacked connections.
 //
@@ -639,9 +639,8 @@ type HijackHandler func(c net.Conn)
 // Arbitrary 'Connection: Upgrade' protocols may be implemented
 // with HijackHandler. For instance,
 //
-//     * WebSocket ( https://en.wikipedia.org/wiki/WebSocket )
-//     * HTTP/2.0 ( https://en.wikipedia.org/wiki/HTTP/2 )
-//
+//   - WebSocket ( https://en.wikipedia.org/wiki/WebSocket )
+//   - HTTP/2.0 ( https://en.wikipedia.org/wiki/HTTP/2 )
 func (ctx *RequestCtx) Hijack(handler HijackHandler) {
 	ctx.hijackHandler = handler
 }
@@ -1084,15 +1083,15 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 //
 // The value is searched in the following places:
 //
-//   * Query string.
-//   * POST or PUT body.
+//   - Query string.
+//   - POST or PUT body.
 //
 // There are more fine-grained methods for obtaining form values:
 //
-//   * QueryArgs for obtaining values from query string.
-//   * PostArgs for obtaining values from POST or PUT body.
-//   * MultipartForm for obtaining values from multipart form.
-//   * FormFile for obtaining uploaded files.
+//   - QueryArgs for obtaining values from query string.
+//   - PostArgs for obtaining values from POST or PUT body.
+//   - MultipartForm for obtaining values from multipart form.
+//   - FormFile for obtaining uploaded files.
 //
 // The returned value is valid until your request handler returns.
 func (ctx *RequestCtx) FormValue(key string) []byte {
@@ -1254,11 +1253,11 @@ func (ctx *RequestCtx) SuccessString(contentType, body string) {
 //
 // statusCode must have one of the following values:
 //
-//    * StatusMovedPermanently (301)
-//    * StatusFound (302)
-//    * StatusSeeOther (303)
-//    * StatusTemporaryRedirect (307)
-//    * StatusPermanentRedirect (308)
+//   - StatusMovedPermanently (301)
+//   - StatusFound (302)
+//   - StatusSeeOther (303)
+//   - StatusTemporaryRedirect (307)
+//   - StatusPermanentRedirect (308)
 //
 // All other statusCode values are replaced by StatusFound (302).
 //
@@ -1266,10 +1265,9 @@ func (ctx *RequestCtx) SuccessString(contentType, body string) {
 // request uri. Fasthttp will always send an absolute uri back to the client.
 // To send a relative uri you can use the following code:
 //
-//   strLocation = []byte("Location") // Put this with your top level var () declarations.
-//   ctx.Response.Header.SetCanonical(strLocation, "/relative?uri")
-//   ctx.Response.SetStatusCode(fasthttp.StatusMovedPermanently)
-//
+//	strLocation = []byte("Location") // Put this with your top level var () declarations.
+//	ctx.Response.Header.SetCanonical(strLocation, "/relative?uri")
+//	ctx.Response.SetStatusCode(fasthttp.StatusMovedPermanently)
 func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
 	u := AcquireURI()
 	ctx.URI().CopyTo(u)
@@ -1283,11 +1281,11 @@ func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
 //
 // statusCode must have one of the following values:
 //
-//    * StatusMovedPermanently (301)
-//    * StatusFound (302)
-//    * StatusSeeOther (303)
-//    * StatusTemporaryRedirect (307)
-//    * StatusPermanentRedirect (308)
+//   - StatusMovedPermanently (301)
+//   - StatusFound (302)
+//   - StatusSeeOther (303)
+//   - StatusTemporaryRedirect (307)
+//   - StatusPermanentRedirect (308)
 //
 // All other statusCode values are replaced by StatusFound (302).
 //
@@ -1295,10 +1293,9 @@ func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
 // request uri. Fasthttp will always send an absolute uri back to the client.
 // To send a relative uri you can use the following code:
 //
-//   strLocation = []byte("Location") // Put this with your top level var () declarations.
-//   ctx.Response.Header.SetCanonical(strLocation, "/relative?uri")
-//   ctx.Response.SetStatusCode(fasthttp.StatusMovedPermanently)
-//
+//	strLocation = []byte("Location") // Put this with your top level var () declarations.
+//	ctx.Response.Header.SetCanonical(strLocation, "/relative?uri")
+//	ctx.Response.SetStatusCode(fasthttp.StatusMovedPermanently)
 func (ctx *RequestCtx) RedirectBytes(uri []byte, statusCode int) {
 	s := b2s(uri)
 	ctx.Redirect(s, statusCode)
@@ -1437,9 +1434,9 @@ func (ctx *RequestCtx) SetBodyStream(bodyStream io.Reader, bodySize int) {
 //
 // This function may be used in the following cases:
 //
-//     * if response body is too big (more than 10MB).
-//     * if response body is streamed from slow external sources.
-//     * if response body must be streamed to the client in chunks.
+//   - if response body is too big (more than 10MB).
+//   - if response body is streamed from slow external sources.
+//   - if response body must be streamed to the client in chunks.
 //     (aka `http server push`).
 func (ctx *RequestCtx) SetBodyStreamWriter(sw StreamWriter) {
 	ctx.Response.SetBodyStreamWriter(sw)
@@ -1839,12 +1836,12 @@ func (s *Server) Shutdown() error {
 		close(s.done)
 	}
 
-	s.closeIdleConns()
-
 	// Closing the listener will make Serve() call Stop on the worker pool.
 	// Setting .stop to 1 will make serveConn() break out of its loop.
 	// Now we just have to wait until all workers are done.
 	for {
+		s.closeIdleConns()
+
 		if open := atomic.LoadInt32(&s.open); open == 0 {
 			break
 		}
@@ -2816,9 +2813,16 @@ func (s *Server) trackConn(c net.Conn, state ConnState) {
 	switch state {
 	case StateIdle:
 		if s.idleConns == nil {
-			s.idleConns = make(map[net.Conn]struct{})
+			s.idleConns = make(map[net.Conn]time.Time)
 		}
-		s.idleConns[c] = struct{}{}
+		s.idleConns[c] = time.Now()
+	case StateNew:
+		if s.idleConns == nil {
+			s.idleConns = make(map[net.Conn]time.Time)
+		}
+		// Count the connection as Idle after 5 seconds.
+		// Same as net/http.Server: https://github.com/golang/go/blob/85d7bab91d9a3ed1f76842e4328973ea75efef54/src/net/http/server.go#L2834-L2836
+		s.idleConns[c] = time.Now().Add(time.Second * 5)
 
 	default:
 		delete(s.idleConns, c)
@@ -2828,10 +2832,13 @@ func (s *Server) trackConn(c net.Conn, state ConnState) {
 
 func (s *Server) closeIdleConns() {
 	s.idleConnsMu.Lock()
-	for c := range s.idleConns {
-		_ = c.Close()
+	now := time.Now()
+	for c, t := range s.idleConns {
+		if now.Sub(t) >= 0 {
+			_ = c.Close()
+			delete(s.idleConns, c)
+		}
 	}
-	s.idleConns = nil
 	s.idleConnsMu.Unlock()
 }
 
