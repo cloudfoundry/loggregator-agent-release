@@ -65,7 +65,8 @@ var _ = Describe("ClientPool", func() {
 
 			It("uses the given data once", func() {
 				data := []byte("some-data")
-				pool.Write(data)
+				err := pool.Write(data)
+				Expect(err).ToNot(HaveOccurred())
 
 				idx, msg := chooseData(mockConns)
 				Expect(idx).ToNot(Equal(-1))

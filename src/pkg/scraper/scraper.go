@@ -147,13 +147,12 @@ func (s *Scraper) scrape(target Target) (map[string]*io_prometheus_client.Metric
 		return nil, err
 	}
 
-	defer func() error {
+	defer func() {
 		_, err := io.Copy(io.Discard, resp.Body)
 		if err != nil {
-			return err
+			panic(err)
 		}
 		resp.Body.Close()
-		return nil
 	}()
 
 	if resp.StatusCode != http.StatusOK {

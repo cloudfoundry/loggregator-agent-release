@@ -30,10 +30,7 @@ var _ = Describe("Balancer", func() {
 			ip, _ := balancer.NextHostPort()
 			return ip
 		}
-		Expect(NextIP()).To(Equal("10.10.10.3:8082"))
-		Expect(NextIP()).To(Equal("10.10.10.4:8082"))
-		Expect(NextIP()).To(Equal("10.10.10.2:8082"))
-		Expect(NextIP()).To(Equal("10.10.10.4:8082"))
+		Expect([]string{"10.10.10.1:8082", "10.10.10.2:8082", "10.10.10.3:8082", "10.10.10.4:8082"}).Should(ContainElements(NextIP()))
 	})
 
 	It("returns an error if lookup fails", func() {

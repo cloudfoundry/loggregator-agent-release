@@ -2,8 +2,10 @@ package binding
 
 import (
 	"context"
+	"crypto/rand"
+	"fmt"
 	"log"
-	"math/rand"
+	"math/big"
 	"sync"
 	"time"
 
@@ -107,7 +109,11 @@ func (m *Manager) Run() {
 
 	offset := int64(time.Second.Nanoseconds())
 	if m.pollingInterval.Nanoseconds() != 0 {
-		offset = rand.Int63n(m.pollingInterval.Nanoseconds())
+		nBig, err := rand.Int(rand.Reader, big.NewInt(m.pollingInterval.Nanoseconds()))
+		if err != nil {
+			panic(fmt.Sprintf("Invalid pooling interval %d\n", m.pollingInterval.Nanoseconds()))
+		}
+		offset = nBig.Int64()
 	}
 	connectionTicker := time.NewTicker(m.aggregateConnectionRefreshInterval)
 	bindingTicker := time.NewTicker(m.pollingInterval + time.Duration(offset))

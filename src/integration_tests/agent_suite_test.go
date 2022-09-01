@@ -3,7 +3,6 @@ package agent_test
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
@@ -15,7 +14,9 @@ import (
 )
 
 func TestAgent(t *testing.T) {
-	grpclog.SetLogger(log.New(GinkgoWriter, "", log.LstdFlags))
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2(GinkgoWriter, GinkgoWriter, GinkgoWriter))
+
+	// grpclog.SetLogger(log.New(GinkgoWriter, "", log.LstdFlags))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Agent Integration Test Suite")
 }

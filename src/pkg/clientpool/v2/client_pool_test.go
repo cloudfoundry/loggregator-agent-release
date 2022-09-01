@@ -51,8 +51,7 @@ var _ = Describe("ClientPool", func() {
 			})
 
 			It("tries all conns before erroring", func() {
-				err := pool.Write([]*loggregator_v2.Envelope{{SourceId: "some-uuid"}})
-				Expect(err).ToNot(HaveOccurred())
+				pool.Write([]*loggregator_v2.Envelope{{SourceId: "some-uuid"}})
 
 				for len(conns) > 0 {
 					i, _ := chooseData(conns)

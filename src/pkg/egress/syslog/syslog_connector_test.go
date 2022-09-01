@@ -198,12 +198,13 @@ var _ = Describe("SyslogConnector", func() {
 
 			go func(w egress.Writer) {
 				for {
-					w.Write(&loggregator_v2.Envelope{
+					err := w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 						Message: &loggregator_v2.Envelope_Log{
 							Log: &loggregator_v2.Log{},
 						},
 					})
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}(writer)
 
@@ -235,12 +236,13 @@ var _ = Describe("SyslogConnector", func() {
 
 			go func(w egress.Writer) {
 				for {
-					w.Write(&loggregator_v2.Envelope{
+					err := w.Write(&loggregator_v2.Envelope{
 						SourceId: "test-source-id",
 						Message: &loggregator_v2.Envelope_Log{
 							Log: &loggregator_v2.Log{},
 						},
 					})
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}(writer)
 

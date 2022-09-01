@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -204,9 +205,13 @@ func (a *AppV2) initializePool() *clientpoolv2.ClientPool {
 
 	var connManagers []clientpoolv2.Conn
 	for i := 0; i < 5; i++ {
+		nBig, err := rand.Int(rand.Reader, big.NewInt(1000))
+		if err != nil {
+			return nil
+		}
 		connManagers = append(connManagers, clientpoolv2.NewConnManager(
 			connector,
-			100000+rand.Int63n(1000),
+			100000+nBig.Int64(),
 			time.Second,
 		))
 	}

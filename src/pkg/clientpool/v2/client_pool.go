@@ -3,6 +3,8 @@ package v2
 import (
 	"crypto/rand"
 	"errors"
+	"math"
+	"math/big"
 	"sync/atomic"
 	"unsafe"
 
@@ -29,7 +31,11 @@ func New(conns ...Conn) *ClientPool {
 }
 
 func (c *ClientPool) Write(msgs []*loggregator_v2.Envelope) error {
-	seed := rand.Int()
+	nBig, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
+	if err != nil {
+		return err
+	}
+	seed := int(nBig.Int64())
 	for i := range c.conns {
 		idx := (i + seed) % len(c.conns)
 		conn := *(*Conn)(atomic.LoadPointer(&c.conns[idx]))

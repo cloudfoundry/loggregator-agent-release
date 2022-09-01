@@ -8,6 +8,7 @@ import (
 	v1 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -29,7 +30,7 @@ var _ = Describe("PusherFetcher", func() {
 			server.Stop()
 		}()
 
-		fetcher := v1.NewPusherFetcher(mc, grpc.WithInsecure())
+		fetcher := v1.NewPusherFetcher(mc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		var (
 			closer io.Closer
 			pusher plumbing.DopplerIngestor_PusherClient
@@ -41,7 +42,8 @@ var _ = Describe("PusherFetcher", func() {
 		}
 		Eventually(f).ShouldNot(HaveOccurred())
 
-		pusher.Send(&plumbing.EnvelopeData{})
+		err := pusher.Send(&plumbing.EnvelopeData{})
+		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(server.envelopeData).Should(Receive())
 		Expect(closer.Close()).To(Succeed())
@@ -52,7 +54,7 @@ var _ = Describe("PusherFetcher", func() {
 		Expect(server.Start()).To(Succeed())
 		defer server.Stop()
 
-		fetcher := v1.NewPusherFetcher(mc, grpc.WithInsecure())
+		fetcher := v1.NewPusherFetcher(mc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		f := func() error {
 			_, _, err := fetcher.Fetch(server.addr)
 			return err
@@ -69,7 +71,7 @@ var _ = Describe("PusherFetcher", func() {
 		Expect(server.Start()).To(Succeed())
 		defer server.Stop()
 
-		fetcher := v1.NewPusherFetcher(mc, grpc.WithInsecure())
+		fetcher := v1.NewPusherFetcher(mc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		var closer io.Closer
 		f := func() error {
 			var err error
@@ -85,7 +87,7 @@ var _ = Describe("PusherFetcher", func() {
 	})
 
 	It("returns an error when the server is unavailable", func() {
-		fetcher := v1.NewPusherFetcher(mc, grpc.WithInsecure())
+		fetcher := v1.NewPusherFetcher(mc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		_, _, err := fetcher.Fetch("127.0.0.1:1122")
 		Expect(err).To(HaveOccurred())
 	})

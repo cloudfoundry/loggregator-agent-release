@@ -51,7 +51,9 @@ var _ = Describe("GRPCConnector", func() {
 		})
 
 		It("fetches a client with the given address", func() {
-			connector.Connect()
+			_, _, err := connector.Connect()
+			Expect(err).ToNot(HaveOccurred())
+
 			Expect(fetcher.Addr).To(Equal("10.10.10.1:99"))
 		})
 
@@ -80,7 +82,9 @@ var _ = Describe("GRPCConnector", func() {
 			}
 			connector := v1.MakeGRPCConnector(fetcher, balancers)
 
-			connector.Connect()
+			_, _, err := connector.Connect()
+			Expect(err).ToNot(HaveOccurred())
+
 			Expect(fetcher.Addr).To(Equal("1.1.1.1:99"))
 		})
 	})

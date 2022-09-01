@@ -72,7 +72,8 @@ var _ = Describe("Manager", func() {
 				},
 			}
 
-			appDrains[0].Write(e)
+			err := appDrains[0].Write(e)
+			Expect(err).ToNot(HaveOccurred())
 			Eventually(appDrains[0].(*spyDrain).envelopes).Should(Receive(Equal(e)))
 		})
 
@@ -107,10 +108,12 @@ var _ = Describe("Manager", func() {
 				},
 			}
 
-			appDrains[0].Write(e)
+			err := appDrains[0].Write(e)
+			Expect(err).ToNot(HaveOccurred())
 			Eventually(appDrains[0].(*spyDrain).envelopes).Should(Receive(Equal(e)))
 
-			appDrains[1].Write(e)
+			err = appDrains[1].Write(e)
+			Expect(err).ToNot(HaveOccurred())
 			Eventually(appDrains[1].(*spyDrain).envelopes).Should(Receive(Equal(e)))
 		})
 

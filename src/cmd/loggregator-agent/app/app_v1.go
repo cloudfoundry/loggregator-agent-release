@@ -1,6 +1,8 @@
 package app
 
 import (
+	"math/big"
+
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"crypto/rand"
@@ -145,9 +147,13 @@ func (a *AppV1) setupGRPC() *clientpoolv1.ClientPool {
 
 	var connManagers []clientpoolv1.Conn
 	for i := 0; i < 5; i++ {
+		nBig, err := rand.Int(rand.Reader, big.NewInt(1000))
+		if err != nil {
+			return nil
+		}
 		connManagers = append(connManagers, clientpoolv1.NewConnManager(
 			connector,
-			100000+rand.Int63n(1000),
+			100000+nBig.Int64(),
 			time.Second,
 		))
 	}

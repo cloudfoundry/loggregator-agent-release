@@ -52,8 +52,7 @@ var _ = Describe("Receiver", func() {
 				err: io.EOF,
 			}
 
-			err := rx.Sender(spySender)
-			Expect(err).ToNot(HaveOccurred())
+			rx.Sender(spySender)
 
 			Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
 			Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
@@ -87,8 +86,7 @@ var _ = Describe("Receiver", func() {
 				err: io.EOF,
 			}
 
-			err := rx.Sender(spySender)
-			Expect(err).ToNot(HaveOccurred())
+			rx.Sender(spySender)
 
 			Expect(ingressMetric.Value()).To(BeNumerically("==", 2))
 		})
@@ -114,8 +112,7 @@ var _ = Describe("Receiver", func() {
 					err: io.EOF,
 				}
 
-				err := rx.Sender(spySender)
-				Expect(err).ToNot(HaveOccurred())
+				rx.Sender(spySender)
 
 				Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
 
@@ -155,8 +152,7 @@ var _ = Describe("Receiver", func() {
 						err: io.EOF,
 					}
 
-					err := rx.Sender(spySender)
-					Expect(err).ToNot(HaveOccurred())
+					rx.Sender(spySender)
 
 					Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
 					Expect(originMappingMetric.Value()).To(BeNumerically("==", 1))
@@ -177,8 +173,7 @@ var _ = Describe("Receiver", func() {
 						err: io.EOF,
 					}
 
-					err := rx.Sender(spySender)
-					Expect(err).ToNot(HaveOccurred())
+					rx.Sender(spySender)
 
 					Expect(spySetter.envelopes).To(Receive(Equal(eActual)))
 
@@ -209,8 +204,7 @@ var _ = Describe("Receiver", func() {
 				err: io.EOF,
 			}
 
-			err := rx.BatchSender(spyBatchSender)
-			Expect(err).ToNot(HaveOccurred())
+			rx.BatchSender(spyBatchSender)
 
 			Expect(spySetter.envelopes).Should(HaveLen(5))
 		})
@@ -240,8 +234,7 @@ var _ = Describe("Receiver", func() {
 				err: io.EOF,
 			}
 
-			err := rx.BatchSender(spyBatchSender)
-			Expect(err).ToNot(HaveOccurred())
+			rx.BatchSender(spyBatchSender)
 
 			Expect(spySetter.envelopes).Should(HaveLen(5))
 			Expect(ingressMetric.Value()).To(BeNumerically("==", 5))
@@ -277,8 +270,7 @@ var _ = Describe("Receiver", func() {
 				err: io.EOF,
 			}
 
-			err := rx.BatchSender(spyBatchSender)
-			Expect(err).ToNot(HaveOccurred())
+			rx.BatchSender(spyBatchSender)
 
 			Expect(spySetter.envelopes).Should(Receive(Equal(e1Expected)))
 			Expect(spySetter.envelopes).Should(Receive(Equal(e2Expected)))
@@ -319,8 +311,7 @@ var _ = Describe("Receiver", func() {
 					err: io.EOF,
 				}
 
-				err := rx.BatchSender(spyBatchSender)
-				Expect(err).ToNot(HaveOccurred())
+				rx.BatchSender(spyBatchSender)
 
 				Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
 
@@ -348,10 +339,9 @@ var _ = Describe("Receiver", func() {
 				Tags:     map[string]string{"origin": "my-origin"},
 			}
 
-			_, err := rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
+			rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
 				Batch: []*loggregator_v2.Envelope{e1Actual, e2Actual},
 			})
-			Expect(err).ToNot(HaveOccurred())
 
 			Expect(spySetter.envelopes).To(Receive(Equal(e1Expected)))
 			Expect(spySetter.envelopes).To(Receive(Equal(e2Expected)))
@@ -381,10 +371,9 @@ var _ = Describe("Receiver", func() {
 				Tags: map[string]string{"origin": "my-origin"},
 			}
 
-			_, err := rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
+			rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
 				Batch: []*loggregator_v2.Envelope{e},
 			})
-			Expect(err).ToNot(HaveOccurred())
 
 			Expect(originMappingMetric.Value()).To(BeNumerically("==", 1))
 		})
@@ -400,10 +389,9 @@ var _ = Describe("Receiver", func() {
 					Tags:     map[string]string{"origin": "some-origin-1"},
 				}
 
-				_, err: = rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
+				rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
 					Batch: []*loggregator_v2.Envelope{eActual},
 				})
-				Expect(err).ToNot(HaveOccurred())
 
 				Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
 			})
@@ -434,10 +422,9 @@ var _ = Describe("Receiver", func() {
 						},
 					}
 
-					_, err := rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
+					rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
 						Batch: []*loggregator_v2.Envelope{eActual},
 					})
-					Expect(err).ToNot(HaveOccurred())
 
 					Expect(spySetter.envelopes).To(Receive(Equal(eExpected)))
 					Expect(originMappingMetric.Value()).To(BeNumerically("==", 1))
@@ -451,10 +438,9 @@ var _ = Describe("Receiver", func() {
 
 					eActual := &loggregator_v2.Envelope{}
 
-					_, err := rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
+					rx.Send(context.Background(), &loggregator_v2.EnvelopeBatch{
 						Batch: []*loggregator_v2.Envelope{eActual},
 					})
-					Expect(err).ToNot(HaveOccurred())
 
 					Expect(spySetter.envelopes).To(Receive(Equal(eActual)))
 
