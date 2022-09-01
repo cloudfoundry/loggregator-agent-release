@@ -4,7 +4,10 @@ import (
 	"io"
 	"log"
 	"math/rand"
+
+	//nolint:gosec
 	_ "net/http/pprof"
+
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/loggregator-agent/app"

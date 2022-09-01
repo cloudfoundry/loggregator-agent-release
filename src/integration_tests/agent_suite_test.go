@@ -16,7 +16,6 @@ import (
 func TestAgent(t *testing.T) {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(GinkgoWriter, GinkgoWriter, GinkgoWriter))
 
-	// grpclog.SetLogger(log.New(GinkgoWriter, "", log.LstdFlags))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Agent Integration Test Suite")
 }

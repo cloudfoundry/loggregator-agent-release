@@ -12,6 +12,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 
+	//nolint:gosec
 	_ "net/http/pprof"
 
 	"code.cloudfoundry.org/go-loggregator/v9"

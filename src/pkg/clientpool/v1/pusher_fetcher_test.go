@@ -119,6 +119,7 @@ func (s *SpyIngestorServer) Start() error {
 	s.addr = lis.Addr().String()
 	plumbing.RegisterDopplerIngestorServer(s.server, s)
 
+	//nolint:errcheck
 	go s.server.Serve(lis)
 
 	return nil

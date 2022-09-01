@@ -221,6 +221,7 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 	}
 	s.addr = lis.Addr().String()
 
+	//nolint:errcheck
 	go grpcServer.Serve(lis)
 
 	return s

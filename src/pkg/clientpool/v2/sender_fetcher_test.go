@@ -102,6 +102,7 @@ func (s *SpyIngestorServer) Start() error {
 	s.addr = lis.Addr().String()
 	loggregator_v2.RegisterIngressServer(s.server, &spyV2IngressServer{spyIngestorServer: s})
 
+  //nolint:errcheck
 	go s.server.Serve(lis)
 
 	return nil

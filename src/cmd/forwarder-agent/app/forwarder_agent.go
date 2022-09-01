@@ -12,6 +12,7 @@ import (
 
 	"net/http"
 
+	//nolint:gosec
 	_ "net/http/pprof"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
@@ -100,6 +101,7 @@ func (s *ForwarderAgent) Run() {
 	go func() {
 		for {
 			e := diode.Next()
+			//nolint:errcheck
 			ew.Write(e)
 		}
 	}()

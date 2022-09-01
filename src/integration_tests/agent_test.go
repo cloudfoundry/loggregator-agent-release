@@ -29,7 +29,10 @@ var _ = Describe("Agent", func() {
 	It("accepts connections on the v1 API", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
+
+		//nolint:errcheck
 		defer consumerServer.Stop()
+
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
@@ -52,6 +55,7 @@ var _ = Describe("Agent", func() {
 				case <-done:
 					return
 				default:
+					//nolint:errcheck
 					eventEmitter.Emit(event)
 				}
 			}
@@ -82,6 +86,8 @@ var _ = Describe("Agent", func() {
 	It("accepts connections on the v2 API", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
+
+		//nolint:errcheck
 		defer consumerServer.Stop()
 
 		agentCleanup, agentPorts := testservers.StartAgent(
@@ -104,6 +110,7 @@ var _ = Describe("Agent", func() {
 
 		go func() {
 			for range time.Tick(time.Nanosecond) {
+				//nolint:errcheck
 				sender.Send(emitEnvelope)
 			}
 		}()
@@ -147,6 +154,8 @@ var _ = Describe("Agent", func() {
 	It("does not emit logs when LOGS_DISABLED is set to true", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
+
+		//nolint:errcheck
 		defer consumerServer.Stop()
 
 		config := testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts)
@@ -167,7 +176,9 @@ var _ = Describe("Agent", func() {
 
 		go func() {
 			for range time.Tick(time.Nanosecond) {
+				//nolint:errcheck
 				sender.Send(logEnvelope)
+				//nolint:errcheck
 				sender.Send(metricEnvelope)
 			}
 		}()

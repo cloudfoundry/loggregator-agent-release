@@ -369,6 +369,8 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 	port := strings.Split(s.addr, ":")
 
 	createForwarderPortConfigFile(port[len(port)-1])
+
+	//nolint:errcheck
 	go grpcServer.Serve(lis)
 
 	return s
@@ -426,6 +428,8 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 
 	port := strings.Split(s.addr, ":")
 	createForwarderPortConfigFile(port[len(port)-1])
+
+	//nolint:errcheck
 	go grpcServer.Serve(lis)
 
 	return s

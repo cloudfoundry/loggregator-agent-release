@@ -40,6 +40,7 @@ func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 		return nil, err
 	}
 	defer func() {
+		//nolint:errcheck
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()

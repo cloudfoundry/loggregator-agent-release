@@ -57,6 +57,7 @@ func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
 	plumbing.RegisterDopplerIngestorServer(s, mockDopplerV1)
 	loggregator_v2.RegisterIngressServer(s, mockDopplerV2)
 
+	//nolint:errcheck
 	go s.Serve(lis)
 
 	return &Server{

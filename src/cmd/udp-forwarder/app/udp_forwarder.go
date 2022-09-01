@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	//nolint:gosec
 	_ "net/http/pprof"
+
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"

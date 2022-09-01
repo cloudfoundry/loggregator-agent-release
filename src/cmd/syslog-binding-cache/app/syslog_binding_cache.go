@@ -6,7 +6,10 @@ import (
 	"log"
 	"net"
 	"net/http"
+
+	//nolint:gosec
 	_ "net/http/pprof"
+
 	"sync"
 	"time"
 
@@ -105,6 +108,11 @@ func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
 	}
 	sbc.mu.Unlock()
 	sbc.server.ServeTLS(lis, "", "")
+	// err = sbc.server.ServeTLS(lis, "", "")
+	// 	sbc.log.Panicf("failed to server requests: %s", err)
+	// if err != nil {
+	// 	sbc.log.Panicf("failed to server requests: %s", err)
+	// }
 }
 
 func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {

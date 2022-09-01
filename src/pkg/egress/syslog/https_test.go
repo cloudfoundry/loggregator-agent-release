@@ -19,6 +19,7 @@ var _ = Describe("HTTPWriter", func() {
 	var (
 		netConf          syslog.NetworkTimeoutConfig
 		skipSSLTLSConfig = &tls.Config{
+			//nolint:gosec
 			InsecureSkipVerify: true,
 		}
 		c = syslog.NewConverter()

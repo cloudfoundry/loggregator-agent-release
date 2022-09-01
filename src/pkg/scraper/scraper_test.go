@@ -410,6 +410,7 @@ var _ = Describe("Scraper", func() {
 			addResponse(tc, 200, smallGaugeOutput)
 		}
 
+		//nolint:errcheck
 		go tc.scraper.Scrape()
 
 		Eventually(func() int { return len(tc.metricGetter.addrs) }, 1).Should(Equal(3))

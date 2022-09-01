@@ -40,7 +40,8 @@ var _ = Describe("TLSWriter", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		tlsConfig = &tls.Config{
-			Certificates:       []tls.Certificate{tlsCert},
+			Certificates: []tls.Certificate{tlsCert},
+			//nolint:gosec
 			InsecureSkipVerify: true,
 		}
 	})
@@ -59,6 +60,7 @@ var _ = Describe("TLSWriter", func() {
 			binding,
 			netConf,
 			&tls.Config{
+				//nolint:gosec
 				InsecureSkipVerify: true,
 			},
 			egressCounter,

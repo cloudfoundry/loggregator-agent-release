@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	//nolint:gosec
 	_ "net/http/pprof"
+
 	"os"
 	"time"
 
