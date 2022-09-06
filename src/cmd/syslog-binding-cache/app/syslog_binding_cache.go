@@ -107,12 +107,8 @@ func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
 		ReadHeaderTimeout: 2 * time.Second,
 	}
 	sbc.mu.Unlock()
+	//nolint:errcheck
 	sbc.server.ServeTLS(lis, "", "")
-	// err = sbc.server.ServeTLS(lis, "", "")
-	// 	sbc.log.Panicf("failed to server requests: %s", err)
-	// if err != nil {
-	// 	sbc.log.Panicf("failed to server requests: %s", err)
-	// }
 }
 
 func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {

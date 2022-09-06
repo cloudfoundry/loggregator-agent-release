@@ -41,7 +41,8 @@ var _ = Describe("ClientPool", func() {
 			})
 
 			It("tries all conns before erroring", func() {
-				pool.Write([]byte("some-data"))
+				err := pool.Write([]byte("some-data"))
+				Expect(err).ToNot(Succeed())
 
 				for len(mockConns) > 0 {
 					i, _ := chooseData(mockConns)

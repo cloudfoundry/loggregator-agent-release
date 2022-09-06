@@ -152,6 +152,7 @@ var _ = Describe("SyslogConnector", func() {
 			writer, err := connector.Connect(ctx, binding)
 			Expect(err).ToNot(HaveOccurred())
 
+			//nolint:errcheck
 			go func(w egress.Writer) {
 				for {
 					w.Write(&loggregator_v2.Envelope{

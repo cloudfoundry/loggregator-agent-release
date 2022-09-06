@@ -65,6 +65,9 @@ var _ = Describe("ConnManager", func() {
 					msg := []byte("some-data")
 					f := func() int {
 						connManager.Write(msg)
+						// err := connManager.Write(msg)
+						// Expect(err).To(Succeed())
+
 						return len(mockConnector.ConnectCalled)
 					}
 					Eventually(f).Should(Equal(2))
