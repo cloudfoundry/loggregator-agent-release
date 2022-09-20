@@ -122,20 +122,3 @@ var _ = Describe("BlacklistRanges", func() {
 		})
 	})
 })
-
-var validIPs = []string{
-	"http://127.0.0.1",
-	"http://127.0.1.1",
-	"http://127.0.3.5",
-	"https://127.0.1.1",
-	"syslog://127.0.1.1",
-	"syslog://127.0.1.1:3000",
-	"syslog://127.0.1.1:3000/test",
-	"syslog://127.0.1.1:3000?app=great",
-}
-
-var malformattedURLs = []string{
-	"127.0.0.1:300/new",
-	"syslog:127.0.0.1:300/new",
-	"<nil>",
-}

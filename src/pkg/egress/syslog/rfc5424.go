@@ -104,10 +104,6 @@ func (c *Converter) sanitize(originalName string) string {
 	return findTrailingDashes.ReplaceAllString(findInvalidCharacters.ReplaceAllString(findSpaces.ReplaceAllString(originalName, "-"), ""), "")
 }
 
-func (c *Converter) invalidValue(property, value string) error {
-	return fmt.Errorf("Invalid value \"%s\" for property %s \n", value, property)
-}
-
 func (c *Converter) toRFC5424CounterMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
 	counter := env.GetCounter()
 	sd := rfc5424.StructuredData{ID: counterStructuredDataID, Parameters: []rfc5424.SDParam{{Name: "name", Value: counter.GetName()}, {Name: "total", Value: strconv.FormatUint(counter.GetTotal(), 10)}, {Name: "delta", Value: strconv.FormatUint(counter.GetDelta(), 10)}}}

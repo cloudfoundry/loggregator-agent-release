@@ -12,3 +12,9 @@ issues:
   max-issues-per-linter: 0
   # Disable max same issues.
   max-same-issues: 0
+
+  exclude-rules:
+    # Exclude some linters from running on helheim generated file.
+    - path: pkg/egress/v2/helheim_test\.go
+      linters:
+        - unused

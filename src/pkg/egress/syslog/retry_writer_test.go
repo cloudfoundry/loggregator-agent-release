@@ -133,7 +133,6 @@ var _ = Describe("Retry Writer", func() {
 })
 
 type spyWriteCloser struct {
-	binding       *syslog.URLBinding
 	writeCalled   bool
 	writeEnvelope *v2.Envelope
 	writeAttempts int64
