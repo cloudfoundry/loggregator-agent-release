@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec
 	"sync"
@@ -93,18 +92,18 @@ func (sbc *SyslogBindingCache) apiClient() api.Client {
 
 func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
 	listenAddr := fmt.Sprintf(":%d", sbc.config.CachePort)
-	lis, err := net.Listen("tcp", listenAddr)
-	if err != nil {
-		sbc.log.Panicf("error creating listener: %s", err)
-	}
 	sbc.mu.Lock()
 	sbc.server = &http.Server{
+		Addr:              listenAddr,
 		Handler:           router,
 		TLSConfig:         sbc.tlsConfig(),
 		ReadHeaderTimeout: 2 * time.Second,
 	}
 	sbc.mu.Unlock()
-	sbc.server.ServeTLS(lis, "", "")
+	err := sbc.server.ListenAndServeTLS("", "")
+	if err != http.ErrServerClosed {
+		sbc.log.Panicf("error creating listener: %s", err)
+	}
 }
 
 func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {
