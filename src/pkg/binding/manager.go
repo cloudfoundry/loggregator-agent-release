@@ -107,7 +107,7 @@ func (m *Manager) Run() {
 
 	offset := int64(time.Second.Nanoseconds())
 	if m.pollingInterval.Nanoseconds() != 0 {
-		offset = rand.Int63n(m.pollingInterval.Nanoseconds())
+		offset = rand.Int63n(m.pollingInterval.Nanoseconds()) //nolint:gosec //crypto rand not necessary here
 	}
 	connectionTicker := time.NewTicker(m.aggregateConnectionRefreshInterval)
 	bindingTicker := time.NewTicker(m.pollingInterval + time.Duration(offset))

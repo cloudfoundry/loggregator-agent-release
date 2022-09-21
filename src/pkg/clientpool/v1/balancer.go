@@ -54,6 +54,5 @@ func (b *Balancer) NextHostPort() (string, error) {
 		return "", fmt.Errorf("lookup failed with addr %s", b.addr)
 	}
 
-	return net.JoinHostPort(ips[rand.Int()%len(ips)].String(), port), nil
-
+	return net.JoinHostPort(ips[rand.Int()%len(ips)].String(), port), nil //nolint:gosec // randomly pick an IP not a security issue
 }

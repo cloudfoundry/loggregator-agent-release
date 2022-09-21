@@ -147,7 +147,7 @@ func (a *AppV1) setupGRPC() *clientpoolv1.ClientPool {
 	for i := 0; i < 5; i++ {
 		connManagers = append(connManagers, clientpoolv1.NewConnManager(
 			connector,
-			100000+rand.Int63n(1000),
+			100000+rand.Int63n(1000), //nolint:gosec
 			time.Second,
 		))
 	}

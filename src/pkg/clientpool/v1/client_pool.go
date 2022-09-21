@@ -28,7 +28,7 @@ func New(conns ...Conn) *ClientPool {
 }
 
 func (c *ClientPool) Write(msg []byte) error {
-	seed := rand.Int()
+	seed := rand.Int() //nolint:gosec
 	for i := range c.conns {
 		idx := (i + seed) % len(c.conns)
 		conn := *(*Conn)(atomic.LoadPointer(&c.conns[idx]))
