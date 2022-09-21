@@ -478,7 +478,7 @@ func createForwarderPortConfigFile(port string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	contents := fmt.Sprintf(forwardConfigTemplate, port)
-	if err := os.WriteFile(tmpfn, []byte(contents), 0666); err != nil {
+	if err := os.WriteFile(tmpfn, []byte(contents), 0600); err != nil {
 		log.Fatal(err)
 	}
 }
