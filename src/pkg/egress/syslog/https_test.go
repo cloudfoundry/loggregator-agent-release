@@ -32,7 +32,7 @@ var _ = Describe("HTTPWriter", func() {
 		writer := syslog.NewHTTPSWriter(
 			b,
 			netConf,
-			&tls.Config{},
+			&tls.Config{MinVersion: tls.VersionTLS12},
 			&metricsHelpers.SpyMetric{},
 			c,
 		)
