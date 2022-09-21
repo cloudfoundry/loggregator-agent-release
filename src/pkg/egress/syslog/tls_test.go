@@ -46,7 +46,7 @@ var _ = Describe("TLSWriter", func() {
 	})
 
 	It("speaks TLS", func() {
-		listener, err := tls.Listen("tcp", ":0", tlsConfig)
+		listener, err := tls.Listen("tcp", "127.0.0.1:", tlsConfig)
 		Expect(err).ToNot(HaveOccurred())
 
 		url, _ := url.Parse(fmt.Sprintf("syslog-tls://%s", listener.Addr()))

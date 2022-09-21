@@ -34,7 +34,7 @@ var _ = Describe("TCPWriter", func() {
 
 	BeforeEach(func() {
 		var err error
-		listener, err = net.Listen("tcp", ":0")
+		listener, err = net.Listen("tcp", "127.0.0.1:")
 		Expect(err).ToNot(HaveOccurred())
 		binding.URL, _ = url.Parse(fmt.Sprintf("syslog://%s", listener.Addr()))
 	})

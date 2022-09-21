@@ -356,7 +356,7 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 	)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
@@ -413,7 +413,7 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 	)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
