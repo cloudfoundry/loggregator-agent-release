@@ -9,7 +9,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/loggregator-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

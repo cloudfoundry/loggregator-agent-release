@@ -11,7 +11,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/loggregator-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 )

@@ -5,7 +5,7 @@ import (
 
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

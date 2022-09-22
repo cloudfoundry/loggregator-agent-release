@@ -12,7 +12,6 @@ require (
 	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
 	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
 	github.com/gorilla/mux v1.8.0
-	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.2
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.37.0
@@ -25,6 +24,7 @@ require (
 require (
 	code.cloudfoundry.org/go-loggregator/v9 v9.0.2
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
+	github.com/onsi/ginkgo/v2 v2.1.6
 	google.golang.org/protobuf v1.28.1
 )
 
@@ -44,8 +44,6 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/onsi/ginkgo/v2 v2.1.6 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/spf13/cobra v1.0.0 // indirect
@@ -57,6 +55,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	google.golang.org/genproto v0.0.0-20220627200112-0a929928cb33 // indirect
-	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
