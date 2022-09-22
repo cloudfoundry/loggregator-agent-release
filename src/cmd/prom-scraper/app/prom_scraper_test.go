@@ -540,7 +540,8 @@ func (s *stubPromServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.requestPaths <- req.URL.Path
 
 	w.WriteHeader(s.statusCode)
-	w.Write([]byte(s.resp))
+	_, err := w.Write([]byte(s.resp))
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func buildGauge(name, sourceID, instanceID string, value float64) *loggregator_v2.Envelope {
@@ -635,7 +636,7 @@ func newSpyAgent(testCerts *testhelper.TestCerts) *spyAgent {
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
 	loggregator_v2.RegisterIngressServer(grpcServer, agent)
 
-	go grpcServer.Serve(lis)
+	go grpcServer.Serve(lis) //nolint:errcheck
 
 	return agent
 }

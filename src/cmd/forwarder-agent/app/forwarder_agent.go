@@ -12,7 +12,7 @@ import (
 
 	"net/http"
 
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/v9"
@@ -100,7 +100,7 @@ func (s *ForwarderAgent) Run() {
 	go func() {
 		for {
 			e := diode.Next()
-			ew.Write(e)
+			ew.Write(e) //nolint:errcheck
 		}
 	}()
 
@@ -163,7 +163,7 @@ type multiWriter struct {
 
 func (mw multiWriter) Write(e *loggregator_v2.Envelope) error {
 	for _, w := range mw.writers {
-		w.Write(e)
+		w.Write(e) //nolint:errcheck
 	}
 	return nil
 }

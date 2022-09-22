@@ -57,7 +57,7 @@ func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
 	plumbing.RegisterDopplerIngestorServer(s, mockDopplerV1)
 	loggregator_v2.RegisterIngressServer(s, mockDopplerV2)
 
-	go s.Serve(lis)
+	go s.Serve(lis) // nolint:errcheck
 
 	return &Server{
 		port:     lis.Addr().(*net.TCPAddr).Port,

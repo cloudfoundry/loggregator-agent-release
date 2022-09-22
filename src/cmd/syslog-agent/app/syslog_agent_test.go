@@ -771,7 +771,7 @@ func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 }
 
 func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	results := []binding.Binding{}
+	var results []binding.Binding
 	if r.URL.Path == "/bindings" {
 		results = f.bindings
 	} else if r.URL.Path == "/aggregate" {
@@ -787,7 +787,10 @@ func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(resultData)
+	_, err = w.Write(resultData)
+	if err != nil {
+		w.WriteHeader(500)
+	}
 }
 
 type syslogHTTPSServer struct {
@@ -840,7 +843,7 @@ type syslogTCPServer struct {
 }
 
 func newSyslogTLSServer(syslogServerTestCerts *testhelper.TestCerts, ciphers tlsconfig.TLSOption) *syslogTCPServer {
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	Expect(err).ToNot(HaveOccurred())
 
 	tlsConfig, err := tlsconfig.Build(

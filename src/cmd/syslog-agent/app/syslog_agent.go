@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 	"os"
 	"time"
 
@@ -178,8 +178,8 @@ func drainTLSConfig(cfg Config) (*tls.Config, *tls.Config) {
 
 	}
 
-	internalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
-	externalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify
+	internalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify //nolint:gosec
+	externalTlsConfig.InsecureSkipVerify = cfg.DrainSkipCertVerify //nolint:gosec
 
 	return internalTlsConfig, externalTlsConfig
 }

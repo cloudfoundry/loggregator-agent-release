@@ -76,7 +76,12 @@ func (w *TCPWriter) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	for _, msg := range msgs {
-		conn.SetWriteDeadline(time.Now().Add(w.writeTimeout))
+		err = conn.SetWriteDeadline(time.Now().Add(w.writeTimeout))
+		if err != nil {
+			_ = w.Close()
+			return err
+		}
+
 		_, err = conn.Write([]byte(strconv.Itoa(len(msg)) + " " + string(msg)))
 		if err != nil {
 			_ = w.Close()

@@ -106,7 +106,7 @@ var _ = Describe("Main", func() {
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(fConfigDir)
+		_ = os.RemoveAll(fConfigDir)
 
 		gexec.CleanupBuildArtifacts()
 		grpcPort++
@@ -354,21 +354,22 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
 	loggregator_v2.RegisterIngressServer(grpcServer, s)
 
 	s.close = func() {
-		lis.Close()
+		_ = lis.Close()
 	}
 	s.addr = lis.Addr().String()
 	port := strings.Split(s.addr, ":")
 
 	createForwarderPortConfigFile(port[len(port)-1])
-	go grpcServer.Serve(lis)
+	go grpcServer.Serve(lis) // nolint:errcheck
 
 	return s
 }
@@ -410,21 +411,22 @@ func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyL
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
 	loggregator_v2.RegisterIngressServer(grpcServer, s)
 
 	s.close = func() {
-		lis.Close()
+		_ = lis.Close()
 	}
 	s.addr = lis.Addr().String()
 
 	port := strings.Split(s.addr, ":")
 	createForwarderPortConfigFile(port[len(port)-1])
-	go grpcServer.Serve(lis)
+	go grpcServer.Serve(lis) // nolint:errcheck
 
 	return s
 }
@@ -476,7 +478,7 @@ func createForwarderPortConfigFile(port string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	contents := fmt.Sprintf(forwardConfigTemplate, port)
-	if err := os.WriteFile(tmpfn, []byte(contents), 0666); err != nil {
+	if err := os.WriteFile(tmpfn, []byte(contents), 0600); err != nil {
 		log.Fatal(err)
 	}
 }

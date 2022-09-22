@@ -17,7 +17,7 @@ func NewBatchEnvelopeWriter(w BatchWriter, ps ...EnvelopeProcessor) BatchEnvelop
 func (bw BatchEnvelopeWriter) Write(envs []*loggregator_v2.Envelope) error {
 	for _, env := range envs {
 		for _, processor := range bw.processors {
-			processor.Process(env)
+			_ = processor.Process(env)
 		}
 	}
 

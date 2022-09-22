@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//go:generate hel --type BatchChainByteWriter --output mock_writer_test.go
-
 // MetricClient creates new CounterMetrics to be emitted periodically.
 type MetricClient interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
@@ -63,6 +61,10 @@ func (m *EventMarshaller) Write(envelope *events.Envelope) {
 		return
 	}
 
-	writer.Write(envelopeBytes)
+	err = writer.Write(envelopeBytes)
+	if err != nil {
+		log.Printf("writing error: %v", err)
+		return
+	}
 	m.egressCounter(1)
 }

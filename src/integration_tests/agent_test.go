@@ -29,7 +29,7 @@ var _ = Describe("Agent", func() {
 	It("accepts connections on the v1 API", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
-		defer consumerServer.Stop()
+		defer consumerServer.Stop() // nolint:errcheck
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
@@ -52,7 +52,7 @@ var _ = Describe("Agent", func() {
 				case <-done:
 					return
 				default:
-					eventEmitter.Emit(event)
+					_ = eventEmitter.Emit(event)
 				}
 			}
 		}()
@@ -82,7 +82,7 @@ var _ = Describe("Agent", func() {
 	It("accepts connections on the v2 API", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
-		defer consumerServer.Stop()
+		defer consumerServer.Stop() // nolint:errcheck
 
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
@@ -104,7 +104,7 @@ var _ = Describe("Agent", func() {
 
 		go func() {
 			for range time.Tick(time.Nanosecond) {
-				sender.Send(emitEnvelope)
+				sender.Send(emitEnvelope) // nolint:errcheck
 			}
 		}()
 
@@ -147,7 +147,7 @@ var _ = Describe("Agent", func() {
 	It("does not emit logs when LOGS_DISABLED is set to true", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
-		defer consumerServer.Stop()
+		defer consumerServer.Stop() // nolint:errcheck
 
 		config := testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts)
 		config.LogsDisabled = true
@@ -167,8 +167,8 @@ var _ = Describe("Agent", func() {
 
 		go func() {
 			for range time.Tick(time.Nanosecond) {
-				sender.Send(logEnvelope)
-				sender.Send(metricEnvelope)
+				_ = sender.Send(logEnvelope)
+				_ = sender.Send(metricEnvelope)
 			}
 		}()
 

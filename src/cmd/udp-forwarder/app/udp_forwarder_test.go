@@ -81,11 +81,13 @@ var _ = Describe("UDPForwarder", func() {
 		go func() {
 			ticker := time.NewTicker(10 * time.Millisecond)
 			defer ticker.Stop()
-			v1Emitter.EmitEnvelope(v1e)
+			err := v1Emitter.EmitEnvelope(v1e)
+			Expect(err).ToNot(HaveOccurred())
 			for {
 				select {
 				case <-ticker.C:
-					v1Emitter.EmitEnvelope(v1e)
+					err := v1Emitter.EmitEnvelope(v1e)
+					Expect(err).ToNot(HaveOccurred())
 				case <-ctx.Done():
 					return
 				}
@@ -206,19 +208,22 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregat
 		testCerts.Key("metron"),
 		testCerts.CA(),
 	)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
 	loggregator_v2.RegisterIngressServer(grpcServer, s)
 
 	s.close = func() {
-		lis.Close()
+		_ = lis.Close()
 	}
 	s.addr = lis.Addr().String()
 
-	go grpcServer.Serve(lis)
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
 
 	return s
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
@@ -102,7 +102,7 @@ func (u *UDPForwarder) Run() {
 }
 func (u *UDPForwarder) Stop() {
 	if u.pprofServer != nil {
-		u.pprofServer.Close()
+		u.pprofServer.Close() //nolint:errcheck
 	}
 }
 

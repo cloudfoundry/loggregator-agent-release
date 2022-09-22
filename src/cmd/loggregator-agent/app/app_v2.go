@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
@@ -206,7 +206,7 @@ func (a *AppV2) initializePool() *clientpoolv2.ClientPool {
 	for i := 0; i < 5; i++ {
 		connManagers = append(connManagers, clientpoolv2.NewConnManager(
 			connector,
-			100000+rand.Int63n(1000),
+			100000+rand.Int63n(1000), //nolint:gosec
 			time.Second,
 		))
 	}

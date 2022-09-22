@@ -13,13 +13,13 @@ import (
 
 var _ = Describe("MessageAggregator", func() {
 	var (
-		mockWriter        *MockEnvelopeWriter
+		mockWriter        *mockEnvelopeWriter
 		messageAggregator *egress.MessageAggregator
 		originalTTL       time.Duration
 	)
 
 	BeforeEach(func() {
-		mockWriter = &MockEnvelopeWriter{}
+		mockWriter = newMockEnvelopeWriter()
 		messageAggregator = egress.NewAggregator(
 			mockWriter,
 		)
@@ -34,8 +34,8 @@ var _ = Describe("MessageAggregator", func() {
 		inputMessage := createValueMessage()
 		messageAggregator.Write(inputMessage)
 
-		Expect(mockWriter.Events).To(HaveLen(1))
-		Expect(mockWriter.Events[0]).To(Equal(inputMessage))
+		Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+		Expect(<-mockWriter.WriteInput.Event).To(Equal(inputMessage))
 	})
 
 	It("handles concurrent writes without data race", func() {
@@ -43,11 +43,11 @@ var _ = Describe("MessageAggregator", func() {
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 40; i++ {
 				messageAggregator.Write(inputMessage)
 			}
 		}()
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 40; i++ {
 			messageAggregator.Write(inputMessage)
 		}
 		<-done
@@ -57,8 +57,8 @@ var _ = Describe("MessageAggregator", func() {
 		It("sets the Total field on a CounterEvent ", func() {
 			messageAggregator.Write(createCounterMessage("total", "fake-origin-4", nil))
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			outputMessage := mockWriter.Events[0]
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			outputMessage := <-mockWriter.WriteInput.Event
 			Expect(outputMessage.GetEventType()).To(Equal(events.Envelope_CounterEvent))
 			expectCorrectCounterNameDeltaAndTotal(outputMessage, "total", 4, 4)
 		})
@@ -86,10 +86,13 @@ var _ = Describe("MessageAggregator", func() {
 				},
 			))
 
-			Expect(mockWriter.Events).To(HaveLen(3))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[0], "total", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[1], "total", 4, 8)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[2], "total", 4, 12)
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(3))
+			e := <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 4)
+			e = <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 8)
+			e = <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 12)
 		})
 
 		It("overwrites aggregated total when total is set", func() {
@@ -115,19 +118,24 @@ var _ = Describe("MessageAggregator", func() {
 				},
 			))
 
-			Expect(mockWriter.Events).To(HaveLen(3))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[0], "total", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[1], "total", 0, 101)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[2], "total", 4, 105)
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(3))
+			e := <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 4)
+			e = <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total", 0, 101)
+			e = <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 105)
 		})
 
 		It("accumulates differently-named counters separately", func() {
 			messageAggregator.Write(createCounterMessage("total1", "fake-origin-4", nil))
 			messageAggregator.Write(createCounterMessage("total2", "fake-origin-4", nil))
 
-			Expect(mockWriter.Events).To(HaveLen(2))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[0], "total1", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[1], "total2", 4, 4)
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(2))
+			e := <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total1", 4, 4)
+			e = <-mockWriter.WriteInput.Event
+			expectCorrectCounterNameDeltaAndTotal(e, "total2", 4, 4)
 		})
 
 		It("accumulates differently-tagged counters separately", func() {
@@ -163,21 +171,23 @@ var _ = Describe("MessageAggregator", func() {
 				},
 			))
 
-			Expect(mockWriter.Events).To(HaveLen(4))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[0], "total", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[1], "total", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[2], "total", 4, 8)
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[3], "total", 4, 4)
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(4))
+			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 4)
+			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 4)
+			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 8)
+			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 4)
 		})
 
 		It("does not accumulate for counters when receiving a non-counter event", func() {
 			messageAggregator.Write(createValueMessage())
 			messageAggregator.Write(createCounterMessage("counter1", "fake-origin-4", nil))
 
-			Expect(mockWriter.Events).To(HaveLen(2))
-			Expect(mockWriter.Events[0].GetEventType()).To(Equal(events.Envelope_ValueMetric))
-			Expect(mockWriter.Events[1].GetEventType()).To(Equal(events.Envelope_CounterEvent))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[1], "counter1", 4, 4)
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(2))
+			e := <-mockWriter.WriteInput.Event
+			Expect(e.GetEventType()).To(Equal(events.Envelope_ValueMetric))
+			e = <-mockWriter.WriteInput.Event
+			Expect(e.GetEventType()).To(Equal(events.Envelope_CounterEvent))
+			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 4)
 		})
 
 		It("accumulates independently for different origins", func() {
@@ -185,16 +195,19 @@ var _ = Describe("MessageAggregator", func() {
 			messageAggregator.Write(createCounterMessage("counter1", "fake-origin-5", nil))
 			messageAggregator.Write(createCounterMessage("counter1", "fake-origin-4", nil))
 
-			Expect(mockWriter.Events).To(HaveLen(3))
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(3))
 
-			Expect(mockWriter.Events[0].GetOrigin()).To(Equal("fake-origin-4"))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[0], "counter1", 4, 4)
+			e := <-mockWriter.WriteInput.Event
+			Expect(e.GetOrigin()).To(Equal("fake-origin-4"))
+			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 4)
 
-			Expect(mockWriter.Events[1].GetOrigin()).To(Equal("fake-origin-5"))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[1], "counter1", 4, 4)
+			e = <-mockWriter.WriteInput.Event
+			Expect(e.GetOrigin()).To(Equal("fake-origin-5"))
+			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 4)
 
-			Expect(mockWriter.Events[2].GetOrigin()).To(Equal("fake-origin-4"))
-			expectCorrectCounterNameDeltaAndTotal(mockWriter.Events[2], "counter1", 4, 8)
+			e = <-mockWriter.WriteInput.Event
+			Expect(e.GetOrigin()).To(Equal("fake-origin-4"))
+			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 8)
 		})
 	})
 })

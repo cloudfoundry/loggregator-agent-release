@@ -1,0 +1,19 @@
+language: go
+
+os:
+- linux
+- osx
+
+go:
+- "1.12.x"
+- "1.13.x"
+
+install:
+- go get golang.org/x/lint/golint
+- go get -t -v -d ./...
+
+script:
+- go vet ./...
+- golint -set_exit_status ./...
+- go test -v -race -parallel 4 ./...
+- go build

@@ -64,7 +64,7 @@ var _ = Describe("ConnManager", func() {
 				It("recycles the connections after max writes and reconnects", func() {
 					msg := []byte("some-data")
 					f := func() int {
-						connManager.Write(msg)
+						_ = connManager.Write(msg)
 						return len(mockConnector.ConnectCalled)
 					}
 					Eventually(f).Should(Equal(2))

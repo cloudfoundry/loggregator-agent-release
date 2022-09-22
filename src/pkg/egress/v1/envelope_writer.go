@@ -1,3 +1,4 @@
+//go:generate hel
 package v1
 
 import "github.com/cloudfoundry/sonde-go/events"

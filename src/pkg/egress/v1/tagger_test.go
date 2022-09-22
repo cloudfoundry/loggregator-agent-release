@@ -11,7 +11,7 @@ import (
 
 var _ = Describe("Tagger", func() {
 	It("tags events with the given deployment name, job, index and IP address", func() {
-		mockWriter := &MockEnvelopeWriter{}
+		mockWriter := newMockEnvelopeWriter()
 		t := egress.NewTagger(
 			"test-deployment",
 			"test-job",
@@ -30,7 +30,7 @@ var _ = Describe("Tagger", func() {
 
 		t.Write(envelope)
 
-		Expect(mockWriter.Events).To(HaveLen(1))
+		Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
 		expected := &events.Envelope{
 			EventType: events.Envelope_ValueMetric.Enum(),
 			ValueMetric: &events.ValueMetric{
@@ -43,18 +43,18 @@ var _ = Describe("Tagger", func() {
 			Index:      proto.String("2"),
 			Ip:         proto.String("123.123.123.123"),
 		}
-		Eventually(mockWriter.Events[0]).Should(Equal(expected))
+		Eventually(<-mockWriter.WriteInput.Event).Should(Equal(expected))
 	})
 
 	Context("doesn't overwrite", func() {
 		var (
-			mockWriter *MockEnvelopeWriter
+			mockWriter *mockEnvelopeWriter
 			t          *egress.Tagger
 			envelope   *events.Envelope
 		)
 
 		BeforeEach(func() {
-			mockWriter = &MockEnvelopeWriter{}
+			mockWriter = newMockEnvelopeWriter()
 			t = egress.NewTagger(
 				"test-deployment",
 				"test-job",
@@ -77,8 +77,8 @@ var _ = Describe("Tagger", func() {
 			envelope.Deployment = proto.String("another-deployment")
 			t.Write(envelope)
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			writtenEnvelope := mockWriter.Events[0]
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			writtenEnvelope := <-mockWriter.WriteInput.Event
 			Eventually(*writtenEnvelope.Deployment).Should(Equal("another-deployment"))
 		})
 
@@ -86,8 +86,8 @@ var _ = Describe("Tagger", func() {
 			envelope.Job = proto.String("another-job")
 			t.Write(envelope)
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			writtenEnvelope := mockWriter.Events[0]
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			writtenEnvelope := <-mockWriter.WriteInput.Event
 			Eventually(*writtenEnvelope.Job).Should(Equal("another-job"))
 		})
 
@@ -95,8 +95,8 @@ var _ = Describe("Tagger", func() {
 			envelope.Index = proto.String("3")
 			t.Write(envelope)
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			writtenEnvelope := mockWriter.Events[0]
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			writtenEnvelope := <-mockWriter.WriteInput.Event
 			Eventually(*writtenEnvelope.Index).Should(Equal("3"))
 		})
 
@@ -104,8 +104,8 @@ var _ = Describe("Tagger", func() {
 			envelope.Ip = proto.String("1.1.1.1")
 			t.Write(envelope)
 
-			Expect(mockWriter.Events).To(HaveLen(1))
-			writtenEnvelope := mockWriter.Events[0]
+			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
+			writtenEnvelope := <-mockWriter.WriteInput.Event
 			Eventually(*writtenEnvelope.Ip).Should(Equal("1.1.1.1"))
 		})
 	})

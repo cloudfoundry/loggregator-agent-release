@@ -12,7 +12,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 
-	_ "net/http/pprof"
+	_ "net/http/pprof" //nolint:gosec
 
 	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
@@ -120,7 +120,8 @@ func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingre
 	defer p.wg.Done()
 
 	s := p.buildScraper(scrapeConfig, ingressClient)
-	ticker := time.Tick(scrapeConfig.ScrapeInterval)
+	ticker := time.NewTicker(scrapeConfig.ScrapeInterval)
+	defer ticker.Stop()
 
 	failedScrapesTotal := p.m.NewCounter(
 		"failed_scrapes_total",
@@ -131,7 +132,7 @@ func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingre
 	hadError := false
 	for {
 		select {
-		case <-ticker:
+		case <-ticker.C:
 			if err := s.Scrape(); err != nil {
 				hadError = true
 				failedScrapesTotal.Add(1)
@@ -243,7 +244,7 @@ func (p *PromScraper) scrape(client *http.Client) scraper.MetricsGetter {
 
 func withSkipSSLValidation(skipSSLValidation bool) tlsconfig.ClientOption {
 	return func(tlsConfig *tls.Config) error {
-		tlsConfig.InsecureSkipVerify = skipSSLValidation
+		tlsConfig.InsecureSkipVerify = skipSSLValidation //nolint:gosec
 		return nil
 	}
 }
