@@ -104,7 +104,7 @@ var _ = Describe("PromScraper", func() {
 		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ps).To(HaveLen(0))
-		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /.*/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
 	})
 
 	It("returns a error if port is less than 1", func() {
@@ -115,7 +115,7 @@ var _ = Describe("PromScraper", func() {
 		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ps).To(HaveLen(0))
-		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /.*/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
 	})
 
 	It("returns a error if port is greater than 65536", func() {
@@ -126,7 +126,7 @@ var _ = Describe("PromScraper", func() {
 		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ps).To(HaveLen(0))
-		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /.*/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
 	})
 
 	It("returns a error if port is not a number", func() {
@@ -137,7 +137,7 @@ var _ = Describe("PromScraper", func() {
 		ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ps).To(HaveLen(0))
-		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /tmp/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
+		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /.*/[0-9]*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
 	})
 })
 
