@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -e
-
-mkdir -p bin
-for line in agent; do
-  echo building $line
-  go build -o bin/$line code.cloudfoundry.org/loggregator-agent/cmd/$line
-done
