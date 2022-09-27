@@ -3,7 +3,7 @@ package syslog_test
 import (
 	"net/url"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"

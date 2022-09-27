@@ -10,7 +10,7 @@ import (
 
 	"github.com/cloudfoundry/dropsonde/emitter"
 	"github.com/cloudfoundry/sonde-go/events"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"google.golang.org/grpc"

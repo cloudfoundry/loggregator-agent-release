@@ -8,7 +8,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 
 	"github.com/apoydence/eachers/testhelpers"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
