@@ -165,7 +165,6 @@ func drainTLSConfig(cfg Config) (*tls.Config, *tls.Config) {
 			func(c *tls.Config) error {
 				c.MinVersion = tls.VersionTLS12
 				c.MaxVersion = tls.VersionTLS12
-				c.PreferServerCipherSuites = false
 				c.CipherSuites = *cipherSuites
 				return nil
 			},
