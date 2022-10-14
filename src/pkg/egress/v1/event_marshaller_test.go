@@ -6,7 +6,6 @@ import (
 	"github.com/cloudfoundry/sonde-go/events"
 	"google.golang.org/protobuf/proto"
 
-	. "github.com/apoydence/eachers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -97,8 +96,8 @@ var _ = Describe("EventMarshaller", func() {
 
 			expected, err := proto.Marshal(envelope)
 			Expect(err).ToNot(HaveOccurred())
-			Consistently(mockChainWriter.WriteInput).ShouldNot(BeCalled())
-			Eventually(newWriter.WriteInput).Should(BeCalled(With(expected)))
+			Consistently(mockChainWriter.WriteInput.Message).ShouldNot(Receive())
+			Eventually(newWriter.WriteInput.Message).Should(Receive(Equal(expected)))
 		})
 	})
 })

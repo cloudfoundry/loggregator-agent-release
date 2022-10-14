@@ -8,7 +8,6 @@ require (
 	code.cloudfoundry.org/go-envstruct v1.5.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3
 	code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921
-	github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
 	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
 	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
 	github.com/gorilla/mux v1.8.0
