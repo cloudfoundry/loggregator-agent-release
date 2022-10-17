@@ -125,6 +125,8 @@ builds:
     version: 6.3.10
   bf7a43f8-9760-4c30-6675-c555e91006bf:
     version: "3.2"
+  c3a01e9c-f4db-486d-7088-f5de150b559b:
+    version: 6.5.2
   c74ea9f3-5de6-4296-7f93-ff0817ebe3f1:
     version: "3.16"
   c9e02cf6-8947-4c23-540d-d4e461f64b17:
