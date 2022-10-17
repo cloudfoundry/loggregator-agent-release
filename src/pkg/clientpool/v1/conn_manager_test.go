@@ -7,7 +7,6 @@ import (
 	clientpool "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 
-	"github.com/apoydence/eachers/testhelpers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -95,13 +94,27 @@ var _ = Describe("ConnManager", func() {
 	})
 
 	Context("when a connection is not able to be established", func() {
+		var stopCh chan struct{}
+
 		BeforeEach(func() {
 			close(mockConnector.ConnectOutput.Ret0)
 			close(mockConnector.ConnectOutput.Ret1)
-			testhelpers.AlwaysReturn(mockConnector.ConnectOutput.Ret2, errors.New("some-error"))
+			stopCh = make(chan struct{})
+			go func() {
+				for {
+					select {
+					case <-stopCh:
+						return
+					default:
+						mockConnector.ConnectOutput.Ret2 <- errors.New("some-error")
+					}
+				}
+			}()
 		})
 
 		It("always returns an error", func() {
+			defer close(stopCh)
+
 			f := func() error {
 				return connManager.Write([]byte("some-data"))
 			}

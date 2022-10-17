@@ -30,10 +30,6 @@ git.sr.ht/~nelsam/hel/v3/typ
 # github.com/andybalholm/brotli v1.0.4
 ## explicit; go 1.12
 github.com/andybalholm/brotli
-# github.com/apoydence/eachers v0.0.0-20181020210610-23942921fe77
-## explicit
-github.com/apoydence/eachers
-github.com/apoydence/eachers/testhelpers
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
