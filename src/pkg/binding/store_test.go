@@ -12,11 +12,11 @@ var _ = Describe("Store", func() {
 		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
 		bindings := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "host-1", AppID: "app-1"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "host-1", AppID: "app-1"}},
+					},
 				},
 			},
 		}
@@ -56,11 +56,11 @@ var _ = Describe("Store", func() {
 
 		bindings := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "host-1", AppID: "app-1"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "host-1", AppID: "app-1"}},
+					},
 				},
 			},
 		}
@@ -113,12 +113,14 @@ var _ = Describe("Store", func() {
 		store := binding.NewStore(metrics)
 		bindings := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "host-1", AppID: "app-1"},
-					{Hostname: "host-2", AppID: "app-2"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert", Key: "key", Apps: []binding.App{
+							{Hostname: "host-1", AppID: "app-1"},
+							{Hostname: "host-2", AppID: "app-2"},
+						},
+					},
 				},
 			},
 		}

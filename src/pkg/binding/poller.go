@@ -24,16 +24,20 @@ type client interface {
 	Get(int) (*http.Response, error)
 }
 
-type App struct {
-	Hostname string `json:"hostname"`
-	AppID    string `json:"appid"`
-}
-
-type Binding struct {
-	Url  string `json:"url"`
+type Credentials struct {
 	Cert string `json:"cert"`
 	Key  string `json:"key"`
 	Apps []App  `json:"apps"`
+}
+
+type App struct {
+	Hostname string `json:"hostname"`
+	AppID    string `json:"app_id"`
+}
+
+type Binding struct {
+	Url         string        `json:"url"`
+	Credentials []Credentials `json:"credentials"`
 }
 
 type LegacyBinding struct {
@@ -112,11 +116,13 @@ func (p *Poller) poll() {
 func CalculateBindingCount(bindings []Binding) int {
 	apps := make(map[string]bool)
 	for _, b := range bindings {
-		for _, a := range b.Apps {
-			if _, ok := apps[a.AppID]; ok {
-				continue
+		for _, c := range b.Credentials {
+			for _, a := range c.Apps {
+				if _, ok := apps[a.AppID]; ok {
+					continue
+				}
+				apps[a.AppID] = true
 			}
-			apps[a.AppID] = true
 		}
 	}
 	return len(apps)
@@ -131,23 +137,24 @@ func ToLegacyBindings(bindings []Binding) []LegacyBinding {
 	var legacyBindings []LegacyBinding
 	remodel := make(map[string]legacyMold)
 	for _, b := range bindings {
-		for _, a := range b.Apps {
-			if val, ok := remodel[a.AppID]; ok {
-				drain := b.Url
-				// This logic prevents duplicate URLs for the same application
-				drainExists := false
-				for _, existingDrain := range remodel[a.AppID].Drains {
-					if drain == existingDrain {
-						drainExists = true
-						break
+		drain := b.Url
+		for _, c := range b.Credentials {
+			for _, a := range c.Apps {
+				if val, ok := remodel[a.AppID]; ok {
+					// This logic prevents duplicate URLs for the same application
+					drainExists := false
+					for _, existingDrain := range remodel[a.AppID].Drains {
+						if drain == existingDrain {
+							drainExists = true
+							break
+						}
 					}
+					if !drainExists {
+						remodel[a.AppID] = legacyMold{Drains: append(val.Drains, drain), hostname: a.Hostname}
+					}
+				} else {
+					remodel[a.AppID] = legacyMold{Drains: []string{drain}, hostname: a.Hostname}
 				}
-				if drainExists == false {
-					remodel[a.AppID] = legacyMold{Drains: append(val.Drains, drain), hostname: a.Hostname}
-				}
-			} else {
-				drain := b.Url
-				remodel[a.AppID] = legacyMold{Drains: []string{drain}, hostname: a.Hostname}
 			}
 		}
 	}

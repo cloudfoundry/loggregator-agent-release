@@ -103,13 +103,15 @@ type mold struct {
 func (f *BindingFetcher) RemodelBindings(bs []binding.Binding) map[string]mold {
 	remodel := make(map[string]mold)
 	for _, b := range bs {
-		for _, a := range b.Apps {
-			if val, ok := remodel[a.AppID]; ok {
-				drain := syslog.Drain{Url: b.Url, Credentials: syslog.Credentials{Cert: b.Cert, Key: b.Key}}
-				remodel[a.AppID] = mold{Drains: append(val.Drains, drain), hostname: a.Hostname}
-			} else {
-				drain := syslog.Drain{Url: b.Url, Credentials: syslog.Credentials{Cert: b.Cert, Key: b.Key}}
-				remodel[a.AppID] = mold{Drains: []syslog.Drain{drain}, hostname: a.Hostname}
+		for _, c := range b.Credentials {
+			for _, a := range c.Apps {
+				if val, ok := remodel[a.AppID]; ok {
+					drain := syslog.Drain{Url: b.Url, Credentials: syslog.Credentials{Cert: c.Cert, Key: c.Key}}
+					remodel[a.AppID] = mold{Drains: append(val.Drains, drain), hostname: a.Hostname}
+				} else {
+					drain := syslog.Drain{Url: b.Url, Credentials: syslog.Credentials{Cert: c.Cert, Key: c.Key}}
+					remodel[a.AppID] = mold{Drains: []syslog.Drain{drain}, hostname: a.Hostname}
+				}
 			}
 		}
 	}

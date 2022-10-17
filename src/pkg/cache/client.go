@@ -45,7 +45,7 @@ func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
+		resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
@@ -67,7 +67,7 @@ func (c *CacheClient) legacyGet(path string) ([]binding.LegacyBinding, error) {
 		return nil, err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 

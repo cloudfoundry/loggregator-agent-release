@@ -5,15 +5,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
@@ -59,17 +59,15 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			bindingCache = &fakeBindingCache{
 				bindings: []binding.Binding{
 					{
-						Url: syslogHTTPS.server.URL,
-						Apps: []binding.App{
-							{Hostname: "org.space.name", AppID: "some-id"},
-						},
+						Url:         syslogHTTPS.server.URL,
+						Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}}}},
 					},
 					{
-						Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
-						Cert: drainCredentials.cert,
-						Key:  drainCredentials.key,
-						Apps: []binding.App{
-							{Hostname: "org.space.name", AppID: "some-id-tls"},
+						Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+						Credentials: []binding.Credentials{
+							{
+								Cert: drainCredentials.cert, Key: drainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+							},
 						},
 					},
 				},
@@ -213,6 +211,10 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			Eventually(func() error {
 				var err error
 				resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
 				return err
 			}).Should(BeNil())
 			Expect(resp.StatusCode).To(Equal(200))
@@ -321,16 +323,18 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
 					Url: fmt.Sprintf("%s?disable-metadata=true", syslogHTTPS.server.URL),
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id"},
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}},
+						},
 					},
 				},
 				{
-					Url:  fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
-					Cert: drainCredentials.cert,
-					Key:  drainCredentials.key,
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Credentials: []binding.Credentials{
+						{
+							Cert: drainCredentials.cert, Key: drainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+						},
 					},
 				},
 			}
@@ -359,17 +363,19 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 		It("can be configured so that there's no tags by default", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
-					Url: syslogHTTPS.server.URL,
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id"},
+					Url: fmt.Sprintf("%s?disable-metadata=true", syslogHTTPS.server.URL),
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}},
+						},
 					},
 				},
 				{
-					Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
-					Cert: drainCredentials.cert,
-					Key:  drainCredentials.key,
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
+					Credentials: []binding.Credentials{
+						{
+							Cert: drainCredentials.cert, Key: drainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+						},
 					},
 				},
 			}
@@ -400,11 +406,11 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 		It("will not accept untrusted certs", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
-					Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
-					Cert: untrustedDrainCredentials.cert,
-					Key:  untrustedDrainCredentials.key,
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Credentials: []binding.Credentials{
+						{
+							Cert: untrustedDrainCredentials.cert, Key: untrustedDrainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+						},
 					},
 				},
 			}
@@ -419,8 +425,10 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
 					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}},
+						},
 					},
 				},
 			}
@@ -434,11 +442,11 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 		It("will not activate drains with invalid certs", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
-					Url:  fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
-					Cert: "a cert that is not a cert",
-					Key:  "a key that is not a key",
-					Apps: []binding.App{
-						{Hostname: "org.space.name", AppID: "some-id-tls"},
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Credentials: []binding.Credentials{
+						{
+							Cert: "a cert that is not a cert", Key: "a key that is not a key", Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+						},
 					},
 				},
 			}
@@ -505,7 +513,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
-						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -529,7 +536,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
-						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
@@ -553,7 +559,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
-						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_RSA_WITH_RC4_128_SHA,
@@ -574,7 +579,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
-						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
@@ -608,7 +612,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					func(c *tls.Config) error {
 						c.MinVersion = tls.VersionTLS12
 						c.MaxVersion = tls.VersionTLS12
-						c.PreferServerCipherSuites = false
 						// External ciphers not on internal list
 						c.CipherSuites = []uint16{
 							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -800,7 +803,7 @@ func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(results)
+	_, _ = w.Write(results)
 }
 
 type credentials struct {
@@ -816,11 +819,11 @@ func newCredentials(ca, commonName string) *credentials {
 	certFileName := testCerts.Cert(commonName)
 	keyFileName := testCerts.Key(commonName)
 
-	cert, err := ioutil.ReadFile(certFileName)
+	cert, err := os.ReadFile(certFileName)
 	if err != nil {
 		return nil
 	}
-	key, err := ioutil.ReadFile(keyFileName)
+	key, err := os.ReadFile(keyFileName)
 	if err != nil {
 		return nil
 	}
@@ -836,7 +839,7 @@ func newCredentials(ca, commonName string) *credentials {
 
 func newSyslogmTLSServer(syslogServerTestCerts *testhelper.TestCerts,
 	ciphers tlsconfig.TLSOption, caFileName string) *syslogTCPServer {
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:")
 	Expect(err).ToNot(HaveOccurred())
 	pool := tlsconfig.FromEmptyPool(
 		tlsconfig.WithCertsFromFile(caFileName),

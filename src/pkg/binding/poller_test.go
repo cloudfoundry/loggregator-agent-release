@@ -45,19 +45,25 @@ var _ = Describe("Poller", func() {
 		apiClient.bindings <- response{
 			Results: []binding.Binding{
 				{
-					Url:  "drain-1",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-0",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+						{
+							Cert: "cert1", Key: "key1", Apps: []binding.App{
+								{Hostname: "app-hostname1", AppID: "app-id-1"},
+								{Hostname: "app-hostname2", AppID: "app-id-2"},
+							},
+						},
 					},
 				},
 				{
-					Url:  "drain-2",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-1",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
 					},
 				},
 			},
@@ -70,19 +76,25 @@ var _ = Describe("Poller", func() {
 		Eventually(store.bindings).Should(Receive(&expectedBindings))
 		Expect(expectedBindings).To(ConsistOf([]binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+					{
+						Cert: "cert1", Key: "key1", Apps: []binding.App{
+							{Hostname: "app-hostname1", AppID: "app-id-1"},
+							{Hostname: "app-hostname2", AppID: "app-id-2"},
+						},
+					},
 				},
 			},
 			{
-				Url:  "drain-2",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 		}))
@@ -91,9 +103,19 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
 		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
 			{
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0", "drain-1"},
+				Hostname: "app-hostname0",
+			},
+			{
 				AppID:    "app-id-1",
-				Drains:   []string{"drain-1", "drain-2"},
-				Hostname: "app-hostname",
+				Drains:   []string{"drain-0"},
+				Hostname: "app-hostname1",
+			},
+			{
+				AppID:    "app-id-2",
+				Drains:   []string{"drain-0"},
+				Hostname: "app-hostname2",
 			},
 		}))
 	})
@@ -103,19 +125,19 @@ var _ = Describe("Poller", func() {
 			NextID: 2,
 			Results: []binding.Binding{
 				{
-					Url:  "drain-1",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-0",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
 					},
 				},
 				{
-					Url:  "drain-2",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-1",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						},
 					},
 				},
 			},
@@ -124,19 +146,19 @@ var _ = Describe("Poller", func() {
 		apiClient.bindings <- response{
 			Results: []binding.Binding{
 				{
-					Url:  "drain-3",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-2"},
+					Url: "drain-2",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+						},
 					},
 				},
 				{
-					Url:  "drain-4",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-2"},
+					Url: "drain-3",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert3", Key: "key3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
+						},
 					},
 				},
 			},
@@ -150,35 +172,35 @@ var _ = Describe("Poller", func() {
 		Expect(expectedBindings).To(ConsistOf(
 			[]binding.Binding{
 				{
-					Url:  "drain-1",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-0",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
 					},
 				},
 				{
-					Url:  "drain-2",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-1",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						},
 					},
 				},
 				{
-					Url:  "drain-3",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-2"},
+					Url: "drain-2",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+						},
 					},
 				},
 				{
-					Url:  "drain-4",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-2"},
+					Url: "drain-3",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert3", Key: "key3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
+						},
 					},
 				},
 			},
@@ -188,14 +210,24 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
 		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
 			{
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0"},
+				Hostname: "app-hostname0",
+			},
+			{
 				AppID:    "app-id-1",
-				Drains:   []string{"drain-1", "drain-2"},
-				Hostname: "app-hostname",
+				Drains:   []string{"drain-1"},
+				Hostname: "app-hostname1",
 			},
 			{
 				AppID:    "app-id-2",
-				Drains:   []string{"drain-3", "drain-4"},
-				Hostname: "app-hostname",
+				Drains:   []string{"drain-2"},
+				Hostname: "app-hostname2",
+			},
+			{
+				AppID:    "app-id-3",
+				Drains:   []string{"drain-3"},
+				Hostname: "app-hostname3",
 			},
 		}))
 
@@ -217,19 +249,19 @@ var _ = Describe("Poller", func() {
 		apiClient.bindings <- response{
 			Results: []binding.Binding{
 				{
-					Url:  "drain-1",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-1"},
+					Url: "drain-0",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
 					},
 				},
 				{
-					Url:  "drain-2",
-					Cert: "cert",
-					Key:  "key",
-					Apps: []binding.App{
-						{Hostname: "app-hostname", AppID: "app-id-2"},
+					Url: "drain-1",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						},
 					},
 				},
 			},
@@ -244,37 +276,37 @@ var _ = Describe("Poller", func() {
 		noBinding := []binding.Binding{}
 		singleBinding := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 			{
-				Url:  "drain-2",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 		}
 		multipleBindings := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 			{
-				Url:  "drain-2",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-2"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
 				},
 			},
 		}
@@ -290,57 +322,57 @@ var _ = Describe("Poller", func() {
 		noBinding := []binding.Binding{}
 		singleBinding := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 			{
-				Url:  "drain-2",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 		}
 		multipleBindings := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-1"},
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
 				},
 			},
 			{
-				Url:  "drain-2",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "app-hostname", AppID: "app-id-2"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
 				},
 			},
 		}
 		expectedSingleLegacyBindings := []binding.LegacyBinding{
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1", "drain-2"},
-				Hostname: "app-hostname",
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0", "drain-1"},
+				Hostname: "app-hostname0",
 			},
 		}
 		expectedMultiLegacyBindings := []binding.LegacyBinding{
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "app-hostname",
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0"},
+				Hostname: "app-hostname0",
 			},
 			{
-				AppID:    "app-id-2",
-				Drains:   []string{"drain-2"},
-				Hostname: "app-hostname",
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1"},
+				Hostname: "app-hostname1",
 			},
 		}
 

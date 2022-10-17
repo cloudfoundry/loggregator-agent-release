@@ -16,11 +16,11 @@ var _ = Describe("Handler", func() {
 	It("should write results from the store", func() {
 		bindings := []binding.Binding{
 			{
-				Url:  "drain-1",
-				Cert: "cert",
-				Key:  "key",
-				Apps: []binding.App{
-					{Hostname: "host-1", AppID: "app-1"},
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "host-1", AppID: "app-id-1"}},
+					},
 				},
 			},
 		}

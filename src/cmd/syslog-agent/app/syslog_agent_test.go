@@ -212,6 +212,10 @@ var _ = Describe("SyslogAgent", func() {
 			Eventually(func() error {
 				var err error
 				resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
 				return err
 			}).Should(BeNil())
 			Expect(resp.StatusCode).To(Equal(200))
@@ -771,7 +775,7 @@ func (f *fakeLegacyBindingCache) startTLS(testCerts *testhelper.TestCerts) {
 }
 
 func (f *fakeLegacyBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	results := []binding.LegacyBinding{}
+	var results []binding.LegacyBinding
 	if r.URL.Path == "/bindings" {
 		results = f.bindings
 	} else if r.URL.Path == "/aggregate" {
@@ -807,6 +811,7 @@ func newSyslogHTTPSServer(syslogServerTestCerts *testhelper.TestCerts) *syslogHT
 		msg := &rfc5424.Message{}
 
 		data, err := io.ReadAll(r.Body)
+		defer r.Body.Close()
 		if err != nil {
 			panic(err)
 		}

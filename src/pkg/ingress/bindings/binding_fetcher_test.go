@@ -29,41 +29,41 @@ var _ = Describe("BindingFetcher", func() {
 	BeforeEach(func() {
 		getter.bindings = []binding.Binding{
 			{
-				Url:  "syslog://v3.zzz-not-included.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+				Url:         "syslog://v3.zzz-not-included.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:  "syslog://v3.other.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+				Url:         "syslog://v3.other.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:  "syslog://v3.zzz-not-included-again.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+				Url:         "syslog://v3.zzz-not-included-again.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:  "https://v3.other.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+				Url:         "https://v3.other.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:  "syslog://v3.other-included.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+				Url:         "syslog://v3.other-included.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:  "syslog://v3.zzz-not-included.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}},
+				Url:         "syslog://v3.zzz-not-included.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			},
 			{
-				Url:  "syslog://v3.other.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}},
+				Url:         "syslog://v3.other.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			}, {
-				Url:  "syslog://v3.zzz-not-included-again.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}},
+				Url:         "syslog://v3.zzz-not-included-again.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			}, {
-				Url:  "https://v3.other.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}},
+				Url:         "https://v3.other.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			}, {
-				Url:  "syslog://v3.other-included.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}},
+				Url:         "syslog://v3.other-included.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			},
 		}
 
@@ -192,8 +192,8 @@ var _ = Describe("BindingFetcher", func() {
 		DescribeTable("determines the binding type from the drain url", func(url string, expectedType syslog.BindingType) {
 			getter.bindings = []binding.Binding{
 				{
-					Url:  url,
-					Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+					Url:         url,
+					Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 				},
 			}
 
@@ -232,8 +232,8 @@ var _ = Describe("BindingFetcher", func() {
 	It("returns all the bindings when there are fewer bindings than the limit", func() {
 		getter.bindings = []binding.Binding{
 			{
-				Url:  "syslog://v3.other.url",
-				Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}},
+				Url:         "syslog://v3.other.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 		}
 		fetcher = bindings.NewBindingFetcher(2, getter, metrics, false)
