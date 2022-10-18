@@ -103,22 +103,24 @@ var _ = Describe("ConnManager", func() {
 			go func() {
 				for {
 					select {
+					case mockConnector.ConnectOutput.Ret2 <- errors.New("some-error"):
 					case <-stopCh:
+						stopCh <- struct{}{}
 						return
-					default:
-						mockConnector.ConnectOutput.Ret2 <- errors.New("some-error")
 					}
 				}
 			}()
 		})
 
 		It("always returns an error", func() {
-			defer close(stopCh)
-
 			f := func() error {
 				return connManager.Write([]byte("some-data"))
 			}
 			Consistently(f).Should(HaveOccurred())
+
+			// stop goroutine and wait for it to stop
+			stopCh <- struct{}{}
+			<-stopCh
 		})
 	})
 })
