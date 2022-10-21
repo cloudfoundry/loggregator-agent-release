@@ -19,10 +19,8 @@ func main() {
 	cfg := app.LoadConfig()
 	if cfg.UseRFC3339 {
 		logger = log.New(new(plumbing.LogWriter), "", 0)
-		logger.SetOutput(new(plumbing.LogWriter))
-		logger.SetFlags(0)
-
 	}
+
 	m := metrics.NewRegistry(
 		logger,
 		metrics.WithTLSServer(
