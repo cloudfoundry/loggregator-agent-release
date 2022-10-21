@@ -36,8 +36,8 @@ code.cloudfoundry.org/go-diodes v0.0.0-20220601181242-ac2da19efd60 h1:hBycJRDauX
 code.cloudfoundry.org/go-diodes v0.0.0-20220601181242-ac2da19efd60/go.mod h1:HLP7HKUU1eqMAGMk247yT91tDDi4xxnehkyXh6hGcr0=
 code.cloudfoundry.org/go-envstruct v1.5.0 h1:GmDS5Kbckkoxy39JGRwD/13jO1OROqf69B2vy4WBv/k=
 code.cloudfoundry.org/go-envstruct v1.5.0/go.mod h1:E2S/gzRZpZ51PZnIv7Bo7QvcgH18yio19upkrRk0xLU=
-code.cloudfoundry.org/go-loggregator/v9 v9.0.2 h1:6E1RJTeXy0K0WfWDJBxSBvsMMWsPVYMAZlbn8bPvr6A=
-code.cloudfoundry.org/go-loggregator/v9 v9.0.2/go.mod h1:ZkXKbmi4Z7Ot7TS698AFNPCvMbTMPbWI3KPAcgk4sL0=
+code.cloudfoundry.org/go-loggregator/v9 v9.0.3 h1:+rxFxl+qFN42oVGzh5uhnQRkyMt3H6dPsM9YCrfmpQw=
+code.cloudfoundry.org/go-loggregator/v9 v9.0.3/go.mod h1:M3KaLTzcbSuXf9xRjFk4nexDK2h8/NDsQ+nzh+45cfk=
 code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3 h1:zA9jf3tXGc0eSLqaOL1gvRZDBQg4U7r4wJQF6KtCtWY=
 code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3/go.mod h1:3SnTkcKdl8WhBG/4HaTaPYbL9vSn9v/GTWSlCUDs3OA=
 code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921 h1:1PLAuQR56K2pw0lnlcXe+37uOaGg939W1Lqv8wxYpu4=
@@ -246,11 +246,11 @@ github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.8.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
-github.com/onsi/ginkgo/v2 v2.2.0 h1:3ZNA3L1c5FYDFTTxbFeVGGD8jYvjYauHD30YgLxVsNI=
-github.com/onsi/ginkgo/v2 v2.2.0/go.mod h1:MEH45j8TBi6u9BMogfbp0stKC5cdGjumZj5Y7AG4VIk=
+github.com/onsi/ginkgo/v2 v2.3.1 h1:8SbseP7qM32WcvE6VaN6vfXxv698izmsJ1UQX9ve7T8=
+github.com/onsi/ginkgo/v2 v2.3.1/go.mod h1:Sv4yQXwG5VmF7tm3Q5Z+RWUpPo24LF1mpnz2crUb8Ys=
 github.com/onsi/gomega v1.5.0/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
-github.com/onsi/gomega v1.20.2 h1:8uQq0zMgLEfa0vRrrBgaJF2gyW9Da9BmfGV+OyUzfkY=
-github.com/onsi/gomega v1.20.2/go.mod h1:iYAIXgPSaDHak0LCMA+AWBpIKBr8WZicMxnE8luStNc=
+github.com/onsi/gomega v1.22.1 h1:pY8O4lBfsHKZHM/6nrxkhVPUznOlIu3quZcKP/M20KI=
+github.com/onsi/gomega v1.22.1/go.mod h1:x6n7VNe4hw0vkyYUM4mjIXx3JbLiPaBPNgB7PRQ1tuM=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
