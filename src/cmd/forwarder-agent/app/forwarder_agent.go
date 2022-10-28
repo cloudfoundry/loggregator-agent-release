@@ -203,33 +203,37 @@ func ingressClients(downstreamAddrs []string,
 
 	var ingressClients []Writer
 	for _, addr := range downstreamAddrs {
-		clientCreds, err := loggregator.NewIngressTLSConfig(
-			grpc.CAFile,
-			grpc.CertFile,
-			grpc.KeyFile,
-		)
-		if err != nil {
-			l.Fatalf("failed to configure client TLS: %s", err)
-		}
-
-		il := log.New(os.Stderr, fmt.Sprintf("[INGRESS CLIENT] -> %s: ", addr), log.LstdFlags)
-		ingressClient, err := loggregator.NewIngressClient(
-			clientCreds,
-			loggregator.WithLogger(il),
-			loggregator.WithAddr(addr),
-		)
-		if err != nil {
-			l.Fatalf("failed to create ingress client for %s: %s", addr, err)
-		}
-
-		ctx := context.Background()
-		wc := clientWriter{ingressClient}
-		dw := egress.NewDiodeWriter(ctx, wc, gendiodes.AlertFunc(func(missed int) {
-			il.Printf("Dropped %d logs for url %s", missed, addr)
-		}), timeoutwaitgroup.New(time.Minute))
-
+		dw := ingressClient(addr, grpc, l)
 		ingressClients = append(ingressClients, dw)
 	}
 
 	return ingressClients
+}
+
+func ingressClient(addr string, grpc GRPC, l *log.Logger) Writer {
+	clientCreds, err := loggregator.NewIngressTLSConfig(
+		grpc.CAFile,
+		grpc.CertFile,
+		grpc.KeyFile,
+	)
+	if err != nil {
+		l.Fatalf("failed to configure client TLS: %s", err)
+	}
+
+	il := log.New(os.Stderr, fmt.Sprintf("[INGRESS CLIENT] -> %s: ", addr), log.LstdFlags)
+	ingressClient, err := loggregator.NewIngressClient(
+		clientCreds,
+		loggregator.WithLogger(il),
+		loggregator.WithAddr(addr),
+	)
+	if err != nil {
+		l.Fatalf("failed to create ingress client for %s: %s", addr, err)
+	}
+
+	ctx := context.Background()
+	wc := clientWriter{ingressClient}
+	dw := egress.NewDiodeWriter(ctx, wc, gendiodes.AlertFunc(func(missed int) {
+		il.Printf("Dropped %d logs for url %s", missed, addr)
+	}), timeoutwaitgroup.New(time.Minute))
+	return dw
 }
