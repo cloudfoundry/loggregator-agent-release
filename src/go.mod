@@ -5,7 +5,7 @@ go 1.19
 require (
 	code.cloudfoundry.org/go-batching v0.0.0-20171020220229-924d2a9b48ac
 	code.cloudfoundry.org/go-diodes v0.0.0-20220601181242-ac2da19efd60
-	code.cloudfoundry.org/go-envstruct v1.5.0
+	code.cloudfoundry.org/go-envstruct v1.6.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20220408214155-d9c3faa1e9e3
 	code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921
 	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
