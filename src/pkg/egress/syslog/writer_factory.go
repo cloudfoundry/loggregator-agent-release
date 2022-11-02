@@ -90,7 +90,15 @@ func (f WriterFactory) NewWriter(
 		tlsConfig = f.internalTlsConfig
 	}
 	converter := NewConverter(o...)
-
+	tlsClonedConfig := tlsConfig.Clone()
+	if len(urlBinding.Certificate) > 0 && len(urlBinding.PrivateKey) > 0 {
+		credentials, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
+		if err != nil {
+			err = NewWriterFactoryErrorf(SyslogTLS, "failed to load certificate: %s", err.Error())
+			return nil, err
+		}
+		tlsClonedConfig.Certificates = []tls.Certificate{credentials}
+	}
 	var err error
 	var w egress.WriteCloser
 	switch urlBinding.URL.Scheme {
@@ -98,7 +106,7 @@ func (f WriterFactory) NewWriter(
 		w, err = NewHTTPSWriter(
 			urlBinding,
 			f.netConf,
-			tlsConfig,
+			tlsClonedConfig,
 			f.egressMetric,
 			converter,
 		), nil
@@ -116,15 +124,6 @@ func (f WriterFactory) NewWriter(
 			err = NewWriterFactoryError(Syslog, err.Error())
 		}
 	case "syslog-tls":
-		tlsClonedConfig := tlsConfig.Clone()
-		if len(urlBinding.Certificate) > 0 && len(urlBinding.PrivateKey) > 0 {
-			credentials, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
-			if err != nil {
-				err = NewWriterFactoryErrorf(SyslogTLS, "failed to load certificate: %s", err.Error())
-				return nil, err
-			}
-			tlsClonedConfig.Certificates = []tls.Certificate{credentials}
-		}
 		w, err = NewTLSWriter(
 			urlBinding,
 			f.netConf,
