@@ -12,7 +12,7 @@ require (
 	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
 	github.com/gorilla/mux v1.8.0
 	github.com/onsi/gomega v1.24.0
-	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.37.0
 	github.com/valyala/fasthttp v1.41.0
 	golang.org/x/net v0.1.0
