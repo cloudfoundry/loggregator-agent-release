@@ -245,6 +245,119 @@ var _ = Describe("Poller", func() {
 		}).Should(BeNumerically("==", 1))
 	})
 
+	It("fetches results with legacy fallback functionality if CAPI v5 endpoint is unavailable", func() {
+
+		apiClient.statusCode <- 404
+		apiClient.legacyBindings <- legacyResponse{
+			Results: map[string]struct {
+				Drains   []string
+				Hostname string
+			}{"app-id-0": {Drains: []string{"drain-0", "drain-1"}, Hostname: "app-hostname0"}},
+		}
+
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		go p.Poll()
+
+		var expectedBindings []binding.Binding
+		Eventually(store.bindings).Should(Receive(&expectedBindings))
+		Expect(expectedBindings).To(ConsistOf([]binding.Binding{
+			{
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+			{
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+		}))
+
+		var expectedLegacyBindings []binding.LegacyBinding
+		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
+		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
+			{
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0", "drain-1"},
+				Hostname: "app-hostname0",
+			},
+		}))
+
+	})
+
+	It("fetches the next page with legacy fallback functionality and stores the result", func() {
+
+		apiClient.statusCode <- 404
+		apiClient.legacyBindings <- legacyResponse{
+			NextID: 2,
+			Results: map[string]struct {
+				Drains   []string
+				Hostname string
+			}{"app-id-0": {Drains: []string{"drain-0", "drain-1"}, Hostname: "app-hostname0"}},
+		}
+		apiClient.legacyBindings <- legacyResponse{
+			Results: map[string]struct {
+				Drains   []string
+				Hostname string
+			}{"app-id-1": {Drains: []string{"drain-1", "drain-2"}, Hostname: "app-hostname1"}},
+		}
+
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		go p.Poll()
+
+		var expectedBindings []binding.Binding
+		Eventually(store.bindings).Should(Receive(&expectedBindings))
+		Expect(expectedBindings).To(ConsistOf([]binding.Binding{
+			{
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+			{
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"},
+							{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
+				},
+			},
+			{
+				Url: "drain-2",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
+				},
+			},
+		}))
+
+		var expectedLegacyBindings []binding.LegacyBinding
+		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
+		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
+			{
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0", "drain-1"},
+				Hostname: "app-hostname0",
+			},
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1", "drain-2"},
+				Hostname: "app-hostname1",
+			},
+		}))
+
+	})
+
 	It("tracks the number of bindings returned from CAPI", func() {
 		apiClient.bindings <- response{
 			Results: []binding.Binding{
@@ -382,19 +495,88 @@ var _ = Describe("Poller", func() {
 
 	})
 
+	It("tracks the correct transformation from LegacyBindings to Bindings", func() {
+		noBinding := []binding.LegacyBinding{}
+		singleLegacyBinding := []binding.LegacyBinding{
+			{
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0"},
+				Hostname: "app-hostname0",
+			},
+		}
+		multipleLegacyBindings := []binding.LegacyBinding{
+			{
+				AppID:    "app-id-0",
+				Drains:   []string{"drain-0", "drain-1"},
+				Hostname: "app-hostname0",
+			},
+			{
+				AppID:    "app-id-1",
+				Drains:   []string{"drain-1", "drain-2"},
+				Hostname: "app-hostname1",
+			},
+		}
+		expectedSingleBinding := []binding.Binding{
+			{
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+		}
+		expectedMultiBindings := []binding.Binding{
+			{
+				Url: "drain-0",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+			{
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"},
+							{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
+				},
+			},
+			{
+				Url: "drain-2",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
+				},
+			},
+		}
+
+		Expect(binding.ToBindings(noBinding)).To(ConsistOf([]binding.LegacyBinding{}))
+		Expect(binding.ToBindings(singleLegacyBinding)).To(ConsistOf(expectedSingleBinding))
+		Expect(binding.ToBindings(multipleLegacyBindings)).To(ConsistOf(expectedMultiBindings))
+
+	})
+
 })
 
 type fakeAPIClient struct {
-	numRequests  int64
-	bindings     chan response
-	errors       chan error
-	requestedIDs []int
+	numRequests    int64
+	bindings       chan response
+	errors         chan error
+	legacyBindings chan legacyResponse
+	statusCode     chan int
+	requestedIDs   []int
 }
 
 func newFakeAPIClient() *fakeAPIClient {
 	return &fakeAPIClient{
-		bindings: make(chan response, 100),
-		errors:   make(chan error, 100),
+		bindings:       make(chan response, 100),
+		legacyBindings: make(chan legacyResponse, 100),
+		errors:         make(chan error, 100),
+		statusCode:     make(chan int, 100),
 	}
 }
 
@@ -402,16 +584,43 @@ func (c *fakeAPIClient) Get(nextID int) (*http.Response, error) {
 	atomic.AddInt64(&c.numRequests, 1)
 
 	var binding response
+	var statusCode = 200
 	select {
 	case err := <-c.errors:
 		return nil, err
 	case binding = <-c.bindings:
 		c.requestedIDs = append(c.requestedIDs, nextID)
+	case injectedStatusCode := <-c.statusCode:
+		statusCode = injectedStatusCode
 	default:
 	}
 
 	var body []byte
 	b, err := json.Marshal(&binding)
+	Expect(err).ToNot(HaveOccurred())
+	body = b
+	resp := &http.Response{
+		Body: io.NopCloser(bytes.NewReader(body)),
+	}
+	resp.StatusCode = statusCode
+
+	return resp, err
+}
+
+func (c *fakeAPIClient) LegacyGet(nextID int) (*http.Response, error) {
+	atomic.AddInt64(&c.numRequests, 1)
+
+	var legacyBinding legacyResponse
+	select {
+	case err := <-c.errors:
+		return nil, err
+	case legacyBinding = <-c.legacyBindings:
+		c.requestedIDs = append(c.requestedIDs, nextID)
+	default:
+	}
+
+	var body []byte
+	b, err := json.Marshal(&legacyBinding)
 	Expect(err).ToNot(HaveOccurred())
 	body = b
 	resp := &http.Response{
@@ -456,4 +665,12 @@ func (c *fakeLegacyStore) Set(b []binding.LegacyBinding) {
 type response struct {
 	Results []binding.Binding
 	NextID  int `json:"next_id"`
+}
+
+type legacyResponse struct {
+	Results map[string]struct {
+		Drains   []string
+		Hostname string
+	}
+	NextID int `json:"next_id"`
 }

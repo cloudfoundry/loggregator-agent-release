@@ -26,15 +26,15 @@ type Getter interface {
 
 // BindingFetcher uses a Getter to fetch and decode Bindings
 type BindingFetcher struct {
-	refreshCount    metrics.Counter
-	maxLatency      metrics.Gauge
-	limit           int
-	getter          Getter
-	legacyBehaviour bool
+	refreshCount metrics.Counter
+	maxLatency   metrics.Gauge
+	limit        int
+	getter       Getter
+	useLegacyApi bool
 }
 
 // NewBindingFetcher returns a new BindingFetcher
-func NewBindingFetcher(limit int, g Getter, m Metrics, legacyBehaviour bool) *BindingFetcher {
+func NewBindingFetcher(limit int, g Getter, m Metrics, useLegacyApi bool) *BindingFetcher {
 	refreshCount := m.NewCounter(
 		"binding_refresh_count",
 		"Total number of binding refresh attempts made to the binding provider.",
@@ -47,11 +47,11 @@ func NewBindingFetcher(limit int, g Getter, m Metrics, legacyBehaviour bool) *Bi
 		metrics.WithMetricLabels(map[string]string{"unit": "ms"}),
 	)
 	return &BindingFetcher{
-		limit:           limit,
-		getter:          g,
-		refreshCount:    refreshCount,
-		maxLatency:      maxLatency,
-		legacyBehaviour: legacyBehaviour,
+		limit:        limit,
+		getter:       g,
+		refreshCount: refreshCount,
+		maxLatency:   maxLatency,
+		useLegacyApi: useLegacyApi,
 	}
 }
 
@@ -66,7 +66,7 @@ func (f *BindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 
 	start := time.Now()
 	var syslogBindings []syslog.Binding
-	if f.legacyBehaviour {
+	if f.useLegacyApi {
 		bindings, err := f.getter.LegacyGet()
 		if err != nil {
 			return nil, err

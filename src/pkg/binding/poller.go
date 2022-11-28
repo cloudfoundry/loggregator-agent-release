@@ -22,6 +22,7 @@ type Poller struct {
 
 type client interface {
 	Get(int) (*http.Response, error)
+	LegacyGet(int) (*http.Response, error)
 }
 
 type Credentials struct {
@@ -94,8 +95,11 @@ func (p *Poller) poll() {
 		}
 		var aResp apiResponse
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
-		if err != nil {
-			p.logger.Printf("failed to decode JSON: %s", err)
+		statusCode := resp.StatusCode
+
+		if statusCode != 200 || err != nil {
+			p.logger.Printf("failed to decode JSON: %s . Falling back to legacy endpoint", err)
+			p.pollLegacyFallback()
 			return
 		}
 
@@ -111,6 +115,44 @@ func (p *Poller) poll() {
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(bindings, bindingCount)
 	p.legacyStore.Set(ToLegacyBindings(bindings))
+}
+
+func (p *Poller) pollLegacyFallback() {
+	nextID := 0
+	var legacyBindings []LegacyBinding
+
+	for {
+		resp, err := p.apiClient.LegacyGet(nextID)
+		if err != nil {
+			p.bindingRefreshErrorCounter.Add(1)
+			p.logger.Printf("failed to get id %d from legacy CUPS Provider: %s", nextID, err)
+			return
+		}
+		var aRespLegacy legacyApiResponse
+
+		err = json.NewDecoder(resp.Body).Decode(&aRespLegacy)
+		if err != nil {
+			p.logger.Printf("failed to decode legacy JSON: %s", err)
+			return
+		}
+		for k, v := range aRespLegacy.Results {
+			legacyBindings = append(legacyBindings, LegacyBinding{
+				AppID:    k,
+				Drains:   v.Drains,
+				Hostname: v.Hostname,
+			})
+		}
+		nextID = aRespLegacy.NextID
+
+		if nextID == 0 {
+			break
+		}
+	}
+	bindings := ToBindings(legacyBindings)
+	bindingCount := CalculateBindingCount(bindings)
+	p.lastBindingCount.Set(float64(bindingCount))
+	p.store.Set(bindings, bindingCount)
+	p.legacyStore.Set(legacyBindings)
 }
 
 func CalculateBindingCount(bindings []Binding) int {
@@ -131,6 +173,36 @@ func CalculateBindingCount(bindings []Binding) int {
 type legacyMold struct {
 	Drains   []string
 	hostname string
+}
+
+func ToBindings(legacyBindings []LegacyBinding) []Binding {
+	var bindings []Binding
+	var remodel = make(map[string]Credentials)
+	for _, lb := range legacyBindings {
+		for _, d := range lb.Drains {
+			if val, ok := remodel[d]; ok {
+				appExists := false
+				for _, a := range val.Apps {
+					if a.AppID == lb.AppID {
+						appExists = true
+					}
+				}
+				if !appExists {
+					app := App{AppID: lb.AppID, Hostname: lb.Hostname}
+					remodel[d] = Credentials{Cert: "", Key: "", Apps: append(val.Apps, app)}
+				}
+			} else {
+				app := App{AppID: lb.AppID, Hostname: lb.Hostname}
+				remodel[d] = Credentials{Cert: "", Key: "", Apps: []App{app}}
+			}
+		}
+	}
+
+	for url, credentials := range remodel {
+		binding := Binding{Url: url, Credentials: []Credentials{credentials}}
+		bindings = append(bindings, binding)
+	}
+	return bindings
 }
 
 func ToLegacyBindings(bindings []Binding) []LegacyBinding {
@@ -169,4 +241,12 @@ func ToLegacyBindings(bindings []Binding) []LegacyBinding {
 type apiResponse struct {
 	Results []Binding
 	NextID  int `json:"next_id"`
+}
+
+type legacyApiResponse struct {
+	Results map[string]struct {
+		Drains   []string
+		Hostname string
+	}
+	NextID int `json:"next_id"`
 }
