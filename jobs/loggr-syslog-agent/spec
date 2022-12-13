@@ -138,14 +138,6 @@ properties:
       The batch size the syslog will request the Cloud Controller for
       bindings.
     default: 1000
-  cache.use_legacy_api:
-    description: |
-      If set to true, syslog-agent will query the legacy /bindings endpoint
-      without client certificate support. If set to false the /v2/bindings
-      endpoint will be queried for data, allowing the syslog-agent to create
-      mtls based connections. Be aware that updating the syslog-binding-cache
-      is required before disabling the use of the legacy api.
-    default: true
 
   metrics.port:
     description: "Port the agent uses to serve metrics and debug information"

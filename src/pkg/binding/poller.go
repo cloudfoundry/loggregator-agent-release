@@ -42,9 +42,10 @@ type Binding struct {
 }
 
 type LegacyBinding struct {
-	AppID    string   `json:"app_id"`
-	Drains   []string `json:"drains"`
-	Hostname string   `json:"hostname"`
+	AppID       string   `json:"app_id"`
+	Drains      []string `json:"drains"`
+	Hostname    string   `json:"hostname"`
+	V2Available bool     `json:"v2_available"`
 }
 
 type Setter interface {
@@ -97,8 +98,8 @@ func (p *Poller) poll() {
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
 		statusCode := resp.StatusCode
 
-		if statusCode != 200 || err != nil {
-			p.logger.Printf("failed to decode JSON: %s . Falling back to legacy endpoint", err)
+		if statusCode != http.StatusOK || err != nil {
+			p.logger.Printf("failed to decode JSON: %s, statusCode: %d, falling back to legacy endpoint", err, statusCode)
 			p.pollLegacyFallback()
 			return
 		}
@@ -135,11 +136,16 @@ func (p *Poller) pollLegacyFallback() {
 			p.logger.Printf("failed to decode legacy JSON: %s", err)
 			return
 		}
+		if aRespLegacy.V5Available {
+			p.logger.Printf("V4 endpoint is deprecated, skipping v4 result parsing.")
+			return
+		}
 		for k, v := range aRespLegacy.Results {
 			legacyBindings = append(legacyBindings, LegacyBinding{
-				AppID:    k,
-				Drains:   v.Drains,
-				Hostname: v.Hostname,
+				AppID:       k,
+				Drains:      v.Drains,
+				Hostname:    v.Hostname,
+				V2Available: true,
 			})
 		}
 		nextID = aRespLegacy.NextID
@@ -185,6 +191,7 @@ func ToBindings(legacyBindings []LegacyBinding) []Binding {
 				for _, a := range val.Apps {
 					if a.AppID == lb.AppID {
 						appExists = true
+						break
 					}
 				}
 				if !appExists {
@@ -232,7 +239,7 @@ func ToLegacyBindings(bindings []Binding) []LegacyBinding {
 	}
 
 	for appID, app := range remodel {
-		legacyBinding := LegacyBinding{appID, app.Drains, app.hostname}
+		legacyBinding := LegacyBinding{appID, app.Drains, app.hostname, true}
 		legacyBindings = append(legacyBindings, legacyBinding)
 	}
 	return legacyBindings
@@ -248,5 +255,6 @@ type legacyApiResponse struct {
 		Drains   []string
 		Hostname string
 	}
-	NextID int `json:"next_id"`
+	NextID      int  `json:"next_id"`
+	V5Available bool `json:"v5_available"`
 }

@@ -103,19 +103,22 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
 		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
 			{
-				AppID:    "app-id-0",
-				Drains:   []string{"drain-0", "drain-1"},
-				Hostname: "app-hostname0",
+				AppID:       "app-id-0",
+				Drains:      []string{"drain-0", "drain-1"},
+				Hostname:    "app-hostname0",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-0"},
-				Hostname: "app-hostname1",
+				AppID:       "app-id-1",
+				Drains:      []string{"drain-0"},
+				Hostname:    "app-hostname1",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-2",
-				Drains:   []string{"drain-0"},
-				Hostname: "app-hostname2",
+				AppID:       "app-id-2",
+				Drains:      []string{"drain-0"},
+				Hostname:    "app-hostname2",
+				V2Available: true,
 			},
 		}))
 	})
@@ -210,24 +213,28 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
 		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
 			{
-				AppID:    "app-id-0",
-				Drains:   []string{"drain-0"},
-				Hostname: "app-hostname0",
+				AppID:       "app-id-0",
+				Drains:      []string{"drain-0"},
+				Hostname:    "app-hostname0",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "app-hostname1",
+				AppID:       "app-id-1",
+				Drains:      []string{"drain-1"},
+				Hostname:    "app-hostname1",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-2",
-				Drains:   []string{"drain-2"},
-				Hostname: "app-hostname2",
+				AppID:       "app-id-2",
+				Drains:      []string{"drain-2"},
+				Hostname:    "app-hostname2",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-3",
-				Drains:   []string{"drain-3"},
-				Hostname: "app-hostname3",
+				AppID:       "app-id-3",
+				Drains:      []string{"drain-3"},
+				Hostname:    "app-hostname3",
+				V2Available: true,
 			},
 		}))
 
@@ -239,6 +246,18 @@ var _ = Describe("Poller", func() {
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
+
+		Eventually(func() float64 {
+			return metrics.GetMetric("binding_refresh_error", nil).Value()
+		}).Should(BeNumerically("==", 1))
+	})
+
+	It("tracks the number of API errors if fallback fails", func() {
+		apiClient.statusCode <- 404
+		apiClient.legacyErrors <- errors.New("expected")
+
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		go p.Poll()
 
 		Eventually(func() float64 {
 			return metrics.GetMetric("binding_refresh_error", nil).Value()
@@ -283,9 +302,10 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
 		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
 			{
-				AppID:    "app-id-0",
-				Drains:   []string{"drain-0", "drain-1"},
-				Hostname: "app-hostname0",
+				AppID:       "app-id-0",
+				Drains:      []string{"drain-0", "drain-1"},
+				Hostname:    "app-hostname0",
+				V2Available: true,
 			},
 		}))
 
@@ -345,17 +365,37 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(Receive(&expectedLegacyBindings))
 		Expect(expectedLegacyBindings).To(ConsistOf([]binding.LegacyBinding{
 			{
-				AppID:    "app-id-0",
-				Drains:   []string{"drain-0", "drain-1"},
-				Hostname: "app-hostname0",
+				AppID:       "app-id-0",
+				Drains:      []string{"drain-0", "drain-1"},
+				Hostname:    "app-hostname0",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1", "drain-2"},
-				Hostname: "app-hostname1",
+				AppID:       "app-id-1",
+				Drains:      []string{"drain-1", "drain-2"},
+				Hostname:    "app-hostname1",
+				V2Available: true,
 			},
 		}))
 
+	})
+
+	It("skips parsing v4 results if CAPI v5 endpoint is unavailable but CAPI is already updated", func() {
+
+		apiClient.statusCode <- 404
+		apiClient.legacyBindings <- legacyResponse{
+			Results: map[string]struct {
+				Drains   []string
+				Hostname string
+			}{"app-id-0": {Drains: []string{"drain-0", "drain-1"}, Hostname: "app-hostname0"}},
+			V5Available: true,
+		}
+
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		go p.Poll()
+
+		Eventually(store.bindings).Should(BeEmpty())
+		Eventually(legacyStore.bindings).Should(BeEmpty())
 	})
 
 	It("tracks the number of bindings returned from CAPI", func() {
@@ -471,21 +511,24 @@ var _ = Describe("Poller", func() {
 		}
 		expectedSingleLegacyBindings := []binding.LegacyBinding{
 			{
-				AppID:    "app-id-0",
-				Drains:   []string{"drain-0", "drain-1"},
-				Hostname: "app-hostname0",
+				AppID:       "app-id-0",
+				Drains:      []string{"drain-0", "drain-1"},
+				Hostname:    "app-hostname0",
+				V2Available: true,
 			},
 		}
 		expectedMultiLegacyBindings := []binding.LegacyBinding{
 			{
-				AppID:    "app-id-0",
-				Drains:   []string{"drain-0"},
-				Hostname: "app-hostname0",
+				AppID:       "app-id-0",
+				Drains:      []string{"drain-0"},
+				Hostname:    "app-hostname0",
+				V2Available: true,
 			},
 			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "app-hostname1",
+				AppID:       "app-id-1",
+				Drains:      []string{"drain-1"},
+				Hostname:    "app-hostname1",
+				V2Available: true,
 			},
 		}
 
@@ -566,6 +609,7 @@ type fakeAPIClient struct {
 	numRequests    int64
 	bindings       chan response
 	errors         chan error
+	legacyErrors   chan error
 	legacyBindings chan legacyResponse
 	statusCode     chan int
 	requestedIDs   []int
@@ -576,6 +620,7 @@ func newFakeAPIClient() *fakeAPIClient {
 		bindings:       make(chan response, 100),
 		legacyBindings: make(chan legacyResponse, 100),
 		errors:         make(chan error, 100),
+		legacyErrors:   make(chan error, 100),
 		statusCode:     make(chan int, 100),
 	}
 }
@@ -612,7 +657,7 @@ func (c *fakeAPIClient) LegacyGet(nextID int) (*http.Response, error) {
 
 	var legacyBinding legacyResponse
 	select {
-	case err := <-c.errors:
+	case err := <-c.legacyErrors:
 		return nil, err
 	case legacyBinding = <-c.legacyBindings:
 		c.requestedIDs = append(c.requestedIDs, nextID)
@@ -672,5 +717,6 @@ type legacyResponse struct {
 		Drains   []string
 		Hostname string
 	}
-	NextID int `json:"next_id"`
+	NextID      int  `json:"next_id"`
+	V5Available bool `json:"v5_available"`
 }

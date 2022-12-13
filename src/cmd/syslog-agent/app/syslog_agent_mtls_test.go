@@ -159,7 +159,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				UseLegacyApi:                       false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
 			go syslogAgent.Run()
@@ -200,7 +199,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				UseLegacyApi:                       false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
 			go syslogAgent.Run()
@@ -249,7 +247,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					KeyFile:  metronTestCerts.Key("metron"),
 				},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				UseLegacyApi:                       false,
 			}
 			for _, i := range changeConfig {
 				cfg = i(cfg)
@@ -497,7 +494,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 				},
 				AggregateDrainURLs:                 []string{aggregateAddr},
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				UseLegacyApi:                       false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
 			go syslogAgent.Run()
@@ -677,7 +673,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 				},
 				AggregateDrainURLs:                 aggregateDrains,
 				AggregateConnectionRefreshInterval: 10 * time.Minute,
-				UseLegacyApi:                       false,
 			}
 			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
 			go syslogAgent.Run()
@@ -747,7 +742,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			},
 			AggregateDrainURLs:                 []string{},
 			AggregateConnectionRefreshInterval: 10 * time.Minute,
-			UseLegacyApi:                       false,
 		}
 
 		It("should error when creating the TLS client for the logclient", func() {

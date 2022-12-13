@@ -36,7 +36,6 @@
       "DEBUG_METRICS" => "#{p("metrics.debug")}",
       "PPROF_PORT" => "#{p("metrics.pprof_port")}",
       "USE_RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
-      "USE_LEGACY_API" => "#{p("cache.use_legacy_api")}",
     }
   }
   if_p("drain_cipher_suites") do | ciphers |

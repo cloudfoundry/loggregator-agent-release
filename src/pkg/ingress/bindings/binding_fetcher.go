@@ -1,6 +1,8 @@
 package bindings
 
 import (
+	"errors"
+	"log"
 	"math"
 	"net/url"
 	"sort"
@@ -30,11 +32,11 @@ type BindingFetcher struct {
 	maxLatency   metrics.Gauge
 	limit        int
 	getter       Getter
-	useLegacyApi bool
+	logger       *log.Logger
 }
 
 // NewBindingFetcher returns a new BindingFetcher
-func NewBindingFetcher(limit int, g Getter, m Metrics, useLegacyApi bool) *BindingFetcher {
+func NewBindingFetcher(limit int, g Getter, m Metrics, logger *log.Logger) *BindingFetcher {
 	refreshCount := m.NewCounter(
 		"binding_refresh_count",
 		"Total number of binding refresh attempts made to the binding provider.",
@@ -51,7 +53,7 @@ func NewBindingFetcher(limit int, g Getter, m Metrics, useLegacyApi bool) *Bindi
 		getter:       g,
 		refreshCount: refreshCount,
 		maxLatency:   maxLatency,
-		useLegacyApi: useLegacyApi,
+		logger:       logger,
 	}
 }
 
@@ -65,24 +67,25 @@ func (f *BindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	}()
 
 	start := time.Now()
-	var syslogBindings []syslog.Binding
-	if f.useLegacyApi {
-		bindings, err := f.getter.LegacyGet()
+	bindings, err := f.getter.Get()
+	if err != nil {
+		f.logger.Printf("fetching v2/bindings failed: %s . Falling back to /bindings endpoint", err)
+		var legacySyslogBindings []binding.LegacyBinding
+		legacySyslogBindings, err = f.getter.LegacyGet()
 		if err != nil {
 			return nil, err
 		}
-		latency = time.Since(start).Nanoseconds()
-		syslogBindings = f.legacyToSyslogBindings(bindings, f.limit)
-	} else {
-		bindings, err := f.getter.Get()
-		if err != nil {
-			return nil, err
+		if len(legacySyslogBindings) == 0 {
+			return []syslog.Binding{}, nil
+		}
+		if legacySyslogBindings[0].V2Available {
+			return nil, errors.New("legacy endpoint is deprecated: skipping result parsing")
 		}
 		latency = time.Since(start).Nanoseconds()
-		syslogBindings = f.toSyslogBindings(bindings, f.limit)
+		return f.legacyToSyslogBindings(legacySyslogBindings, f.limit), nil
 	}
-
-	return syslogBindings, nil
+	latency = time.Since(start).Nanoseconds()
+	return f.toSyslogBindings(bindings, f.limit), nil
 }
 
 func (f *BindingFetcher) DrainLimit() int {

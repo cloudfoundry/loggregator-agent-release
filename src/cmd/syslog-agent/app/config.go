@@ -47,7 +47,6 @@ type Config struct {
 
 	AggregateConnectionRefreshInterval time.Duration `env:"AGGREGATE_CONNECTION_REFRESH_INTERVAL, report"`
 	AggregateDrainURLs                 []string      `env:"AGGREGATE_DRAIN_URLS,                  report"`
-	UseLegacyApi                       bool          `env:"USE_LEGACY_API, 		     	required, report"`
 }
 
 // LoadConfig will load the configuration for the syslog agent from the
@@ -66,7 +65,6 @@ func LoadConfig() Config {
 		},
 		AggregateConnectionRefreshInterval: 1 * time.Minute,
 		DefaultDrainMetadata:               true,
-		UseLegacyApi:                       true,
 	}
 	if err := envstruct.Load(&cfg); err != nil {
 		panic(fmt.Sprintf("Failed to load config from environment: %s", err))

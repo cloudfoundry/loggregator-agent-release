@@ -2,6 +2,7 @@ package bindings_test
 
 import (
 	"errors"
+	"log"
 	"time"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
@@ -18,12 +19,13 @@ var _ = Describe("BindingFetcher", func() {
 		fetcher   *bindings.BindingFetcher
 		metrics   *metricsHelpers.SpyMetricsRegistry
 		maxDrains = 3
+		logger    = log.New(GinkgoWriter, "", 0)
 	)
 
 	BeforeEach(func() {
 		getter = &SpyGetter{}
 		metrics = metricsHelpers.NewMetricsRegistry()
-		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, false)
+		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
 	})
 
 	BeforeEach(func() {
@@ -71,23 +73,25 @@ var _ = Describe("BindingFetcher", func() {
 			{
 				AppID: "9be15160-4845-4f05-b089-40e827ba61f1",
 				Drains: []string{
-					"syslog://v3.zzz-not-included.url",
-					"syslog://v3.other.url",
-					"syslog://v3.zzz-not-included-again.url",
-					"https://v3.other.url",
-					"syslog://v3.other-included.url"},
-				Hostname: "org.space.logspinner",
+					"syslog://v3.zzz-not-included.url-legacy",
+					"syslog://v3.other.url-legacy",
+					"syslog://v3.zzz-not-included-again.url-legacy",
+					"https://v3.other.url-legacy",
+					"syslog://v3.other-included.url-legacy"},
+				Hostname:    "org.space.logspinner-legacy",
+				V2Available: true,
 			},
 			{
 				AppID: "testAppID",
 				Drains: []string{
-					"syslog://v3.zzz-not-included.url",
-					"syslog://v3.other.url",
-					"syslog://v3.zzz-not-included-again.url",
-					"https://v3.other.url",
-					"syslog://v3.other-included.url",
+					"syslog://v3.zzz-not-included.url-legacy",
+					"syslog://v3.other.url-legacy",
+					"syslog://v3.zzz-not-included-again.url-legacy",
+					"https://v3.other.url-legacy",
+					"syslog://v3.other-included.url-legacy",
 				},
-				Hostname: "org.space.logspinner",
+				Hostname:    "org.space.logspinner-legacy",
+				V2Available: true,
 			},
 		}
 
@@ -102,7 +106,7 @@ var _ = Describe("BindingFetcher", func() {
 		Expect(molds["9be15160-4845-4f05-b089-40e827ba61f1"].Drains).To(HaveLen(5))
 	})
 
-	It("returns the max number of v3 bindings by app id", func() {
+	It("returns the max number of v2 bindings by app id", func() {
 		fetchedBindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(fetchedBindings).To(HaveLen(6))
@@ -144,8 +148,11 @@ var _ = Describe("BindingFetcher", func() {
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
 	})
 
-	It("returns the max number of v3 bindings by app id in legacy mode", func() {
-		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, true)
+	It("returns the max number of syslog bindings by app id in case of v2 endpoint failing", func() {
+		getter.err = errors.New("getter error occurred")
+		getter.legacyBindings[0].V2Available = false
+		getter.legacyBindings[1].V2Available = false
+		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
 		fetchedBindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(fetchedBindings).To(HaveLen(6))
@@ -155,35 +162,48 @@ var _ = Describe("BindingFetcher", func() {
 		expectedSyslogBindings := []syslog.Binding{
 			{
 				AppId:    appID,
-				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "https://v3.other.url"},
+				Hostname: "org.space.logspinner-legacy",
+				Drain:    syslog.Drain{Url: "https://v3.other.url-legacy"},
 			},
 			{
 				AppId:    appID,
-				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url"},
+				Hostname: "org.space.logspinner-legacy",
+				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url-legacy"},
 			},
 			{
 				AppId:    appID,
-				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+				Hostname: "org.space.logspinner-legacy",
+				Drain:    syslog.Drain{Url: "syslog://v3.other.url-legacy"},
 			},
 			{
 				AppId:    otherAppID,
-				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "https://v3.other.url"},
+				Hostname: "org.space.logspinner-legacy",
+				Drain:    syslog.Drain{Url: "https://v3.other.url-legacy"},
 			},
 			{
 				AppId:    otherAppID,
-				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url"},
+				Hostname: "org.space.logspinner-legacy",
+				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url-legacy"},
 			},
 			{
 				AppId:    otherAppID,
-				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+				Hostname: "org.space.logspinner-legacy",
+				Drain:    syslog.Drain{Url: "syslog://v3.other.url-legacy"},
 			},
 		}
+		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
+
+	})
+
+	It("returns an empty array of syslog bindings if v1 endpoint sends no results", func() {
+		getter.err = errors.New("getter error occurred")
+		getter.legacyBindings = []binding.LegacyBinding{}
+		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
+		fetchedBindings, err := fetcher.FetchBindings()
+		Expect(err).To(Not(HaveOccurred()))
+		Expect(fetchedBindings).To(HaveLen(0))
+
+		var expectedSyslogBindings []syslog.Binding
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
 
 	})
@@ -197,7 +217,7 @@ var _ = Describe("BindingFetcher", func() {
 				},
 			}
 
-			fetcher = bindings.NewBindingFetcher(2, getter, metrics, false)
+			fetcher = bindings.NewBindingFetcher(2, getter, metrics, logger)
 			bindings, err := fetcher.FetchBindings()
 			Expect(err).ToNot(HaveOccurred())
 
@@ -236,7 +256,7 @@ var _ = Describe("BindingFetcher", func() {
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 		}
-		fetcher = bindings.NewBindingFetcher(2, getter, metrics, false)
+		fetcher = bindings.NewBindingFetcher(2, getter, metrics, logger)
 		bindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(bindings).To(HaveLen(1))
@@ -252,10 +272,17 @@ var _ = Describe("BindingFetcher", func() {
 
 	It("returns an error if the Getter returns an error", func() {
 		getter.err = errors.New("boom")
+		getter.legacyError = errors.New("boom-legacy")
 
 		_, err := fetcher.FetchBindings()
+		Expect(err).To(MatchError("boom-legacy"))
+	})
 
-		Expect(err).To(MatchError("boom"))
+	It("returns an error if the Getter returns an error and V2 is available", func() {
+		getter.err = errors.New("boom")
+
+		_, err := fetcher.FetchBindings()
+		Expect(err).To(MatchError("legacy endpoint is deprecated: skipping result parsing"))
 	})
 })
 
@@ -263,6 +290,7 @@ type SpyGetter struct {
 	bindings       []binding.Binding
 	legacyBindings []binding.LegacyBinding
 	err            error
+	legacyError    error
 }
 
 func (s *SpyGetter) Get() ([]binding.Binding, error) {
@@ -272,5 +300,5 @@ func (s *SpyGetter) Get() ([]binding.Binding, error) {
 
 func (s *SpyGetter) LegacyGet() ([]binding.LegacyBinding, error) {
 	time.Sleep(10 * time.Millisecond)
-	return s.legacyBindings, s.err
+	return s.legacyBindings, s.legacyError
 }
