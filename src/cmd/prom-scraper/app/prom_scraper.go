@@ -111,8 +111,10 @@ func (p *PromScraper) buildIngressClient() *loggregator.IngressClient {
 
 func (p *PromScraper) startScrapers(promScraperConfigs []scraper.PromScraperConfig, ingressClient *loggregator.IngressClient) {
 	for _, scrapeConfig := range promScraperConfigs {
-		p.wg.Add(1)
-		go p.startScraper(scrapeConfig, ingressClient)
+		if scrapeConfig.ScrapeInterval > 0 {
+			p.wg.Add(1)
+			go p.startScraper(scrapeConfig, ingressClient)
+		}
 	}
 }
 
