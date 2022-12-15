@@ -117,11 +117,8 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
-				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
+				ContainElement(buildGauge("test_gauge_prometheus_1", "some-id", "some-instance-id", 2)),
 			))
 		})
 
@@ -129,16 +126,16 @@ var _ = Describe("PromScraper", func() {
 			promServer2 := newStubPromServer()
 			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
 				{
-					Port:           promServer.port,
-					SourceID:       "some-id",
-					InstanceID:     "some-instance-id",
-					ScrapeInterval: time.Hour,
-				},
-				{
 					Port:           promServer2.port,
 					SourceID:       "some-id",
 					InstanceID:     "some-instance-id",
 					ScrapeInterval: 100 * time.Millisecond,
+				},
+				{
+					Port:           promServer.port,
+					SourceID:       "some-id",
+					InstanceID:     "some-instance-id",
+					ScrapeInterval: time.Hour,
 				},
 			}
 
@@ -151,11 +148,32 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(
-				ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
+				ContainElement(buildCounter("test_counter_prometheus_2", "some-id", "some-instance-id", 3)),
 			)
 
 			Consistently(spyAgent.Envelopes).ShouldNot(
-				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
+			)
+		})
+
+		It("does not scrape endpoints with non-positive scrape timer intervals", func() {
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
+				{
+					Port:           promServer.port,
+					SourceID:       "some-id",
+					InstanceID:     "some-instance-id",
+					ScrapeInterval: -1,
+				},
+			}
+
+			promServer.resp = promOutput
+
+			cfg.ConfigGlobs = append(cfg.ConfigGlobs, fmt.Sprintf("%s/metric_port*", metricConfigDir))
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
+			go ps.Run()
+
+			Consistently(spyAgent.Envelopes).ShouldNot(
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
 			)
 		})
 
@@ -183,12 +201,9 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
-				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
-				ContainElement(buildCounter("node2_counter", "some-id", "some-instance-id", 6)),
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
+				ContainElement(buildGauge("test_gauge_prometheus_1", "some-id", "some-instance-id", 2)),
+				ContainElement(buildCounter("test_counter_prometheus_2", "some-id", "some-instance-id", 3)),
 			))
 		})
 
@@ -273,11 +288,8 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
-				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
+				ContainElement(buildGauge("test_gauge_prometheus_1", "some-id", "some-instance-id", 2)),
 			))
 		})
 
@@ -315,11 +327,8 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
-				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
+				ContainElement(buildGauge("test_gauge_prometheus_1", "some-id", "some-instance-id", 2)),
 			))
 		})
 
@@ -379,11 +388,8 @@ var _ = Describe("PromScraper", func() {
 			go ps.Run()
 
 			Eventually(spyAgent.Envelopes).Should(And(
-				ContainElement(buildCounter("node_timex_pps_calibration_total", "some-id", "some-instance-id", 1)),
-				ContainElement(buildCounter("node_timex_pps_error_total", "some-id", "some-instance-id", 2)),
-				ContainElement(buildGauge("node_timex_pps_frequency_hertz", "some-id", "some-instance-id", 3)),
-				ContainElement(buildGauge("node_timex_pps_jitter_seconds", "some-id", "some-instance-id", 4)),
-				ContainElement(buildCounter("node_timex_pps_jitter_total", "some-id", "some-instance-id", 5)),
+				ContainElement(buildCounter("test_counter_prometheus_1", "some-id", "some-instance-id", 1)),
+				ContainElement(buildGauge("test_gauge_prometheus_1", "some-id", "some-instance-id", 2)),
 			))
 		})
 	})
@@ -573,27 +579,18 @@ func buildCounter(name, sourceID, instanceID string, value float64) *loggregator
 
 const (
 	promOutput = `
-# HELP node_timex_pps_calibration_total Pulse per second count of calibration intervals.
-# TYPE node_timex_pps_calibration_total counter
-node_timex_pps_calibration_total 1
-# HELP node_timex_pps_error_total Pulse per second count of calibration errors.
-# TYPE node_timex_pps_error_total counter
-node_timex_pps_error_total 2
-# HELP node_timex_pps_frequency_hertz Pulse per second frequency.
-# TYPE node_timex_pps_frequency_hertz gauge
-node_timex_pps_frequency_hertz 3
-# HELP node_timex_pps_jitter_seconds Pulse per second jitter.
-# TYPE node_timex_pps_jitter_seconds gauge
-node_timex_pps_jitter_seconds 4
-# HELP node_timex_pps_jitter_total Pulse per second count of jitter limit exceeded events.
-# TYPE node_timex_pps_jitter_total counter
-node_timex_pps_jitter_total 5
+# HELP test_counter_prometheus_1 test counter
+# TYPE test_counter_prometheus_1 counter
+test_counter_prometheus_1 1
+# HELP test_gauge_prometheus_1 test gauge
+# TYPE test_gauge_prometheus_1 gauge
+test_gauge_prometheus_1 2
 `
 
 	promOutput2 = `
-# HELP node2_counter A second counter from another metrics url
-# TYPE node2_counter counter
-node2_counter 6
+# HELP test_counter_prometheus_2 A second counter from another metrics url
+# TYPE test_counter_prometheus_2 counter
+test_counter_prometheus_2 3
 `
 )
 

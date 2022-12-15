@@ -22,7 +22,7 @@ server_name: Required for HTTPS targets. Prom scraper uses this to set the serve
 path: Optional - the path to the metrics endpoint (defaults to "/metrics")
 headers: Optional - a map of headers to add to the scrape request
 labels: Optional - a map of labels that will be added to all metrics
-scrape_interval: Optional - how often to scrape the metrics endpoint
+scrape_interval: Optional - how often to scrape the metrics endpoint. Non-positive numbers cause endpoint to not be scraped.
 
 # NOTE: if you would like to override the use of certificates
 # ensure that you include a blob that includes your cert and key files
