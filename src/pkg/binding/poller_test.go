@@ -48,10 +48,10 @@ var _ = Describe("Poller", func() {
 					Url: "drain-0",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 						{
-							Cert: "cert1", Key: "key1", Apps: []binding.App{
+							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{
 								{Hostname: "app-hostname1", AppID: "app-id-1"},
 								{Hostname: "app-hostname2", AppID: "app-id-2"},
 							},
@@ -62,7 +62,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-1",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
@@ -79,10 +79,10 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 					{
-						Cert: "cert1", Key: "key1", Apps: []binding.App{
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{
 							{Hostname: "app-hostname1", AppID: "app-id-1"},
 							{Hostname: "app-hostname2", AppID: "app-id-2"},
 						},
@@ -93,7 +93,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -131,7 +131,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-0",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
@@ -139,7 +139,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-1",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 						},
 					},
 				},
@@ -152,7 +152,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-2",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+							Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
 						},
 					},
 				},
@@ -160,7 +160,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-3",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert3", Key: "key3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
+							Cert: "cert3", Key: "key3", CA: "ca3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
 						},
 					},
 				},
@@ -178,7 +178,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-0",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
@@ -186,7 +186,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-1",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 						},
 					},
 				},
@@ -194,7 +194,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-2",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert2", Key: "key2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+							Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
 						},
 					},
 				},
@@ -202,7 +202,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-3",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert3", Key: "key3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
+							Cert: "cert3", Key: "key3", CA: "ca3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
 						},
 					},
 				},
@@ -284,7 +284,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "", Key: "", CA: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -292,7 +292,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "", Key: "", CA: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -338,7 +338,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "", Key: "", CA: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -346,7 +346,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"},
+						Cert: "", Key: "", CA: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"},
 							{Hostname: "app-hostname1", AppID: "app-id-1"}},
 					},
 				},
@@ -355,7 +355,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-2",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						Cert: "", Key: "", CA: "", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 					},
 				},
 			},
@@ -405,7 +405,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-0",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
@@ -413,7 +413,7 @@ var _ = Describe("Poller", func() {
 					Url: "drain-1",
 					Credentials: []binding.Credentials{
 						{
-							Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 						},
 					},
 				},
@@ -432,7 +432,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -440,7 +440,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -450,7 +450,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -458,7 +458,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 					},
 				},
 			},
@@ -478,7 +478,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -486,7 +486,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -496,7 +496,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert0", Key: "key0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -504,7 +504,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-1",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert1", Key: "key1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 					},
 				},
 			},
@@ -574,7 +574,7 @@ var _ = Describe("Poller", func() {
 				Url: "drain-0",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "", Key: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Cert: "", Key: "", CA: "", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},

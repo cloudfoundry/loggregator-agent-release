@@ -31,6 +31,7 @@ type Drain struct {
 type Credentials struct {
 	Cert string `json:"cert"`
 	Key  string `json:"key"`
+	CA   string `json:"ca"`
 }
 
 // LogClient is used to emit logs.

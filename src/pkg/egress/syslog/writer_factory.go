@@ -1,10 +1,11 @@
 package syslog
 
 import (
-	metrics "code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"crypto/tls"
 	"fmt"
+
+	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
 type metricClient interface {
@@ -98,6 +99,13 @@ func (f WriterFactory) NewWriter(
 			return nil, err
 		}
 		tlsClonedConfig.Certificates = []tls.Certificate{credentials}
+	}
+	if len(urlBinding.CA) > 0 {
+		ok := tlsClonedConfig.RootCAs.AppendCertsFromPEM(urlBinding.CA)
+		if !ok {
+			err := NewWriterFactoryErrorf(SyslogTLS, "failed to load root ca for binding")
+			return nil, err
+		}
 	}
 	var err error
 	var w egress.WriteCloser

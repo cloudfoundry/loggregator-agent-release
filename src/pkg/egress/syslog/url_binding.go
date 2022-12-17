@@ -17,6 +17,7 @@ type URLBinding struct {
 	URL          *url.URL
 	PrivateKey   []byte
 	Certificate  []byte
+	CA           []byte
 }
 
 // Scheme is a convenience wrapper around the *url.URL Scheme field
@@ -39,6 +40,7 @@ func buildBinding(c context.Context, b Binding) (*URLBinding, error) {
 		Context:      c,
 		PrivateKey:   []byte(b.Drain.Credentials.Key),
 		Certificate:  []byte(b.Drain.Credentials.Cert),
+		CA:           []byte(b.Drain.Credentials.CA),
 	}
 
 	return u, nil
