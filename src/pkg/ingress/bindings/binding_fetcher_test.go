@@ -31,40 +31,40 @@ var _ = Describe("BindingFetcher", func() {
 	BeforeEach(func() {
 		getter.bindings = []binding.Binding{
 			{
-				Url:         "syslog://v3.zzz-not-included.url",
+				Url:         "syslog://zzz-not-included.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:         "syslog://v3.other.url",
+				Url:         "syslog://other.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:         "syslog://v3.zzz-not-included-again.url",
+				Url:         "syslog://zzz-not-included-again.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:         "https://v3.other.url",
+				Url:         "https://other.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:         "syslog://v3.other-included.url",
+				Url:         "syslog://other-included.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 			{
-				Url:         "syslog://v3.zzz-not-included.url",
+				Url:         "syslog://zzz-not-included.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			},
 			{
-				Url:         "syslog://v3.other.url",
-				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
-			}, {
-				Url:         "syslog://v3.zzz-not-included-again.url",
+				Url:         "syslog://other.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			}, {
-				Url:         "https://v3.other.url",
+				Url:         "syslog://zzz-not-included-again.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			}, {
-				Url:         "syslog://v3.other-included.url",
+				Url:         "https://other.url",
+				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
+			}, {
+				Url:         "syslog://other-included.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			},
 		}
@@ -73,22 +73,22 @@ var _ = Describe("BindingFetcher", func() {
 			{
 				AppID: "9be15160-4845-4f05-b089-40e827ba61f1",
 				Drains: []string{
-					"syslog://v3.zzz-not-included.url-legacy",
-					"syslog://v3.other.url-legacy",
-					"syslog://v3.zzz-not-included-again.url-legacy",
-					"https://v3.other.url-legacy",
-					"syslog://v3.other-included.url-legacy"},
+					"syslog://zzz-not-included.url-legacy",
+					"syslog://other.url-legacy",
+					"syslog://zzz-not-included-again.url-legacy",
+					"https://other.url-legacy",
+					"syslog://other-included.url-legacy"},
 				Hostname:    "org.space.logspinner-legacy",
 				V2Available: true,
 			},
 			{
 				AppID: "testAppID",
 				Drains: []string{
-					"syslog://v3.zzz-not-included.url-legacy",
-					"syslog://v3.other.url-legacy",
-					"syslog://v3.zzz-not-included-again.url-legacy",
-					"https://v3.other.url-legacy",
-					"syslog://v3.other-included.url-legacy",
+					"syslog://zzz-not-included.url-legacy",
+					"syslog://other.url-legacy",
+					"syslog://zzz-not-included-again.url-legacy",
+					"https://other.url-legacy",
+					"syslog://other-included.url-legacy",
 				},
 				Hostname:    "org.space.logspinner-legacy",
 				V2Available: true,
@@ -117,32 +117,32 @@ var _ = Describe("BindingFetcher", func() {
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "https://v3.other.url"},
+				Drain:    syslog.Drain{Url: "https://other.url"},
 			},
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url"},
+				Drain:    syslog.Drain{Url: "syslog://other-included.url"},
 			},
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+				Drain:    syslog.Drain{Url: "syslog://other.url"},
 			},
 			{
 				AppId:    otherAppID,
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "https://v3.other.url"},
+				Drain:    syslog.Drain{Url: "https://other.url"},
 			},
 			{
 				AppId:    otherAppID,
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url"},
+				Drain:    syslog.Drain{Url: "syslog://other-included.url"},
 			},
 			{
 				AppId:    otherAppID,
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+				Drain:    syslog.Drain{Url: "syslog://other.url"},
 			},
 		}
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
@@ -163,32 +163,32 @@ var _ = Describe("BindingFetcher", func() {
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "https://v3.other.url-legacy"},
+				Drain:    syslog.Drain{Url: "https://other.url-legacy"},
 			},
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url-legacy"},
+				Drain:    syslog.Drain{Url: "syslog://other-included.url-legacy"},
 			},
 			{
 				AppId:    appID,
 				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url-legacy"},
+				Drain:    syslog.Drain{Url: "syslog://other.url-legacy"},
 			},
 			{
 				AppId:    otherAppID,
 				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "https://v3.other.url-legacy"},
+				Drain:    syslog.Drain{Url: "https://other.url-legacy"},
 			},
 			{
 				AppId:    otherAppID,
 				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://v3.other-included.url-legacy"},
+				Drain:    syslog.Drain{Url: "syslog://other-included.url-legacy"},
 			},
 			{
 				AppId:    otherAppID,
 				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url-legacy"},
+				Drain:    syslog.Drain{Url: "syslog://other.url-legacy"},
 			},
 		}
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
@@ -224,10 +224,10 @@ var _ = Describe("BindingFetcher", func() {
 			Expect(bindings).To(HaveLen(1))
 			Expect(bindings[0].Type).To(Equal(expectedType))
 		},
-			Entry("default", "syslog://v3.something.url", syslog.BINDING_TYPE_LOG),
-			Entry("logs", "syslog://v3.something.url?drain-type=logs", syslog.BINDING_TYPE_LOG),
-			Entry("metrics", "syslog://v3.something.url?drain-type=metrics", syslog.BINDING_TYPE_METRIC),
-			Entry("all", "syslog://v3.something.url?drain-type=all", syslog.BINDING_TYPE_ALL),
+			Entry("default", "syslog://something.url", syslog.BINDING_TYPE_LOG),
+			Entry("logs", "syslog://something.url?drain-type=logs", syslog.BINDING_TYPE_LOG),
+			Entry("metrics", "syslog://something.url?drain-type=metrics", syslog.BINDING_TYPE_METRIC),
+			Entry("all", "syslog://something.url?drain-type=all", syslog.BINDING_TYPE_ALL),
 		)
 	})
 
@@ -252,7 +252,7 @@ var _ = Describe("BindingFetcher", func() {
 	It("returns all the bindings when there are fewer bindings than the limit", func() {
 		getter.bindings = []binding.Binding{
 			{
-				Url:         "syslog://v3.other.url",
+				Url:         "syslog://other.url",
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
 			},
 		}
@@ -265,7 +265,7 @@ var _ = Describe("BindingFetcher", func() {
 			{
 				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://v3.other.url"},
+				Drain:    syslog.Drain{Url: "syslog://other.url"},
 			},
 		}))
 	})
