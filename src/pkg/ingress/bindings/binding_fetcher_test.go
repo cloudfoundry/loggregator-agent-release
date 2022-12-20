@@ -36,7 +36,7 @@ var _ = Describe("BindingFetcher", func() {
 			},
 			{
 				Url:         "syslog://other.url",
-				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
+				Credentials: []binding.Credentials{{CA: "ca", Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}, {Hostname: "org.space.app-name", AppID: "testAppID2"}}}},
 			},
 			{
 				Url:         "syslog://zzz-not-included-again.url",
@@ -97,52 +97,45 @@ var _ = Describe("BindingFetcher", func() {
 
 	})
 
-	It("remodels the bindings into molds without filtering them", func() {
-		bindings, err := getter.Get()
-		molds := fetcher.RemodelBindings(bindings)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(molds).To(HaveLen(2))
-		Expect(molds["testAppID"].Drains).To(HaveLen(5))
-		Expect(molds["9be15160-4845-4f05-b089-40e827ba61f1"].Drains).To(HaveLen(5))
-	})
-
 	It("returns the max number of v2 bindings by app id", func() {
 		fetchedBindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(fetchedBindings).To(HaveLen(6))
 
-		appID := "9be15160-4845-4f05-b089-40e827ba61f1"
-		otherAppID := "testAppID"
 		expectedSyslogBindings := []syslog.Binding{
 			{
-				AppId:    appID,
+				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner",
 				Drain:    syslog.Drain{Url: "https://other.url"},
 			},
 			{
-				AppId:    appID,
+				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner",
 				Drain:    syslog.Drain{Url: "syslog://other-included.url"},
 			},
 			{
-				AppId:    appID,
+				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner",
-				Drain:    syslog.Drain{Url: "syslog://other.url"},
+				Drain:    syslog.Drain{Url: "syslog://other.url", Credentials: syslog.Credentials{CA: "ca", Cert: "cert", Key: "key"}},
 			},
 			{
-				AppId:    otherAppID,
+				AppId:    "testAppID",
 				Hostname: "org.space.logspinner",
 				Drain:    syslog.Drain{Url: "https://other.url"},
 			},
 			{
-				AppId:    otherAppID,
+				AppId:    "testAppID",
 				Hostname: "org.space.logspinner",
 				Drain:    syslog.Drain{Url: "syslog://other-included.url"},
 			},
 			{
-				AppId:    otherAppID,
+				AppId:    "testAppID",
 				Hostname: "org.space.logspinner",
 				Drain:    syslog.Drain{Url: "syslog://other.url"},
+			},
+			{
+				AppId:    "testAppID2",
+				Hostname: "org.space.app-name",
+				Drain:    syslog.Drain{Url: "syslog://other.url", Credentials: syslog.Credentials{CA: "ca", Cert: "cert", Key: "key"}},
 			},
 		}
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
@@ -155,38 +148,35 @@ var _ = Describe("BindingFetcher", func() {
 		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
 		fetchedBindings, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(fetchedBindings).To(HaveLen(6))
 
-		appID := "9be15160-4845-4f05-b089-40e827ba61f1"
-		otherAppID := "testAppID"
 		expectedSyslogBindings := []syslog.Binding{
 			{
-				AppId:    appID,
+				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner-legacy",
 				Drain:    syslog.Drain{Url: "https://other.url-legacy"},
 			},
 			{
-				AppId:    appID,
+				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner-legacy",
 				Drain:    syslog.Drain{Url: "syslog://other-included.url-legacy"},
 			},
 			{
-				AppId:    appID,
+				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
 				Hostname: "org.space.logspinner-legacy",
 				Drain:    syslog.Drain{Url: "syslog://other.url-legacy"},
 			},
 			{
-				AppId:    otherAppID,
+				AppId:    "testAppID",
 				Hostname: "org.space.logspinner-legacy",
 				Drain:    syslog.Drain{Url: "https://other.url-legacy"},
 			},
 			{
-				AppId:    otherAppID,
+				AppId:    "testAppID",
 				Hostname: "org.space.logspinner-legacy",
 				Drain:    syslog.Drain{Url: "syslog://other-included.url-legacy"},
 			},
 			{
-				AppId:    otherAppID,
+				AppId:    "testAppID",
 				Hostname: "org.space.logspinner-legacy",
 				Drain:    syslog.Drain{Url: "syslog://other.url-legacy"},
 			},
@@ -201,11 +191,9 @@ var _ = Describe("BindingFetcher", func() {
 		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
 		fetchedBindings, err := fetcher.FetchBindings()
 		Expect(err).To(Not(HaveOccurred()))
-		Expect(fetchedBindings).To(HaveLen(0))
 
 		var expectedSyslogBindings []syslog.Binding
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
-
 	})
 
 	Describe("Binding Type", func() {
