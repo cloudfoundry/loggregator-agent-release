@@ -2,14 +2,11 @@ package app_test
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"time"
 
@@ -23,7 +20,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	"code.cloudfoundry.org/tlsconfig"
 )
 
@@ -49,13 +45,13 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 		)
 
 		BeforeEach(func() {
-			syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
-			syslogTLS = newSyslogMTLSServer(syslogServerTestCerts,
+			syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts, drainCredentials.caFileName)
+			syslogTLS = newSyslogTLSServer(syslogServerTestCerts,
 				tlsconfig.WithInternalServiceDefaults(),
 				drainCredentials.caFileName,
 			)
 
-			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
+			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults(), "")
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
 			var err error
@@ -64,8 +60,9 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			bindingCache = &fakeBindingCache{
 				bindings: []binding.Binding{
 					{
-						Url:         syslogHTTPS.server.URL,
-						Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}}}},
+						Url: syslogHTTPS.server.URL,
+						Credentials: []binding.Credentials{
+							{Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}}}},
 					},
 					{
 						Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
@@ -91,136 +88,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 		AfterEach(func() {
 			gexec.CleanupBuildArtifacts()
 			grpcPort++
-		})
-
-		It("has a health endpoint", func() {
-			mc := metricsHelpers.NewMetricsRegistry()
-			cfg := app.Config{
-				BindingsPerAppLimit: 5,
-				MetricsServer: config.MetricsServer{
-					Port:     7392,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				IdleDrainTimeout: 10 * time.Minute,
-				Cache: app.Cache{
-					URL:             bindingCache.URL,
-					CAFile:          bindingCacheTestCerts.CA(),
-					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
-					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
-					CommonName:      "binding-cache",
-					PollingInterval: 10 * time.Millisecond,
-				},
-				GRPC: app.GRPC{
-					Port:     grpcPort,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				AggregateConnectionRefreshInterval: 10 * time.Minute,
-			}
-			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
-			go syslogAgent.Run()
-			defer syslogAgent.Stop()
-
-			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "ingress"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "agent"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "drains", map[string]string{"unit": "count"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "binding_refresh_count", nil)).Should(BeTrue())
-			Eventually(hasMetric(mc, "latency_for_last_binding_refresh", map[string]string{"unit": "ms"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "all_drains"})).Should(BeTrue())
-
-			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "egress"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
-		})
-
-		It("does not have debug metrics by default", func() {
-			mc := metricsHelpers.NewMetricsRegistry()
-			cfg := app.Config{
-				BindingsPerAppLimit: 5,
-				MetricsServer: config.MetricsServer{
-					Port:      7392,
-					CAFile:    metronTestCerts.CA(),
-					CertFile:  metronTestCerts.Cert("metron"),
-					KeyFile:   metronTestCerts.Key("metron"),
-					PprofPort: 1234,
-				},
-				IdleDrainTimeout: 10 * time.Minute,
-				Cache: app.Cache{
-					URL:             bindingCache.URL,
-					CAFile:          bindingCacheTestCerts.CA(),
-					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
-					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
-					CommonName:      "binding-cache",
-					PollingInterval: 10 * time.Millisecond,
-				},
-				GRPC: app.GRPC{
-					Port:     grpcPort,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				AggregateConnectionRefreshInterval: 10 * time.Minute,
-			}
-			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
-			go syslogAgent.Run()
-			defer syslogAgent.Stop()
-
-			Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
-			Consistently(func() error {
-				_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
-				return err
-			}).ShouldNot(BeNil())
-		})
-
-		It("can enabled default metrics", func() {
-			mc := metricsHelpers.NewMetricsRegistry()
-			cfg := app.Config{
-				BindingsPerAppLimit: 5,
-				MetricsServer: config.MetricsServer{
-					Port:         7392,
-					CAFile:       metronTestCerts.CA(),
-					CertFile:     metronTestCerts.Cert("metron"),
-					KeyFile:      metronTestCerts.Key("metron"),
-					PprofPort:    1235,
-					DebugMetrics: true,
-				},
-				IdleDrainTimeout: 10 * time.Minute,
-				Cache: app.Cache{
-					URL:             bindingCache.URL,
-					CAFile:          bindingCacheTestCerts.CA(),
-					CertFile:        bindingCacheTestCerts.Cert("binding-cache"),
-					KeyFile:         bindingCacheTestCerts.Key("binding-cache"),
-					CommonName:      "binding-cache",
-					PollingInterval: 10 * time.Millisecond,
-				},
-				GRPC: app.GRPC{
-					Port:     grpcPort,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				AggregateConnectionRefreshInterval: 10 * time.Minute,
-			}
-			syslogAgent := app.NewSyslogAgent(cfg, mc, testLogger)
-			go syslogAgent.Run()
-			defer syslogAgent.Stop()
-
-			Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
-			var resp *http.Response
-			Eventually(func() error {
-				var err error
-				resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
-				if err != nil {
-					return err
-				}
-				defer resp.Body.Close()
-				return err
-			}).Should(BeNil())
-			Expect(resp.StatusCode).To(Equal(200))
 		})
 
 		var setupTestAgent = func(changeConfig ...func(app.Config) app.Config) context.CancelFunc {
@@ -264,42 +131,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			return cancel
 		}
 
-		It("should not send logs to blacklisted IPs", func() {
-			url, err := url.Parse(syslogHTTPS.server.URL)
-			Expect(err).ToNot(HaveOccurred())
-
-			cancel := setupTestAgent(func(config app.Config) app.Config {
-				config.Cache.Blacklist = bindings.BlacklistRanges{
-					Ranges: []bindings.BlacklistRange{
-						{
-							Start: url.Hostname(),
-							End:   url.Hostname(),
-						},
-					},
-				}
-				return config
-			},
-			)
-			defer cancel()
-
-			Consistently(syslogHTTPS.receivedMessages, 3).ShouldNot(Receive())
-		})
-
-		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgent()
-			defer cancel()
-
-			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-			Eventually(func() float64 {
-				return metricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
-			}).Should(Equal(1.0))
-
-			// 2 app drains and 1 aggregate drain
-			Eventually(func() float64 {
-				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-			}, 3).Should(Equal(3.0))
-		})
-
 		It("egresses logs", func() {
 			cancel := setupTestAgent()
 			defer cancel()
@@ -310,98 +141,10 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 			Expect(string(msg.Message)).To(Equal("hello\n"))
 
-			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).ToNot(HaveLen(0))
-			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
-
 			Eventually(syslogTLS.receivedMessages, 3).Should(Receive(&msg))
 			Expect(msg.StructuredData).ToNot(HaveLen(0))
 			Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 			Expect(string(msg.Message)).To(Equal("hello\n"))
-		})
-
-		It("can be configured so that there's no tags", func() {
-			bindingCache.bindings = []binding.Binding{
-				{
-					Url: fmt.Sprintf("%s?disable-metadata=true", syslogHTTPS.server.URL),
-					Credentials: []binding.Credentials{
-						{
-							Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}},
-						},
-					},
-				},
-				{
-					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
-					Credentials: []binding.Credentials{
-						{
-							Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
-						},
-					},
-				},
-			}
-			bindingCache.aggregate = []binding.LegacyBinding{
-				{
-					Drains: []string{
-						aggregateAddr + "?disable-metadata=true",
-					},
-				},
-			}
-
-			cancel := setupTestAgent()
-			defer cancel()
-
-			var msg *rfc5424.Message
-			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).To(HaveLen(0))
-
-			Eventually(syslogTLS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).To(HaveLen(0))
-
-			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).To(HaveLen(0))
-		})
-
-		It("can be configured so that there's no tags by default", func() {
-			bindingCache.bindings = []binding.Binding{
-				{
-					Url: fmt.Sprintf("%s?disable-metadata=true", syslogHTTPS.server.URL),
-					Credentials: []binding.Credentials{
-						{
-							Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}},
-						},
-					},
-				},
-				{
-					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
-					Credentials: []binding.Credentials{
-						{
-							Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
-						},
-					},
-				},
-			}
-			bindingCache.aggregate = []binding.LegacyBinding{
-				{
-					Drains: []string{
-						aggregateAddr,
-					},
-				},
-			}
-			cancel := setupTestAgent(func(config app.Config) app.Config {
-				config.DefaultDrainMetadata = false
-				return config
-			})
-			defer cancel()
-
-			var msg *rfc5424.Message
-			Eventually(syslogHTTPS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).To(HaveLen(0))
-
-			Eventually(syslogTLS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).To(HaveLen(0))
-
-			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive(&msg))
-			Expect(msg.StructuredData).To(HaveLen(0))
 		})
 
 		It("will not be trusted if client certs are invalid for server", func() {
@@ -431,24 +174,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					Credentials: []binding.Credentials{
 						{
 							Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(untrustedCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
-						},
-					},
-				},
-			}
-			cancel := setupTestAgent()
-			defer cancel()
-
-			var msg *rfc5424.Message
-			Consistently(syslogTLS.receivedMessages, 3).ShouldNot(Receive(&msg))
-		})
-
-		It("will not accept empty drain certs", func() {
-			bindingCache.bindings = []binding.Binding{
-				{
-					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
-					Credentials: []binding.Credentials{
-						{
-							Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id"}},
 						},
 					},
 				},
@@ -583,29 +308,4 @@ func newCredentials(ca, commonName string) *credentials {
 		keyFileName:  keyFileName,
 		caFileName:   testCerts.CA(),
 	}
-}
-
-func newSyslogMTLSServer(syslogServerTestCerts *testhelper.TestCerts,
-	ciphers tlsconfig.TLSOption, clientCAFile string) *syslogTCPServer {
-	lis, err := net.Listen("tcp", "127.0.0.1:")
-	Expect(err).ToNot(HaveOccurred())
-	tlsConfig, err := tlsconfig.Build(
-		ciphers,
-		tlsconfig.WithIdentityFromFile(
-			syslogServerTestCerts.Cert("localhost"),
-			syslogServerTestCerts.Key("localhost"),
-		),
-	).Server(
-		tlsconfig.WithClientAuthenticationFromFile(clientCAFile),
-	)
-	if err != nil {
-		panic(err)
-	}
-	tlsLis := tls.NewListener(lis, tlsConfig)
-	m := &syslogTCPServer{
-		receivedMessages: make(chan *rfc5424.Message, 100),
-		lis:              tlsLis,
-	}
-	go m.accept()
-	return m
 }
