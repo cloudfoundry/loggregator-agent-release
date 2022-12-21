@@ -401,12 +401,6 @@ var _ = Describe("Poller", func() {
 	It("does not update the stores if both response codes are bad", func() {
 		apiClient.statusCode <- 404
 		apiClient.legacyStatusCode <- 404
-		apiClient.legacyBindings <- legacyResponse{
-			Results: map[string]struct {
-				Drains   []string
-				Hostname string
-			}{"app-id-0": {Drains: []string{"drain-0", "drain-1"}, Hostname: "app-hostname0"}},
-		}
 
 		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
