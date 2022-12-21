@@ -36,26 +36,31 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			syslogTLS          *syslogTCPServer
 			bindingCache       *fakeBindingCache
 			metricClient       *metricsHelpers.SpyMetricsRegistry
+			syslogServerCA     []byte
 
 			grpcPort   = 50000
 			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
 
 			metronTestCerts           = testhelper.GenerateCerts("loggregatorCA")
 			bindingCacheTestCerts     = testhelper.GenerateCerts("bindingCacheCA")
-			syslogServerTestCerts     = testhelper.GenerateCerts("syslogCA")
-			drainCredentials          = newCredentials("syslogCA", "localhost")
+			syslogServerTestCerts     = testhelper.GenerateCerts("syslogDrainServerCA")
+			drainCredentials          = newCredentials("syslogClientCA", "localhost")
 			untrustedDrainCredentials = newCredentials("untrustedSyslogCA", "unknown-localhost")
 		)
 
 		BeforeEach(func() {
 			syslogHTTPS = newSyslogHTTPSServer(syslogServerTestCerts)
-			syslogTLS = newSyslogmTLSServer(syslogServerTestCerts,
+			syslogTLS = newSyslogMTLSServer(syslogServerTestCerts,
 				tlsconfig.WithInternalServiceDefaults(),
-				drainCredentials.caFileName)
+				drainCredentials.caFileName,
+			)
 
 			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
 			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
 
+			var err error
+			syslogServerCA, err = os.ReadFile(syslogServerTestCerts.CA())
+			Expect(err).ToNot(HaveOccurred())
 			bindingCache = &fakeBindingCache{
 				bindings: []binding.Binding{
 					{
@@ -66,7 +71,7 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 						Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
 						Credentials: []binding.Credentials{
 							{
-								Cert: drainCredentials.cert, Key: drainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+								Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
 							},
 						},
 					},
@@ -231,7 +236,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 				DefaultDrainMetadata: true,
 				IdleDrainTimeout:     10 * time.Minute,
 				DrainSkipCertVerify:  false,
-				DrainTrustedCAFile:   syslogServerTestCerts.CA(),
 				Cache: app.Cache{
 					URL:             bindingCache.URL,
 					CAFile:          bindingCacheTestCerts.CA(),
@@ -330,7 +334,7 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
 					Credentials: []binding.Credentials{
 						{
-							Cert: drainCredentials.cert, Key: drainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+							Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
 						},
 					},
 				},
@@ -371,7 +375,7 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 					Url: fmt.Sprintf("syslog-tls://localhost:%s?disable-metadata=true", syslogTLS.port()),
 					Credentials: []binding.Credentials{
 						{
-							Cert: drainCredentials.cert, Key: drainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+							Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
 						},
 					},
 				},
@@ -400,13 +404,33 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			Expect(msg.StructuredData).To(HaveLen(0))
 		})
 
-		It("will not accept untrusted certs", func() {
+		It("will not be trusted if client certs are invalid for server", func() {
 			bindingCache.bindings = []binding.Binding{
 				{
 					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
 					Credentials: []binding.Credentials{
 						{
-							Cert: untrustedDrainCredentials.cert, Key: untrustedDrainCredentials.key, Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+							Cert: untrustedDrainCredentials.cert, Key: untrustedDrainCredentials.key, CA: string(syslogServerCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+						},
+					},
+				},
+			}
+			cancel := setupTestAgent()
+			defer cancel()
+
+			var msg *rfc5424.Message
+			Consistently(syslogTLS.receivedMessages, 3).ShouldNot(Receive(&msg))
+		})
+
+		It("will not accept untrusted server", func() {
+			untrustedCA, err := os.ReadFile(untrustedDrainCredentials.caFileName)
+			Expect(err).ToNot(HaveOccurred())
+			bindingCache.bindings = []binding.Binding{
+				{
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Credentials: []binding.Credentials{
+						{
+							Cert: drainCredentials.cert, Key: drainCredentials.key, CA: string(untrustedCA), Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
 						},
 					},
 				},
@@ -455,297 +479,6 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 			Consistently(func() float64 {
 				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 			}, 2).Should(Equal(0.0))
-		})
-	})
-	Context("TLS cipher tests", func() {
-		var grpcPort = 51000
-		var aggregateSyslogTLS *syslogTCPServer
-
-		AfterEach(func() {
-			gexec.CleanupBuildArtifacts()
-			grpcPort++
-		})
-
-		var setupTestAgentAndServerNoBindingCache = func(serverCiphers tlsconfig.TLSOption, agentCiphers string, aggregateQueryParam string) context.CancelFunc {
-			syslogServerTestCerts := testhelper.GenerateCerts("syslogCA")
-			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, serverCiphers)
-			aggregateAddr := fmt.Sprintf("syslog-tls://127.0.0.1:%s%s", aggregateSyslogTLS.port(), aggregateQueryParam)
-
-			metronTestCerts := testhelper.GenerateCerts("loggregatorCA")
-			metricClient := metricsHelpers.NewMetricsRegistry()
-			testLogger := log.New(GinkgoWriter, "", log.LstdFlags)
-			cfg := app.Config{
-				BindingsPerAppLimit: 5,
-				MetricsServer: config.MetricsServer{
-					Port:     8052,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				IdleDrainTimeout:    10 * time.Minute,
-				DrainSkipCertVerify: false,
-				DrainCipherSuites:   agentCiphers,
-				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
-				GRPC: app.GRPC{
-					Port:     grpcPort,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				AggregateDrainURLs:                 []string{aggregateAddr},
-				AggregateConnectionRefreshInterval: 10 * time.Minute,
-			}
-			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
-			go syslogAgent.Run()
-			defer syslogAgent.Stop()
-			ctx, cancel := context.WithCancel(context.Background())
-			emitLogs(ctx, grpcPort, metronTestCerts)
-
-			return cancel
-		}
-		Context("When drain is using default external ciphers", func() {
-			It("Can communicate with compatible server", func() {
-				cancel := setupTestAgentAndServerNoBindingCache(
-					func(c *tls.Config) error {
-						c.MinVersion = tls.VersionTLS12
-						c.MaxVersion = tls.VersionTLS12
-						// External ciphers not on internal list
-						c.CipherSuites = []uint16{
-							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-							tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-							tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-						}
-						return nil
-					},
-					"",
-					"",
-				)
-
-				defer cancel()
-
-				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
-			})
-
-			It("refuses to communicate with non-compatible server", func() {
-				cancel := setupTestAgentAndServerNoBindingCache(
-					func(c *tls.Config) error {
-						c.MinVersion = tls.VersionTLS12
-						c.MaxVersion = tls.VersionTLS12
-						// External ciphers not on internal list
-						c.CipherSuites = []uint16{
-							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-						}
-						return nil
-					},
-					"",
-					"",
-				)
-
-				defer cancel()
-
-				Consistently(aggregateSyslogTLS.receivedMessages, 3).ShouldNot(Receive())
-			})
-
-		})
-		Context("When drain is using overridden external ciphers", func() {
-			It("Can communicate with compatible server", func() {
-
-				cancel := setupTestAgentAndServerNoBindingCache(
-					func(c *tls.Config) error {
-						c.MinVersion = tls.VersionTLS12
-						c.MaxVersion = tls.VersionTLS12
-						// External ciphers not on internal list
-						c.CipherSuites = []uint16{
-							tls.TLS_RSA_WITH_RC4_128_SHA,
-						}
-						return nil
-					},
-					"TLS_RSA_WITH_RC4_128_SHA",
-					"",
-				)
-
-				defer cancel()
-
-				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
-			})
-			It("refuses to communicate with non-compatible server", func() {
-
-				cancel := setupTestAgentAndServerNoBindingCache(
-					func(c *tls.Config) error {
-						c.MinVersion = tls.VersionTLS12
-						c.MaxVersion = tls.VersionTLS12
-						// External ciphers not on internal list
-						c.CipherSuites = []uint16{
-							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-						}
-						return nil
-					},
-					"TLS_RSA_WITH_RC4_128_SHA",
-					"",
-				)
-
-				defer cancel()
-
-				Consistently(aggregateSyslogTLS.receivedMessages, 3).ShouldNot(Receive())
-			})
-		})
-
-		Context("When drain is using internal ciphers", func() {
-			It("Can be scraped by agent using internal ciphers", func() {
-				cancel := setupTestAgentAndServerNoBindingCache(
-					tlsconfig.WithInternalServiceDefaults(),
-					"",
-					"?ssl-strict-internal=true",
-				)
-
-				defer cancel()
-
-				Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
-			})
-			It("refuses to communicate with non-compatible server", func() {
-				cancel := setupTestAgentAndServerNoBindingCache(
-					func(c *tls.Config) error {
-						c.MinVersion = tls.VersionTLS12
-						c.MaxVersion = tls.VersionTLS12
-						// External ciphers not on internal list
-						c.CipherSuites = []uint16{
-							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-							tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-							tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-						}
-						return nil
-					},
-					"",
-					"?ssl-strict-internal=true",
-				)
-
-				defer cancel()
-
-				Consistently(aggregateSyslogTLS.receivedMessages, 3).ShouldNot(Receive())
-			})
-		})
-
-	})
-
-	Context("When binding-cache is not configured", func() {
-		var (
-			aggregateSyslogTLS *syslogTCPServer
-			aggregateAddr      string
-			metricClient       *metricsHelpers.SpyMetricsRegistry
-
-			grpcPort   = 60000
-			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-
-			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
-			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
-		)
-
-		BeforeEach(func() {
-			aggregateSyslogTLS = newSyslogTLSServer(syslogServerTestCerts, tlsconfig.WithInternalServiceDefaults())
-			aggregateAddr = fmt.Sprintf("syslog-tls://127.0.0.1:%s", aggregateSyslogTLS.port())
-		})
-
-		AfterEach(func() {
-			gexec.CleanupBuildArtifacts()
-			grpcPort++
-		})
-
-		var setupTestAgentNoBindingCache = func(blacklist bindings.BlacklistRanges, aggregateDrains []string) context.CancelFunc {
-			metricClient = metricsHelpers.NewMetricsRegistry()
-			cfg := app.Config{
-				BindingsPerAppLimit: 5,
-				MetricsServer: config.MetricsServer{
-					Port:     8052,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				IdleDrainTimeout:    10 * time.Minute,
-				DrainSkipCertVerify: false,
-				DrainTrustedCAFile:  syslogServerTestCerts.CA(),
-				GRPC: app.GRPC{
-					Port:     grpcPort,
-					CAFile:   metronTestCerts.CA(),
-					CertFile: metronTestCerts.Cert("metron"),
-					KeyFile:  metronTestCerts.Key("metron"),
-				},
-				AggregateDrainURLs:                 aggregateDrains,
-				AggregateConnectionRefreshInterval: 10 * time.Minute,
-			}
-			syslogAgent := app.NewSyslogAgent(cfg, metricClient, testLogger)
-			go syslogAgent.Run()
-			defer syslogAgent.Stop()
-			ctx, cancel := context.WithCancel(context.Background())
-			emitLogs(ctx, grpcPort, metronTestCerts)
-
-			return cancel
-		}
-
-		It("should create connections to aggregate drains", func() {
-			cancel := setupTestAgentNoBindingCache(bindings.BlacklistRanges{}, []string{aggregateAddr})
-			defer cancel()
-
-			Eventually(hasMetric(metricClient, "aggregate_drains", map[string]string{"unit": "count"})).Should(BeTrue())
-			Eventually(func() float64 {
-				return metricClient.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
-			}).Should(Equal(1.0))
-
-			// 0 app drains and 1 aggregate drain
-			Eventually(func() float64 {
-				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-			}, 3).Should(Equal(1.0))
-		})
-
-		It("egresses logs", func() {
-			cancel := setupTestAgentNoBindingCache(bindings.BlacklistRanges{}, []string{aggregateAddr})
-			defer cancel()
-
-			Eventually(aggregateSyslogTLS.receivedMessages, 3).Should(Receive())
-		})
-	})
-
-	Context("When GRPC certs are invalid", func() {
-		var (
-			metricClient *metricsHelpers.SpyMetricsRegistry
-
-			grpcPort   = 70000
-			testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-
-			metronTestCerts       = testhelper.GenerateCerts("loggregatorCA")
-			syslogServerTestCerts = testhelper.GenerateCerts("syslogCA")
-		)
-
-		AfterEach(func() {
-			gexec.CleanupBuildArtifacts()
-			grpcPort++
-		})
-
-		metricClient = metricsHelpers.NewMetricsRegistry()
-		cfg := app.Config{
-			BindingsPerAppLimit: 5,
-			MetricsServer: config.MetricsServer{
-				Port:     8052,
-				CAFile:   metronTestCerts.CA(),
-				CertFile: metronTestCerts.Cert("metron"),
-				KeyFile:  metronTestCerts.Key("metron"),
-			},
-			IdleDrainTimeout:    10 * time.Minute,
-			DrainSkipCertVerify: false,
-			DrainTrustedCAFile:  syslogServerTestCerts.CA(),
-			GRPC: app.GRPC{
-				Port:     grpcPort,
-				CAFile:   "invalid",
-				CertFile: "invalid",
-				KeyFile:  "invalid",
-			},
-			AggregateDrainURLs:                 []string{},
-			AggregateConnectionRefreshInterval: 10 * time.Minute,
-		}
-
-		It("should error when creating the TLS client for the logclient", func() {
-			Expect(func() { app.NewSyslogAgent(cfg, metricClient, testLogger) }).To(PanicWith("failed to configure client TLS: \"failed to load keypair: open invalid: no such file or directory\""))
 		})
 	})
 })
@@ -831,21 +564,19 @@ func newCredentials(ca, commonName string) *credentials {
 	}
 }
 
-func newSyslogmTLSServer(syslogServerTestCerts *testhelper.TestCerts,
-	ciphers tlsconfig.TLSOption, caFileName string) *syslogTCPServer {
+func newSyslogMTLSServer(syslogServerTestCerts *testhelper.TestCerts,
+	ciphers tlsconfig.TLSOption, clientCAFile string) *syslogTCPServer {
 	lis, err := net.Listen("tcp", "127.0.0.1:")
 	Expect(err).ToNot(HaveOccurred())
-	pool := tlsconfig.FromEmptyPool(
-		tlsconfig.WithCertsFromFile(caFileName),
-	)
 	tlsConfig, err := tlsconfig.Build(
 		ciphers,
 		tlsconfig.WithIdentityFromFile(
 			syslogServerTestCerts.Cert("localhost"),
 			syslogServerTestCerts.Key("localhost"),
 		),
-		tlsconfig.TLSOption(tlsconfig.WithClientAuthenticationBuilder(pool)),
-	).Server()
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(clientCAFile),
+	)
 	if err != nil {
 		panic(err)
 	}
