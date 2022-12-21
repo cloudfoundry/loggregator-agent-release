@@ -480,6 +480,27 @@ var _ = Describe("SyslogAgent supporting mtls", func() {
 				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
 			}, 2).Should(Equal(0.0))
 		})
+
+		It("will not activate drains with invalid ca", func() {
+			bindingCache.bindings = []binding.Binding{
+				{
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", syslogTLS.port()),
+					Credentials: []binding.Credentials{
+						{
+							CA: "a cert that is not a cert", Apps: []binding.App{{Hostname: "org.space.name", AppID: "some-id-tls"}},
+						},
+					},
+				},
+			}
+			bindingCache.aggregate = []binding.LegacyBinding{}
+			cancel := setupTestAgent()
+			defer cancel()
+
+			Eventually(hasMetric(metricClient, "active_drains", map[string]string{"unit": "count"})).Should(BeTrue())
+			Consistently(func() float64 {
+				return metricClient.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
+			}, 2).Should(Equal(0.0))
+		})
 	})
 })
 
