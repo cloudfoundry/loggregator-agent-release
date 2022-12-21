@@ -193,20 +193,11 @@ func ToBindings(legacyBindings []LegacyBinding) []Binding {
 	for _, lb := range legacyBindings {
 		for _, d := range lb.Drains {
 			if val, ok := remodel[d]; ok {
-				appExists := false
-				for _, a := range val.Apps {
-					if a.AppID == lb.AppID {
-						appExists = true
-						break
-					}
-				}
-				if !appExists {
-					app := App{AppID: lb.AppID, Hostname: lb.Hostname}
-					remodel[d] = Credentials{Cert: "", Key: "", Apps: append(val.Apps, app)}
-				}
+				app := App{AppID: lb.AppID, Hostname: lb.Hostname}
+				remodel[d] = Credentials{Apps: append(val.Apps, app)}
 			} else {
 				app := App{AppID: lb.AppID, Hostname: lb.Hostname}
-				remodel[d] = Credentials{Cert: "", Key: "", Apps: []App{app}}
+				remodel[d] = Credentials{Apps: []App{app}}
 			}
 		}
 	}
@@ -226,17 +217,7 @@ func ToLegacyBindings(bindings []Binding) []LegacyBinding {
 		for _, c := range b.Credentials {
 			for _, a := range c.Apps {
 				if val, ok := remodel[a.AppID]; ok {
-					// This logic prevents duplicate URLs for the same application
-					drainExists := false
-					for _, existingDrain := range remodel[a.AppID].Drains {
-						if drain == existingDrain {
-							drainExists = true
-							break
-						}
-					}
-					if !drainExists {
-						remodel[a.AppID] = legacyMold{Drains: append(val.Drains, drain), hostname: a.Hostname}
-					}
+					remodel[a.AppID] = legacyMold{Drains: append(val.Drains, drain), hostname: a.Hostname}
 				} else {
 					remodel[a.AppID] = legacyMold{Drains: []string{drain}, hostname: a.Hostname}
 				}
