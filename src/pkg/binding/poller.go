@@ -175,9 +175,6 @@ func CalculateBindingCount(bindings []Binding) int {
 	for _, b := range bindings {
 		for _, c := range b.Credentials {
 			for _, a := range c.Apps {
-				if _, ok := apps[a.AppID]; ok {
-					continue
-				}
 				apps[a.AppID] = true
 			}
 		}
