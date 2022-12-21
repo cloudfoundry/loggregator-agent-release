@@ -526,7 +526,7 @@ var _ = Describe("Manager", func() {
 		stubAppBindingFetcher.bindings <- []syslog.Binding{
 			{AppId: "app-1", Hostname: "host-1",
 				Drain: syslog.Drain{
-					Url: "syslog-v3-v3://drain.url.com",
+					Url: "syslog-invalid-scheme://drain.url.com",
 				},
 			},
 		}

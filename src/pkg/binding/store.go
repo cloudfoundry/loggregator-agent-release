@@ -45,6 +45,12 @@ type LegacyStore struct {
 	legacyBindings []LegacyBinding
 }
 
+func NewLegacyStore() *LegacyStore {
+	return &LegacyStore{
+		legacyBindings: make([]LegacyBinding, 0),
+	}
+}
+
 func (s *LegacyStore) Get() []LegacyBinding {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -58,12 +64,6 @@ func (s *LegacyStore) Set(bindings []LegacyBinding) {
 	s.mu.Lock()
 	s.legacyBindings = bindings
 	s.mu.Unlock()
-}
-
-func NewLegacyStore() *LegacyStore {
-	return &LegacyStore{
-		legacyBindings: make([]LegacyBinding, 0),
-	}
 }
 
 type AggregateStore struct {

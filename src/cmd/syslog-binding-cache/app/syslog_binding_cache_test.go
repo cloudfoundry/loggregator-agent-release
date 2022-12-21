@@ -339,6 +339,5 @@ func findBindings(bindings []binding.Binding, appID string) []binding.Binding {
 		}
 
 	}
-	//panic(fmt.Sprintf("unable to find binding with appID %s", appID))
 	return bindingResult
 }
