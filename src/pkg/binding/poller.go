@@ -183,7 +183,7 @@ func CalculateBindingCount(bindings []Binding) int {
 }
 
 type legacyMold struct {
-	Drains   []string
+	drains   []string
 	hostname string
 }
 
@@ -217,16 +217,16 @@ func ToLegacyBindings(bindings []Binding) []LegacyBinding {
 		for _, c := range b.Credentials {
 			for _, a := range c.Apps {
 				if val, ok := remodel[a.AppID]; ok {
-					remodel[a.AppID] = legacyMold{Drains: append(val.Drains, drain), hostname: a.Hostname}
+					remodel[a.AppID] = legacyMold{drains: append(val.drains, drain), hostname: a.Hostname}
 				} else {
-					remodel[a.AppID] = legacyMold{Drains: []string{drain}, hostname: a.Hostname}
+					remodel[a.AppID] = legacyMold{drains: []string{drain}, hostname: a.Hostname}
 				}
 			}
 		}
 	}
 
 	for appID, app := range remodel {
-		legacyBinding := LegacyBinding{appID, app.Drains, app.hostname, true}
+		legacyBinding := LegacyBinding{appID, app.drains, app.hostname, true}
 		legacyBindings = append(legacyBindings, legacyBinding)
 	}
 	return legacyBindings
