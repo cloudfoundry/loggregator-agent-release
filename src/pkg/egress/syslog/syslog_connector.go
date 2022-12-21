@@ -107,10 +107,6 @@ func WithLogClient(logClient LogClient, sourceIndex string) ConnectorOption {
 func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer, error) {
 	urlBinding, err := buildBinding(ctx, b)
 	if err != nil {
-		// Note: the scheduler ensures the URL is valid. It is unlikely that
-		// a binding with an invalid URL would make it this far. Nonetheless,
-		// we handle the error case all the same.
-		w.emitLoggregatorErrorLog(b.AppId, "Invalid syslog drain URL: parse failure")
 		return nil, err
 	}
 

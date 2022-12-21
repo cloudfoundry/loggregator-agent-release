@@ -114,30 +114,6 @@ var _ = Describe("SyslogConnector", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("writes a LGR error for inproperly formatted drains", func() {
-		logClient := newSpyLogClient()
-		connector := syslog.NewSyslogConnector(
-			true,
-			spyWaitGroup,
-			writerFactory,
-			sm,
-			syslog.WithLogClient(logClient, "3"),
-		)
-
-		binding := syslog.Binding{
-			AppId: "some-app-id",
-			Drain: syslog.Drain{
-				Url: "://syslog/laksjdflk:asdfdsaf:2232",
-			},
-		}
-
-		_, _ = connector.Connect(ctx, binding)
-
-		Expect(logClient.message()).To(ContainElement("Invalid syslog drain URL: parse failure"))
-		Expect(logClient.appID()).To(ContainElement("some-app-id"))
-		Expect(logClient.sourceType()).To(HaveKey("LGR"))
-	})
-
 	Describe("dropping messages", func() {
 		BeforeEach(func() {
 			writerFactory.writer = &SleepWriterCloser{
