@@ -92,15 +92,19 @@ func (p *Poller) poll() {
 		resp, err := p.apiClient.Get(nextID)
 		if err != nil {
 			p.bindingRefreshErrorCounter.Add(1)
-			p.logger.Printf("failed to get id %d from CUPS Provider: %s", nextID, err)
+			p.logger.Printf("failed to get page %d from internal bindings endpoint: %s", nextID, err)
 			return
 		}
+		if resp.StatusCode != http.StatusOK {
+			p.logger.Printf("unexpected response from internal bindings endpoint. status code: %d, falling back to legacy endpoint", resp.StatusCode)
+			p.pollLegacyFallback()
+			return
+		}
+
 		var aResp apiResponse
 		err = json.NewDecoder(resp.Body).Decode(&aResp)
-		statusCode := resp.StatusCode
-
-		if statusCode != http.StatusOK || err != nil {
-			p.logger.Printf("failed to decode JSON: %s, statusCode: %d, falling back to legacy endpoint", err, statusCode)
+		if err != nil {
+			p.logger.Printf("failed to decode JSON: %s, falling back to legacy endpoint", err)
 			p.pollLegacyFallback()
 			return
 		}
@@ -127,11 +131,15 @@ func (p *Poller) pollLegacyFallback() {
 		resp, err := p.apiClient.LegacyGet(nextID)
 		if err != nil {
 			p.bindingRefreshErrorCounter.Add(1)
-			p.logger.Printf("failed to get id %d from legacy CUPS Provider: %s", nextID, err)
+			p.logger.Printf("failed to get page %d from internal bindings: %s", nextID, err)
 			return
 		}
-		var aRespLegacy legacyApiResponse
+		if resp.StatusCode != http.StatusOK {
+			p.logger.Printf("unexpected response from internal bindings endpoint. status code: %d, falling back to legacy endpoint", resp.StatusCode)
+			return
+		}
 
+		var aRespLegacy legacyApiResponse
 		err = json.NewDecoder(resp.Body).Decode(&aRespLegacy)
 		if err != nil {
 			p.logger.Printf("failed to decode legacy JSON: %s", err)

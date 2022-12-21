@@ -398,6 +398,23 @@ var _ = Describe("Poller", func() {
 		Eventually(legacyStore.bindings).Should(BeEmpty())
 	})
 
+	It("does not update the stores if both response codes are bad", func() {
+		apiClient.statusCode <- 404
+		apiClient.legacyStatusCode <- 404
+		apiClient.legacyBindings <- legacyResponse{
+			Results: map[string]struct {
+				Drains   []string
+				Hostname string
+			}{"app-id-0": {Drains: []string{"drain-0", "drain-1"}, Hostname: "app-hostname0"}},
+		}
+
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		go p.Poll()
+
+		Eventually(store.bindings).Should(BeEmpty())
+		Eventually(legacyStore.bindings).Should(BeEmpty())
+	})
+
 	It("tracks the number of bindings returned from CAPI", func() {
 		apiClient.bindings <- response{
 			Results: []binding.Binding{
@@ -606,22 +623,24 @@ var _ = Describe("Poller", func() {
 })
 
 type fakeAPIClient struct {
-	numRequests    int64
-	bindings       chan response
-	errors         chan error
-	legacyErrors   chan error
-	legacyBindings chan legacyResponse
-	statusCode     chan int
-	requestedIDs   []int
+	numRequests      int64
+	bindings         chan response
+	errors           chan error
+	legacyErrors     chan error
+	legacyBindings   chan legacyResponse
+	statusCode       chan int
+	legacyStatusCode chan int
+	requestedIDs     []int
 }
 
 func newFakeAPIClient() *fakeAPIClient {
 	return &fakeAPIClient{
-		bindings:       make(chan response, 100),
-		legacyBindings: make(chan legacyResponse, 100),
-		errors:         make(chan error, 100),
-		legacyErrors:   make(chan error, 100),
-		statusCode:     make(chan int, 100),
+		bindings:         make(chan response, 100),
+		legacyBindings:   make(chan legacyResponse, 100),
+		errors:           make(chan error, 100),
+		legacyErrors:     make(chan error, 100),
+		legacyStatusCode: make(chan int, 100),
+		statusCode:       make(chan int, 100),
 	}
 }
 
@@ -656,11 +675,14 @@ func (c *fakeAPIClient) LegacyGet(nextID int) (*http.Response, error) {
 	atomic.AddInt64(&c.numRequests, 1)
 
 	var legacyBinding legacyResponse
+	var statusCode = 200
 	select {
 	case err := <-c.legacyErrors:
 		return nil, err
 	case legacyBinding = <-c.legacyBindings:
 		c.requestedIDs = append(c.requestedIDs, nextID)
+	case injectedStatusCode := <-c.legacyStatusCode:
+		statusCode = injectedStatusCode
 	default:
 	}
 
@@ -671,6 +693,7 @@ func (c *fakeAPIClient) LegacyGet(nextID int) (*http.Response, error) {
 	resp := &http.Response{
 		Body: io.NopCloser(bytes.NewReader(body)),
 	}
+	resp.StatusCode = statusCode
 
 	return resp, nil
 }
