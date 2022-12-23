@@ -19,7 +19,6 @@ const (
 	Syslog
 	SyslogTLS
 	Unsupported
-	GenericError
 )
 
 type WriterFactoryError struct {
@@ -107,48 +106,35 @@ func (f WriterFactory) NewWriter(
 			return nil, err
 		}
 	}
-	var err error
 	var w egress.WriteCloser
 	switch urlBinding.URL.Scheme {
 	case "https":
-		w, err = NewHTTPSWriter(
+		w = NewHTTPSWriter(
 			urlBinding,
 			f.netConf,
 			tlsClonedConfig,
 			f.egressMetric,
 			converter,
-		), nil
-		if err != nil {
-			err = NewWriterFactoryError(Https, err.Error())
-		}
+		)
 	case "syslog":
-		w, err = NewTCPWriter(
+		w = NewTCPWriter(
 			urlBinding,
 			f.netConf,
 			f.egressMetric,
 			converter,
-		), nil
-		if err != nil {
-			err = NewWriterFactoryError(Syslog, err.Error())
-		}
+		)
 	case "syslog-tls":
-		w, err = NewTLSWriter(
+		w = NewTLSWriter(
 			urlBinding,
 			f.netConf,
 			tlsClonedConfig,
 			f.egressMetric,
 			converter,
-		), nil
+		)
 	}
 
 	if w == nil {
-		err = NewWriterFactoryError(Unsupported, urlBinding.URL.Scheme)
-		return nil, err
-	}
-
-	if err != nil {
-		err = NewWriterFactoryError(GenericError, err.Error())
-		return nil, err
+		return nil, NewWriterFactoryError(Unsupported, urlBinding.URL.Scheme)
 	}
 
 	return NewRetryWriter(
