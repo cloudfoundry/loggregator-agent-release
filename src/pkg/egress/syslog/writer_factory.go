@@ -3,6 +3,7 @@ package syslog
 import (
 	"crypto/tls"
 	"fmt"
+	"net/url"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
@@ -24,6 +25,7 @@ const (
 type WriterFactoryError struct {
 	Kind    WriterKind
 	Message string
+	URL     *url.URL
 }
 
 func (e WriterFactoryError) StringKind() string {
@@ -41,19 +43,13 @@ func (e WriterFactoryError) StringKind() string {
 }
 
 func (e WriterFactoryError) Error() string {
-	return fmt.Sprintf("%s: %s", e.StringKind(), e.Message)
+	return fmt.Sprintf("%s: %s, binding: %q", e.StringKind(), e.Message, e.URL)
 }
 
-func NewWriterFactoryError(kind WriterKind, message string) error {
+func NewWriterFactoryErrorf(kind WriterKind, bindingURL *url.URL, format string, a ...any) error {
 	return WriterFactoryError{
 		Kind:    kind,
-		Message: message,
-	}
-}
-
-func NewWriterFactoryErrorf(kind WriterKind, format string, a ...any) error {
-	return WriterFactoryError{
-		Kind:    kind,
+		URL:     bindingURL,
 		Message: fmt.Sprintf(format, a...),
 	}
 }
@@ -94,7 +90,7 @@ func (f WriterFactory) NewWriter(
 	if len(urlBinding.Certificate) > 0 && len(urlBinding.PrivateKey) > 0 {
 		credentials, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
 		if err != nil {
-			err = NewWriterFactoryErrorf(SyslogTLS, "failed to load certificate: %s", err.Error())
+			err = NewWriterFactoryErrorf(SyslogTLS, urlBinding.URL, "failed to load certificate: %s", err.Error())
 			return nil, err
 		}
 		tlsClonedConfig.Certificates = []tls.Certificate{credentials}
@@ -102,7 +98,7 @@ func (f WriterFactory) NewWriter(
 	if len(urlBinding.CA) > 0 {
 		ok := tlsClonedConfig.RootCAs.AppendCertsFromPEM(urlBinding.CA)
 		if !ok {
-			err := NewWriterFactoryErrorf(SyslogTLS, "failed to load root ca for binding")
+			err := NewWriterFactoryErrorf(SyslogTLS, urlBinding.URL, "failed to load root ca")
 			return nil, err
 		}
 	}
@@ -134,7 +130,7 @@ func (f WriterFactory) NewWriter(
 	}
 
 	if w == nil {
-		return nil, NewWriterFactoryError(Unsupported, urlBinding.URL.Scheme)
+		return nil, NewWriterFactoryErrorf(Unsupported, urlBinding.URL, "%q", urlBinding.URL.Scheme)
 	}
 
 	return NewRetryWriter(

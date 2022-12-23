@@ -1,6 +1,7 @@
 package syslog_test
 
 import (
+	"crypto/tls"
 	"net/url"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -18,76 +19,143 @@ var _ = Describe("EgressFactory", func() {
 
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
-		f = syslog.NewWriterFactory(nil, nil, syslog.NetworkTimeoutConfig{}, sm)
+		f = syslog.NewWriterFactory(&tls.Config{}, &tls.Config{}, syslog.NetworkTimeoutConfig{}, sm)
 	})
 
-	It("returns an https writer when the url begins with https", func() {
-		url, err := url.Parse("https://the-syslog-endpoint.com")
-		Expect(err).ToNot(HaveOccurred())
-		urlBinding := &syslog.URLBinding{
-			URL: url,
-		}
+	Context("when the url begins with https", func() {
+		It("returns an https writer", func() {
+			url, err := url.Parse("https://syslog.example.com")
+			Expect(err).ToNot(HaveOccurred())
+			urlBinding := &syslog.URLBinding{
+				URL: url,
+			}
 
-		writer, err := f.NewWriter(urlBinding)
-		Expect(err).ToNot(HaveOccurred())
+			writer, err := f.NewWriter(urlBinding)
+			Expect(err).ToNot(HaveOccurred())
 
-		retryWriter, ok := writer.(*syslog.RetryWriter)
-		Expect(ok).To(BeTrue())
+			retryWriter, ok := writer.(*syslog.RetryWriter)
+			Expect(ok).To(BeTrue())
 
-		_, ok = retryWriter.Writer.(*syslog.HTTPSWriter)
-		Expect(ok).To(BeTrue())
+			_, ok = retryWriter.Writer.(*syslog.HTTPSWriter)
+			Expect(ok).To(BeTrue())
 
-		metric := sm.GetMetric("egress", nil)
-		Expect(metric).ToNot(BeNil())
+			metric := sm.GetMetric("egress", nil)
+			Expect(metric).ToNot(BeNil())
+		})
 	})
 
-	It("returns a tcp writer when the url begins with syslog://", func() {
-		url, err := url.Parse("syslog://the-syslog-endpoint.com")
-		Expect(err).ToNot(HaveOccurred())
-		urlBinding := &syslog.URLBinding{
-			URL: url,
-		}
+	Context("when the url begins with syslog://", func() {
+		It("returns a tcp writer", func() {
+			url, err := url.Parse("syslog://syslog.example.com")
+			Expect(err).ToNot(HaveOccurred())
+			urlBinding := &syslog.URLBinding{
+				URL: url,
+			}
 
-		writer, err := f.NewWriter(urlBinding)
-		Expect(err).ToNot(HaveOccurred())
+			writer, err := f.NewWriter(urlBinding)
+			Expect(err).ToNot(HaveOccurred())
 
-		retryWriter, ok := writer.(*syslog.RetryWriter)
-		Expect(ok).To(BeTrue())
+			retryWriter, ok := writer.(*syslog.RetryWriter)
+			Expect(ok).To(BeTrue())
 
-		_, ok = retryWriter.Writer.(*syslog.TCPWriter)
-		Expect(ok).To(BeTrue())
+			_, ok = retryWriter.Writer.(*syslog.TCPWriter)
+			Expect(ok).To(BeTrue())
 
-		metric := sm.GetMetric("egress", nil)
-		Expect(metric).ToNot(BeNil())
+			metric := sm.GetMetric("egress", nil)
+			Expect(metric).ToNot(BeNil())
+		})
 	})
 
-	It("returns a syslog-tls writer when the url begins with syslog-tls://", func() {
-		url, err := url.Parse("syslog-tls://the-syslog-endpoint.com")
-		Expect(err).ToNot(HaveOccurred())
-		urlBinding := &syslog.URLBinding{
-			URL: url,
-		}
+	Context("when the url begins with syslog-tls://", func() {
+		It("returns a syslog-tls writer", func() {
+			url, err := url.Parse("syslog-tls://syslog.example.com")
+			Expect(err).ToNot(HaveOccurred())
+			urlBinding := &syslog.URLBinding{
+				URL: url,
+			}
 
-		writer, err := f.NewWriter(urlBinding)
-		Expect(err).ToNot(HaveOccurred())
+			writer, err := f.NewWriter(urlBinding)
+			Expect(err).ToNot(HaveOccurred())
 
-		retryWriter, ok := writer.(*syslog.RetryWriter)
-		Expect(ok).To(BeTrue())
+			retryWriter, ok := writer.(*syslog.RetryWriter)
+			Expect(ok).To(BeTrue())
 
-		_, ok = retryWriter.Writer.(*syslog.TLSWriter)
-		Expect(ok).To(BeTrue())
-		metric := sm.GetMetric("egress", nil)
-		Expect(metric).ToNot(BeNil())
+			_, ok = retryWriter.Writer.(*syslog.TLSWriter)
+			Expect(ok).To(BeTrue())
+			metric := sm.GetMetric("egress", nil)
+			Expect(metric).ToNot(BeNil())
+		})
+
+		Context("when the certificate or private key is invalid", func() {
+			It("returns an error", func() {
+				url, err := url.Parse("syslog-tls://syslog.example.com")
+				Expect(err).ToNot(HaveOccurred())
+				urlBinding := &syslog.URLBinding{
+					URL:         url,
+					Certificate: []byte("invalid-certificate"),
+					PrivateKey:  []byte("invalid-private-key"),
+				}
+
+				_, err = f.NewWriter(urlBinding)
+				Expect(err).To(MatchError(MatchRegexp(
+					`failed to load certificate: tls:.*, binding: "syslog-tls://syslog.example.com"`)))
+			})
+		})
+
+		Context("when the private key is not passed", func() {
+			It("the certificate is ignored", func() {
+				url, err := url.Parse("syslog-tls://syslog.example.com")
+				Expect(err).ToNot(HaveOccurred())
+				urlBinding := &syslog.URLBinding{
+					URL:         url,
+					Certificate: []byte("invalid-certificate"),
+				}
+
+				_, err = f.NewWriter(urlBinding)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("when the certificate is not passed", func() {
+			It("the private key is ignored", func() {
+				url, err := url.Parse("syslog-tls://syslog.example.com")
+				Expect(err).ToNot(HaveOccurred())
+				urlBinding := &syslog.URLBinding{
+					URL:        url,
+					PrivateKey: []byte("invalid-private-key"),
+				}
+
+				_, err = f.NewWriter(urlBinding)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("when the certificate authority is invalid", func() {
+			It("returns an error", func() {
+				url, err := url.Parse("syslog-tls://syslog.example.com")
+				Expect(err).ToNot(HaveOccurred())
+				urlBinding := &syslog.URLBinding{
+					URL: url,
+					CA:  []byte("invalid-ca-certificate"),
+				}
+
+				_, err = f.NewWriter(urlBinding)
+				Expect(err).To(MatchError(MatchRegexp(
+					`failed to load root ca, binding: "syslog-tls://syslog.example.com"`)))
+			})
+		})
 	})
 
-	It("returns an error when given a binding with an invalid scheme", func() {
-		url, err := url.Parse("invalid://the-syslog-endpoint.com")
-		Expect(err).ToNot(HaveOccurred())
-		urlBinding := &syslog.URLBinding{
-			URL: url,
-		}
+	Context("when the binding has an invalid scheme", func() {
+		It("returns an error", func() {
+			url, err := url.Parse("invalid://syslog.example.com")
+			Expect(err).ToNot(HaveOccurred())
+			urlBinding := &syslog.URLBinding{
+				URL: url,
+			}
 
-		_, err = f.NewWriter(urlBinding)
-		Expect(err).To(MatchError("unsupported protocol: invalid"))
+			_, err = f.NewWriter(urlBinding)
+			Expect(err).To(MatchError(`unsupported protocol: "invalid", binding: "invalid://syslog.example.com"`))
+		})
 	})
 })
