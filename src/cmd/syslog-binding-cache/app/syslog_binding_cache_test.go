@@ -242,15 +242,9 @@ var _ = Describe("SyslogBindingCache", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(results).To(HaveLen(2))
-		Expect(results[0].AppID).To(Equal("app-id-1"))
-		Expect(results[0].Drains[0]).To(Equal("syslog://drain-a"))
-		Expect(results[0].Drains[1]).To(Equal("syslog://drain-b"))
-		Expect(results[0].Hostname).To(Equal("org.space.app-name-1"))
-
-		Expect(results[1].AppID).To(Equal("app-id-2"))
-		Expect(results[1].Drains[0]).To(Equal("syslog://drain-c"))
-		Expect(results[1].Drains[1]).To(Equal("syslog://drain-d"))
-		Expect(results[1].Hostname).To(Equal("org.space.app-name-2"))
+		result1 := binding.LegacyBinding{AppID: "app-id-1", Drains: []string{"syslog://drain-a", "syslog://drain-b"}, Hostname: "org.space.app-name-1", V2Available: true}
+		result2 := binding.LegacyBinding{AppID: "app-id-2", Drains: []string{"syslog://drain-c", "syslog://drain-d"}, Hostname: "org.space.app-name-2", V2Available: true}
+		Expect(results).Should(ConsistOf(result1, result2))
 	})
 })
 
