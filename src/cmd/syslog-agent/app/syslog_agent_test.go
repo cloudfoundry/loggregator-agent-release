@@ -129,7 +129,7 @@ var _ = Describe("SyslogAgent", func() {
 			Eventually(hasMetric(mc, "ingress", map[string]string{"scope": "all_drains"})).Should(BeTrue())
 
 			Eventually(hasMetric(mc, "dropped", map[string]string{"direction": "egress"})).Should(BeTrue())
-			Eventually(hasMetric(mc, "egress", nil)).Should(BeTrue())
+			Eventually(hasMetric(mc, "egress", map[string]string{"direction": "egress", "drain_scope": "aggregate", "drain_url": bindingCache.aggregate[0].Drains[0]})).Should(BeTrue())
 		})
 
 		It("does not have debug metrics by default", func() {

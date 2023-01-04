@@ -57,20 +57,16 @@ func NewWriterFactoryErrorf(kind WriterKind, bindingURL *url.URL, format string,
 type WriterFactory struct {
 	internalTlsConfig *tls.Config
 	externalTlsConfig *tls.Config
-	egressMetric      metrics.Counter
 	netConf           NetworkTimeoutConfig
+	m                 metricClient
 }
 
 func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient) WriterFactory {
-	metric := m.NewCounter(
-		"egress",
-		"Total number of envelopes successfully egressed.",
-	)
 	return WriterFactory{
 		internalTlsConfig: internalTlsConfig,
 		externalTlsConfig: externalTlsConfig,
-		egressMetric:      metric,
 		netConf:           netConf,
+		m:                 m,
 	}
 }
 
@@ -102,6 +98,22 @@ func (f WriterFactory) NewWriter(
 			return nil, err
 		}
 	}
+
+	drainScope := "app"
+	if urlBinding.AppID == "" {
+		drainScope = "aggregate"
+	}
+
+	egressMetric := f.m.NewCounter(
+		"egress",
+		"Total number of envelopes successfully egressed.",
+		metrics.WithMetricLabels(map[string]string{
+			"direction":   "egress",
+			"drain_scope": drainScope,
+			"drain_url":   urlBinding.URL.String(),
+		}),
+	)
+
 	var w egress.WriteCloser
 	switch urlBinding.URL.Scheme {
 	case "https":
@@ -109,14 +121,14 @@ func (f WriterFactory) NewWriter(
 			urlBinding,
 			f.netConf,
 			tlsClonedConfig,
-			f.egressMetric,
+			egressMetric,
 			converter,
 		)
 	case "syslog":
 		w = NewTCPWriter(
 			urlBinding,
 			f.netConf,
-			f.egressMetric,
+			egressMetric,
 			converter,
 		)
 	case "syslog-tls":
@@ -124,7 +136,7 @@ func (f WriterFactory) NewWriter(
 			urlBinding,
 			f.netConf,
 			tlsClonedConfig,
-			f.egressMetric,
+			egressMetric,
 			converter,
 		)
 	}
