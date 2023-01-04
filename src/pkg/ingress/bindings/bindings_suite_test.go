@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestCups(t *testing.T) {
+func TestBindings(t *testing.T) {
 	log.SetOutput(GinkgoWriter)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Drainbinding Suite")

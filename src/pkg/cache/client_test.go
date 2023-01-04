@@ -31,6 +31,29 @@ var _ = Describe("Client", func() {
 	It("returns bindings from the cache", func() {
 		bindings := []binding.Binding{
 			{
+				Url: "drain-1",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "host-1", AppID: "app-id-1"}},
+					},
+				},
+			},
+		}
+
+		j, err := json.Marshal(bindings)
+		Expect(err).ToNot(HaveOccurred())
+		spyHTTPClient.response = &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(j)),
+		}
+
+		Expect(client.Get()).To(Equal(bindings))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/bindings"))
+	})
+
+	It("returns legacy bindings from the cache", func() {
+		bindings := []binding.LegacyBinding{
+			{
 				AppID:    "app-id-1",
 				Drains:   []string{"drain-1"},
 				Hostname: "host-1",
@@ -44,12 +67,12 @@ var _ = Describe("Client", func() {
 			Body:       io.NopCloser(bytes.NewReader(j)),
 		}
 
-		Expect(client.Get()).To(Equal(bindings))
+		Expect(client.LegacyGet()).To(Equal(bindings))
 		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/bindings"))
 	})
 
 	It("returns aggregate drains from the cache", func() {
-		bindings := []binding.Binding{
+		bindings := []binding.LegacyBinding{
 			{
 				AppID:    "app-id-1",
 				Drains:   []string{"drain-1"},
@@ -107,6 +130,16 @@ func newSpyHTTPClient() *spyHTTPClient {
 }
 
 func (s *spyHTTPClient) Get(url string) (*http.Response, error) {
+	s.requestURL = url
+	return s.response, s.err
+}
+
+func (s *spyHTTPClient) LegacyGet(url string) (*http.Response, error) {
+	s.requestURL = url
+	return s.response, s.err
+}
+
+func (s *spyHTTPClient) GetAggregate(url string) (*http.Response, error) {
 	s.requestURL = url
 	return s.response, s.err
 }

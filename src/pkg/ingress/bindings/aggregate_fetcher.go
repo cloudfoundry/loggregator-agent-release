@@ -8,7 +8,7 @@ import (
 )
 
 type CacheFetcher interface {
-	GetAggregate() ([]binding.Binding, error)
+	GetAggregate() ([]binding.LegacyBinding, error)
 }
 
 type AggregateDrainFetcher struct {
@@ -59,7 +59,7 @@ func parseBindings(urls []string) []syslog.Binding {
 		}
 		binding := syslog.Binding{
 			AppId: "",
-			Drain: b,
+			Drain: syslog.Drain{Url: b},
 			Type:  bindingType,
 		}
 		syslogBindings = append(syslogBindings, binding)

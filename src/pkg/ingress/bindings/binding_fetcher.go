@@ -1,6 +1,8 @@
 package bindings
 
 import (
+	"errors"
+	"log"
 	"math"
 	"net/url"
 	"sort"
@@ -21,6 +23,7 @@ type Metrics interface {
 // Getter is configured to fetch HTTP responses
 type Getter interface {
 	Get() ([]binding.Binding, error)
+	LegacyGet() ([]binding.LegacyBinding, error)
 }
 
 // BindingFetcher uses a Getter to fetch and decode Bindings
@@ -29,10 +32,11 @@ type BindingFetcher struct {
 	maxLatency   metrics.Gauge
 	limit        int
 	getter       Getter
+	logger       *log.Logger
 }
 
 // NewBindingFetcher returns a new BindingFetcher
-func NewBindingFetcher(limit int, g Getter, m Metrics) *BindingFetcher {
+func NewBindingFetcher(limit int, g Getter, m Metrics, logger *log.Logger) *BindingFetcher {
 	refreshCount := m.NewCounter(
 		"binding_refresh_count",
 		"Total number of binding refresh attempts made to the binding provider.",
@@ -49,6 +53,7 @@ func NewBindingFetcher(limit int, g Getter, m Metrics) *BindingFetcher {
 		getter:       g,
 		refreshCount: refreshCount,
 		maxLatency:   maxLatency,
+		logger:       logger,
 	}
 }
 
@@ -62,22 +67,105 @@ func (f *BindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	}()
 
 	start := time.Now()
-
 	bindings, err := f.getter.Get()
 	if err != nil {
-		return nil, err
+		f.logger.Printf("fetching v2/bindings failed: %s . Falling back to /bindings endpoint", err)
+		var legacySyslogBindings []binding.LegacyBinding
+		legacySyslogBindings, err = f.getter.LegacyGet()
+		if err != nil {
+			return nil, err
+		}
+		if len(legacySyslogBindings) == 0 {
+			return []syslog.Binding{}, nil
+		}
+		if legacySyslogBindings[0].V2Available {
+			return nil, errors.New("legacy endpoint is deprecated: skipping result parsing")
+		}
+		latency = time.Since(start).Nanoseconds()
+		return f.legacyToSyslogBindings(legacySyslogBindings, f.limit), nil
 	}
 	latency = time.Since(start).Nanoseconds()
-	syslogBindings := f.toSyslogBindings(bindings, f.limit)
-
-	return syslogBindings, nil
+	return f.toSyslogBindings(bindings, f.limit), nil
 }
 
 func (f *BindingFetcher) DrainLimit() int {
 	return f.limit
 }
 
+type ByUrl []syslog.Drain
+
+func (b ByUrl) Len() int           { return len(b) }
+func (b ByUrl) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b ByUrl) Less(i, j int) bool { return b[i].Url < b[j].Url }
+
+type mold struct {
+	drains   []syslog.Drain
+	hostname string
+}
+
+func (f *BindingFetcher) remodelBindings(bs []binding.Binding) map[string]mold {
+	remodel := make(map[string]mold)
+	for _, b := range bs {
+		for _, c := range b.Credentials {
+			for _, a := range c.Apps {
+				if val, ok := remodel[a.AppID]; ok {
+					drain := syslog.Drain{Url: b.Url, Credentials: syslog.Credentials{Cert: c.Cert, Key: c.Key, CA: c.CA}}
+					remodel[a.AppID] = mold{drains: append(val.drains, drain), hostname: a.Hostname}
+				} else {
+					drain := syslog.Drain{Url: b.Url, Credentials: syslog.Credentials{Cert: c.Cert, Key: c.Key, CA: c.CA}}
+					remodel[a.AppID] = mold{drains: []syslog.Drain{drain}, hostname: a.Hostname}
+				}
+			}
+		}
+	}
+	return remodel
+}
+
 func (f *BindingFetcher) toSyslogBindings(bs []binding.Binding, perAppLimit int) []syslog.Binding {
+	var bindings []syslog.Binding
+
+	remodel := f.remodelBindings(bs)
+	for appID, b := range remodel {
+
+		drains := b.drains
+		sort.Sort(ByUrl(drains))
+
+		if perAppLimit < len(drains) {
+			drains = drains[:perAppLimit]
+		}
+
+		for _, d := range drains {
+			u, err := url.Parse(d.Url)
+			if err != nil {
+				continue
+			}
+
+			var t syslog.BindingType
+			drainType := u.Query().Get("drain-type")
+
+			switch drainType {
+			case "metrics":
+				t = syslog.BINDING_TYPE_METRIC
+			case "all":
+				t = syslog.BINDING_TYPE_ALL
+			default:
+				t = syslog.BINDING_TYPE_LOG
+			}
+
+			binding := syslog.Binding{
+				AppId:    appID,
+				Hostname: b.hostname,
+				Drain:    d,
+				Type:     t,
+			}
+			bindings = append(bindings, binding)
+		}
+	}
+
+	return bindings
+}
+
+func (f *BindingFetcher) legacyToSyslogBindings(bs []binding.LegacyBinding, perAppLimit int) []syslog.Binding {
 	var bindings []syslog.Binding
 	for _, b := range bs {
 		drains := b.Drains
@@ -108,7 +196,7 @@ func (f *BindingFetcher) toSyslogBindings(bs []binding.Binding, perAppLimit int)
 			binding := syslog.Binding{
 				AppId:    b.AppID,
 				Hostname: b.Hostname,
-				Drain:    u.String(),
+				Drain:    syslog.Drain{Url: u.String()},
 				Type:     t,
 			}
 			bindings = append(bindings, binding)

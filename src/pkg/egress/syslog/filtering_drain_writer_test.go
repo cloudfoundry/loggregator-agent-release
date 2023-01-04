@@ -11,7 +11,11 @@ import (
 
 var _ = Describe("Filtering Drain Writer", func() {
 	It("filters all envelope types except log", func() {
-		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_LOG}
+		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1",
+			Drain: syslog.Drain{
+				Url: "syslog://drain.url.com",
+			},
+			Type: syslog.BINDING_TYPE_LOG}
 		fakeWriter := &fakeWriter{}
 
 		logEnv := &loggregator_v2.Envelope{
@@ -49,7 +53,11 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("filters all envelope types except metric", func() {
-		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_METRIC}
+		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1",
+			Drain: syslog.Drain{
+				Url: "syslog://drain.url.com",
+			},
+			Type: syslog.BINDING_TYPE_METRIC}
 		fakeWriter := &fakeWriter{}
 
 		logEnv := &loggregator_v2.Envelope{
@@ -100,7 +108,11 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("does no filtering for binding types of 'all' ", func() {
-		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_ALL}
+		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1",
+			Drain: syslog.Drain{
+				Url: "syslog://drain.url.com",
+			},
+			Type: syslog.BINDING_TYPE_ALL}
 		fakeWriter := &fakeWriter{}
 
 		logEnv := &loggregator_v2.Envelope{
@@ -139,7 +151,11 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	DescribeTable("filters all envelopes that are not logs and metrics", func(env *loggregator_v2.Envelope) {
-		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_ALL}
+		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1",
+			Drain: syslog.Drain{
+				Url: "syslog://drain.url.com",
+			},
+			Type: syslog.BINDING_TYPE_ALL}
 		fakeWriter := &fakeWriter{}
 
 		drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
@@ -156,7 +172,11 @@ var _ = Describe("Filtering Drain Writer", func() {
 
 	Describe("aggregate drains", func() {
 		DescribeTable("allows all envelope types", func(env *loggregator_v2.Envelope) {
-			binding := syslog.Binding{AppId: "all", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: syslog.BINDING_TYPE_AGGREGATE}
+			binding := syslog.Binding{AppId: "all", Hostname: "host-1",
+				Drain: syslog.Drain{
+					Url: "syslog://drain.url.com",
+				},
+				Type: syslog.BINDING_TYPE_AGGREGATE}
 			fakeWriter := &fakeWriter{}
 
 			drain, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
@@ -176,7 +196,11 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("errors on invalid binding type", func() {
-		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1", Drain: "syslog://drain.url.com", Type: 10}
+		binding := syslog.Binding{AppId: "app-1", Hostname: "host-1",
+			Drain: syslog.Drain{
+				Url: "syslog://drain.url.com",
+			},
+			Type: 10}
 		_, err := syslog.NewFilteringDrainWriter(binding, &fakeWriter{})
 		Expect(err).To(HaveOccurred())
 	})

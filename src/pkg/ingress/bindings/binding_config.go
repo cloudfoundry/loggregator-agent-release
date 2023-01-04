@@ -27,7 +27,7 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 	}
 
 	for _, b := range bs {
-		urlParsed, err := url.Parse(b.Drain)
+		urlParsed, err := url.Parse(b.Drain.Url)
 		if err != nil {
 			continue
 		}

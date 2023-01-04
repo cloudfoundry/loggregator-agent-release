@@ -68,7 +68,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	var invalidDrains float64
 	var blacklistedDrains float64
 	for _, b := range sourceBindings {
-		u, err := url.Parse(b.Drain)
+		u, err := url.Parse(b.Drain.Url)
 		if err != nil {
 			invalidDrains += 1
 			continue

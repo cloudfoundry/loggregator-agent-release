@@ -26,9 +26,9 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 	It("returns valid bindings", func() {
 		input := []syslog.Binding{
-			{AppId: "app-id-with-multiple-drains", Hostname: "we.dont.care", Drain: "syslog://10.10.10.10"},
-			{AppId: "app-id-with-multiple-drains", Hostname: "we.dont.care", Drain: "syslog://10.10.10.12"},
-			{AppId: "app-id-with-good-drain", Hostname: "we.dont.care", Drain: "syslog://10.10.10.10"},
+			{AppId: "app-id-with-multiple-drains", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://10.10.10.10"}},
+			{AppId: "app-id-with-multiple-drains", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://10.10.10.12"}},
+			{AppId: "app-id-with-good-drain", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://10.10.10.10"}},
 		}
 		bindingReader := &SpyBindingReader{bindings: input}
 
@@ -52,7 +52,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when syslog drain is unparsable", func() {
 		BeforeEach(func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "://"},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "://"}},
 			}
 
 			filter = bindings.NewFilteredBindingFetcher(
@@ -75,7 +75,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when drain has no host", func() {
 		BeforeEach(func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "https:///path"},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https:///path"}},
 			}
 
 			filter = bindings.NewFilteredBindingFetcher(
@@ -102,12 +102,12 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 		BeforeEach(func() {
 			input = []syslog.Binding{
-				{AppId: "app-id", Hostname: "known", Drain: "syslog://10.10.10.10"},
-				{AppId: "app-id", Hostname: "known", Drain: "syslog-tls://10.10.10.10"},
-				{AppId: "app-id", Hostname: "known", Drain: "https://10.10.10.10"},
-				{AppId: "app-id", Hostname: "unknown", Drain: "bad-scheme://10.10.10.10"},
-				{AppId: "app-id", Hostname: "unknown", Drain: "bad-scheme:///path"},
-				{AppId: "app-id", Hostname: "unknown", Drain: "blah://10.10.10.10"},
+				{AppId: "app-id", Hostname: "known", Drain: syslog.Drain{Url: "syslog://10.10.10.10"}},
+				{AppId: "app-id", Hostname: "known", Drain: syslog.Drain{Url: "syslog-tls://10.10.10.10"}},
+				{AppId: "app-id", Hostname: "known", Drain: syslog.Drain{Url: "https://10.10.10.10"}},
+				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "bad-scheme://10.10.10.10"}},
+				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "bad-scheme:///path"}},
+				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "blah://10.10.10.10"}},
 			}
 
 			metrics = metricsHelpers.NewMetricsRegistry()
@@ -131,7 +131,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when the drain host fails to resolve", func() {
 		BeforeEach(func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "syslog://some.invalid.host"},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://some.invalid.host"}},
 			}
 
 			filter = bindings.NewFilteredBindingFetcher(
@@ -156,7 +156,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when the syslog drain has been blacklisted", func() {
 		BeforeEach(func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: "syslog://some.invalid.host"},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://some.invalid.host"}},
 			}
 
 			filter = bindings.NewFilteredBindingFetcher(
