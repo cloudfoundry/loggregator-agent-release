@@ -196,7 +196,7 @@ func (f *BindingFetcher) legacyToSyslogBindings(bs []binding.LegacyBinding, perA
 			binding := syslog.Binding{
 				AppId:    b.AppID,
 				Hostname: b.Hostname,
-				Drain:    syslog.Drain{Url: u.String(), Credentials: syslog.Credentials{Cert: "", Key: ""}},
+				Drain:    syslog.Drain{Url: u.String()},
 				Type:     t,
 			}
 			bindings = append(bindings, binding)
