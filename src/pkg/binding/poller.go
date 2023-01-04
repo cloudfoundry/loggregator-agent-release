@@ -131,11 +131,11 @@ func (p *Poller) pollLegacyFallback() {
 		resp, err := p.apiClient.LegacyGet(nextID)
 		if err != nil {
 			p.bindingRefreshErrorCounter.Add(1)
-			p.logger.Printf("failed to get page %d from internal bindings: %s", nextID, err)
+			p.logger.Printf("failed to get page %d from internal legacy bindings endpoint: %s", nextID, err)
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			p.logger.Printf("unexpected response from internal bindings endpoint. status code: %d, falling back to legacy endpoint", resp.StatusCode)
+			p.logger.Printf("unexpected response from internal legacy bindings endpoint. status code: %d", resp.StatusCode)
 			return
 		}
 
