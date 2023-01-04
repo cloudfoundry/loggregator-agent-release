@@ -17,16 +17,6 @@ var _ = Describe("EgressFactory", func() {
 		sm *metricsHelpers.SpyMetricsRegistry
 	)
 
-	type egressMetric struct {
-		name string
-		tags map[string]string
-	}
-
-	type testCase struct {
-		URLBinding syslog.URLBinding
-		metric     egressMetric
-	}
-
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
 		f = syslog.NewWriterFactory(&tls.Config{}, &tls.Config{}, syslog.NetworkTimeoutConfig{}, sm) //nolint:gosec

@@ -57,7 +57,6 @@ func NewWriterFactoryErrorf(kind WriterKind, bindingURL *url.URL, format string,
 type WriterFactory struct {
 	internalTlsConfig *tls.Config
 	externalTlsConfig *tls.Config
-	egressMetric      metrics.Counter
 	netConf           NetworkTimeoutConfig
 	m                 metricClient
 }
@@ -105,7 +104,7 @@ func (f WriterFactory) NewWriter(
 		drainScope = "aggregate"
 	}
 
-	f.egressMetric = f.m.NewCounter(
+	egressMetric := f.m.NewCounter(
 		"egress",
 		"Total number of envelopes successfully egressed.",
 		metrics.WithMetricLabels(map[string]string{
@@ -122,14 +121,14 @@ func (f WriterFactory) NewWriter(
 			urlBinding,
 			f.netConf,
 			tlsClonedConfig,
-			f.egressMetric,
+			egressMetric,
 			converter,
 		)
 	case "syslog":
 		w = NewTCPWriter(
 			urlBinding,
 			f.netConf,
-			f.egressMetric,
+			egressMetric,
 			converter,
 		)
 	case "syslog-tls":
@@ -137,7 +136,7 @@ func (f WriterFactory) NewWriter(
 			urlBinding,
 			f.netConf,
 			tlsClonedConfig,
-			f.egressMetric,
+			egressMetric,
 			converter,
 		)
 	}
