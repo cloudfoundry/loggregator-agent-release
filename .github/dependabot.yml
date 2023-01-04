@@ -12,3 +12,10 @@ updates:
     directory: "/src"
     schedule:
       interval: "daily"
+
+  # Maintain dependencies for Go Modules
+  - package-ecosystem: "gomod"
+    directory: "/src"
+    target-branch: "v6.x"
+    schedule:
+      interval: "daily"
