@@ -1,6 +1,5 @@
 version: 2
 updates:
-
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -12,10 +11,12 @@ updates:
     directory: "/src"
     schedule:
       interval: "daily"
-
-  # Maintain dependencies for Go Modules
   - package-ecosystem: "gomod"
     directory: "/src"
     target-branch: "v6.x"
     schedule:
       interval: "daily"
+    labels:
+    - "v6.x"
+    - "go"
+    - "dependencies"
