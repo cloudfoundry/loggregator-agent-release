@@ -77,13 +77,16 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 	if ub.AppID == "" {
 		drainScope = "aggregate"
 	}
+	anonymousURL := *ub.URL
+	anonymousURL.User = nil
+	anonymousURL.RawQuery = ""
 	egressMetric := f.m.NewCounter(
 		"egress",
 		"Total number of envelopes successfully egressed.",
 		metrics.WithMetricLabels(map[string]string{
 			"direction":   "egress",
 			"drain_scope": drainScope,
-			"drain_url":   ub.URL.String(),
+			"drain_url":   anonymousURL.String(),
 		}),
 	)
 
