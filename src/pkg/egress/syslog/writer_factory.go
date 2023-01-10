@@ -23,35 +23,26 @@ const (
 )
 
 type WriterFactoryError struct {
-	Kind    WriterKind
 	Message string
 	URL     *url.URL
 }
 
-func (e WriterFactoryError) StringKind() string {
-	switch e.Kind {
-	case Https:
-		return "https"
-	case Syslog:
-		return "syslog"
-	case SyslogTLS:
-		return "syslogTLS"
-	case Unsupported:
-		return "unsupported protocol"
+func NewWriterFactoryErrorf(u *url.URL, format string, a ...any) error {
+	return WriterFactoryError{
+		URL:     u,
+		Message: fmt.Sprintf(format, a...),
 	}
-	return "error"
+}
+
+func (e WriterFactoryError) anonymizedURL() *url.URL {
+	u := *e.URL
+	u.User = nil
+	u.RawQuery = ""
+	return &u
 }
 
 func (e WriterFactoryError) Error() string {
-	return fmt.Sprintf("%s: %s, binding: %q", e.StringKind(), e.Message, e.URL)
-}
-
-func NewWriterFactoryErrorf(kind WriterKind, bindingURL *url.URL, format string, a ...any) error {
-	return WriterFactoryError{
-		Kind:    kind,
-		URL:     bindingURL,
-		Message: fmt.Sprintf(format, a...),
-	}
+	return fmt.Sprintf("%q: %s", e.anonymizedURL(), e.Message)
 }
 
 type WriterFactory struct {
@@ -84,17 +75,17 @@ func (f WriterFactory) NewWriter(
 	converter := NewConverter(o...)
 	tlsClonedConfig := tlsConfig.Clone()
 	if len(urlBinding.Certificate) > 0 && len(urlBinding.PrivateKey) > 0 {
-		credentials, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
+		cert, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
 		if err != nil {
-			err = NewWriterFactoryErrorf(SyslogTLS, urlBinding.URL, "failed to load certificate: %s", err.Error())
+			err = NewWriterFactoryErrorf(urlBinding.URL, "failed to load certificate: %s", err.Error())
 			return nil, err
 		}
-		tlsClonedConfig.Certificates = []tls.Certificate{credentials}
+		tlsClonedConfig.Certificates = []tls.Certificate{cert}
 	}
 	if len(urlBinding.CA) > 0 {
 		ok := tlsClonedConfig.RootCAs.AppendCertsFromPEM(urlBinding.CA)
 		if !ok {
-			err := NewWriterFactoryErrorf(SyslogTLS, urlBinding.URL, "failed to load root ca")
+			err := NewWriterFactoryErrorf(urlBinding.URL, "failed to load root CA")
 			return nil, err
 		}
 	}
@@ -142,7 +133,7 @@ func (f WriterFactory) NewWriter(
 	}
 
 	if w == nil {
-		return nil, NewWriterFactoryErrorf(Unsupported, urlBinding.URL, "%q", urlBinding.URL.Scheme)
+		return nil, NewWriterFactoryErrorf(urlBinding.URL, "unsupported protocol: %q", urlBinding.URL.Scheme)
 	}
 
 	return NewRetryWriter(
