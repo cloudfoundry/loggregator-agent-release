@@ -42,6 +42,25 @@ properties:
     default: ""
     example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
 
+  aggregate_drain_certificates:
+    description: "Key material for mTLS connections for aggregate drains"
+    default: ""
+    example: |
+      - url: url1
+        ca: |
+          --begin cert--...
+        cert: |
+          -- begin cert--....
+        key: |
+          -- begin key--...
+      - url: url2
+        ca: |
+          --begin cert--...
+        cert: |
+          -- begin cert--....
+        key: |
+          -- begin key--...
+
   external_port:
     description: |
       The port where the cache serves bindings
