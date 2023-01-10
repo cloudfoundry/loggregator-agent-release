@@ -13,15 +13,6 @@ type metricClient interface {
 	NewCounter(name, helpText string, o ...metrics.MetricOption) metrics.Counter
 }
 
-type WriterKind int
-
-const (
-	Https WriterKind = iota
-	Syslog
-	SyslogTLS
-	Unsupported
-)
-
 type WriterFactoryError struct {
 	Message string
 	URL     *url.URL
