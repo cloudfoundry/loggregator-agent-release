@@ -52,83 +52,80 @@ func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Conf
 	}
 }
 
-func (f WriterFactory) NewWriter(
-	urlBinding *URLBinding,
-) (egress.WriteCloser, error) {
-	var o []ConverterOption
-	if urlBinding.OmitMetadata {
-		o = append(o, WithoutSyslogMetadata())
+func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
+	tlsCfg := f.externalTlsConfig.Clone()
+	if ub.InternalTls {
+		tlsCfg = f.internalTlsConfig.Clone()
 	}
-	tlsConfig := f.externalTlsConfig
-	if urlBinding.InternalTls {
-		tlsConfig = f.internalTlsConfig
-	}
-	converter := NewConverter(o...)
-	tlsClonedConfig := tlsConfig.Clone()
-	if len(urlBinding.Certificate) > 0 && len(urlBinding.PrivateKey) > 0 {
-		cert, err := tls.X509KeyPair(urlBinding.Certificate, urlBinding.PrivateKey)
+	if len(ub.Certificate) > 0 && len(ub.PrivateKey) > 0 {
+		cert, err := tls.X509KeyPair(ub.Certificate, ub.PrivateKey)
 		if err != nil {
-			err = NewWriterFactoryErrorf(urlBinding.URL, "failed to load certificate: %s", err.Error())
+			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", err.Error())
 			return nil, err
 		}
-		tlsClonedConfig.Certificates = []tls.Certificate{cert}
+		tlsCfg.Certificates = []tls.Certificate{cert}
 	}
-	if len(urlBinding.CA) > 0 {
-		ok := tlsClonedConfig.RootCAs.AppendCertsFromPEM(urlBinding.CA)
+	if len(ub.CA) > 0 {
+		ok := tlsCfg.RootCAs.AppendCertsFromPEM(ub.CA)
 		if !ok {
-			err := NewWriterFactoryErrorf(urlBinding.URL, "failed to load root CA")
+			err := NewWriterFactoryErrorf(ub.URL, "failed to load root CA")
 			return nil, err
 		}
 	}
 
 	drainScope := "app"
-	if urlBinding.AppID == "" {
+	if ub.AppID == "" {
 		drainScope = "aggregate"
 	}
-
 	egressMetric := f.m.NewCounter(
 		"egress",
 		"Total number of envelopes successfully egressed.",
 		metrics.WithMetricLabels(map[string]string{
 			"direction":   "egress",
 			"drain_scope": drainScope,
-			"drain_url":   urlBinding.URL.String(),
+			"drain_url":   ub.URL.String(),
 		}),
 	)
 
+	var o []ConverterOption
+	if ub.OmitMetadata {
+		o = append(o, WithoutSyslogMetadata())
+	}
+	converter := NewConverter(o...)
+
 	var w egress.WriteCloser
-	switch urlBinding.URL.Scheme {
+	switch ub.URL.Scheme {
 	case "https":
 		w = NewHTTPSWriter(
-			urlBinding,
+			ub,
 			f.netConf,
-			tlsClonedConfig,
+			tlsCfg,
 			egressMetric,
 			converter,
 		)
 	case "syslog":
 		w = NewTCPWriter(
-			urlBinding,
+			ub,
 			f.netConf,
 			egressMetric,
 			converter,
 		)
 	case "syslog-tls":
 		w = NewTLSWriter(
-			urlBinding,
+			ub,
 			f.netConf,
-			tlsClonedConfig,
+			tlsCfg,
 			egressMetric,
 			converter,
 		)
 	}
 
 	if w == nil {
-		return nil, NewWriterFactoryErrorf(urlBinding.URL, "unsupported protocol: %q", urlBinding.URL.Scheme)
+		return nil, NewWriterFactoryErrorf(ub.URL, "unsupported protocol: %q", ub.URL.Scheme)
 	}
 
 	return NewRetryWriter(
-		urlBinding,
+		ub,
 		ExponentialDuration,
 		maxRetries,
 		w,
