@@ -35,6 +35,7 @@ type SyslogAgent struct {
 	debugMetrics        bool
 	bindingManager      BindingManager
 	grpc                GRPC
+	v2Srv               *v2.Server
 	log                 *log.Logger
 	bindingsPerAppLimit int
 }
@@ -259,17 +260,18 @@ func (s *SyslogAgent) Run() {
 	)
 
 	rx := v2.NewReceiver(diode, im, omm)
-	srv := v2.NewServer(
+	s.v2Srv = v2.NewServer(
 		fmt.Sprintf("127.0.0.1:%d", s.grpc.Port),
 		rx,
 		grpc.Creds(serverCreds),
 		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
-	srv.Start()
+	s.v2Srv.Start()
 }
 
 func (s *SyslogAgent) Stop() {
 	if s.pprofServer != nil {
 		s.pprofServer.Close()
 	}
+	s.v2Srv.Stop()
 }
