@@ -65,8 +65,8 @@ func (u *UDPForwarder) Run() {
 			Handler:           http.DefaultServeMux,
 			ReadHeaderTimeout: 2 * time.Second,
 		}
-		go func() { log.Println("PPROF SERVER STOPPED " + u.pprofServer.ListenAndServe().Error()) }()
 		u.mu.Unlock()
+		go func() { u.log.Println("PPROF SERVER STOPPED " + u.pprofServer.ListenAndServe().Error()) }()
 	}
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
 		u.grpc.CAFile,
