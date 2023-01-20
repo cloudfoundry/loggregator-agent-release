@@ -10,9 +10,11 @@ import (
 )
 
 type Server struct {
-	addr string
-	rx   *Receiver
-	opts []grpc.ServerOption
+	addr    string
+	lis     net.Listener
+	grpcSrv *grpc.Server
+	rx      *Receiver
+	opts    []grpc.ServerOption
 }
 
 func NewServer(addr string, rx *Receiver, opts ...grpc.ServerOption) *Server {
@@ -24,16 +26,22 @@ func NewServer(addr string, rx *Receiver, opts ...grpc.ServerOption) *Server {
 }
 
 func (s *Server) Start() {
-	lis, err := net.Listen("tcp", s.addr)
+	var err error
+	s.lis, err = net.Listen("tcp", s.addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	log.Printf("grpc bound to: %s", lis.Addr())
+	log.Printf("grpc bound to: %s", s.lis.Addr())
 
-	grpcServer := grpc.NewServer(s.opts...)
-	loggregator_v2.RegisterIngressServer(grpcServer, s.rx)
+	s.grpcSrv = grpc.NewServer(s.opts...)
+	loggregator_v2.RegisterIngressServer(s.grpcSrv, s.rx)
 
-	if err := grpcServer.Serve(lis); err != nil {
+	if err := s.grpcSrv.Serve(s.lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+}
+
+func (s *Server) Stop() {
+	s.grpcSrv.Stop()
+	s.lis.Close()
 }
