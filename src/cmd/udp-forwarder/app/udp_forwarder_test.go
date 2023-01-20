@@ -12,7 +12,6 @@ import (
 	"github.com/cloudfoundry/sonde-go/events"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gexec"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
@@ -25,77 +24,103 @@ import (
 )
 
 var _ = Describe("UDPForwarder", func() {
-	var (
-		spyLoggregatorV2Ingress *spyLoggregatorV2Ingress
+	const forwarderCN = "metron"
 
-		// udpPort will be incremented for each test
-		udpPort    = 10000
-		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts  = testhelper.GenerateCerts("loggregatorCA")
+	var (
+		forwarderPort int
+		pprofPort     int
+		metricsPort   int
+
+		spyReceiver    *spyReceiver
+		spyEmitter     *emitter.EventEmitter
+		emitCancelFunc context.CancelFunc
+
+		forwarderCerts   *testhelper.TestCerts
+		forwarderCfg     app.Config
+		forwarderMetrics *metricsHelpers.SpyMetricsRegistry
+		forwarderLogr    *log.Logger
+		forwarder        *app.UDPForwarder
 	)
 
 	BeforeEach(func() {
-		spyLoggregatorV2Ingress = startSpyLoggregatorV2Ingress(testCerts)
-	})
+		forwarderPort = 30000 + GinkgoParallelProcess()
+		pprofPort = 31000 + GinkgoParallelProcess()
+		metricsPort = 32000 + GinkgoParallelProcess()
 
-	AfterEach(func() {
-		gexec.CleanupBuildArtifacts()
-		udpPort++
-	})
+		forwarderCerts = testhelper.GenerateCerts("forwarder-ca")
 
-	It("forwards envelopes from Loggregator V1 to V2", func() {
-		mc := metricsHelpers.NewMetricsRegistry()
-		cfg := app.Config{
-			UDPPort: udpPort,
+		spyReceiver = startSpyReceiver(forwarderCerts, forwarderCN)
+
+		forwarderCfg = app.Config{
+			UDPPort: forwarderPort,
 			LoggregatorAgentGRPC: app.GRPC{
-				Addr:     spyLoggregatorV2Ingress.addr,
-				CAFile:   testCerts.CA(),
-				CertFile: testCerts.Cert("metron"),
-				KeyFile:  testCerts.Key("metron"),
+				Addr:     spyReceiver.addr,
+				CAFile:   forwarderCerts.CA(),
+				CertFile: forwarderCerts.Cert(forwarderCN),
+				KeyFile:  forwarderCerts.Key(forwarderCN),
 			},
 			Deployment: "test-deployment",
 			Job:        "test-job",
 			Index:      "4",
 			IP:         "127.0.0.1",
-		}
-		udpForwarder := app.NewUDPForwarder(cfg, testLogger, mc)
-		go udpForwarder.Run()
-		defer udpForwarder.Stop()
-
-		v1e := &events.Envelope{
-			Origin:    proto.String("doppler"),
-			EventType: events.Envelope_LogMessage.Enum(),
-			Timestamp: proto.Int64(time.Now().UnixNano()),
-			LogMessage: &events.LogMessage{
-				Message:     []byte("some-log-message"),
-				MessageType: events.LogMessage_OUT.Enum(),
-				Timestamp:   proto.Int64(time.Now().UnixNano()),
+			MetricsServer: config.MetricsServer{
+				Port:      uint16(metricsPort),
+				CAFile:    forwarderCerts.CA(),
+				CertFile:  forwarderCerts.Cert(forwarderCN),
+				KeyFile:   forwarderCerts.Key(forwarderCN),
+				PprofPort: uint16(pprofPort),
 			},
 		}
+		forwarderLogr = log.New(GinkgoWriter, "", log.LstdFlags)
+		forwarderMetrics = metricsHelpers.NewMetricsRegistry()
+	})
 
-		udpEmitter, err := emitter.NewUdpEmitter(fmt.Sprintf("127.0.0.1:%d", udpPort))
+	JustBeforeEach(func() {
+		forwarder = app.NewUDPForwarder(forwarderCfg, forwarderLogr, forwarderMetrics)
+		go forwarder.Run()
+
+		e, err := emitter.NewUdpEmitter(fmt.Sprintf("127.0.0.1:%d", forwarderPort))
 		Expect(err).ToNot(HaveOccurred())
-		v1Emitter := emitter.NewEventEmitter(udpEmitter, "")
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		spyEmitter = emitter.NewEventEmitter(e, "")
+		var ctx context.Context
+		ctx, emitCancelFunc = context.WithCancel(context.Background())
 		go func() {
+			v1e := &events.Envelope{
+				Origin:    proto.String("doppler"),
+				EventType: events.Envelope_LogMessage.Enum(),
+				Timestamp: proto.Int64(time.Now().UnixNano()),
+				LogMessage: &events.LogMessage{
+					Message:     []byte("some-log-message"),
+					MessageType: events.LogMessage_OUT.Enum(),
+					Timestamp:   proto.Int64(time.Now().UnixNano()),
+				},
+			}
 			ticker := time.NewTicker(10 * time.Millisecond)
 			defer ticker.Stop()
-			err := v1Emitter.EmitEnvelope(v1e)
+			err := spyEmitter.EmitEnvelope(v1e)
 			Expect(err).ToNot(HaveOccurred())
 			for {
 				select {
 				case <-ticker.C:
-					err := v1Emitter.EmitEnvelope(v1e)
+					err := spyEmitter.EmitEnvelope(v1e)
 					Expect(err).ToNot(HaveOccurred())
 				case <-ctx.Done():
 					return
 				}
 			}
 		}()
+		Eventually(spyReceiver.envelopes, 5).Should(Receive())
+	})
 
+	AfterEach(func() {
+		emitCancelFunc()
+		forwarder.Stop()
+		spyReceiver.close()
+	})
+
+	It("forwards envelopes from Loggregator V1 to V2", func() {
 		var v2e *loggregator_v2.Envelope
-		Eventually(spyLoggregatorV2Ingress.envelopes, 5).Should(Receive(&v2e))
+		Eventually(spyReceiver.envelopes, 5).Should(Receive(&v2e))
 		Expect(string(v2e.GetLog().GetPayload())).To(Equal("some-log-message"))
 
 		Expect(v2e.GetTags()["deployment"]).To(Equal("test-deployment"))
@@ -105,71 +130,37 @@ var _ = Describe("UDPForwarder", func() {
 	})
 
 	It("does not have debug metrics by default", func() {
-		mc := metricsHelpers.NewMetricsRegistry()
-		cfg := app.Config{
-			UDPPort: udpPort,
-			LoggregatorAgentGRPC: app.GRPC{
-				Addr:     spyLoggregatorV2Ingress.addr,
-				CAFile:   testCerts.CA(),
-				CertFile: testCerts.Cert("metron"),
-				KeyFile:  testCerts.Key("metron"),
-			},
-			MetricsServer: config.MetricsServer{
-				PprofPort:    1234,
-				DebugMetrics: false,
-			},
-			Deployment: "test-deployment",
-			Job:        "test-job",
-			Index:      "4",
-			IP:         "127.0.0.1",
-		}
-		udpForwarder := app.NewUDPForwarder(cfg, testLogger, mc)
-		go udpForwarder.Run()
-		defer udpForwarder.Stop()
-
-		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
+		Consistently(forwarderMetrics.GetDebugMetricsEnabled()).Should(BeFalse())
 		Consistently(func() error {
-			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", pprofPort))
 			return err
 		}).ShouldNot(BeNil())
-
 	})
 
-	It("can enable debug metrics", func() {
-		mc := metricsHelpers.NewMetricsRegistry()
-		cfg := app.Config{
-			UDPPort: udpPort,
-			LoggregatorAgentGRPC: app.GRPC{
-				Addr:     spyLoggregatorV2Ingress.addr,
-				CAFile:   testCerts.CA(),
-				CertFile: testCerts.Cert("metron"),
-				KeyFile:  testCerts.Key("metron"),
-			},
-			MetricsServer: config.MetricsServer{
-				PprofPort:    1235,
-				DebugMetrics: true,
-			},
-			Deployment: "test-deployment",
-			Job:        "test-job",
-			Index:      "4",
-			IP:         "127.0.0.1",
-		}
-		udpForwarder := app.NewUDPForwarder(cfg, testLogger, mc)
-		go udpForwarder.Run()
-		defer udpForwarder.Stop()
+	Context("when debug configuration is enabled", func() {
+		BeforeEach(func() {
+			forwarderCfg.MetricsServer.DebugMetrics = true
+		})
 
-		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
-		var resp *http.Response
-		Eventually(func() error {
-			var err error
-			resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
-			return err
-		}).Should(BeNil())
-		Expect(resp.StatusCode).To(Equal(200))
+		It("serves pprof", func() {
+			u := fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", pprofPort)
+			Eventually(func() bool {
+				resp, err := http.Get(u) //nolint:gosec
+				if err != nil {
+					return false
+				}
+				defer resp.Body.Close()
+				return resp.StatusCode == 200
+			}, 3).Should(BeTrue())
+		})
+
+		It("registers debug metrics", func() {
+			Eventually(forwarderMetrics.GetDebugMetricsEnabled).Should(BeTrue())
+		})
 	})
 })
 
-type spyLoggregatorV2Ingress struct {
+type spyReceiver struct {
 	loggregator_v2.UnimplementedIngressServer
 
 	addr      string
@@ -177,15 +168,15 @@ type spyLoggregatorV2Ingress struct {
 	envelopes chan *loggregator_v2.Envelope
 }
 
-func (s *spyLoggregatorV2Ingress) Sender(loggregator_v2.Ingress_SenderServer) error {
+func (s *spyReceiver) Sender(loggregator_v2.Ingress_SenderServer) error {
 	panic("not implemented")
 }
 
-func (s *spyLoggregatorV2Ingress) Send(context.Context, *loggregator_v2.EnvelopeBatch) (*loggregator_v2.SendResponse, error) {
+func (s *spyReceiver) Send(context.Context, *loggregator_v2.EnvelopeBatch) (*loggregator_v2.SendResponse, error) {
 	panic("not implemented")
 }
 
-func (s *spyLoggregatorV2Ingress) BatchSender(srv loggregator_v2.Ingress_BatchSenderServer) error {
+func (s *spyReceiver) BatchSender(srv loggregator_v2.Ingress_BatchSenderServer) error {
 	for {
 		batch, err := srv.Recv()
 		if err != nil {
@@ -198,32 +189,33 @@ func (s *spyLoggregatorV2Ingress) BatchSender(srv loggregator_v2.Ingress_BatchSe
 	}
 }
 
-func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregatorV2Ingress {
-	s := &spyLoggregatorV2Ingress{
+func startSpyReceiver(tc *testhelper.TestCerts, commonName string) *spyReceiver {
+	sr := &spyReceiver{
 		envelopes: make(chan *loggregator_v2.Envelope, 100),
 	}
 
-	serverCreds, err := plumbing.NewServerCredentials(
-		testCerts.Cert("metron"),
-		testCerts.Key("metron"),
-		testCerts.CA(),
+	creds, err := plumbing.NewServerCredentials(
+		tc.Cert(commonName),
+		tc.Key(commonName),
+		tc.CA(),
 	)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
-	loggregator_v2.RegisterIngressServer(grpcServer, s)
+	srv := grpc.NewServer(grpc.Creds(creds))
+	loggregator_v2.RegisterIngressServer(srv, sr)
 
-	s.close = func() {
+	sr.close = func() {
+		srv.Stop()
 		_ = lis.Close()
 	}
-	s.addr = lis.Addr().String()
+	sr.addr = lis.Addr().String()
 
 	go func() {
-		_ = grpcServer.Serve(lis)
+		_ = srv.Serve(lis)
 	}()
 
-	return s
+	return sr
 }
