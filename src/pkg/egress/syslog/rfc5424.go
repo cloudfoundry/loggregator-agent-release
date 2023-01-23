@@ -12,11 +12,12 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v9/rfc5424"
 )
 
-var findSpaces, findInvalidCharacters, findTrailingDashes *regexp.Regexp
+var findSpaces, findInvalidCharactersProcID, findInvalidCharactersHostname, findTrailingDashes *regexp.Regexp
 
 func init() {
 	findSpaces = regexp.MustCompile(`\s+`)
-	findInvalidCharacters = regexp.MustCompile("[^-a-zA-Z0-9]+")
+	findInvalidCharactersProcID = regexp.MustCompile("[^[:graph:]]+")
+	findInvalidCharactersHostname = regexp.MustCompile("[^-a-zA-Z0-9]+")
 	findTrailingDashes = regexp.MustCompile("-+$")
 }
 
@@ -84,9 +85,9 @@ func (c *Converter) BuildHostname(env *loggregator_v2.Envelope, defaultHostname 
 	spaceName, spaceOk := envTags["space_name"]
 	appName, appOk := envTags["app_name"]
 	if orgOk || spaceOk || appOk {
-		sanitizedOrgName := c.sanitize(orgName)
-		sanitizedSpaceName := c.sanitize(spaceName)
-		sanitizedAppName := c.sanitize(appName)
+		sanitizedOrgName := c.sanitizeHostname(orgName)
+		sanitizedSpaceName := c.sanitizeHostname(spaceName)
+		sanitizedAppName := c.sanitizeHostname(appName)
 		hostname = fmt.Sprintf("%s.%s.%s", c.truncate(sanitizedOrgName, 63), c.truncate(sanitizedSpaceName, 63), c.truncate(sanitizedAppName, 63))
 	}
 
@@ -100,8 +101,12 @@ func (c *Converter) truncate(s string, num int) string {
 	return s[:num]
 }
 
-func (c *Converter) sanitize(originalName string) string {
-	return findTrailingDashes.ReplaceAllString(findInvalidCharacters.ReplaceAllString(findSpaces.ReplaceAllString(originalName, "-"), ""), "")
+func (c *Converter) sanitizeHostname(originalName string) string {
+	return findTrailingDashes.ReplaceAllString(findInvalidCharactersHostname.ReplaceAllString(findSpaces.ReplaceAllString(originalName, "-"), ""), "")
+}
+
+func (c *Converter) sanitizeProcID(originalName string) string {
+	return findTrailingDashes.ReplaceAllString(findInvalidCharactersProcID.ReplaceAllString(findSpaces.ReplaceAllString(originalName, "-"), ""), "")
 }
 
 func (c *Converter) toRFC5424CounterMessage(env *loggregator_v2.Envelope, hostname, appID string) ([][]byte, error) {
@@ -147,7 +152,7 @@ func (c *Converter) toRFC5424LogMessage(env *loggregator_v2.Envelope, hostname, 
 	hostname = c.nilify(hostname)
 	appID = c.nilify(appID)
 	pid := c.nilify(generateProcessID(
-		env.Tags["source_type"],
+		c.sanitizeProcID(env.Tags["source_type"]),
 		env.InstanceId,
 	))
 	msg := appendNewline(removeNulls(env.GetLog().Payload))
