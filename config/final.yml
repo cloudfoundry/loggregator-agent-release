@@ -1,5 +1,5 @@
 final_name: loggregator-agent
 blobstore:
-  provider: s3
+  provider: gcs
   options:
     bucket_name: loggregator-agent-release-blobs
