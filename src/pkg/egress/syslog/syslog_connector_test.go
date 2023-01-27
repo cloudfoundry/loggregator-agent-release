@@ -201,7 +201,7 @@ var _ = Describe("SyslogConnector", func() {
 				}
 			}(writer)
 
-			Eventually(logClient.message).Should(ContainElement(MatchRegexp("\\d messages lost in user provided syslog drain")))
+			Eventually(logClient.message).Should(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
 			Eventually(logClient.appID).Should(ContainElement("app-id"))
 
 			Eventually(logClient.sourceType).Should(HaveLen(2))
@@ -239,7 +239,7 @@ var _ = Describe("SyslogConnector", func() {
 				}
 			}(writer)
 
-			Consistently(logClient.message).ShouldNot(ContainElement(MatchRegexp("\\d messages lost in user provided syslog drain")))
+			Consistently(logClient.message).ShouldNot(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
 		})
 
 		It("does not panic on unknown dropped metrics", func() {
