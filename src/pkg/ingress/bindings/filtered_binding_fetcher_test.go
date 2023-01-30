@@ -1,6 +1,7 @@
 package bindings_test
 
 import (
+	"bytes"
 	"errors"
 	"log"
 	"net"
@@ -50,11 +51,14 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	})
 
 	Context("when syslog drain is unparsable", func() {
+		var logBuffer bytes.Buffer
+
 		BeforeEach(func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "://"}},
 			}
 
+			log.SetOutput(&logBuffer)
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},
@@ -68,16 +72,20 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
+			Expect(logBuffer.String()).Should(MatchRegexp("Cannot parse syslog drain url for application"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 	})
 
 	Context("when drain has no host", func() {
+		var logBuffer bytes.Buffer
+
 		BeforeEach(func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https:///path"}},
 			}
 
+			log.SetOutput(&logBuffer)
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},
@@ -91,13 +99,15 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
+			Expect(logBuffer.String()).Should(MatchRegexp("No hostname found in syslog drain url (.*) for application"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 	})
 
 	Context("when syslog drain has unsupported scheme", func() {
 		var (
-			input []syslog.Binding
+			input     []syslog.Binding
+			logBuffer bytes.Buffer
 		)
 
 		BeforeEach(func() {
@@ -110,6 +120,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "blah://10.10.10.10"}},
 			}
 
+			log.SetOutput(&logBuffer)
 			metrics = metricsHelpers.NewMetricsRegistry()
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{},
@@ -124,16 +135,20 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal(input[:3]))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid scheme (.*) in syslog drain url (.*) for application"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(0.0))
 		})
 	})
 
 	Context("when the drain host fails to resolve", func() {
+		var logBuffer bytes.Buffer
+
 		BeforeEach(func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://some.invalid.host"}},
 			}
 
+			log.SetOutput(&logBuffer)
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{
 					resolveAddrError: errors.New("resolve error"),
@@ -149,16 +164,20 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
+			Expect(logBuffer.String()).Should(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 	})
 
 	Context("when the syslog drain has been blacklisted", func() {
+		var logBuffer bytes.Buffer
+
 		BeforeEach(func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://some.invalid.host"}},
 			}
 
+			log.SetOutput(&logBuffer)
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{
 					checkBlacklistError: errors.New("blacklist error"),
@@ -174,6 +193,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			actual, err := filter.FetchBindings()
 
 			Expect(err).ToNot(HaveOccurred())
+			Expect(logBuffer.String()).Should(MatchRegexp("Resolved ip address for syslog drain with url (.*) for application (.*) is blacklisted"))
 			Expect(actual).To(Equal([]syslog.Binding{}))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 			Expect(metrics.GetMetric("blacklisted_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))

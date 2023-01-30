@@ -71,21 +71,29 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 		u, err := url.Parse(b.Drain.Url)
 		if err != nil {
 			invalidDrains += 1
+			f.logger.Printf("Cannot parse syslog drain url for application %s", b.AppId)
 			continue
 		}
 
+		anonymousUrl := u
+		anonymousUrl.User = nil
+		anonymousUrl.RawQuery = ""
+
 		if invalidScheme(u.Scheme) {
+			f.logger.Printf("Invalid scheme %s in syslog drain url %s for application %s", u.Scheme, anonymousUrl.String(), b.AppId)
 			continue
 		}
 
 		if len(u.Host) == 0 {
 			invalidDrains += 1
+			f.logger.Printf("No hostname found in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
 			continue
 		}
 
 		ip, err := f.ipChecker.ResolveAddr(u.Host)
 		if err != nil {
 			invalidDrains += 1
+			f.logger.Printf("Cannot resolve ip address for syslog drain with url %s for application %s", anonymousUrl.String(), b.AppId)
 			continue
 		}
 
@@ -93,6 +101,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 		if err != nil {
 			invalidDrains += 1
 			blacklistedDrains += 1
+			f.logger.Printf("Resolved ip address for syslog drain with url %s for application %s is blacklisted", anonymousUrl.String(), b.AppId)
 			continue
 		}
 
