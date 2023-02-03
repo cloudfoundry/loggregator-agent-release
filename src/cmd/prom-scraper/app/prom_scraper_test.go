@@ -456,28 +456,27 @@ var _ = Describe("PromScraper", func() {
 			buf := &spyBuffer{}
 			promServer = newStubPromServer()
 
-			By("start scraper", func() {
-				spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
-					{
-						Port:       promServer.port,
-						SourceID:   "some-id",
-						InstanceID: "some-instance-id",
-						Path:       "metrics",
-					},
-				}
+			By("start scraper")
+			spyConfigProvider.scrapeConfigs = []scraper.PromScraperConfig{
+				{
+					Port:       promServer.port,
+					SourceID:   "some-id",
+					InstanceID: "some-instance-id",
+					Path:       "metrics",
+				},
+			}
 
-				testLogger.SetOutput(buf)
-				ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
-				go ps.Run()
-			})
-			By("simulate failure", func() {
-				promServer.statusCode = http.StatusGatewayTimeout
-				Eventually(buf.Read).Should(ContainSubstring("failed to scrape"))
-			})
-			By("simulate recovery", func() {
-				promServer.statusCode = http.StatusOK
-				Eventually(buf.Read).Should(ContainSubstring("has recovered"))
-			})
+			testLogger.SetOutput(buf)
+			ps = app.NewPromScraper(cfg, spyConfigProvider.Configs, metricClient, testLogger)
+			go ps.Run()
+
+			By("simulate failure")
+			promServer.setStatusCode(http.StatusGatewayTimeout)
+			Eventually(buf.Read).Should(ContainSubstring("failed to scrape"))
+
+			By("simulate recovery")
+			promServer.setStatusCode(http.StatusOK)
+			Eventually(buf.Read).Should(ContainSubstring("has recovered"))
 		})
 	})
 })
@@ -493,6 +492,8 @@ type stubPromServer struct {
 	port       string
 	statusCode int
 
+	mu sync.Mutex
+
 	requestHeaders chan http.Header
 	requestPaths   chan string
 }
@@ -501,6 +502,7 @@ func newStubPromServer() *stubPromServer {
 	s := &stubPromServer{
 		requestHeaders: make(chan http.Header, 100),
 		requestPaths:   make(chan string, 100),
+		statusCode:     http.StatusOK,
 	}
 
 	server := httptest.NewServer(s)
@@ -508,7 +510,6 @@ func newStubPromServer() *stubPromServer {
 	addr := server.URL
 	tokens := strings.Split(addr, ":")
 	s.port = tokens[len(tokens)-1]
-	s.statusCode = http.StatusOK
 
 	return s
 }
@@ -517,6 +518,7 @@ func newStubHttpsPromServer(testLogger *log.Logger, scrapeCerts *testhelper.Test
 	s := &stubPromServer{
 		requestHeaders: make(chan http.Header, 100),
 		requestPaths:   make(chan string, 100),
+		statusCode:     http.StatusOK,
 	}
 
 	var serverOpts []tlsconfig.ServerOption
@@ -536,7 +538,6 @@ func newStubHttpsPromServer(testLogger *log.Logger, scrapeCerts *testhelper.Test
 	addr := server.Listener.Addr().String()
 	tokens := strings.Split(addr, ":")
 	s.port = tokens[len(tokens)-1]
-	s.statusCode = http.StatusOK
 
 	return s
 }
@@ -545,9 +546,17 @@ func (s *stubPromServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.requestHeaders <- req.Header
 	s.requestPaths <- req.URL.Path
 
+	s.mu.Lock()
 	w.WriteHeader(s.statusCode)
+	s.mu.Unlock()
 	_, err := w.Write([]byte(s.resp))
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func (s *stubPromServer) setStatusCode(sc int) {
+	s.mu.Lock()
+	s.statusCode = sc
+	s.mu.Unlock()
 }
 
 func buildGauge(name, sourceID, instanceID string, value float64) *loggregator_v2.Envelope {
