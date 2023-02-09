@@ -1,5 +1,5 @@
 . ./exiter.ps1
-. C:\var\vcap\packages\golang-1.19-windows\bosh\compile.ps1
+. C:\var\vcap\packages\golang-1.20-windows\bosh\compile.ps1
 $env:GOPATH="C:\var\vcap"
 
 $ErrorActionPreference = "Stop";
