@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 
+	v1 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v1"
 	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/clientpool/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -12,8 +13,6 @@ import (
 
 var _ = Describe("Balancer", func() {
 	It("returns a random IP address if lookup has IPs", func() {
-		rand.Seed(1)
-
 		f := func(addr string) ([]net.IP, error) {
 			return []net.IP{
 				net.ParseIP("10.10.10.1"),
@@ -24,7 +23,7 @@ var _ = Describe("Balancer", func() {
 		}
 
 		addr := "some-addr:8082"
-		balancer := v2.NewBalancer(addr, v2.WithLookup(f))
+		balancer := v1.NewBalancer(addr, v1.WithLookup(f), v1.WithRandSource(rand.New(rand.NewSource(1)).Int)) //nolint:gosec
 
 		NextIP := func() string {
 			ip, _ := balancer.NextHostPort()
