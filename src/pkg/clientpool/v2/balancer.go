@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"time"
 )
 
 // Balancer provides IPs resolved from a DNS address in random order
@@ -35,7 +34,7 @@ func NewBalancer(addr string, opts ...BalancerOption) *Balancer {
 	balancer := &Balancer{
 		addr:       addr,
 		lookup:     net.LookupIP,
-		randSource: rand.New(rand.NewSource(time.Now().UnixNano())).Int, //nolint:gosec
+		randSource: rand.Int, //nolint:gosec
 	}
 
 	for _, o := range opts {
@@ -62,6 +61,5 @@ func (b *Balancer) NextHostPort() (string, error) {
 	if len(ips) == 0 {
 		return "", fmt.Errorf("lookup failed with addr %s", b.addr)
 	}
-
 	return net.JoinHostPort(ips[b.randSource()%len(ips)].String(), port), nil //nolint:gosec // randomly pick an IP not a security issue
 }
