@@ -1,4 +1,5 @@
-### Loggregator Agent
+### Syslog Agent
+
 An agent that forwards app logs to a syslog drain. Drains are registered by binding User Provided Services to apps. 
 Any logs coming from a registered app are forwarded to the configured endpoint. 
 
@@ -90,6 +91,13 @@ variables:
     is_ca: true
     common_name: metricScraperCA
 ```
+
+#### Logs and metrics
+
+Syslog emits metrics relating to per-app egress, total egress, and total dropped
+messages. Metrics and logs for app drains will list an anonymized URL of the
+syslog drain, where the user, password, and queries are wiped out for security
+reasons.
 
 ##### go-loggregator
 
