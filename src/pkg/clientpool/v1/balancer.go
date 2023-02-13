@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"time"
 )
 
 // Balancer provides IPs resolved from a DNS address in random order
@@ -35,7 +34,7 @@ func NewBalancer(addr string, opts ...BalancerOption) *Balancer {
 	balancer := &Balancer{
 		addr:       addr,
 		lookup:     net.LookupIP,
-		randSource: rand.New(rand.NewSource(time.Now().UnixNano())).Int, //nolint:gosec
+		randSource: rand.Int, //nolint:gosec
 	}
 
 	for _, o := range opts {
