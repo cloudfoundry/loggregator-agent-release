@@ -8,8 +8,9 @@ import (
 
 // Balancer provides IPs resolved from a DNS address in random order
 type Balancer struct {
-	addr   string
-	lookup func(string) ([]net.IP, error)
+	addr       string
+	randSource func() int
+	lookup     func(string) ([]net.IP, error)
 }
 
 // BalancerOption is a type that will manipulate a config
@@ -22,11 +23,18 @@ func WithLookup(lookup func(string) ([]net.IP, error)) func(*Balancer) {
 	}
 }
 
+func WithRandSource(rand func() int) func(*Balancer) {
+	return func(b *Balancer) {
+		b.randSource = rand
+	}
+}
+
 // NewBalancer returns a Balancer
 func NewBalancer(addr string, opts ...BalancerOption) *Balancer {
 	balancer := &Balancer{
-		addr:   addr,
-		lookup: net.LookupIP,
+		addr:       addr,
+		lookup:     net.LookupIP,
+		randSource: rand.Int, //nolint:gosec
 	}
 
 	for _, o := range opts {
@@ -53,6 +61,5 @@ func (b *Balancer) NextHostPort() (string, error) {
 	if len(ips) == 0 {
 		return "", fmt.Errorf("lookup failed with addr %s", b.addr)
 	}
-
-	return net.JoinHostPort(ips[rand.Int()%len(ips)].String(), port), nil //nolint:gosec // randomly pick an IP not a security issue
+	return net.JoinHostPort(ips[b.randSource()%len(ips)].String(), port), nil //nolint:gosec // randomly pick an IP not a security issue
 }
