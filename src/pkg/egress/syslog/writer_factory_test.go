@@ -140,7 +140,7 @@ var _ = Describe("EgressFactory", func() {
 			url, err := url.Parse(u)
 			Expect(err).ToNot(HaveOccurred())
 			appID := "app-id"
-			tags := map[string]string{"direction": "egress", "drain_scope": "app", "drain_url": u}
+			tags := map[string]string{"drain_scope": "app", "drain_url": u}
 			if aggregate {
 				appID = ""
 				tags["drain_scope"] = "aggregate"
