@@ -16,6 +16,7 @@ jobs:
 - name: loggr-syslog-agent
   release: loggregator-agent
   properties:
+    drain_ca_cert: "((log_cache_syslog_tls.ca))"
     port: 3460
     tls:
       ca_cert: "((loggregator_tls_agent.ca))"
@@ -68,6 +69,16 @@ variables:
     extended_key_usage:
     - client_auth
     - server_auth
+    
+- name: log_cache_syslog_tls
+  type: certificate
+  options:
+    ca: /bosh-<ENV_NAME>/cf/loggregator_ca
+    common_name: log-cache.service.cf.internal
+    alternative_names:
+      - "log-cache.service.cf.internal"
+    extended_key_usage:
+      - server_auth
 
 - name: syslog_agent_metrics_tls
   type: certificate
