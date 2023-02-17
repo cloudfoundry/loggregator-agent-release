@@ -111,41 +111,45 @@ func (p *PromScraper) buildIngressClient() *loggregator.IngressClient {
 
 func (p *PromScraper) startScrapers(promScraperConfigs []scraper.PromScraperConfig, ingressClient *loggregator.IngressClient) {
 	for _, scrapeConfig := range promScraperConfigs {
-		if scrapeConfig.ScrapeInterval > 0 {
-			p.wg.Add(1)
-			go p.startScraper(scrapeConfig, ingressClient)
-		}
+		p.wg.Add(1)
+		go p.startScraper(scrapeConfig, ingressClient)
 	}
 }
 
 func (p *PromScraper) startScraper(scrapeConfig scraper.PromScraperConfig, ingressClient *loggregator.IngressClient) {
 	defer p.wg.Done()
 
-	s := p.buildScraper(scrapeConfig, ingressClient)
-	ticker := time.NewTicker(scrapeConfig.ScrapeInterval)
-	defer ticker.Stop()
+	if(scrapeConfig.ScrapeInterval > 0) {
+		s := p.buildScraper(scrapeConfig, ingressClient)
 
-	failedScrapesTotal := p.m.NewCounter(
-		"failed_scrapes_total",
-		"Total number of failed scrapes for the target source_id.",
-		metrics.WithMetricLabels(map[string]string{"scrape_target_source_id": scrapeConfig.SourceID}),
-	)
+		ticker := time.NewTicker(scrapeConfig.ScrapeInterval)
+		defer ticker.Stop()
 
-	hadError := false
-	for {
-		select {
-		case <-ticker.C:
-			if err := s.Scrape(); err != nil {
-				hadError = true
-				failedScrapesTotal.Add(1)
-				p.log.Printf("failed to scrape: %s", err)
-			} else if hadError {
-				hadError = false
-				p.log.Printf("%s has recovered", scrapeConfig.InstanceID)
+		failedScrapesTotal := p.m.NewCounter(
+			"failed_scrapes_total",
+			"Total number of failed scrapes for the target source_id.",
+			metrics.WithMetricLabels(map[string]string{"scrape_target_source_id": scrapeConfig.SourceID}),
+		)
+
+		hadError := false
+		for {
+			select {
+			case <-ticker.C:
+				if err := s.Scrape(); err != nil {
+					hadError = true
+					failedScrapesTotal.Add(1)
+					p.log.Printf("failed to scrape: %s", err)
+				} else if hadError {
+					hadError = false
+					p.log.Printf("%s has recovered", scrapeConfig.InstanceID)
+				}
+			case <-p.stop:
+				return
 			}
-		case <-p.stop:
-			return
 		}
+	} else {
+		<-p.stop
+		return
 	}
 }
 
