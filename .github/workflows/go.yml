@@ -40,5 +40,5 @@ jobs:
           go-version-file: "src/go.mod"
       - uses: golangci/golangci-lint-action@v3.4.0
         with:
-          args: --config .golangci.yml
+          args: --config .golangci.yml --timeout 5m
           working-directory: src
