@@ -3,7 +3,6 @@ package rfc5424
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 )
 
@@ -48,7 +47,7 @@ func (m *Message) ReadFrom(r io.Reader) (int64, error) {
 		return 0, err
 	}
 	r2 := io.LimitReader(r, int64(length))
-	buf, err := ioutil.ReadAll(r2)
+	buf, err := io.ReadAll(r2)
 	if err != nil {
 		return int64(n1 + len(buf)), err
 	}
