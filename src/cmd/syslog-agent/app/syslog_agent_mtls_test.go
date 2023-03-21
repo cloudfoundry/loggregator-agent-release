@@ -52,7 +52,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 		drainCerts := testhelper.GenerateCerts("drain-ca")
 		appHTTPSDrain = newSyslogHTTPSServer(drainCerts, bindingCreds.caFileName)
 		appTLSDrain = newSyslogTLSServer(drainCerts, tlsconfig.WithInternalServiceDefaults(), bindingCreds.caFileName)
-		aggregateDrain = newSyslogTLSServer(drainCerts, tlsconfig.WithInternalServiceDefaults(), "")
+		aggregateDrain = newSyslogTLSServer(drainCerts, tlsconfig.WithInternalServiceDefaults(), bindingCreds.caFileName)
 
 		appIDs = []string{"app-1", "app-2"}
 		cacheCerts = testhelper.GenerateCerts("binding-cache-ca")
@@ -93,11 +93,15 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 					},
 				},
 			},
-			aggregate: []binding.LegacyBinding{
+			aggregate: []binding.Binding{
 				{
-					AppID: "",
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s", aggregateDrain.port()),
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", aggregateDrain.port()),
+					Credentials: []binding.Credentials{
+						{
+							Cert: bindingCreds.cert,
+							Key:  bindingCreds.key,
+							CA:   string(drainCA),
+						},
 					},
 				},
 			},
@@ -248,7 +252,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 type fakeBindingCache struct {
 	*httptest.Server
 	bindings  []binding.Binding
-	aggregate []binding.LegacyBinding
+	aggregate []binding.Binding
 }
 
 func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
@@ -280,8 +284,10 @@ func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		results, err = json.Marshal(f.bindings)
 	case "/bindings":
 		results, err = json.Marshal(binding.ToLegacyBindings(f.bindings))
-	case "/aggregate":
+	case "/v2/aggregate":
 		results, err = json.Marshal(f.aggregate)
+	case "/aggregate":
+		results, err = json.Marshal(binding.ToLegacyBindings(f.aggregate))
 	default:
 		w.WriteHeader(500)
 		return
