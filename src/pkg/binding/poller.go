@@ -26,9 +26,9 @@ type client interface {
 }
 
 type Credentials struct {
-	Cert string `json:"cert"`
-	Key  string `json:"key"`
-	CA   string `json:"ca"`
+	Cert string `json:"cert" yaml:"cert"`
+	Key  string `json:"key" yaml:"key"`
+	CA   string `json:"ca" yaml:"ca"`
 	Apps []App  `json:"apps"`
 }
 
@@ -38,8 +38,15 @@ type App struct {
 }
 
 type Binding struct {
-	Url         string        `json:"url"`
-	Credentials []Credentials `json:"credentials"`
+	Url         string        `json:"url" yaml:"url"`
+	Credentials []Credentials `json:"credentials" yaml:"credentials"`
+}
+
+type AggBinding struct {
+	Url  string `yaml:"url"`
+	Cert string `yaml:"cert"`
+	Key  string `yaml:"key"`
+	CA   string `yaml:"ca"`
 }
 
 type LegacyBinding struct {

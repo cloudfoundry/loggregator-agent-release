@@ -17,7 +17,8 @@ type LegacyGetter interface {
 }
 
 type AggregateGetter interface {
-	Get() []binding.LegacyBinding
+	Get() []binding.Binding
+	LegacyGet() []binding.LegacyBinding
 }
 
 func Handler(store Getter) http.HandlerFunc {
@@ -43,6 +44,16 @@ func LegacyHandler(store LegacyGetter) http.HandlerFunc {
 func AggregateHandler(store AggregateGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := json.NewEncoder(w).Encode(store.Get())
+		if err != nil {
+			log.Printf("failed to encode response body: %s", err)
+			return
+		}
+	}
+}
+
+func LegacyAggregateHandler(store AggregateGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewEncoder(w).Encode(store.LegacyGet())
 		if err != nil {
 			log.Printf("failed to encode response body: %s", err)
 			return

@@ -1,9 +1,13 @@
 package binding
 
 import (
+	"io"
+	"os"
+	"strings"
 	"sync"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"gopkg.in/yaml.v2"
 )
 
 type Store struct {
@@ -67,14 +71,63 @@ func (s *LegacyStore) Set(bindings []LegacyBinding) {
 }
 
 type AggregateStore struct {
-	AggregateDrains []string
+	AggregateDrains []Binding
 }
 
-func (store *AggregateStore) Get() []LegacyBinding {
+func NewAggregateStore(drainFileName string) AggregateStore {
+	drainFile, err := os.Open(drainFileName)
+	if err != nil {
+		panic(err)
+	}
+	contents, err := io.ReadAll(drainFile)
+	if err != nil {
+		panic(err)
+	}
+	var bindings []Binding
+
+	if string(contents[0:3]) == "---" {
+		var aggBindings []AggBinding
+		err = yaml.Unmarshal(contents, &aggBindings)
+		if err != nil {
+			panic(err)
+		}
+		for _, binding := range aggBindings {
+			bindings = append(bindings, Binding{
+				Url: binding.Url,
+				Credentials: []Credentials{
+					{
+						Cert: binding.Cert,
+						Key:  binding.Key,
+						CA:   binding.CA,
+					},
+				},
+			})
+		}
+	} else {
+		drains := strings.Split(string(contents), ",")
+		for _, drain := range drains {
+			bindings = append(bindings, Binding{
+				Url: drain,
+			})
+		}
+	}
+	return AggregateStore{AggregateDrains: bindings}
+}
+
+func (store *AggregateStore) Get() []Binding {
+	return store.AggregateDrains
+}
+
+func (store *AggregateStore) LegacyGet() []LegacyBinding {
+	var drains []string
+	for _, binding := range store.AggregateDrains {
+		drains = append(drains, binding.Url)
+	}
 	return []LegacyBinding{
 		{
-			AppID:  "",
-			Drains: store.AggregateDrains,
+			AppID:       "",
+			Drains:      drains,
+			V2Available: true,
 		},
 	}
 }
