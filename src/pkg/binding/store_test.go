@@ -174,26 +174,6 @@ var _ = Describe("Store", func() {
 			},
 		))
 	})
-	It("can read aggregate drains stored in the old format", func() {
-		aggDrainFile := makeAggDrainFile("syslog://test-hostname:1000,syslog://test2:1000")
-		aggStore := binding.NewAggregateStore(aggDrainFile)
-		Expect(aggStore.LegacyGet()).To(ConsistOf(
-			binding.LegacyBinding{
-				AppID:       "",
-				Drains:      []string{"syslog://test-hostname:1000", "syslog://test2:1000"},
-				Hostname:    "",
-				V2Available: true,
-			},
-		))
-		Expect(aggStore.Get()).To(ConsistOf(
-			binding.Binding{
-				Url: "syslog://test-hostname:1000",
-			},
-			binding.Binding{
-				Url: "syslog://test2:1000",
-			},
-		))
-	})
 })
 
 func makeAggDrainFile(write string) string {

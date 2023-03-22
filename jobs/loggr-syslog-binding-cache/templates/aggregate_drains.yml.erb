@@ -1,0 +1,11 @@
+<%
+  aggregate_drains=""
+  if_p("aggregate_drains") {
+    aggregate_drains = p("aggregate_drains")
+  }
+  if aggregate_drains.kind_of?(String)
+    drains = aggregate_drains.split(',',-1)
+    aggregate_drains = []
+    drains.each{|drain| aggregate_drains.append({"url" => drain}) }
+  end
+%><%= YAML.dump(aggregate_drains) %>

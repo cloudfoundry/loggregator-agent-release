@@ -3,7 +3,6 @@ package binding
 import (
 	"io"
 	"os"
-	"strings"
 	"sync"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
@@ -83,33 +82,24 @@ func NewAggregateStore(drainFileName string) AggregateStore {
 	if err != nil {
 		panic(err)
 	}
-	var bindings []Binding
 
-	if string(contents[0:3]) == "---" {
-		var aggBindings []AggBinding
-		err = yaml.Unmarshal(contents, &aggBindings)
-		if err != nil {
-			panic(err)
-		}
-		for _, binding := range aggBindings {
-			bindings = append(bindings, Binding{
-				Url: binding.Url,
-				Credentials: []Credentials{
-					{
-						Cert: binding.Cert,
-						Key:  binding.Key,
-						CA:   binding.CA,
-					},
+	var bindings []Binding
+	var aggBindings []AggBinding
+	err = yaml.Unmarshal(contents, &aggBindings)
+	if err != nil {
+		panic(err)
+	}
+	for _, binding := range aggBindings {
+		bindings = append(bindings, Binding{
+			Url: binding.Url,
+			Credentials: []Credentials{
+				{
+					Cert: binding.Cert,
+					Key:  binding.Key,
+					CA:   binding.CA,
 				},
-			})
-		}
-	} else {
-		drains := strings.Split(string(contents), ",")
-		for _, drain := range drains {
-			bindings = append(bindings, Binding{
-				Url: drain,
-			})
-		}
+			},
+		})
 	}
 	return AggregateStore{AggregateDrains: bindings}
 }
