@@ -41,7 +41,18 @@ properties:
   aggregate_drains:
     description: "Syslog server URLs that will receive the logs from all sources"
     default: ""
-    example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
+    example: |
+      deprecated format: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
+
+      new format:
+      aggregate_drains:
+      -  url: syslog-tls://some-drain-1:1000
+         cert: |
+            cert
+         key: |
+            key
+         CA: |
+            ca
 
   external_port:
     description: |
