@@ -73,7 +73,7 @@ type AggregateStore struct {
 	AggregateDrains []Binding
 }
 
-func NewAggregateStore(drainFileName string) AggregateStore {
+func NewAggregateStore(drainFileName string) *AggregateStore {
 	drainFile, err := os.Open(drainFileName)
 	if err != nil {
 		panic(err)
@@ -101,7 +101,7 @@ func NewAggregateStore(drainFileName string) AggregateStore {
 			},
 		})
 	}
-	return AggregateStore{AggregateDrains: bindings}
+	return &AggregateStore{AggregateDrains: bindings}
 }
 
 func (store *AggregateStore) Get() []Binding {
