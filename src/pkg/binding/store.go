@@ -70,7 +70,7 @@ func (s *LegacyStore) Set(bindings []LegacyBinding) {
 }
 
 type AggregateStore struct {
-	AggregateDrains []Binding
+	Drains []Binding
 }
 
 func NewAggregateStore(drainFileName string) *AggregateStore {
@@ -101,16 +101,16 @@ func NewAggregateStore(drainFileName string) *AggregateStore {
 			},
 		})
 	}
-	return &AggregateStore{AggregateDrains: bindings}
+	return &AggregateStore{Drains: bindings}
 }
 
 func (store *AggregateStore) Get() []Binding {
-	return store.AggregateDrains
+	return store.Drains
 }
 
 func (store *AggregateStore) LegacyGet() []LegacyBinding {
 	var drains []string
-	for _, binding := range store.AggregateDrains {
+	for _, binding := range store.Drains {
 		drains = append(drains, binding.Url)
 	}
 	return []LegacyBinding{
