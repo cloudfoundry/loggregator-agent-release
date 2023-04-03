@@ -28,12 +28,13 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 		pprofPort   int
 		metricsPort int
 
-		appHTTPSDrain  *syslogHTTPSServer
-		appTLSDrain    *syslogTCPServer
-		aggregateDrain *syslogTCPServer
-		appIDs         []string
-		cacheCerts     *testhelper.TestCerts
-		bindingCache   *fakeBindingCache
+		appHTTPSDrain          *syslogHTTPSServer
+		appTLSDrain            *syslogTCPServer
+		aggregateDrain         *syslogTCPServer
+		aggregateDrainNoClient *syslogTCPServer
+		appIDs                 []string
+		cacheCerts             *testhelper.TestCerts
+		bindingCache           *fakeBindingCache
 
 		agentCerts   *testhelper.TestCerts
 		agentCfg     app.Config
@@ -53,6 +54,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 		appHTTPSDrain = newSyslogHTTPSServer(drainCerts, bindingCreds.caFileName)
 		appTLSDrain = newSyslogTLSServer(drainCerts, tlsconfig.WithInternalServiceDefaults(), bindingCreds.caFileName)
 		aggregateDrain = newSyslogTLSServer(drainCerts, tlsconfig.WithInternalServiceDefaults(), bindingCreds.caFileName)
+		aggregateDrainNoClient = newSyslogTLSServer(drainCerts, tlsconfig.WithInternalServiceDefaults(), "")
 
 		appIDs = []string{"app-1", "app-2"}
 		cacheCerts = testhelper.GenerateCerts("binding-cache-ca")
@@ -101,6 +103,14 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 							Cert: bindingCreds.cert,
 							Key:  bindingCreds.key,
 							CA:   string(drainCA),
+						},
+					},
+				},
+				{
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", aggregateDrainNoClient.port()),
+					Credentials: []binding.Credentials{
+						{
+							CA: string(drainCA),
 						},
 					},
 				},
@@ -154,6 +164,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 			bindingCache.Close()
 		}
 		aggregateDrain.lis.Close()
+		aggregateDrainNoClient.lis.Close()
 		appTLSDrain.lis.Close()
 		appHTTPSDrain.server.Close()
 	})
@@ -165,14 +176,19 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 
 		Eventually(func() float64 {
 			return agentMetrics.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-		}, 3).Should(Equal(3.0))
+		}, 3).Should(Equal(4.0))
 
 		var msg *rfc5424.Message
 
 		Eventually(func() float64 {
 			return agentMetrics.GetMetric("aggregate_drains", map[string]string{"unit": "count"}).Value()
-		}, 3).Should(Equal(1.0))
+		}, 3).Should(Equal(2.0))
 		Eventually(aggregateDrain.receivedMessages, 3).Should(Receive(&msg))
+		Expect(msg.StructuredData).NotTo(HaveLen(0))
+		Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
+		Expect(string(msg.Message)).To(Equal("hello\n"))
+
+		Eventually(aggregateDrainNoClient.receivedMessages, 3).Should(Receive(&msg))
 		Expect(msg.StructuredData).NotTo(HaveLen(0))
 		Expect(msg.StructuredData[0].ID).To(Equal("tags@47450"))
 		Expect(string(msg.Message)).To(Equal("hello\n"))
@@ -241,7 +257,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 			// The aggregate drain is still active.
 			Eventually(func() float64 {
 				return agentMetrics.GetMetric("active_drains", map[string]string{"unit": "count"}).Value()
-			}, 3).Should(Equal(1.0))
+			}, 3).Should(Equal(2.0))
 
 			Consistently(appHTTPSDrain.receivedMessages, 5).ShouldNot(Receive())
 			Consistently(appTLSDrain.receivedMessages, 5).ShouldNot(Receive())
