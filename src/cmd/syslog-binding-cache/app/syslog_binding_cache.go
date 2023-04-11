@@ -60,10 +60,10 @@ func (sbc *SyslogBindingCache) Run() {
 	go poller.Poll()
 
 	router := chi.NewRouter()
-	router.HandleFunc("/bindings", cache.LegacyHandler(legacyStore))
-	router.HandleFunc("/v2/bindings", cache.Handler(store))
-	router.HandleFunc("/aggregate", cache.LegacyAggregateHandler(aggregateStore))
-	router.HandleFunc("/v2/aggregate", cache.AggregateHandler(aggregateStore))
+	router.Get("/bindings", cache.LegacyHandler(legacyStore))
+	router.Get("/v2/bindings", cache.Handler(store))
+	router.Get("/aggregate", cache.LegacyAggregateHandler(aggregateStore))
+	router.Get("/v2/aggregate", cache.AggregateHandler(aggregateStore))
 
 	sbc.startServer(router)
 }
