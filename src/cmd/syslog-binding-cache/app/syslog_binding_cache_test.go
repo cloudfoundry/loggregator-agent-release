@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -89,21 +90,37 @@ var _ = Describe("App", func() {
 		pprofPort = 31000 + GinkgoParallelProcess()
 		metricsPort = 32000 + GinkgoParallelProcess()
 
+		write := `---
+- url: "syslog://test-hostname:1000"
+  ca: ca
+  cert: cert
+  key: key
+- url: "syslog://test2:1000"
+  ca: ca2
+  cert: cert2
+  key: key2
+`
+		aggDrainFile, err := os.CreateTemp("", "aggregate-drains")
+		Expect(err).ToNot(HaveOccurred())
+		_, err = aggDrainFile.WriteString(write)
+		Expect(err).ToNot(HaveOccurred())
+		err = aggDrainFile.Close()
+		Expect(err).ToNot(HaveOccurred())
 		sbcCerts = testhelper.GenerateCerts("binding-cache-ca")
 		sbcCfg = app.Config{
-			APIURL:             capi.URL,
-			APIPollingInterval: 10 * time.Millisecond,
-			APIBatchSize:       1000,
-			APICAFile:          capiCerts.CA(),
-			APICertFile:        capiCerts.Cert("capi"),
-			APIKeyFile:         capiCerts.Key("capi"),
-			APICommonName:      "capi",
-			CacheCAFile:        sbcCerts.CA(),
-			CacheCertFile:      sbcCerts.Cert(sbcCN),
-			CacheKeyFile:       sbcCerts.Key(sbcCN),
-			CacheCommonName:    sbcCN,
-			CachePort:          sbcPort,
-			AggregateDrains:    []string{"syslog://drain-e", "syslog://drain-f"},
+			APIURL:              capi.URL,
+			APIPollingInterval:  10 * time.Millisecond,
+			APIBatchSize:        1000,
+			APICAFile:           capiCerts.CA(),
+			APICertFile:         capiCerts.Cert("capi"),
+			APIKeyFile:          capiCerts.Key("capi"),
+			APICommonName:       "capi",
+			CacheCAFile:         sbcCerts.CA(),
+			CacheCertFile:       sbcCerts.Cert(sbcCN),
+			CacheKeyFile:        sbcCerts.Key(sbcCN),
+			CacheCommonName:     sbcCN,
+			CachePort:           sbcPort,
+			AggregateDrainsFile: aggDrainFile.Name(),
 			MetricsServer: config.MetricsServer{
 				Port:      uint16(metricsPort),
 				CAFile:    sbcCerts.CA(),
@@ -130,7 +147,7 @@ var _ = Describe("App", func() {
 		// Make sure the server has started to avoid an error when trying to
 		// stop it in AfterEach.
 		Eventually(func() bool {
-			resp, err := client.Get(fmt.Sprintf("https://localhost:%d/aggregate", sbcPort))
+			resp, err := client.Get(fmt.Sprintf("https://localhost:%d/v2/aggregate", sbcPort))
 			if err != nil {
 				return false
 			}
@@ -182,6 +199,51 @@ var _ = Describe("App", func() {
 	})
 
 	It("has an HTTP endpoint that returns aggregate drains", func() {
+		addr := fmt.Sprintf("https://localhost:%d/v2/aggregate", sbcPort)
+
+		var resp *http.Response
+		Eventually(func() error {
+			var err error
+			resp, err = client.Get(addr)
+			return err
+		}).Should(Succeed())
+		defer resp.Body.Close()
+
+		Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+		body, err := io.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred())
+
+		var result []binding.Binding
+		err = json.Unmarshal(body, &result)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(result).To(HaveLen(2))
+		Expect(result[0]).To(Equal(
+			binding.Binding{
+				Url: "syslog://test-hostname:1000",
+				Credentials: []binding.Credentials{
+					{
+						CA:   "ca",
+						Cert: "cert",
+						Key:  "key",
+					},
+				},
+			}))
+		Expect(result[1]).To(Equal(
+			binding.Binding{
+				Url: "syslog://test2:1000",
+				Credentials: []binding.Credentials{
+					{
+						CA:   "ca2",
+						Cert: "cert2",
+						Key:  "key2",
+					},
+				},
+			}))
+	})
+
+	It("has an HTTP endpoint that returns legacy aggregate drains", func() {
 		addr := fmt.Sprintf("https://localhost:%d/aggregate", sbcPort)
 
 		var resp *http.Response
@@ -202,7 +264,7 @@ var _ = Describe("App", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(result).To(HaveLen(1))
-		Expect(result[0].Drains).To(ConsistOf("syslog://drain-e", "syslog://drain-f"))
+		Expect(result[0].Drains).To(ConsistOf("syslog://test-hostname:1000", "syslog://test2:1000"))
 	})
 
 	It("has an HTTP endpoint that returns legacy bindings", func() {

@@ -54,7 +54,7 @@ func (sbc *SyslogBindingCache) Run() {
 	}
 	store := binding.NewStore(sbc.metrics)
 	legacyStore := binding.NewLegacyStore()
-	aggregateStore := binding.AggregateStore{AggregateDrains: sbc.config.AggregateDrains}
+	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
 	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, legacyStore, sbc.metrics, sbc.log)
 
 	go poller.Poll()
@@ -62,7 +62,8 @@ func (sbc *SyslogBindingCache) Run() {
 	router := mux.NewRouter()
 	router.HandleFunc("/bindings", cache.LegacyHandler(legacyStore)).Methods(http.MethodGet)
 	router.HandleFunc("/v2/bindings", cache.Handler(store)).Methods(http.MethodGet)
-	router.HandleFunc("/aggregate", cache.AggregateHandler(&aggregateStore)).Methods(http.MethodGet)
+	router.HandleFunc("/aggregate", cache.LegacyAggregateHandler(aggregateStore)).Methods(http.MethodGet)
+	router.HandleFunc("/v2/aggregate", cache.AggregateHandler(aggregateStore)).Methods(http.MethodGet)
 
 	sbc.startServer(router)
 }

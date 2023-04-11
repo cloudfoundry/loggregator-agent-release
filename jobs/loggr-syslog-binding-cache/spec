@@ -12,6 +12,7 @@ templates:
   metrics_ca.crt.erb: config/certs/metrics_ca.crt
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
+  aggregate_drains.yml.erb: config/aggregate_drains.yml
   prom_scraper_config.yml.erb: config/prom_scraper_config.yml
 
 packages:
@@ -40,7 +41,18 @@ properties:
   aggregate_drains:
     description: "Syslog server URLs that will receive the logs from all sources"
     default: ""
-    example: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
+    example: |
+      deprecated format: "syslog-tls://some-drain-1,syslog-tls://some-drain-1"
+
+      new format:
+      aggregate_drains:
+      -  url: syslog-tls://some-drain-1:1000
+         cert: |
+            cert
+         key: |
+            key
+         CA: |
+            ca
 
   external_port:
     description: |

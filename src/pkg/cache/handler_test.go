@@ -58,15 +58,41 @@ var _ = Describe("Handler", func() {
 		Expect(rw.Body.String()).To(MatchJSON(j))
 	})
 
-	It("should write results from the aggregateStore", func() {
-		aggregateDrains := []binding.LegacyBinding{
+	It("should write results from the v2 aggregateStore", func() {
+		aggregateDrains := []binding.Binding{
 			{
-				AppID:  "",
-				Drains: []string{"drain-1", "drain-2"},
+				Url: "test",
+				Credentials: []binding.Credentials{
+					{
+						Cert: "cert",
+						Key:  "key",
+						CA:   "ca",
+					},
+				},
 			},
 		}
 
-		handler := cache.AggregateHandler(newStubAggregateStore(aggregateDrains))
+		handler := cache.AggregateHandler(newStubAggregateStore(nil, aggregateDrains))
+		rw := httptest.NewRecorder()
+		req, err := http.NewRequest(http.MethodGet, "/v2/aggregate", nil)
+		Expect(err).ToNot(HaveOccurred())
+		handler.ServeHTTP(rw, req)
+
+		j, err := json.Marshal(&aggregateDrains)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rw.Body.String()).To(MatchJSON(j))
+	})
+
+	It("should write results from the legacy aggregateStore", func() {
+		aggregateDrains := []binding.LegacyBinding{
+			{
+				AppID:       "",
+				Drains:      []string{"drain-1", "drain-2"},
+				V2Available: true,
+			},
+		}
+
+		handler := cache.LegacyAggregateHandler(newStubAggregateStore(aggregateDrains, nil))
 		rw := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/aggregate", nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -87,7 +113,8 @@ type stubLegacyStore struct {
 }
 
 type stubAggregateStore struct {
-	AggregateDrains []binding.LegacyBinding
+	AggregateDrains       []binding.Binding
+	LegacyAggregateDrains []binding.LegacyBinding
 }
 
 func newStubStore(bindings []binding.Binding) *stubStore {
@@ -96,24 +123,28 @@ func newStubStore(bindings []binding.Binding) *stubStore {
 	}
 }
 
+func (s *stubStore) Get() []binding.Binding {
+	return s.bindings
+}
+
 func newStubLegacyStore(bindings []binding.LegacyBinding) *stubLegacyStore {
 	return &stubLegacyStore{
 		bindings: bindings,
 	}
 }
 
-func newStubAggregateStore(aggregateDrains []binding.LegacyBinding) *stubAggregateStore {
-	return &stubAggregateStore{aggregateDrains}
-}
-
-func (s *stubStore) Get() []binding.Binding {
-	return s.bindings
-}
-
 func (s *stubLegacyStore) Get() []binding.LegacyBinding {
 	return s.bindings
 }
 
-func (as *stubAggregateStore) Get() []binding.LegacyBinding {
+func newStubAggregateStore(legacyAggregateDrains []binding.LegacyBinding, aggregateDrains []binding.Binding) *stubAggregateStore {
+	return &stubAggregateStore{LegacyAggregateDrains: legacyAggregateDrains, AggregateDrains: aggregateDrains}
+}
+
+func (as *stubAggregateStore) Get() []binding.Binding {
 	return as.AggregateDrains
+}
+
+func (as *stubAggregateStore) LegacyGet() []binding.LegacyBinding {
+	return as.LegacyAggregateDrains
 }

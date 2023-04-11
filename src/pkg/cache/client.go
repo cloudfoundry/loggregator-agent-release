@@ -33,7 +33,11 @@ func (c *CacheClient) LegacyGet() ([]binding.LegacyBinding, error) {
 	return c.legacyGet("bindings")
 }
 
-func (c *CacheClient) GetAggregate() ([]binding.LegacyBinding, error) {
+func (c *CacheClient) GetAggregate() ([]binding.Binding, error) {
+	return c.get("v2/aggregate")
+}
+
+func (c *CacheClient) GetLegacyAggregate() ([]binding.LegacyBinding, error) {
 	return c.legacyGet("aggregate")
 }
 
