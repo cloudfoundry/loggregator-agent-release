@@ -16,7 +16,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/api"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 type SyslogBindingCache struct {
@@ -59,11 +59,11 @@ func (sbc *SyslogBindingCache) Run() {
 
 	go poller.Poll()
 
-	router := mux.NewRouter()
-	router.HandleFunc("/bindings", cache.LegacyHandler(legacyStore)).Methods(http.MethodGet)
-	router.HandleFunc("/v2/bindings", cache.Handler(store)).Methods(http.MethodGet)
-	router.HandleFunc("/aggregate", cache.LegacyAggregateHandler(aggregateStore)).Methods(http.MethodGet)
-	router.HandleFunc("/v2/aggregate", cache.AggregateHandler(aggregateStore)).Methods(http.MethodGet)
+	router := chi.NewRouter()
+	router.Get("/bindings", cache.LegacyHandler(legacyStore))
+	router.Get("/v2/bindings", cache.Handler(store))
+	router.Get("/aggregate", cache.LegacyAggregateHandler(aggregateStore))
+	router.Get("/v2/aggregate", cache.AggregateHandler(aggregateStore))
 
 	sbc.startServer(router)
 }
@@ -93,7 +93,7 @@ func (sbc *SyslogBindingCache) apiClient() api.Client {
 	}
 }
 
-func (sbc *SyslogBindingCache) startServer(router *mux.Router) {
+func (sbc *SyslogBindingCache) startServer(router chi.Router) {
 	listenAddr := fmt.Sprintf(":%d", sbc.config.CachePort)
 	sbc.mu.Lock()
 	sbc.server = &http.Server{

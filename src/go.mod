@@ -10,7 +10,6 @@ require (
 	code.cloudfoundry.org/tlsconfig v0.0.0-20220621140725-0e6fbd869921
 	github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
 	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
-	github.com/gorilla/mux v1.8.0
 	github.com/onsi/gomega v1.27.6
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.42.0
@@ -23,6 +22,7 @@ require (
 require (
 	code.cloudfoundry.org/go-loggregator/v9 v9.0.4
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
+	github.com/go-chi/chi/v5 v5.0.8
 	github.com/onsi/ginkgo/v2 v2.9.2
 	google.golang.org/protobuf v1.30.0
 )
