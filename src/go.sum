@@ -33,8 +33,8 @@ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWR
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
-github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d h1:FfpliWA97CWywGvMzPXUL7Y9QGFyplrVq3cWR6ITFTQ=
-github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d/go.mod h1:dqmJ2JkWBw1nDVxpq/V5P+cmrRD+GjNJHLfvmhtGbfg=
+github.com/cloudfoundry/dropsonde v1.1.0 h1:nerhj8K0heOsv/U/Ddou5Esw56YlNeHHJH6MP9QlACQ=
+github.com/cloudfoundry/dropsonde v1.1.0/go.mod h1:OrkxsBrAvM8X0Ve9vaSNKLR+/Jeohu3+J0M4JEaTmnM=
 github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435 h1:xDsJBppu1bIny3d5CqbOZuCzezFbKhnrmrNucWLpNOk=
 github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435/go.mod h1:DX2nqnCgs66F/YWnEtB8EtKWewkiKDu2SRn4y6Ln5NI=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
