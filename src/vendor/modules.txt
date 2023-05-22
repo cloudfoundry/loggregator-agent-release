@@ -36,7 +36,7 @@ github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/cloudfoundry/dropsonde v1.0.1-0.20220627224009-409b7756c19d
+# github.com/cloudfoundry/dropsonde v1.1.0
 ## explicit; go 1.18
 github.com/cloudfoundry/dropsonde/emitter
 # github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
