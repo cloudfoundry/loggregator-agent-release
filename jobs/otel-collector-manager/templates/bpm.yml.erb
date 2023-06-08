@@ -1,0 +1,28 @@
+<%
+  process = {
+    "name" => "otel-collector-manager",
+    "executable" => "/var/vcap/packages/otel-collector-manager/otel-collector-manager",
+    "additional_volumes" => [
+      {
+        "path" => "/var/vcap/sys/run/otel-collector-manager/collector",
+        "writable" => true
+      },
+      {
+        "path" => "/var/vcap/jobs/otel-collector-manager/config/collector",
+        "writable" => true
+      },
+    ],
+    "env" => {
+      "COLLECTOR_PID_FILE"       => "/var/vcap/sys/run/otel-collector-manager/collector/collector.pid",
+      "COLLECTOR_BASE_CONFIG"    => "/var/vcap/jobs/otel-collector-manager/config/base.yml",
+      "COLLECTOR_BINARY"         => "/var/vcap/packages/otel-collector/otel-collector",
+      "COLLECTOR_RUNNING_CONFIG" => "/var/vcap/jobs/otel-collector-manager/config/collector/config.yml",
+      "COLLECTOR_STDOUT_LOG"     => "/var/vcap/sys/log/otel-collector-manager/collector.log",
+      "COLLECTOR_STDERR_LOG"     => "/var/vcap/sys/log/otel-collector-manager/collector.err"
+    }
+  }
+
+  bpm = {"processes" => [process] }
+%>
+
+<%= YAML.dump(bpm) %>

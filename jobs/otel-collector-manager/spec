@@ -1,0 +1,22 @@
+---
+name: otel-collector-manager
+
+packages:
+- otel-collector
+- otel-collector-manager
+
+templates:
+  base.yml.erb: config/base.yml
+  bpm.yml.erb: config/bpm.yml
+  scrape.crt.erb: config/certs/scrape.crt
+  scrape.key.erb: config/certs/scrape.key
+  scrape_ca.crt.erb: config/certs/scrape_ca.crt
+
+
+properties:
+  scrape.tls.cert:
+    description: "The cert used to scrape metrics-agent"
+  scrape.tls.key:
+    description: "The key used to scrape metrics-agent"
+  scrape.tls.ca_cert:
+    description: "The CA used to scrape metrics-agent"

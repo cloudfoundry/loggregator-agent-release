@@ -1,0 +1,10 @@
+---
+name: otel-collector-manager
+
+dependencies:
+- golang-1.20-linux
+files:
+- cmd/otel-collector-manager/**/*.go
+- vendor/**/*
+- go.mod
+- go.sum

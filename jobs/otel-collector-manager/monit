@@ -1,0 +1,5 @@
+check process otel-collector-manager
+  with pidfile /var/vcap/sys/run/bpm/otel-collector-manager/otel-collector-manager.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start otel-collector-manager"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop otel-collector-manager"
+  group vcap
