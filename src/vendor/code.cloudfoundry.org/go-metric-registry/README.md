@@ -1,7 +1,9 @@
 # go-metric-registry
-[![GoDoc][go-doc-badge]][go-doc] [![slack.cloudfoundry.org][slack-badge]][loggregator-slack]
+[![GoDoc][go-doc-badge]][go-doc]
 
 This is a Golang library wrapping Prometheus.
+
+If you have any questions, or want to get attention for a PR or issue please reach out on the [#logging-and-metrics channel in the cloudfoundry slack](https://cloudfoundry.slack.com/archives/CUW93AF3M)
 
 ## Usage
 
@@ -13,6 +15,4 @@ An example app can be referenced in [the examples directory](https://github.com/
 
 [go-doc-badge]:             https://godoc.org/code.cloudfoundry.org/go-metric-registry?status.svg
 [go-doc]:                   https://godoc.org/code.cloudfoundry.org/go-metric-registry
-[loggregator-slack]:        https://cloudfoundry.slack.com/archives/CUW93AF3M
-[slack-badge]:              https://slack.cloudfoundry.org/badge.svg
 

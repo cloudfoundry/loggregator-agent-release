@@ -11,6 +11,7 @@ import (
 
 	"code.cloudfoundry.org/tlsconfig"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -64,8 +65,8 @@ func NewRegistry(logger *log.Logger, opts ...RegistryOption) *Registry {
 }
 
 func (p *Registry) RegisterDebugMetrics() {
-	p.registerer.MustRegister(prometheus.NewGoCollector())
-	p.registerer.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	p.registerer.MustRegister(collectors.NewGoCollector())
+	p.registerer.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 }
 
 // Creates new counter. When a duplicate is registered, the Registry will return
@@ -176,10 +177,11 @@ func WithPublicServer(port int) RegistryOption {
 func (p *Registry) start(ipAddr string, port int) {
 	addr := fmt.Sprintf("%s:%d", ipAddr, port)
 	s := http.Server{
-		Addr:         addr,
-		Handler:      p.mux,
-		ReadTimeout:  5 * time.Minute,
-		WriteTimeout: 5 * time.Minute,
+		Addr:              addr,
+		Handler:           p.mux,
+		ReadTimeout:       5 * time.Minute,
+		ReadHeaderTimeout: 5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
 	}
 
 	lis, err := net.Listen("tcp", addr)
@@ -191,7 +193,7 @@ func (p *Registry) start(ipAddr string, port int) {
 	parts := strings.Split(lis.Addr().String(), ":")
 	p.port = parts[len(parts)-1]
 
-	go s.Serve(lis)
+	go s.Serve(lis) //nolint:errcheck
 }
 
 func (p *Registry) startTLS(port int, certFile, keyFile, caFile string) {
@@ -207,11 +209,12 @@ func (p *Registry) startTLS(port int, certFile, keyFile, caFile string) {
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	s := http.Server{
-		Addr:         addr,
-		Handler:      p.mux,
-		TLSConfig:    tlsConfig,
-		ReadTimeout:  5 * time.Minute,
-		WriteTimeout: 5 * time.Minute,
+		Addr:              addr,
+		Handler:           p.mux,
+		TLSConfig:         tlsConfig,
+		ReadTimeout:       5 * time.Minute,
+		ReadHeaderTimeout: 5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
 	}
 
 	lis, err := tls.Listen("tcp", addr, tlsConfig)
@@ -223,7 +226,7 @@ func (p *Registry) startTLS(port int, certFile, keyFile, caFile string) {
 	parts := strings.Split(lis.Addr().String(), ":")
 	p.port = parts[len(parts)-1]
 
-	go s.Serve(lis)
+	go s.Serve(lis) //nolint:errcheck
 }
 
 // Options applied to metrics on creation
