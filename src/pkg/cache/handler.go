@@ -8,14 +8,18 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 )
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+//counterfeiter:generate . Getter
 type Getter interface {
 	Get() []binding.Binding
 }
 
+//counterfeiter:generate . LegacyGetter
 type LegacyGetter interface {
 	Get() []binding.LegacyBinding
 }
 
+//counterfeiter:generate . AggregateGetter
 type AggregateGetter interface {
 	Get() []binding.Binding
 	LegacyGet() []binding.LegacyBinding

@@ -10,6 +10,7 @@ import (
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache/cachefakes"
 )
 
 var _ = Describe("Handler", func() {
@@ -24,8 +25,9 @@ var _ = Describe("Handler", func() {
 				},
 			},
 		}
-
-		handler := cache.Handler(newStubStore(bindings))
+		getter := &cachefakes.FakeGetter{}
+		getter.GetReturns(bindings)
+		handler := cache.Handler(getter)
 		rw := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/v2/bindings", nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -46,7 +48,9 @@ var _ = Describe("Handler", func() {
 			},
 		}
 
-		handler := cache.LegacyHandler(newStubLegacyStore(bindings))
+		legacyGetter := &cachefakes.FakeLegacyGetter{}
+		legacyGetter.GetReturns(bindings)
+		handler := cache.LegacyHandler(legacyGetter)
 		rw := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/bindings", nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -72,7 +76,9 @@ var _ = Describe("Handler", func() {
 			},
 		}
 
-		handler := cache.AggregateHandler(newStubAggregateStore(nil, aggregateDrains))
+		aggregateGetter := &cachefakes.FakeAggregateGetter{}
+		aggregateGetter.GetReturns(aggregateDrains)
+		handler := cache.AggregateHandler(aggregateGetter)
 		rw := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/v2/aggregate", nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -92,7 +98,9 @@ var _ = Describe("Handler", func() {
 			},
 		}
 
-		handler := cache.LegacyAggregateHandler(newStubAggregateStore(aggregateDrains, nil))
+		aggregateGetter := &cachefakes.FakeAggregateGetter{}
+		aggregateGetter.LegacyGetReturns(aggregateDrains)
+		handler := cache.LegacyAggregateHandler(aggregateGetter)
 		rw := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/aggregate", nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -103,48 +111,3 @@ var _ = Describe("Handler", func() {
 		Expect(rw.Body.String()).To(MatchJSON(j))
 	})
 })
-
-type stubStore struct {
-	bindings []binding.Binding
-}
-
-type stubLegacyStore struct {
-	bindings []binding.LegacyBinding
-}
-
-type stubAggregateStore struct {
-	AggregateDrains       []binding.Binding
-	LegacyAggregateDrains []binding.LegacyBinding
-}
-
-func newStubStore(bindings []binding.Binding) *stubStore {
-	return &stubStore{
-		bindings: bindings,
-	}
-}
-
-func (s *stubStore) Get() []binding.Binding {
-	return s.bindings
-}
-
-func newStubLegacyStore(bindings []binding.LegacyBinding) *stubLegacyStore {
-	return &stubLegacyStore{
-		bindings: bindings,
-	}
-}
-
-func (s *stubLegacyStore) Get() []binding.LegacyBinding {
-	return s.bindings
-}
-
-func newStubAggregateStore(legacyAggregateDrains []binding.LegacyBinding, aggregateDrains []binding.Binding) *stubAggregateStore {
-	return &stubAggregateStore{LegacyAggregateDrains: legacyAggregateDrains, AggregateDrains: aggregateDrains}
-}
-
-func (as *stubAggregateStore) Get() []binding.Binding {
-	return as.AggregateDrains
-}
-
-func (as *stubAggregateStore) LegacyGet() []binding.LegacyBinding {
-	return as.LegacyAggregateDrains
-}
