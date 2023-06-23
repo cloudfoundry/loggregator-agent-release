@@ -11,6 +11,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache/cachefakes"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/metricbinding"
 )
 
 var _ = Describe("Handler", func() {
@@ -29,13 +30,14 @@ var _ = Describe("Handler", func() {
 		getter.GetReturns(bindings)
 		handler := cache.Handler(getter)
 		rw := httptest.NewRecorder()
-		req, err := http.NewRequest(http.MethodGet, "/v2/bindings", nil)
+		req, err := http.NewRequest(http.MethodGet, "", nil)
 		Expect(err).ToNot(HaveOccurred())
 		handler.ServeHTTP(rw, req)
 
 		j, err := json.Marshal(&bindings)
 		Expect(err).ToNot(HaveOccurred())
 
+		Expect(rw.HeaderMap["Content-Type"]).To(Equal([]string{"application/json"}))
 		Expect(rw.Body.String()).To(MatchJSON(j))
 	})
 
@@ -52,13 +54,14 @@ var _ = Describe("Handler", func() {
 		legacyGetter.GetReturns(bindings)
 		handler := cache.LegacyHandler(legacyGetter)
 		rw := httptest.NewRecorder()
-		req, err := http.NewRequest(http.MethodGet, "/bindings", nil)
+		req, err := http.NewRequest(http.MethodGet, "", nil)
 		Expect(err).ToNot(HaveOccurred())
 		handler.ServeHTTP(rw, req)
 
 		j, err := json.Marshal(&bindings)
 		Expect(err).ToNot(HaveOccurred())
 
+		Expect(rw.HeaderMap["Content-Type"]).To(Equal([]string{"application/json"}))
 		Expect(rw.Body.String()).To(MatchJSON(j))
 	})
 
@@ -80,12 +83,14 @@ var _ = Describe("Handler", func() {
 		aggregateGetter.GetReturns(aggregateDrains)
 		handler := cache.AggregateHandler(aggregateGetter)
 		rw := httptest.NewRecorder()
-		req, err := http.NewRequest(http.MethodGet, "/v2/aggregate", nil)
+		req, err := http.NewRequest(http.MethodGet, "", nil)
 		Expect(err).ToNot(HaveOccurred())
 		handler.ServeHTTP(rw, req)
 
 		j, err := json.Marshal(&aggregateDrains)
 		Expect(err).ToNot(HaveOccurred())
+
+		Expect(rw.HeaderMap["Content-Type"]).To(Equal([]string{"application/json"}))
 		Expect(rw.Body.String()).To(MatchJSON(j))
 	})
 
@@ -102,12 +107,41 @@ var _ = Describe("Handler", func() {
 		aggregateGetter.LegacyGetReturns(aggregateDrains)
 		handler := cache.LegacyAggregateHandler(aggregateGetter)
 		rw := httptest.NewRecorder()
-		req, err := http.NewRequest(http.MethodGet, "/aggregate", nil)
+		req, err := http.NewRequest(http.MethodGet, "", nil)
 		Expect(err).ToNot(HaveOccurred())
 		handler.ServeHTTP(rw, req)
 
 		j, err := json.Marshal(&aggregateDrains)
 		Expect(err).ToNot(HaveOccurred())
+
+		Expect(rw.HeaderMap["Content-Type"]).To(Equal([]string{"application/json"}))
 		Expect(rw.Body.String()).To(MatchJSON(j))
+	})
+
+	Describe("AggregateMetricHandler", func() {
+		It("returns the metric drains as json", func() {
+			aggregateMetricDrains := metricbinding.OtelExporterConfig{
+				"otlp": metricbinding.OtelExporterConfig{
+					"endpoint": "otelcol:4317",
+				},
+				"otlp/2": metricbinding.OtelExporterConfig{
+					"endpoint": "otelcol2:4317",
+				},
+			}
+			metricDrainGetter := &cachefakes.FakeAggregateMetricGetter{}
+			metricDrainGetter.GetReturns(aggregateMetricDrains)
+			handler := cache.AggregateMetricHandler(metricDrainGetter)
+
+			rw := httptest.NewRecorder()
+			req, err := http.NewRequest(http.MethodGet, "", nil)
+			Expect(err).ToNot(HaveOccurred())
+			handler.ServeHTTP(rw, req)
+
+			j, err := json.Marshal(&aggregateMetricDrains)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(rw.HeaderMap["Content-Type"]).To(Equal([]string{"application/json"}))
+			Expect(rw.Body.String()).To(MatchJSON(j))
+		})
 	})
 })

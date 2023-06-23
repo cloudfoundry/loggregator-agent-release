@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/metricbinding"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
@@ -25,8 +26,14 @@ type AggregateGetter interface {
 	LegacyGet() []binding.LegacyBinding
 }
 
+//counterfeiter:generate . AggregateMetricGetter
+type AggregateMetricGetter interface {
+	Get() metricbinding.OtelExporterConfig
+}
+
 func Handler(store Getter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(store.Get())
 		if err != nil {
 			log.Printf("failed to encode response body: %s", err)
@@ -37,6 +44,7 @@ func Handler(store Getter) http.HandlerFunc {
 
 func LegacyHandler(store LegacyGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(store.Get())
 		if err != nil {
 			log.Printf("failed to encode response body: %s", err)
@@ -47,6 +55,7 @@ func LegacyHandler(store LegacyGetter) http.HandlerFunc {
 
 func AggregateHandler(store AggregateGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(store.Get())
 		if err != nil {
 			log.Printf("failed to encode response body: %s", err)
@@ -57,7 +66,19 @@ func AggregateHandler(store AggregateGetter) http.HandlerFunc {
 
 func LegacyAggregateHandler(store AggregateGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(store.LegacyGet())
+		if err != nil {
+			log.Printf("failed to encode response body: %s", err)
+			return
+		}
+	}
+}
+
+func AggregateMetricHandler(store AggregateMetricGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(store.Get())
 		if err != nil {
 			log.Printf("failed to encode response body: %s", err)
 			return
