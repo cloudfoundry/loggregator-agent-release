@@ -13,6 +13,7 @@ templates:
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
   aggregate_drains.yml.erb: config/aggregate_drains.yml
+  aggregate_metric_drains.yml.erb: config/aggregate_metric_drains.yml
   prom_scraper_config.yml.erb: config/prom_scraper_config.yml
 
 packages:
@@ -53,6 +54,15 @@ properties:
             key
          CA: |
             ca
+
+  aggregate_metric_drains:
+    description: "Exporter configuration for aggregate metric drains"
+    default: {}
+    example: |
+      otlp:
+        endpoint: otelcol:4317
+      otlp/2:
+        endpoint: otelcol2:4317
 
   external_port:
     description: |

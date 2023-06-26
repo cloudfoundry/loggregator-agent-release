@@ -117,6 +117,24 @@ var _ = Describe("Client", func() {
 		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/aggregate"))
 	})
 
+	It("returns aggregate metric drains from the cache", func() {
+		drains := map[string]any{
+			"logging": map[string]any{
+				"log_level": "debug",
+			},
+		}
+
+		j, err := json.Marshal(drains)
+		Expect(err).ToNot(HaveOccurred())
+		spyHTTPClient.response = &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(j)),
+		}
+
+		Expect(client.GetAggregateMetric()).To(Equal(drains))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/aggregatemetric"))
+	})
+
 	It("returns empty bindings if an HTTP error occurs", func() {
 		spyHTTPClient.err = errors.New("http error")
 

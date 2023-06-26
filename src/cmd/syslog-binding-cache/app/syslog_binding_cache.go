@@ -15,6 +15,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/api"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/metricbinding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"github.com/go-chi/chi/v5"
 )
@@ -56,6 +57,10 @@ func (sbc *SyslogBindingCache) Run() {
 	legacyStore := binding.NewLegacyStore()
 	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
 	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, legacyStore, sbc.metrics, sbc.log)
+	aggregateMetricStore, err := metricbinding.NewAggregateStore(sbc.config.AggregateMetricDrainsFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	go poller.Poll()
 
@@ -64,6 +69,7 @@ func (sbc *SyslogBindingCache) Run() {
 	router.Get("/v2/bindings", cache.Handler(store))
 	router.Get("/aggregate", cache.LegacyAggregateHandler(aggregateStore))
 	router.Get("/v2/aggregate", cache.AggregateHandler(aggregateStore))
+	router.Get("/v2/aggregatemetric", cache.AggregateMetricHandler(aggregateMetricStore))
 
 	sbc.startServer(router)
 }

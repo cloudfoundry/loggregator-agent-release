@@ -41,6 +41,28 @@ func (c *CacheClient) GetLegacyAggregate() ([]binding.LegacyBinding, error) {
 	return c.legacyGet("aggregate")
 }
 
+func (c *CacheClient) GetAggregateMetric() (map[string]any, error) {
+	var bindings map[string]any
+	resp, err := c.h.Get(fmt.Sprintf("%s/v2/aggregatemetric", c.cacheAddr))
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+
+	// if resp.StatusCode != http.StatusOK {
+	// 	return nil, fmt.Errorf("unexpected http response from binding cache: %d", resp.StatusCode)
+	// }
+
+	err = json.NewDecoder(resp.Body).Decode(&bindings)
+	if err != nil {
+		return nil, err
+	}
+	return bindings, nil
+}
+
 func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 	var bindings []binding.Binding
 	resp, err := c.h.Get(fmt.Sprintf("%s/"+path, c.cacheAddr))

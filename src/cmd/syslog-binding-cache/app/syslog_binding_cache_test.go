@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -28,7 +29,8 @@ var _ = Describe("App", func() {
 	const sbcCN = "binding-cache"
 
 	var (
-		capi *fakeCC
+		tempDir, aggMetricDrainFile string
+		capi                        *fakeCC
 
 		sbcPort     int
 		pprofPort   int
@@ -45,6 +47,10 @@ var _ = Describe("App", func() {
 	)
 
 	BeforeEach(func() {
+		var err error
+		tempDir, err = os.MkdirTemp("", "binding-cache")
+		Expect(err).ToNot(HaveOccurred())
+
 		r := results{
 			{
 				Url: "syslog://drain-a",
@@ -90,7 +96,7 @@ var _ = Describe("App", func() {
 		pprofPort = 31000 + GinkgoParallelProcess()
 		metricsPort = 32000 + GinkgoParallelProcess()
 
-		write := `---
+		aggregateDrainConfig := `---
 - url: "syslog://test-hostname:1000"
   ca: ca
   cert: cert
@@ -100,27 +106,34 @@ var _ = Describe("App", func() {
   cert: cert2
   key: key2
 `
-		aggDrainFile, err := os.CreateTemp("", "aggregate-drains")
-		Expect(err).ToNot(HaveOccurred())
-		_, err = aggDrainFile.WriteString(write)
-		Expect(err).ToNot(HaveOccurred())
-		err = aggDrainFile.Close()
-		Expect(err).ToNot(HaveOccurred())
+		aggDrainFile := filepath.Join(tempDir, "aggregate_drains.yml")
+		Expect(os.WriteFile(aggDrainFile, []byte(aggregateDrainConfig), 0600)).To(Succeed())
+
+		aggregateMetricDrainConfig := `---
+otlp:
+  endpoint: otelcol:4317
+otlp/2:
+  endpoint: otelcol2:4317
+`
+		aggMetricDrainFile = filepath.Join(tempDir, "aggregate_metric_drains.yml")
+		Expect(os.WriteFile(aggMetricDrainFile, []byte(aggregateMetricDrainConfig), 0600)).To(Succeed())
+
 		sbcCerts = testhelper.GenerateCerts("binding-cache-ca")
 		sbcCfg = app.Config{
-			APIURL:              capi.URL,
-			APIPollingInterval:  10 * time.Millisecond,
-			APIBatchSize:        1000,
-			APICAFile:           capiCerts.CA(),
-			APICertFile:         capiCerts.Cert("capi"),
-			APIKeyFile:          capiCerts.Key("capi"),
-			APICommonName:       "capi",
-			CacheCAFile:         sbcCerts.CA(),
-			CacheCertFile:       sbcCerts.Cert(sbcCN),
-			CacheKeyFile:        sbcCerts.Key(sbcCN),
-			CacheCommonName:     sbcCN,
-			CachePort:           sbcPort,
-			AggregateDrainsFile: aggDrainFile.Name(),
+			APIURL:                    capi.URL,
+			APIPollingInterval:        10 * time.Millisecond,
+			APIBatchSize:              1000,
+			APICAFile:                 capiCerts.CA(),
+			APICertFile:               capiCerts.Cert("capi"),
+			APIKeyFile:                capiCerts.Key("capi"),
+			APICommonName:             "capi",
+			CacheCAFile:               sbcCerts.CA(),
+			CacheCertFile:             sbcCerts.Cert(sbcCN),
+			CacheKeyFile:              sbcCerts.Key(sbcCN),
+			CacheCommonName:           sbcCN,
+			CachePort:                 sbcPort,
+			AggregateDrainsFile:       aggDrainFile,
+			AggregateMetricDrainsFile: aggMetricDrainFile,
 			MetricsServer: config.MetricsServer{
 				Port:      uint16(metricsPort),
 				CAFile:    sbcCerts.CA(),
@@ -160,6 +173,8 @@ var _ = Describe("App", func() {
 		sbc.Stop()
 		capi.CloseClientConnections()
 		capi.Close()
+
+		Expect(os.RemoveAll(tempDir)).To(Succeed())
 	})
 
 	It("polls CAPI on an interval for results", func() {
@@ -291,6 +306,36 @@ var _ = Describe("App", func() {
 		result1 := binding.LegacyBinding{AppID: "app-id-1", Drains: []string{"syslog://drain-a", "syslog://drain-b"}, Hostname: "org.space.app-name-1", V2Available: true}
 		result2 := binding.LegacyBinding{AppID: "app-id-2", Drains: []string{"syslog://drain-c", "syslog://drain-d"}, Hostname: "org.space.app-name-2", V2Available: true}
 		Expect(results).Should(ConsistOf(result1, result2))
+	})
+
+	It("has an HTTP endpoint that returns aggregate metric drains", func() {
+		addr := fmt.Sprintf("https://localhost:%d/v2/aggregatemetric", sbcPort)
+
+		var resp *http.Response
+		Eventually(func() error {
+			var err error
+			resp, err = client.Get(addr)
+			return err
+		}).Should(Succeed())
+		defer resp.Body.Close()
+
+		Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+		body, err := io.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred())
+
+		var result map[string]any
+		Expect(json.Unmarshal(body, &result)).To(Succeed())
+
+		Expect(result).To(Equal(map[string]any{
+			"otlp": map[string]any{
+				"endpoint": "otelcol:4317",
+			},
+			"otlp/2": map[string]any{
+				"endpoint": "otelcol2:4317",
+			},
+		},
+		))
 	})
 
 	Context("when debug configuration is enabled", func() {
