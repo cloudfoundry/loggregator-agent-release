@@ -84,7 +84,7 @@ func NewServerCredentials(
 	return credentials.NewTLS(tlsConfig), nil
 }
 
-func NewTLSHTTPClient(cert, key, ca, commonName string) *http.Client {
+func NewTLSHTTPClient(cert, key, ca, commonName string, disableKeepAlives bool) *http.Client {
 	tlsConfig, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
 		tlsconfig.WithIdentityFromFile(cert, key),
@@ -97,11 +97,16 @@ func NewTLSHTTPClient(cert, key, ca, commonName string) *http.Client {
 		log.Panicf("failed to load API client certificates: %s", err)
 	}
 
+	keepAlive := 30 * time.Second
+	if disableKeepAlives {
+		keepAlive = -1 * time.Second
+	}
+
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+			KeepAlive: keepAlive,
 			DualStack: true,
 		}).DialContext,
 		MaxIdleConns:          100,
@@ -109,6 +114,7 @@ func NewTLSHTTPClient(cert, key, ca, commonName string) *http.Client {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig:       tlsConfig,
+		DisableKeepAlives:     disableKeepAlives,
 	}
 
 	return &http.Client{

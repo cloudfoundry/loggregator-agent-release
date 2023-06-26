@@ -108,6 +108,10 @@ properties:
       The batch size the syslog will request the Cloud Controller for
       bindings.
     default: 1000
+  api.disable_keep_alives:
+    description: |
+      Configures if the polling connection to API is reused or not.
+    default: false
 
   metrics.port:
     description: "Port the agent uses to serve metrics and debug information"

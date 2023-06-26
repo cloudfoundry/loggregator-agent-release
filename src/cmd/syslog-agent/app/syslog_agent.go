@@ -102,6 +102,7 @@ func NewSyslogAgent(
 			cfg.Cache.KeyFile,
 			cfg.Cache.CAFile,
 			cfg.Cache.CommonName,
+			false,
 		)
 
 		cacheClient = cache.NewClient(cfg.Cache.URL, tlsClient)
