@@ -84,6 +84,7 @@ func (sbc *SyslogBindingCache) apiClient() api.Client {
 		sbc.config.APIKeyFile,
 		sbc.config.APICAFile,
 		sbc.config.APICommonName,
+		sbc.config.APIDisableKeepAlives,
 	)
 
 	return api.Client{

@@ -137,6 +137,7 @@ var _ = Describe("App", func() {
 			sbcCerts.Key(sbcCN),
 			sbcCerts.CA(),
 			sbcCN,
+			false,
 		)
 	})
 
