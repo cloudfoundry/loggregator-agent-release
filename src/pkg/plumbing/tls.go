@@ -97,16 +97,11 @@ func NewTLSHTTPClient(cert, key, ca, commonName string, disableKeepAlives bool) 
 		log.Panicf("failed to load API client certificates: %s", err)
 	}
 
-	keepAlive := 30 * time.Second
-	if disableKeepAlives {
-		keepAlive = -1 * time.Second
-	}
-
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
-			KeepAlive: keepAlive,
+			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		}).DialContext,
 		MaxIdleConns:          100,
