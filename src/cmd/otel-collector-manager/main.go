@@ -12,17 +12,9 @@ import (
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/otel-collector-manager/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/otel-collector-manager/app/collector"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 )
-
-type HardcodedClient struct{}
-
-func (h *HardcodedClient) Get() (app.ExporterConfig, error) {
-	return map[string]any{
-		"logging": map[string]any{
-			"loglevel": "debug",
-		},
-	}, nil
-}
 
 func main() {
 	l := logrus.New()
@@ -61,7 +53,17 @@ func main() {
 		l,
 	)
 	a := collector.NewConfigApplier(config.CollectorPidFile)
-	g := collector.NewChangeGetter(&HardcodedClient{})
+
+	var cc *cache.CacheClient
+	tlsClient := plumbing.NewTLSHTTPClient(
+		config.Cache.CertFile,
+		config.Cache.KeyFile,
+		config.Cache.CAFile,
+		config.Cache.CommonName,
+	)
+	cc = cache.NewClient(config.Cache.URL, tlsClient)
+
+	g := collector.NewChangeGetter(cc)
 	m := app.NewManager(g, 30*time.Second, cw, r, a, l)
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -1,15 +1,21 @@
 package main_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/tlsconfig"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"gopkg.in/yaml.v2"
 )
 
 var _ = Describe("Manager", func() {
@@ -19,12 +25,18 @@ var _ = Describe("Manager", func() {
 
 		session *gexec.Session
 		command *exec.Cmd
+
+		bindingCache *fakeBindingCache
 	)
 
 	BeforeEach(func() {
 		var err error
 		tempDirPath, err = os.MkdirTemp("", "otel-collector-manager-test")
 		Expect(err).ToNot(HaveOccurred())
+
+		cacheCerts := testhelper.GenerateCerts("binding-cache-ca")
+		bindingCache = &fakeBindingCache{}
+		bindingCache.startTLS(cacheCerts)
 
 		collectorBinary = filepath.Join(tempDirPath, "collector")
 
@@ -45,6 +57,11 @@ echo starting stderr >&2
 
 		command = exec.Command(otelCollectorManagerPath)
 		command.Env = []string{
+			fmt.Sprintf("CACHE_URL=%s", bindingCache.URL),
+			fmt.Sprintf("CACHE_CA_FILE_PATH=%s", cacheCerts.CA()),
+			fmt.Sprintf("CACHE_CERT_FILE_PATH=%s", cacheCerts.Cert("collector-manager")),
+			fmt.Sprintf("CACHE_KEY_FILE_PATH=%s", cacheCerts.Key("collector-manager")),
+			"CACHE_COMMON_NAME=binding-cache",
 			fmt.Sprintf("COLLECTOR_PID_FILE=%s", pidFile),
 			fmt.Sprintf("COLLECTOR_BASE_CONFIG=%s", baseConfig),
 			fmt.Sprintf("COLLECTOR_RUNNING_CONFIG=%s", runningConfig),
@@ -96,6 +113,23 @@ echo starting stderr >&2
 		})
 	})
 
+	It("writes a config file with the exporters received from the cache", func() {
+		var err error
+		session, err = gexec.Start(command, GinkgoWriter, GinkgoWriter)
+		Expect(err).ToNot(HaveOccurred())
+
+		Eventually(func() map[string]any {
+			b, _ := os.ReadFile(runningConfig)
+			var result map[string]map[string]any
+			_ = yaml.Unmarshal(b, &result)
+			return result["exporters"]
+		}).Should(Equal(map[string]any{
+			"logging": map[any]any{
+				"verbosity": "detailed",
+			},
+		}))
+	})
+
 	It("shuts down cleanly when sent a signal", func() {
 		var err error
 		session, err = gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -109,3 +143,52 @@ echo starting stderr >&2
 	})
 
 })
+
+type fakeBindingCache struct {
+	*httptest.Server
+}
+
+func (f *fakeBindingCache) startTLS(testCerts *testhelper.TestCerts) {
+	tlsConfig, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(
+			testCerts.Cert("binding-cache"),
+			testCerts.Key("binding-cache"),
+		),
+	).Server(
+		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
+	)
+
+	Expect(err).ToNot(HaveOccurred())
+
+	f.Server = httptest.NewUnstartedServer(f)
+	f.Server.TLS = tlsConfig
+	f.Server.StartTLS()
+}
+
+func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		results []byte
+		err     error
+	)
+
+	switch r.URL.Path {
+	case "/v2/aggregatemetric":
+		cfg := map[string]any{
+			"logging": map[string]any{
+				"verbosity": "detailed",
+			},
+		}
+		results, err = json.Marshal(cfg)
+	default:
+		w.WriteHeader(500)
+		return
+	}
+
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+
+	_, _ = w.Write(results)
+}

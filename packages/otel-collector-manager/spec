@@ -5,6 +5,7 @@ dependencies:
 - golang-1.20-linux
 files:
 - cmd/otel-collector-manager/**/*.go
+- pkg/**/*.go
 - vendor/**/*
 - go.mod
 - go.sum

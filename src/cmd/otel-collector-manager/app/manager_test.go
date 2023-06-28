@@ -51,7 +51,7 @@ var _ = Describe("Manager", func() {
 		})
 		It("gets the OTel exporter configuration from the server", func() {
 			go m.Run(ctx, stopCh)
-			Eventually(c.GetCallCount).Should(BeNumerically(">=", 1))
+			Eventually(c.GetAggregateMetricCallCount).Should(BeNumerically(">=", 1))
 		})
 
 		It("writes the OTel exporter configuration out every time it changes", func() {
@@ -149,7 +149,7 @@ var _ = Describe("Manager", func() {
 			BeforeEach(func() {
 				o = gbytes.NewBuffer()
 				l.SetOutput(o)
-				c.GetReturns(nil, errors.New("some-error"))
+				c.GetAggregateMetricReturns(nil, errors.New("some-error"))
 			})
 
 			It("logs the error", func() {

@@ -26,48 +26,39 @@ func NewClient(cacheAddr string, h httpGetter) *CacheClient {
 }
 
 func (c *CacheClient) Get() ([]binding.Binding, error) {
-	return c.get("v2/bindings")
+	var bindings []binding.Binding
+	err := c.get("v2/bindings", &bindings)
+	return bindings, err
 }
 
 func (c *CacheClient) LegacyGet() ([]binding.LegacyBinding, error) {
-	return c.legacyGet("bindings")
+	var bindings []binding.LegacyBinding
+	err := c.get("bindings", &bindings)
+	return bindings, err
 }
 
 func (c *CacheClient) GetAggregate() ([]binding.Binding, error) {
-	return c.get("v2/aggregate")
+	var bindings []binding.Binding
+	err := c.get("v2/aggregate", &bindings)
+	return bindings, err
 }
 
 func (c *CacheClient) GetLegacyAggregate() ([]binding.LegacyBinding, error) {
-	return c.legacyGet("aggregate")
+	var bindings []binding.LegacyBinding
+	err := c.get("aggregate", &bindings)
+	return bindings, err
 }
 
 func (c *CacheClient) GetAggregateMetric() (map[string]any, error) {
 	var bindings map[string]any
-	resp, err := c.h.Get(fmt.Sprintf("%s/v2/aggregatemetric", c.cacheAddr))
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
-
-	// if resp.StatusCode != http.StatusOK {
-	// 	return nil, fmt.Errorf("unexpected http response from binding cache: %d", resp.StatusCode)
-	// }
-
-	err = json.NewDecoder(resp.Body).Decode(&bindings)
-	if err != nil {
-		return nil, err
-	}
-	return bindings, nil
+	err := c.get("v2/aggregatemetric", &bindings)
+	return bindings, err
 }
 
-func (c *CacheClient) get(path string) ([]binding.Binding, error) {
-	var bindings []binding.Binding
+func (c *CacheClient) get(path string, result any) error {
 	resp, err := c.h.Get(fmt.Sprintf("%s/"+path, c.cacheAddr))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
@@ -75,36 +66,13 @@ func (c *CacheClient) get(path string) ([]binding.Binding, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected http response from binding cache: %d", resp.StatusCode)
+		return fmt.Errorf("unexpected http response from binding cache: %d", resp.StatusCode)
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&bindings)
+	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return bindings, nil
-}
-
-func (c *CacheClient) legacyGet(path string) ([]binding.LegacyBinding, error) {
-	var bindings []binding.LegacyBinding
-	resp, err := c.h.Get(fmt.Sprintf("%s/"+path, c.cacheAddr))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected http response from binding cache: %d", resp.StatusCode)
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&bindings)
-	if err != nil {
-		return nil, err
-	}
-
-	return bindings, nil
+	return nil
 }

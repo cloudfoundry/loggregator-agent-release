@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,7 +23,7 @@ var _ = Describe("Client", func() {
 
 	BeforeEach(func() {
 		spyHTTPClient = newSpyHTTPClient()
-		addr = "https://cache.address.com"
+		addr = "https://cache.example.com"
 		client = cache.NewClient(addr, spyHTTPClient)
 	})
 
@@ -48,7 +47,7 @@ var _ = Describe("Client", func() {
 		}
 
 		Expect(client.Get()).To(Equal(bindings))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/bindings"))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.example.com/v2/bindings"))
 	})
 
 	It("returns legacy bindings from the cache", func() {
@@ -69,7 +68,7 @@ var _ = Describe("Client", func() {
 		}
 
 		Expect(client.LegacyGet()).To(Equal(bindings))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/bindings"))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.example.com/bindings"))
 	})
 
 	It("returns aggregate drains from the cache", func() {
@@ -94,7 +93,7 @@ var _ = Describe("Client", func() {
 		}
 
 		Expect(client.GetAggregate()).To(Equal(bindings))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/aggregate"))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.example.com/v2/aggregate"))
 	})
 
 	It("returns legacy aggregate drains from the cache", func() {
@@ -114,13 +113,13 @@ var _ = Describe("Client", func() {
 		}
 
 		Expect(client.GetLegacyAggregate()).To(Equal(bindings))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/aggregate"))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.example.com/aggregate"))
 	})
 
 	It("returns aggregate metric drains from the cache", func() {
 		drains := map[string]any{
 			"logging": map[string]any{
-				"log_level": "debug",
+				"verbosity": "detailed",
 			},
 		}
 
@@ -132,61 +131,120 @@ var _ = Describe("Client", func() {
 		}
 
 		Expect(client.GetAggregateMetric()).To(Equal(drains))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/aggregatemetric"))
+		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.example.com/v2/aggregatemetric"))
 	})
 
-	It("returns empty bindings if an HTTP error occurs", func() {
-		spyHTTPClient.err = errors.New("http error")
-
-		_, err := client.Get()
-
-		Expect(err).To(MatchError("http error"))
-
-		_, err = client.GetAggregate()
-
-		Expect(err).To(MatchError("http error"))
+	Context("when an http error occurs", func() {
+		BeforeEach(func() {
+			spyHTTPClient.err = errors.New("http error")
+		})
+		Context("Aggregate", func() {
+			It("errors", func() {
+				_, err := client.GetAggregate()
+				Expect(err).To(MatchError("http error"))
+			})
+		})
+		Context("App Drains", func() {
+			It("errors", func() {
+				_, err := client.Get()
+				Expect(err).To(MatchError("http error"))
+			})
+		})
+		Context("Legacy App Drains", func() {
+			It("errors", func() {
+				_, err := client.LegacyGet()
+				Expect(err).To(MatchError("http error"))
+			})
+		})
+		Context("Legacy Aggregate Drains", func() {
+			It("errors", func() {
+				_, err := client.GetLegacyAggregate()
+				Expect(err).To(MatchError("http error"))
+			})
+		})
+		Context("Aggregate Metric", func() {
+			It("errors", func() {
+				_, err := client.GetAggregateMetric()
+				Expect(err).To(MatchError("http error"))
+			})
+		})
+	})
+	Context("when server responds with a non-200 response code", func() {
+		BeforeEach(func() {
+			spyHTTPClient.response = &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(bytes.NewReader([]byte{})),
+			}
+		})
+		Context("Aggregate", func() {
+			It("errors", func() {
+				_, err := client.GetAggregate()
+				Expect(err).To(MatchError("unexpected http response from binding cache: 404"))
+			})
+		})
+		Context("App Drains", func() {
+			It("errors", func() {
+				_, err := client.Get()
+				Expect(err).To(MatchError("unexpected http response from binding cache: 404"))
+			})
+		})
+		Context("Legacy App Drains", func() {
+			It("errors", func() {
+				_, err := client.LegacyGet()
+				Expect(err).To(MatchError("unexpected http response from binding cache: 404"))
+			})
+		})
+		Context("Legacy Aggregate Drains", func() {
+			It("errors", func() {
+				_, err := client.GetLegacyAggregate()
+				Expect(err).To(MatchError("unexpected http response from binding cache: 404"))
+			})
+		})
+		Context("Aggregate Metric", func() {
+			It("errors", func() {
+				_, err := client.GetAggregateMetric()
+				Expect(err).To(MatchError("unexpected http response from binding cache: 404"))
+			})
+		})
 	})
 
-	It("returns empty legacy bindings if an HTTP error occurs", func() {
-		spyHTTPClient.err = errors.New("http error")
-
-		_, err := client.Get()
-
-		Expect(err).To(MatchError("http error"))
-
-		_, err = client.GetLegacyAggregate()
-
-		Expect(err).To(MatchError("http error"))
-	})
-
-	It("returns empty bindings if cache returns a non-OK status code", func() {
-		spyHTTPClient.response = &http.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       io.NopCloser(strings.NewReader("")),
-		}
-
-		_, err := client.Get()
-
-		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
-
-		_, err = client.GetAggregate()
-
-		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
-	})
-
-	It("returns empty legacy bindings if cache returns a non-OK status code", func() {
-		spyHTTPClient.response = &http.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       io.NopCloser(strings.NewReader("")),
-		}
-
-		_, err := client.Get()
-
-		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
-
-		_, err = client.GetLegacyAggregate()
-
-		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
+	Context("when the server responds with malformed JSON", func() {
+		BeforeEach(func() {
+			spyHTTPClient.response = &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte("{"))),
+			}
+		})
+		Context("Aggregate", func() {
+			It("errors", func() {
+				_, err := client.GetAggregate()
+				Expect(err).To(HaveOccurred())
+			})
+		})
+		Context("App Drains", func() {
+			It("errors", func() {
+				_, err := client.Get()
+				Expect(err).To(HaveOccurred())
+			})
+		})
+		Context("Legacy App Drains", func() {
+			It("errors", func() {
+				_, err := client.LegacyGet()
+				Expect(err).To(HaveOccurred())
+			})
+		})
+		Context("Legacy Aggregate Drains", func() {
+			It("errors", func() {
+				_, err := client.GetLegacyAggregate()
+				Expect(err).To(HaveOccurred())
+			})
+		})
+		Context("Aggregate Metric", func() {
+			It("errors", func() {
+				_, err := client.GetAggregateMetric()
+				Expect(err).To(HaveOccurred())
+			})
+		})
 	})
 })
 

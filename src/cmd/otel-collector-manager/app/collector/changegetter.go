@@ -2,29 +2,27 @@ package collector
 
 import (
 	"reflect"
-
-	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/otel-collector-manager/app"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
 //counterfeiter:generate . Getter
 type Getter interface {
-	Get() (app.ExporterConfig, error)
+	GetAggregateMetric() (map[string]any, error)
 }
 
 type ChangeGetter struct {
 	g  Getter
 	hc bool
-	lc app.ExporterConfig
+	lc map[string]any
 }
 
 func NewChangeGetter(g Getter) *ChangeGetter {
 	return &ChangeGetter{g: g}
 }
 
-func (c *ChangeGetter) Get() (app.ExporterConfig, error) {
-	cfg, err := c.g.Get()
+func (c *ChangeGetter) GetAggregateMetric() (map[string]any, error) {
+	cfg, err := c.g.GetAggregateMetric()
 	if err == nil {
 		c.hc = !reflect.DeepEqual(c.lc, cfg)
 		c.lc = cfg

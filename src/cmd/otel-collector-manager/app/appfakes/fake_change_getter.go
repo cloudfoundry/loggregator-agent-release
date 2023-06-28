@@ -18,16 +18,16 @@ type FakeChangeGetter struct {
 	changedReturnsOnCall map[int]struct {
 		result1 bool
 	}
-	GetStub        func() (app.ExporterConfig, error)
-	getMutex       sync.RWMutex
-	getArgsForCall []struct {
+	GetAggregateMetricStub        func() (map[string]any, error)
+	getAggregateMetricMutex       sync.RWMutex
+	getAggregateMetricArgsForCall []struct {
 	}
-	getReturns struct {
-		result1 app.ExporterConfig
+	getAggregateMetricReturns struct {
+		result1 map[string]any
 		result2 error
 	}
-	getReturnsOnCall map[int]struct {
-		result1 app.ExporterConfig
+	getAggregateMetricReturnsOnCall map[int]struct {
+		result1 map[string]any
 		result2 error
 	}
 	invocations      map[string][][]interface{}
@@ -87,15 +87,15 @@ func (fake *FakeChangeGetter) ChangedReturnsOnCall(i int, result1 bool) {
 	}{result1}
 }
 
-func (fake *FakeChangeGetter) Get() (app.ExporterConfig, error) {
-	fake.getMutex.Lock()
-	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
-	fake.getArgsForCall = append(fake.getArgsForCall, struct {
+func (fake *FakeChangeGetter) GetAggregateMetric() (map[string]any, error) {
+	fake.getAggregateMetricMutex.Lock()
+	ret, specificReturn := fake.getAggregateMetricReturnsOnCall[len(fake.getAggregateMetricArgsForCall)]
+	fake.getAggregateMetricArgsForCall = append(fake.getAggregateMetricArgsForCall, struct {
 	}{})
-	stub := fake.GetStub
-	fakeReturns := fake.getReturns
-	fake.recordInvocation("Get", []interface{}{})
-	fake.getMutex.Unlock()
+	stub := fake.GetAggregateMetricStub
+	fakeReturns := fake.getAggregateMetricReturns
+	fake.recordInvocation("GetAggregateMetric", []interface{}{})
+	fake.getAggregateMetricMutex.Unlock()
 	if stub != nil {
 		return stub()
 	}
@@ -105,40 +105,40 @@ func (fake *FakeChangeGetter) Get() (app.ExporterConfig, error) {
 	return fakeReturns.result1, fakeReturns.result2
 }
 
-func (fake *FakeChangeGetter) GetCallCount() int {
-	fake.getMutex.RLock()
-	defer fake.getMutex.RUnlock()
-	return len(fake.getArgsForCall)
+func (fake *FakeChangeGetter) GetAggregateMetricCallCount() int {
+	fake.getAggregateMetricMutex.RLock()
+	defer fake.getAggregateMetricMutex.RUnlock()
+	return len(fake.getAggregateMetricArgsForCall)
 }
 
-func (fake *FakeChangeGetter) GetCalls(stub func() (app.ExporterConfig, error)) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
-	fake.GetStub = stub
+func (fake *FakeChangeGetter) GetAggregateMetricCalls(stub func() (map[string]any, error)) {
+	fake.getAggregateMetricMutex.Lock()
+	defer fake.getAggregateMetricMutex.Unlock()
+	fake.GetAggregateMetricStub = stub
 }
 
-func (fake *FakeChangeGetter) GetReturns(result1 app.ExporterConfig, result2 error) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
-	fake.GetStub = nil
-	fake.getReturns = struct {
-		result1 app.ExporterConfig
+func (fake *FakeChangeGetter) GetAggregateMetricReturns(result1 map[string]any, result2 error) {
+	fake.getAggregateMetricMutex.Lock()
+	defer fake.getAggregateMetricMutex.Unlock()
+	fake.GetAggregateMetricStub = nil
+	fake.getAggregateMetricReturns = struct {
+		result1 map[string]any
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeChangeGetter) GetReturnsOnCall(i int, result1 app.ExporterConfig, result2 error) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
-	fake.GetStub = nil
-	if fake.getReturnsOnCall == nil {
-		fake.getReturnsOnCall = make(map[int]struct {
-			result1 app.ExporterConfig
+func (fake *FakeChangeGetter) GetAggregateMetricReturnsOnCall(i int, result1 map[string]any, result2 error) {
+	fake.getAggregateMetricMutex.Lock()
+	defer fake.getAggregateMetricMutex.Unlock()
+	fake.GetAggregateMetricStub = nil
+	if fake.getAggregateMetricReturnsOnCall == nil {
+		fake.getAggregateMetricReturnsOnCall = make(map[int]struct {
+			result1 map[string]any
 			result2 error
 		})
 	}
-	fake.getReturnsOnCall[i] = struct {
-		result1 app.ExporterConfig
+	fake.getAggregateMetricReturnsOnCall[i] = struct {
+		result1 map[string]any
 		result2 error
 	}{result1, result2}
 }
@@ -148,8 +148,8 @@ func (fake *FakeChangeGetter) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.changedMutex.RLock()
 	defer fake.changedMutex.RUnlock()
-	fake.getMutex.RLock()
-	defer fake.getMutex.RUnlock()
+	fake.getAggregateMetricMutex.RLock()
+	defer fake.getAggregateMetricMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

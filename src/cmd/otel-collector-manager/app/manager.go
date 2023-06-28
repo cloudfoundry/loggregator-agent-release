@@ -13,7 +13,7 @@ type ExporterConfig map[string]any
 
 //counterfeiter:generate . ChangeGetter
 type ChangeGetter interface {
-	Get() (ExporterConfig, error)
+	GetAggregateMetric() (map[string]any, error)
 	Changed() bool
 }
 
@@ -86,7 +86,7 @@ func (m *Manager) Run(ctx context.Context, stopCh chan<- struct{}) {
 }
 
 func (m *Manager) retrieveAndUpdateConfig() {
-	cfg, err := m.c.Get()
+	cfg, err := m.c.GetAggregateMetric()
 	if err != nil {
 		m.l.WithError(err).Error("Failed to retrieve exporter configuration")
 		return

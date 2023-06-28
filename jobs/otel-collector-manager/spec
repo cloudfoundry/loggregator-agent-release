@@ -5,15 +5,29 @@ packages:
 - otel-collector
 - otel-collector-manager
 
+consumes:
+- name: binding_cache
+  type: binding_cache
+
 templates:
   base.yml.erb: config/base.yml
   bpm.yml.erb: config/bpm.yml
+  cache_ca.crt.erb: config/certs/cache_ca.crt
+  cache_client.crt.erb: config/certs/cache_client.crt
+  cache_client.key.erb: config/certs/cache_client.key
   scrape.crt.erb: config/certs/scrape.crt
   scrape.key.erb: config/certs/scrape.key
   scrape_ca.crt.erb: config/certs/scrape_ca.crt
 
-
 properties:
+  cache.tls.ca_cert:
+    description: "The CA used to scrape the binding cache"
+  cache.tls.cert:
+    description: "The cert used to scrape the binding cache"
+  cache.tls.key:
+    description: "The key used to scrape the binding cache"
+  cache.tls.cn:
+    description: "The common name used to scrape the binding cache"
   scrape.tls.cert:
     description: "The cert used to scrape metrics-agent"
   scrape.tls.key:

@@ -1,4 +1,7 @@
 <%
+  certs_dir="/var/vcap/jobs/otel-collector-manager/config/certs"
+  cache = link("binding_cache")
+
   process = {
     "name" => "otel-collector-manager",
     "executable" => "/var/vcap/packages/otel-collector-manager/otel-collector-manager",
@@ -13,12 +16,17 @@
       },
     ],
     "env" => {
-      "COLLECTOR_PID_FILE"       => "/var/vcap/sys/run/otel-collector-manager/collector/collector.pid",
+      "CACHE_CA_FILE_PATH"       => "#{certs_dir}/cache_ca.crt",
+      "CACHE_CERT_FILE_PATH"     => "#{certs_dir}/cache_client.crt",
+      "CACHE_COMMON_NAME"        => p("cache.tls.cn"),
+      "CACHE_KEY_FILE_PATH"      => "#{certs_dir}/cache_client.key",
+      "CACHE_URL"                => "https://#{cache.address}:#{cache.p("external_port")}",
       "COLLECTOR_BASE_CONFIG"    => "/var/vcap/jobs/otel-collector-manager/config/base.yml",
       "COLLECTOR_BINARY"         => "/var/vcap/packages/otel-collector/otel-collector",
+      "COLLECTOR_PID_FILE"       => "/var/vcap/sys/run/otel-collector-manager/collector/collector.pid",
       "COLLECTOR_RUNNING_CONFIG" => "/var/vcap/jobs/otel-collector-manager/config/collector/config.yml",
-      "COLLECTOR_STDOUT_LOG"     => "/var/vcap/sys/log/otel-collector-manager/collector.log",
-      "COLLECTOR_STDERR_LOG"     => "/var/vcap/sys/log/otel-collector-manager/collector.err"
+      "COLLECTOR_STDERR_LOG"     => "/var/vcap/sys/log/otel-collector-manager/collector.err",
+      "COLLECTOR_STDOUT_LOG"     => "/var/vcap/sys/log/otel-collector-manager/collector.log"
     }
   }
 
