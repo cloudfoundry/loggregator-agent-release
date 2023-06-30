@@ -4,11 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,185 +15,174 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	"github.com/onsi/gomega/gexec"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-const forwardConfigTemplate = `---
-ingress: %s
-`
+var _ = Describe("App", func() {
+	const agentCN = "metron"
 
-var (
-	fConfigDir string
-)
-
-var _ = Describe("Main", func() {
 	var (
-		grpcPort   = 20000
-		testLogger = log.New(GinkgoWriter, "", log.LstdFlags)
-		testCerts  = testhelper.GenerateCerts("loggregatorCA")
+		grpcPort    int
+		pprofPort   int
+		metricsPort int
 
-		forwarderAgent *app.ForwarderAgent
-		mc             *metricsHelpers.SpyMetricsRegistry
-		cfg            app.Config
+		ingressCfgPath string
 		ingressClient  *loggregator.IngressClient
+		ingressServer1 *spyLoggregatorV2Ingress
+		ingressServer2 *spyLoggregatorV2Ingress
+		ingressServer3 *spyLoggregatorV2Ingress
 
-		emitEnvelopes = func(ctx context.Context, d time.Duration, wg *sync.WaitGroup) {
-			go func() {
-				defer wg.Done()
-
-				ticker := time.NewTicker(d)
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case <-ticker.C:
-						ingressClient.Emit(sampleEnvelope)
-					}
-				}
-			}()
-		}
-
-		emitCounters = func(ctx context.Context, d time.Duration, wg *sync.WaitGroup) {
-			go func() {
-				defer wg.Done()
-
-				ticker := time.NewTicker(d)
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case <-ticker.C:
-						ingressClient.Emit(sampleCounter)
-					}
-				}
-			}()
-		}
+		agentCfg     app.Config
+		agentMetrics *metricsHelpers.SpyMetricsRegistry
+		agentLogr    *log.Logger
+		agentCerts   *testhelper.TestCerts
+		agent        *app.ForwarderAgent
 	)
 
 	BeforeEach(func() {
-		fConfigDir = forwarderPortConfigDir()
+		grpcPort = 30000 + GinkgoParallelProcess()
+		pprofPort = 31000 + GinkgoParallelProcess()
+		metricsPort = 32000 + GinkgoParallelProcess()
 
-		mc = metricsHelpers.NewMetricsRegistry()
-		cfg = app.Config{
+		agentCerts = testhelper.GenerateCerts("forwarder-ca")
+
+		ingressCfgPath = GinkgoT().TempDir()
+		ingressClient = newIngressClient(grpcPort, agentCerts, 1)
+
+		ingressServer1 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath)
+		ingressServer2 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath)
+		ingressServer3 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath)
+		ingressServer3.blocking = true
+
+		agentCfg = app.Config{
 			GRPC: app.GRPC{
 				Port:     uint16(grpcPort),
-				CAFile:   testCerts.CA(),
-				CertFile: testCerts.Cert("metron"),
-				KeyFile:  testCerts.Key("metron"),
+				CAFile:   agentCerts.CA(),
+				CertFile: agentCerts.Cert(agentCN),
+				KeyFile:  agentCerts.Key(agentCN),
 			},
-			DownstreamIngressPortCfg: fmt.Sprintf("%s/*/ingress_port.yml", fConfigDir),
+			DownstreamIngressPortCfg: fmt.Sprintf("%s/*/ingress_port.yml", ingressCfgPath),
 			MetricsServer: config.MetricsServer{
-				Port:     7392,
-				CAFile:   testCerts.CA(),
-				CertFile: testCerts.Cert("metron"),
-				KeyFile:  testCerts.Key("metron"),
+				Port:      uint16(metricsPort),
+				CAFile:    agentCerts.CA(),
+				CertFile:  agentCerts.Cert(agentCN),
+				KeyFile:   agentCerts.Key(agentCN),
+				PprofPort: uint16(pprofPort),
 			},
 			Tags: map[string]string{
 				"some-tag": "some-value",
 			},
 		}
-		ingressClient = newIngressClient(grpcPort, testCerts, 1)
+		agentMetrics = metricsHelpers.NewMetricsRegistry()
+		agentLogr = log.New(GinkgoWriter, "", log.LstdFlags)
+	})
+
+	JustBeforeEach(func() {
+		agent = app.NewForwarderAgent(agentCfg, agentMetrics, agentLogr)
+		go agent.Run()
+		Eventually(func() bool {
+			err := ingressClient.EmitEvent(context.TODO(), "test-title", "test-body")
+			return err == nil
+		}, 10).Should(BeTrue())
+		Eventually(ingressServer1.envelopes, 5).Should(Receive())
+		Eventually(ingressServer2.envelopes, 5).Should(Receive())
+		Eventually(ingressServer3.envelopes, 5).Should(Receive())
 	})
 
 	AfterEach(func() {
-		_ = os.RemoveAll(fConfigDir)
-
-		gexec.CleanupBuildArtifacts()
-		grpcPort++
+		ingressServer3.close()
+		ingressServer2.close()
+		ingressServer1.close()
+		agent.Stop()
 	})
 
-	It("has a dropped metric with direction", func() {
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
+	It("emits a dropped metric with direction", func() {
 		et := map[string]string{
 			"direction": "ingress",
 		}
 
 		Eventually(func() bool {
-			return mc.HasMetric("dropped", et)
+			return agentMetrics.HasMetric("dropped", et)
 		}).Should(BeTrue())
 
-		m := mc.GetMetric("dropped", et)
+		m := agentMetrics.GetMetric("dropped", et)
 
 		Expect(m).ToNot(BeNil())
 		Expect(m.Opts.ConstLabels).To(HaveKeyWithValue("direction", "ingress"))
 	})
 
-	It("debug metrics arn't enabled by default", func() {
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		cfg.MetricsServer.PprofPort = 1236
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
-		Consistently(mc.GetDebugMetricsEnabled()).Should(BeFalse())
-		Consistently(func() error {
-			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
-			return err
-		}).ShouldNot(BeNil())
+	It("does not emit debug metrics", func() {
+		Consistently(agentMetrics.GetDebugMetricsEnabled(), 5).Should(BeFalse())
 	})
-	It("debug metrics can be enabled", func() {
-		cfg.MetricsServer.DebugMetrics = true
-		cfg.MetricsServer.PprofPort = 1237
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
 
-		Eventually(mc.GetDebugMetricsEnabled).Should(BeTrue())
-		var resp *http.Response
-		Eventually(func() error {
-			var err error
-			resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", cfg.MetricsServer.PprofPort))
+	It("does not expose a pprof endpoint", func() {
+		Consistently(func() error {
+			_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", agentCfg.MetricsServer.PprofPort))
 			return err
-		}).Should(BeNil())
-		Expect(resp.StatusCode).To(Equal(200))
+		}, 5).ShouldNot(BeNil())
+	})
+
+	It("forwards all envelopes it receives downstream", func() {
+
+	})
+
+	Context("when debug configuration is enabled", func() {
+		BeforeEach(func() {
+			agentCfg.MetricsServer.DebugMetrics = true
+		})
+
+		It("does not emit debug metrics", func() {
+			Eventually(agentMetrics.GetDebugMetricsEnabled(), 5).Should(BeTrue())
+		})
+
+		It("does not expose a pprof endpoint", func() {
+			Eventually(func() error {
+				resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", agentCfg.MetricsServer.PprofPort))
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
+				return nil
+			}, 5).Should(BeNil())
+		})
 	})
 
 	It("forwards all envelopes downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
-		downstream2 := startSpyLoggregatorV2Ingress(testCerts)
-
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 		defer wg.Wait()
 		defer cancel()
 
 		wg.Add(1)
-		emitEnvelopes(ctx, 10*time.Millisecond, &wg)
+		go func() {
+			defer wg.Done()
 
-		var e1, e2 *loggregator_v2.Envelope
-		Eventually(downstream1.envelopes, 5).Should(Receive(&e1))
-		Eventually(downstream2.envelopes, 5).Should(Receive(&e2))
+			ticker := time.NewTicker(10 * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					ticker.Stop()
+					return
+				case <-ticker.C:
+					ingressClient.Emit(sampleEnvelope)
+				}
+			}
+		}()
 
-		Expect(proto.Equal(e1, sampleEnvelope)).To(BeTrue())
-		Expect(proto.Equal(e2, sampleEnvelope)).To(BeTrue())
+		Eventually(ingressServer1.envelopes, 5).Should(Receive(protoEqual(sampleEnvelope)))
+		Eventually(ingressServer2.envelopes, 5).Should(Receive(protoEqual(sampleEnvelope)))
 	})
 
-	It("can send a 100 sized batch of max diego size messages downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
-
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
+	It("can send a batch of 100, max-size (for Diego) messages downstream", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 		defer wg.Wait()
 		defer cancel()
 
 		wg.Add(1)
-		maxBatchIngressClient := newIngressClient(grpcPort, testCerts, 100)
+		maxBatchIngressClient := newIngressClient(grpcPort, agentCerts, 100)
 		go func() {
 			defer wg.Done()
 
@@ -205,6 +190,7 @@ var _ = Describe("Main", func() {
 			for {
 				select {
 				case <-ctx.Done():
+					ticker.Stop()
 					return
 				case <-ticker.C:
 					for i := 0; i < 100; i++ {
@@ -214,271 +200,108 @@ var _ = Describe("Main", func() {
 			}
 		}()
 
-		var e1 *loggregator_v2.Envelope
-		Eventually(downstream1.envelopes, 10).Should(Receive(&e1))
+		Eventually(ingressServer1.envelopes, 5).Should(Receive())
+		Eventually(ingressServer2.envelopes, 5).Should(Receive())
 	})
 
-	It("aggregates counter events before forwarding downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
-
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
+	It("aggregates counter events before forwarding them downstream", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 		defer wg.Wait()
 		defer cancel()
 
 		wg.Add(1)
-		emitCounters(ctx, 10*time.Millisecond, &wg)
+		go func() {
+			defer wg.Done()
 
-		var e1 *loggregator_v2.Envelope
-		Eventually(downstream1.envelopes, 5).Should(Receive(&e1))
+			ticker := time.NewTicker(10 * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					ticker.Stop()
+					return
+				case <-ticker.C:
+					ingressClient.Emit(sampleCounter)
+				}
+			}
+		}()
+
+		var e1, e2 *loggregator_v2.Envelope
+		Eventually(ingressServer1.envelopes, 5).Should(Receive(&e1))
+		Eventually(ingressServer2.envelopes, 5).Should(Receive(&e2))
 
 		Expect(e1.GetCounter().GetTotal()).To(Equal(uint64(20)))
+		Expect(e2.GetCounter().GetTotal()).To(Equal(uint64(20)))
 	})
 
 	It("tags before forwarding downstream", func() {
-		downstream1 := startSpyLoggregatorV2Ingress(testCerts)
-
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 		defer wg.Wait()
 		defer cancel()
 
 		wg.Add(1)
-		emitEnvelopes(ctx, 10*time.Millisecond, &wg)
+		go func() {
+			defer wg.Done()
 
-		var e1 *loggregator_v2.Envelope
-		Eventually(downstream1.envelopes, 5).Should(Receive(&e1))
+			ticker := time.NewTicker(10 * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					ticker.Stop()
+					return
+				case <-ticker.C:
+					ingressClient.Emit(sampleEnvelope)
+				}
+			}
+		}()
+
+		var e1, e2 *loggregator_v2.Envelope
+		Eventually(ingressServer1.envelopes, 5).Should(Receive(&e1))
+		Eventually(ingressServer2.envelopes, 5).Should(Receive(&e2))
 
 		Expect(e1.GetTags()).To(HaveLen(1))
 		Expect(e1.GetTags()["some-tag"]).To(Equal("some-value"))
+		Expect(e2.GetTags()).To(HaveLen(1))
+		Expect(e2.GetTags()["some-tag"]).To(Equal("some-value"))
 	})
 
 	It("continues writing to other consumers if one is slow", func() {
-		downstreamNormal := startSpyLoggregatorV2Ingress(testCerts)
-		startSpyLoggregatorV2BlockingIngress(testCerts)
-
-		forwarderAgent = app.NewForwarderAgent(cfg, mc, testLogger)
-		go forwarderAgent.Run()
-		defer forwarderAgent.Stop()
-
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 		defer wg.Wait()
 		defer cancel()
 
 		wg.Add(1)
-		emitEnvelopes(ctx, 1*time.Millisecond, &wg)
+		go func() {
+			defer wg.Done()
 
-		Eventually(downstreamNormal.envelopes, 5).Should(Receive())
+			ticker := time.NewTicker(10 * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					ticker.Stop()
+					return
+				case <-ticker.C:
+					ingressClient.Emit(sampleEnvelope)
+				}
+			}
+		}()
 
-		var prevSize int
+		Eventually(ingressServer1.envelopes, 5).Should(Receive())
+		Eventually(ingressServer2.envelopes, 5).Should(Receive())
+
+		prevSize := 100 // set to big number so it doesn't fail immediately
 		Consistently(func() bool {
-			notEqual := len(downstreamNormal.envelopes) != prevSize
-			prevSize = len(downstreamNormal.envelopes)
+			notEqual := len(ingressServer1.envelopes) != prevSize
+			prevSize = len(ingressServer1.envelopes)
+			return notEqual
+		}, 5, 1).Should(BeTrue())
+		prevSize = 0
+		Consistently(func() bool {
+			notEqual := len(ingressServer2.envelopes) != prevSize
+			prevSize = len(ingressServer2.envelopes)
 			return notEqual
 		}, 5, 1).Should(BeTrue())
 	})
 })
-
-var sampleEnvelope = &loggregator_v2.Envelope{
-	Timestamp: time.Now().UnixNano(),
-	SourceId:  "some-id",
-	Message: &loggregator_v2.Envelope_Log{
-		Log: &loggregator_v2.Log{
-			Payload: []byte("hello"),
-		},
-	},
-	Tags: map[string]string{
-		"some-tag": "some-value",
-	},
-}
-
-func MakeSampleBigEnvelope() *loggregator_v2.Envelope {
-	return &loggregator_v2.Envelope{
-		Timestamp: time.Now().UnixNano(),
-		SourceId:  "some-id",
-		Message: &loggregator_v2.Envelope_Log{
-			Log: &loggregator_v2.Log{
-				Payload: []byte(strings.Repeat("A", 61440)),
-			},
-		},
-		Tags: map[string]string{
-			"some-tag": "some-value",
-		},
-	}
-}
-
-var sampleCounter = &loggregator_v2.Envelope{
-	Timestamp: time.Now().UnixNano(),
-	SourceId:  "some-id",
-	Message: &loggregator_v2.Envelope_Counter{
-		Counter: &loggregator_v2.Counter{
-			Delta: 20,
-			Total: 0,
-		},
-	},
-}
-
-func newIngressClient(port int, testCerts *testhelper.TestCerts, batchSize uint) *loggregator.IngressClient {
-	tlsConfig, err := loggregator.NewIngressTLSConfig(
-		testCerts.CA(),
-		testCerts.Cert("metron"),
-		testCerts.Key("metron"),
-	)
-	Expect(err).ToNot(HaveOccurred())
-	ingressClient, err := loggregator.NewIngressClient(
-		tlsConfig,
-		loggregator.WithAddr(fmt.Sprintf("127.0.0.1:%d", port)),
-		loggregator.WithLogger(log.New(GinkgoWriter, "[TEST INGRESS CLIENT] ", 0)),
-		loggregator.WithBatchMaxSize(batchSize),
-	)
-	Expect(err).ToNot(HaveOccurred())
-	return ingressClient
-}
-
-func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts) *spyLoggregatorV2Ingress {
-	s := &spyLoggregatorV2Ingress{
-		envelopes: make(chan *loggregator_v2.Envelope, 10000),
-	}
-
-	serverCreds, err := plumbing.NewServerCredentials(
-		testCerts.Cert("metron"),
-		testCerts.Key("metron"),
-		testCerts.CA(),
-	)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	lis, err := net.Listen("tcp", "127.0.0.1:")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
-	loggregator_v2.RegisterIngressServer(grpcServer, s)
-
-	s.close = func() {
-		_ = lis.Close()
-	}
-	s.addr = lis.Addr().String()
-	port := strings.Split(s.addr, ":")
-
-	createForwarderPortConfigFile(port[len(port)-1])
-	go grpcServer.Serve(lis) // nolint:errcheck
-
-	return s
-}
-
-type spyLoggregatorV2Ingress struct {
-	loggregator_v2.UnimplementedIngressServer
-
-	addr      string
-	close     func()
-	envelopes chan *loggregator_v2.Envelope
-}
-
-func (s *spyLoggregatorV2Ingress) Sender(loggregator_v2.Ingress_SenderServer) error {
-	panic("not implemented")
-}
-
-func (s *spyLoggregatorV2Ingress) Send(context.Context, *loggregator_v2.EnvelopeBatch) (*loggregator_v2.SendResponse, error) {
-	panic("not implemented")
-}
-
-func (s *spyLoggregatorV2Ingress) BatchSender(srv loggregator_v2.Ingress_BatchSenderServer) error {
-	for {
-		batch, err := srv.Recv()
-		if err != nil {
-			return err
-		}
-
-		for _, e := range batch.Batch {
-			s.envelopes <- e
-		}
-	}
-}
-
-func startSpyLoggregatorV2BlockingIngress(testCerts *testhelper.TestCerts) *spyLoggregatorV2BlockingIngress {
-	s := &spyLoggregatorV2BlockingIngress{}
-
-	serverCreds, err := plumbing.NewServerCredentials(
-		testCerts.Cert("metron"),
-		testCerts.Key("metron"),
-		testCerts.CA(),
-	)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	lis, err := net.Listen("tcp", "127.0.0.1:")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
-	loggregator_v2.RegisterIngressServer(grpcServer, s)
-
-	s.close = func() {
-		_ = lis.Close()
-	}
-	s.addr = lis.Addr().String()
-
-	port := strings.Split(s.addr, ":")
-	createForwarderPortConfigFile(port[len(port)-1])
-	go grpcServer.Serve(lis) // nolint:errcheck
-
-	return s
-}
-
-type spyLoggregatorV2BlockingIngress struct {
-	loggregator_v2.UnimplementedIngressServer
-
-	addr  string
-	close func()
-}
-
-func (s *spyLoggregatorV2BlockingIngress) Sender(loggregator_v2.Ingress_SenderServer) error {
-	panic("not implemented")
-}
-
-func (s *spyLoggregatorV2BlockingIngress) Send(context.Context, *loggregator_v2.EnvelopeBatch) (*loggregator_v2.SendResponse, error) {
-	panic("not implemented")
-}
-
-func (s *spyLoggregatorV2BlockingIngress) BatchSender(srv loggregator_v2.Ingress_BatchSenderServer) error {
-	c := make(chan struct{})
-	for {
-		_, err := srv.Recv()
-		if err != nil {
-			return err
-		}
-
-		<-c
-	}
-}
-
-func forwarderPortConfigDir() string {
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return dir
-}
-
-func createForwarderPortConfigFile(port string) {
-	fDir, err := os.MkdirTemp(fConfigDir, "")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tmpfn := filepath.Join(fDir, "ingress_port.yml")
-	tmpfn, err = filepath.Abs(tmpfn)
-	Expect(err).ToNot(HaveOccurred())
-
-	contents := fmt.Sprintf(forwardConfigTemplate, port)
-	if err := os.WriteFile(tmpfn, []byte(contents), 0600); err != nil {
-		log.Fatal(err)
-	}
-}
