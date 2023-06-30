@@ -116,6 +116,42 @@ var _ = Describe("Aggregate Drain Binding Fetcher", func() {
 				},
 			))
 		})
+		It("ignores empty urls", func() {
+			bs := []string{""}
+			cacheFetcher := mockCacheFetcher{bindings: []binding.Binding{
+				{
+					Url: "syslog://aggregate-drain1.url.com",
+					Credentials: []binding.Credentials{
+						{
+							Cert: "cert",
+							Key:  "key",
+							CA:   "ca",
+						},
+					},
+				},
+				{
+					Url: "",
+				},
+			}}
+			fetcher := bindings.NewAggregateDrainFetcher(bs, &cacheFetcher)
+
+			b, err := fetcher.FetchBindings()
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(b).To(ConsistOf(
+				syslog.Binding{
+					AppId: "",
+					Drain: syslog.Drain{
+						Url: "syslog://aggregate-drain1.url.com",
+						Credentials: syslog.Credentials{
+							Cert: "cert",
+							Key:  "key",
+							CA:   "ca",
+						},
+					},
+				},
+			))
+		})
 		It("returns results from legacy cache if regular cache fails", func() {
 			bs := []string{""}
 			cacheFetcher := mockCacheFetcher{

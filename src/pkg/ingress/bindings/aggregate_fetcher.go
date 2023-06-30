@@ -19,7 +19,7 @@ type AggregateDrainFetcher struct {
 
 func NewAggregateDrainFetcher(bindings []string, cf CacheFetcher) *AggregateDrainFetcher {
 	drainFetcher := &AggregateDrainFetcher{cf: cf}
-	parsedDrains := parseLegacyBindings(bindings)
+	parsedDrains := constructLegacyBindings(bindings)
 	drainFetcher.bindings = parsedDrains
 	return drainFetcher
 }
@@ -36,6 +36,9 @@ func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
 		}
 		syslogBindings := []syslog.Binding{}
 		for _, i := range aggregate {
+			if i.Url == "" {
+				continue
+			}
 			b := syslog.Binding{
 				AppId: "",
 				Drain: syslog.Drain{Url: i.Url},
@@ -65,12 +68,12 @@ func (a *AggregateDrainFetcher) FetchBindingsLegacyFallback() ([]syslog.Binding,
 		if i.V2Available {
 			return nil, errors.New("v2 is available")
 		}
-		syslogBindings = append(syslogBindings, parseLegacyBindings(i.Drains)...)
+		syslogBindings = append(syslogBindings, constructLegacyBindings(i.Drains)...)
 	}
 	return syslogBindings, nil
 }
 
-func parseLegacyBindings(urls []string) []syslog.Binding {
+func constructLegacyBindings(urls []string) []syslog.Binding {
 	syslogBindings := []syslog.Binding{}
 	for _, u := range urls {
 		if u == "" {
