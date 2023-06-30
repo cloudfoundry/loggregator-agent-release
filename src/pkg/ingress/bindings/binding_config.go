@@ -32,9 +32,9 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
-		if d.defaultDrainMetadata && urlParsed.Query().Get("disable-metadata") == "true" {
+		if d.defaultDrainMetadata && getRemoveMetadataQuery(urlParsed) == "true" {
 			b.OmitMetadata = true
-		} else if !d.defaultDrainMetadata && urlParsed.Query().Get("disable-metadata") == "false" {
+		} else if !d.defaultDrainMetadata && getRemoveMetadataQuery(urlParsed) == "false" {
 			b.OmitMetadata = false
 		} else {
 			b.OmitMetadata = !d.defaultDrainMetadata
@@ -47,6 +47,14 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 	}
 
 	return processed, nil
+}
+
+func getRemoveMetadataQuery(u *url.URL) string {
+	q := u.Query().Get("disable-metadata")
+	if q == "" {
+		q = u.Query().Get("omit-metadata")
+	}
+	return q
 }
 
 func (d *DrainParamParser) DrainLimit() int {
