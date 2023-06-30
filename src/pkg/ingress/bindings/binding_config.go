@@ -58,7 +58,7 @@ func getBindingType(u *url.URL) syslog.BindingType {
 		bindingType = syslog.BINDING_TYPE_METRIC
 	case "all":
 		bindingType = syslog.BINDING_TYPE_ALL
-	case "allNoisy":
+	case "allWithTimers":
 		bindingType = syslog.BINDING_TYPE_AGGREGATE
 	}
 

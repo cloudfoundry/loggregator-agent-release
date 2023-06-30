@@ -75,7 +75,7 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=logs"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=all"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=allNoisy"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=allWithTimers"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain?include-metrics-deprecated=true"}},
 		}
 		f := newStubFetcher(bs, nil)
