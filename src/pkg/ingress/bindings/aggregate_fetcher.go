@@ -2,7 +2,6 @@ package bindings
 
 import (
 	"errors"
-	"net/url"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -37,9 +36,9 @@ func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
 		}
 		syslogBindings := []syslog.Binding{}
 		for _, i := range aggregate {
-			b, err := parseUrl(i.Url)
-			if err != nil {
-				continue
+			b := syslog.Binding{
+				AppId: "",
+				Drain: syslog.Drain{Url: i.Url},
 			}
 			if len(i.Credentials) > 0 {
 				b.Drain.Credentials = syslog.Credentials{
@@ -74,33 +73,16 @@ func (a *AggregateDrainFetcher) FetchBindingsLegacyFallback() ([]syslog.Binding,
 func parseLegacyBindings(urls []string) []syslog.Binding {
 	syslogBindings := []syslog.Binding{}
 	for _, u := range urls {
-		binding, err := parseUrl(u)
-		if err != nil {
+		if u == "" {
 			continue
+		}
+		binding := syslog.Binding{
+			AppId: "",
+			Drain: syslog.Drain{Url: u},
 		}
 		syslogBindings = append(syslogBindings, binding)
 	}
 	return syslogBindings
-}
-
-func parseUrl(u string) (syslog.Binding, error) {
-	if u == "" {
-		return syslog.Binding{}, errors.New("no url")
-	}
-	bindingType := syslog.BINDING_TYPE_LOG
-	urlParsed, err := url.Parse(u)
-	if err != nil {
-		return syslog.Binding{}, err
-	}
-	if urlParsed.Query().Get("include-metrics-deprecated") != "" {
-		bindingType = syslog.BINDING_TYPE_AGGREGATE
-	}
-	binding := syslog.Binding{
-		AppId: "",
-		Drain: syslog.Drain{Url: u},
-		Type:  bindingType,
-	}
-	return binding, nil
 }
 
 func (a *AggregateDrainFetcher) DrainLimit() int {

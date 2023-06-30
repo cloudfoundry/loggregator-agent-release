@@ -43,10 +43,29 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 			b.InternalTls = true
 		}
 
+		b.Type = getBindingType(urlParsed)
+
 		processed = append(processed, b)
 	}
 
 	return processed, nil
+}
+
+func getBindingType(u *url.URL) syslog.BindingType {
+	bindingType := syslog.BINDING_TYPE_LOG
+	switch u.Query().Get("drain-type") {
+	case "metrics":
+		bindingType = syslog.BINDING_TYPE_METRIC
+	case "all":
+		bindingType = syslog.BINDING_TYPE_ALL
+	case "allNoisy":
+		bindingType = syslog.BINDING_TYPE_AGGREGATE
+	}
+
+	if u.Query().Get("include-metrics-deprecated") != "" {
+		bindingType = syslog.BINDING_TYPE_AGGREGATE
+	}
+	return bindingType
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {
