@@ -111,7 +111,7 @@ properties:
   api.disable_keep_alives:
     description: |
       Configures if the polling connection to API is reused or not.
-    default: false
+    default: true
 
   metrics.port:
     description: "Port the agent uses to serve metrics and debug information"
