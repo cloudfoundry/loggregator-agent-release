@@ -34,6 +34,7 @@ type ForwarderAgent struct {
 	pprofServer        *http.Server
 	m                  Metrics
 	grpc               GRPC
+	v2srv              *v2.Server
 	downstreamPortsCfg string
 	log                *log.Logger
 	tags               map[string]string
@@ -129,19 +130,20 @@ func (s *ForwarderAgent) Run() {
 	)
 	rx := v2.NewReceiver(diode, im, omm)
 
-	srv := v2.NewServer(
+	s.v2srv = v2.NewServer(
 		fmt.Sprintf("127.0.0.1:%d", s.grpc.Port),
 		rx,
 		grpc.Creds(serverCreds),
 		grpc.MaxRecvMsgSize(10*1024*1024),
 	)
-	srv.Start()
+	s.v2srv.Start()
 }
 
 func (s *ForwarderAgent) Stop() {
 	if s.pprofServer != nil {
 		s.pprofServer.Close()
 	}
+	s.v2srv.Stop()
 }
 
 type clientWriter struct {
