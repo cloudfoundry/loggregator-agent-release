@@ -1,0 +1,32 @@
+---
+name: otel-collector
+
+templates:
+  bpm.yml.erb: config/bpm.yml
+  config.yml.erb: config/config.yml
+  scrape.crt.erb: config/certs/scrape.crt
+  scrape.key.erb: config/certs/scrape.key
+  scrape_ca.crt.erb: config/certs/scrape_ca.crt
+
+packages:
+- otel-collector
+
+properties:
+  exporters:
+    description: "Exporter configuration for aggregate metric egress"
+    default: {}
+    example: |
+      otlp:
+        endpoint: otelcol:4317
+      otlp/2:
+        endpoint: otelcol:4318
+  
+  scrape.tls.ca_cert:
+    description: "The CA used to scrape Metrics Agent"
+  scrape.tls.cert:
+    description: "The cert used to scrape Metrics Agent"
+  scrape.tls.key:
+    description: "The key used to scrape Metrics Agent"
+  scrape.tls.server_name:
+    default: "metrics_agent"
+    description: "The server name used to scrape Metrics Agent"
