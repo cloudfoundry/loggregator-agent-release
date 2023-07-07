@@ -1,0 +1,7 @@
+---
+name: otel-collector
+
+dependencies: []
+
+files:
+- otelcol-contrib*linux_amd64.tar.gz
