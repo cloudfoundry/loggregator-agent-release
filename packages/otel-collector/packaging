@@ -1,0 +1,4 @@
+set -ex
+
+tar -zxvf otelcol-contrib*linux_amd64.tar.gz otelcol-contrib
+mv otelcol-contrib "${BOSH_INSTALL_TARGET}/otel-collector"
