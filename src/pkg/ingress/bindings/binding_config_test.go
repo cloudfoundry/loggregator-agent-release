@@ -69,28 +69,45 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings[0].InternalTls).To(BeTrue())
 	})
 
-	It("sets drain type appropriately'", func() {
+	It("sets drain data appropriately'", func() {
+		bs := []syslog.Binding{
+			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=logs"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=metrics"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=traces"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=all"}},
+		}
+		f := newStubFetcher(bs, nil)
+		wf := bindings.NewDrainParamParser(f, true)
+
+		configedBindings, _ := wf.FetchBindings()
+		Expect(configedBindings[0].DrainData).To(Equal(syslog.LOGS))
+		Expect(configedBindings[1].DrainData).To(Equal(syslog.LOGS))
+		Expect(configedBindings[2].DrainData).To(Equal(syslog.METRICS))
+		Expect(configedBindings[3].DrainData).To(Equal(syslog.TRACES))
+		Expect(configedBindings[4].DrainData).To(Equal(syslog.ALL))
+	})
+
+	It("sets drain data for old parameter appropriately'", func() {
 		bs := []syslog.Binding{
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=metrics"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=logs"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=all"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=allWithTimers"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain?include-metrics-deprecated=true"}},
 		}
 		f := newStubFetcher(bs, nil)
 		wf := bindings.NewDrainParamParser(f, true)
 
 		configedBindings, _ := wf.FetchBindings()
-		Expect(configedBindings[0].Type).To(Equal(syslog.BINDING_TYPE_METRIC))
-		Expect(configedBindings[1].Type).To(Equal(syslog.BINDING_TYPE_LOG))
-		Expect(configedBindings[2].Type).To(Equal(syslog.BINDING_TYPE_LOG))
-		Expect(configedBindings[3].Type).To(Equal(syslog.BINDING_TYPE_ALL))
-		Expect(configedBindings[4].Type).To(Equal(syslog.BINDING_TYPE_AGGREGATE))
-		Expect(configedBindings[5].Type).To(Equal(syslog.BINDING_TYPE_AGGREGATE))
+		Expect(configedBindings[0].DrainData).To(Equal(syslog.METRICS))
+		Expect(configedBindings[1].DrainData).To(Equal(syslog.LOGS_NO_EVENTS))
+		Expect(configedBindings[2].DrainData).To(Equal(syslog.LOGS))
+		Expect(configedBindings[3].DrainData).To(Equal(syslog.LOGS_AND_METRICS))
+		Expect(configedBindings[4].DrainData).To(Equal(syslog.ALL))
 	})
 
-	It("omits bindings with bad Drain URLs is bad", func() {
+	It("omits bindings with bad Drain URLs", func() {
 		bs := []syslog.Binding{
 			{Drain: syslog.Drain{Url: "   https://leading-spaces-are-invalid"}},
 			{Drain: syslog.Drain{Url: "https://test.org/drain?disable-metadata=true"}},
@@ -106,7 +123,7 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings[1].Drain).To(Equal(syslog.Drain{Url: "https://test.org/drain?omit-metadata=true"}))
 	})
 
-	It("omits bindings with bad Drain URLs is bad", func() {
+	It("Returns a error when fetching fails", func() {
 		f := newStubFetcher(nil, errors.New("Ahhh an error"))
 		wf := bindings.NewDrainParamParser(f, true)
 

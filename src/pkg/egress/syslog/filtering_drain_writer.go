@@ -7,13 +7,15 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
-type BindingType int
+type DrainData int
 
 const (
-	BINDING_TYPE_LOG BindingType = iota
-	BINDING_TYPE_METRIC
-	BINDING_TYPE_ALL
-	BINDING_TYPE_AGGREGATE
+	LOGS DrainData = iota
+	METRICS
+	TRACES
+	ALL
+	LOGS_NO_EVENTS
+	LOGS_AND_METRICS
 )
 
 type FilteringDrainWriter struct {
@@ -22,7 +24,7 @@ type FilteringDrainWriter struct {
 }
 
 func NewFilteringDrainWriter(binding Binding, writer egress.Writer) (*FilteringDrainWriter, error) {
-	if binding.Type < BINDING_TYPE_LOG || binding.Type > BINDING_TYPE_AGGREGATE {
+	if binding.DrainData < LOGS || binding.DrainData > LOGS_AND_METRICS {
 		return nil, errors.New("invalid binding type")
 	}
 
@@ -33,26 +35,54 @@ func NewFilteringDrainWriter(binding Binding, writer egress.Writer) (*FilteringD
 }
 
 func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
-	if w.binding.Type == BINDING_TYPE_AGGREGATE {
+	if w.binding.DrainData == ALL {
 		return w.writer.Write(env)
 	}
 
-	if env.GetTimer() != nil || env.GetEvent() != nil {
-		return nil
+	if env.GetTimer() != nil {
+		if w.binding.DrainData == TRACES {
+			return w.writer.Write(env)
+		}
 	}
-
-	switch w.binding.Type {
-	case BINDING_TYPE_LOG:
-		if env.GetLog() != nil {
+	if env.GetEvent() != nil {
+		if w.binding.DrainData == LOGS {
 			return w.writer.Write(env)
 		}
-	case BINDING_TYPE_METRIC:
-		if env.GetCounter() != nil || env.GetGauge() != nil {
+	}
+	if env.GetLog() != nil {
+		if sendsLogs(w.binding.DrainData) {
 			return w.writer.Write(env)
 		}
-	default:
-		return w.writer.Write(env)
+	}
+	if env.GetCounter() != nil || env.GetGauge() != nil {
+		if sendsMetrics(w.binding.DrainData) {
+			return w.writer.Write(env)
+		}
 	}
 
 	return nil
+}
+
+func sendsLogs(drainData DrainData) bool {
+	switch drainData {
+	case LOGS:
+		return true
+	case LOGS_AND_METRICS:
+		return true
+	case LOGS_NO_EVENTS:
+		return true
+	default:
+		return false
+	}
+}
+
+func sendsMetrics(drainData DrainData) bool {
+	switch drainData {
+	case LOGS_AND_METRICS:
+		return true
+	case METRICS:
+		return true
+	default:
+		return false
+	}
 }
