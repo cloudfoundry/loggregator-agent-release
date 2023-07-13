@@ -46,7 +46,7 @@ github.com/cloudfoundry/dropsonde/emitter
 # github.com/cloudfoundry/sonde-go v0.0.0-20230606195250-c7c0fdf1ccc4
 ## explicit; go 1.17
 github.com/cloudfoundry/sonde-go/events
-# github.com/go-chi/chi/v5 v5.0.8
+# github.com/go-chi/chi/v5 v5.0.10
 ## explicit; go 1.14
 github.com/go-chi/chi/v5
 # github.com/go-logr/logr v1.2.4
