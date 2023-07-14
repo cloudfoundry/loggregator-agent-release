@@ -1,0 +1,12 @@
+<%
+  process = {
+    "name" => "otel-collector",
+    "executable" => "/var/vcap/packages/otel-collector-windows/otelcol-contrib.exe",
+    "args" => ["--config", "/var/vcap/jobs/otel-collector-windows/config/config.yml"],
+    "env" => {"NO_WINDOWS_SERVICE" => "1"}
+  }
+
+  monit = { "processes" => [process] }
+%>
+
+<%= JSON.pretty_generate(monit) %>

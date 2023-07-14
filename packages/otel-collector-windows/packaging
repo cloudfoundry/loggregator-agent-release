@@ -1,0 +1,9 @@
+. ./exiter.ps1
+
+$ErrorActionPreference = "Stop";
+trap { $host.SetShouldExit(1) }
+
+# [Powershell can't resolve symlinks correctly](https://github.com/PowerShell/PowerShell/issues/7818)
+# and tar won't extract to a path that includes a symlink. So we're left extracting to D:\tmp
+tar -xvf $(Resolve-Path "otelcol-contrib_*_windows_amd64.tar.gz") -C D:\tmp otelcol-contrib.exe
+move D:\tmp\otelcol-contrib.exe ${env:BOSH_INSTALL_TARGET}
