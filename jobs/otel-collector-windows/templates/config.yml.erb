@@ -8,14 +8,17 @@ receivers:
         static_configs:
         - targets: ['127.0.0.1:14726']
         tls_config:
-          cert_file: /var/vcap/jobs/otel-collector/config/certs/scrape.crt
-          key_file: /var/vcap/jobs/otel-collector/config/certs/scrape.key
-          ca_file: /var/vcap/jobs/otel-collector/config/certs/scrape_ca.crt
+          cert_file: /var/vcap/jobs/otel-collector-windows/config/certs/scrape.crt
+          key_file: /var/vcap/jobs/otel-collector-windows/config/certs/scrape.key
+          ca_file: /var/vcap/jobs/otel-collector-windows/config/certs/scrape_ca.crt
           server_name: <%= p('scrape.tls.server_name') %>
 
 exporters: <%= YAML.dump(p('exporters')).sub("---", "").gsub("\n", "\n  ") %>
 
 service:
+  telemetry:
+    logs:
+      level: "debug"
   pipelines:
     metrics:
       receivers:

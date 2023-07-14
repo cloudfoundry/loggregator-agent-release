@@ -1,0 +1,8 @@
+---
+name: otel-collector-windows
+
+dependencies: []
+
+files:
+- otelcol-contrib*windows_amd64.tar.gz
+- exiter.ps1
