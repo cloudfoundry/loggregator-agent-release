@@ -12,7 +12,7 @@ packages:
 - otel-collector
 
 properties:
-  exporters:
+  metrics_exporters:
     description: "Exporter configuration for aggregate metric egress"
     default: {}
     example: |
