@@ -13,11 +13,11 @@ receivers:
           ca_file: /var/vcap/jobs/otel-collector/config/certs/scrape_ca.crt
           server_name: <%= p('scrape.tls.server_name') %>
 
-exporters: <%= YAML.dump(p('exporters')).sub("---", "").gsub("\n", "\n  ") %>
+exporters: <%= YAML.dump(p('metrics_exporters')).sub("---", "").gsub("\n", "\n  ") %>
 
 service:
   pipelines:
     metrics:
       receivers:
       - prometheus
-      exporters: <%= YAML.dump(p('exporters').keys).sub("---", "").gsub("\n", "\n      ") %>
+      exporters: <%= YAML.dump(p('metrics_exporters').keys).sub("---", "").gsub("\n", "\n      ") %>
