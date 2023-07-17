@@ -7,5 +7,7 @@
     drains = aggregate_drains.split(',',-1)
     aggregate_drains = []
     drains.each{|drain| aggregate_drains.append({"url" => drain}) }
+  else
+    aggregate_drains = aggregate_drains.flatten
   end
 %><%= YAML.dump(aggregate_drains) %>
