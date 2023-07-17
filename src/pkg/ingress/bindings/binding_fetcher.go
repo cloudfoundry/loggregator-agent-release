@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"math"
-	"net/url"
 	"sort"
 	"time"
 
@@ -135,28 +134,11 @@ func (f *BindingFetcher) toSyslogBindings(bs []binding.Binding, perAppLimit int)
 		}
 
 		for _, d := range drains {
-			u, err := url.Parse(d.Url)
-			if err != nil {
-				continue
-			}
-
-			var t syslog.BindingType
-			drainType := u.Query().Get("drain-type")
-
-			switch drainType {
-			case "metrics":
-				t = syslog.BINDING_TYPE_METRIC
-			case "all":
-				t = syslog.BINDING_TYPE_ALL
-			default:
-				t = syslog.BINDING_TYPE_LOG
-			}
 
 			binding := syslog.Binding{
 				AppId:    appID,
 				Hostname: b.hostname,
 				Drain:    d,
-				Type:     t,
 			}
 			bindings = append(bindings, binding)
 		}
@@ -176,28 +158,10 @@ func (f *BindingFetcher) legacyToSyslogBindings(bs []binding.LegacyBinding, perA
 		}
 
 		for _, d := range drains {
-			u, err := url.Parse(d)
-			if err != nil {
-				continue
-			}
-
-			var t syslog.BindingType
-			drainType := u.Query().Get("drain-type")
-
-			switch drainType {
-			case "metrics":
-				t = syslog.BINDING_TYPE_METRIC
-			case "all":
-				t = syslog.BINDING_TYPE_ALL
-			default:
-				t = syslog.BINDING_TYPE_LOG
-			}
-
 			binding := syslog.Binding{
 				AppId:    b.AppID,
 				Hostname: b.Hostname,
-				Drain:    syslog.Drain{Url: u.String()},
-				Type:     t,
+				Drain:    syslog.Drain{Url: d},
 			}
 			bindings = append(bindings, binding)
 		}

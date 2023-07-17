@@ -196,29 +196,6 @@ var _ = Describe("BindingFetcher", func() {
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
 	})
 
-	Describe("Binding Type", func() {
-		DescribeTable("determines the binding type from the drain url", func(url string, expectedType syslog.BindingType) {
-			getter.bindings = []binding.Binding{
-				{
-					Url:         url,
-					Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "9be15160-4845-4f05-b089-40e827ba61f1"}}}},
-				},
-			}
-
-			fetcher = bindings.NewBindingFetcher(2, getter, metrics, logger)
-			bindings, err := fetcher.FetchBindings()
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(bindings).To(HaveLen(1))
-			Expect(bindings[0].Type).To(Equal(expectedType))
-		},
-			Entry("default", "syslog://something.url", syslog.BINDING_TYPE_LOG),
-			Entry("logs", "syslog://something.url?drain-type=logs", syslog.BINDING_TYPE_LOG),
-			Entry("metrics", "syslog://something.url?drain-type=metrics", syslog.BINDING_TYPE_METRIC),
-			Entry("all", "syslog://something.url?drain-type=all", syslog.BINDING_TYPE_ALL),
-		)
-	})
-
 	It("tracks the number of binding refreshes", func() {
 		_, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())

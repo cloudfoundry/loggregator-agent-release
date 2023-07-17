@@ -14,10 +14,10 @@ import (
 )
 
 type Binding struct {
-	AppId        string      `json:"appId,omitempty"`
-	Hostname     string      `json:"hostname,omitempty"`
-	Drain        Drain       `json:"drain,omitempty"`
-	Type         BindingType `json:"type,omitempty"`
+	AppId        string    `json:"appId,omitempty"`
+	Hostname     string    `json:"hostname,omitempty"`
+	Drain        Drain     `json:"drain,omitempty"`
+	DrainData    DrainData `json:"type,omitempty"`
 	OmitMetadata bool
 	InternalTls  bool
 }
