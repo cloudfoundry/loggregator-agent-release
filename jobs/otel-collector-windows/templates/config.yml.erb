@@ -1,17 +1,7 @@
 receivers:
-  prometheus:
-    config:
-      scrape_configs:
-      - job_name: 'scrape_metrics_agent'
-        scrape_interval: 5s
-        scheme: https
-        static_configs:
-        - targets: ['127.0.0.1:14726']
-        tls_config:
-          cert_file: /var/vcap/jobs/otel-collector-windows/config/certs/scrape.crt
-          key_file: /var/vcap/jobs/otel-collector-windows/config/certs/scrape.key
-          ca_file: /var/vcap/jobs/otel-collector-windows/config/certs/scrape_ca.crt
-          server_name: <%= p('scrape.tls.server_name') %>
+  otlp:
+    protocols:
+      grpc:
 
 exporters: <%= YAML.dump(p('metrics_exporters')).sub("---", "").gsub("\n", "\n  ") %>
 
@@ -22,5 +12,5 @@ service:
   pipelines:
     metrics:
       receivers:
-      - prometheus
+      - otlp
       exporters: <%= YAML.dump(p('metrics_exporters').keys).sub("---", "").gsub("\n", "\n      ") %>
