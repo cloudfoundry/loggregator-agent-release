@@ -23,6 +23,7 @@ require (
 	code.cloudfoundry.org/go-loggregator/v9 v9.0.6
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.0.10
+	github.com/google/go-cmp v0.5.9
 	github.com/onsi/ginkgo/v2 v2.11.0
 	go.opentelemetry.io/proto/otlp v1.0.0
 	google.golang.org/protobuf v1.31.0
@@ -36,7 +37,6 @@ require (
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/pprof v0.0.0-20230602150820-91b7bce49751 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
