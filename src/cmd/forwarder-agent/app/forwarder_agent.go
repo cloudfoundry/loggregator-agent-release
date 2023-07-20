@@ -17,6 +17,7 @@ import (
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
+	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/forwarder-agent/app/otelcolclient"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -30,15 +31,15 @@ import (
 
 // ForwarderAgent manages starting the forwarder agent service.
 type ForwarderAgent struct {
-	pprofPort          uint16
-	pprofServer        *http.Server
-	m                  Metrics
-	grpc               GRPC
-	v2srv              *v2.Server
-	downstreamPortsCfg string
-	log                *log.Logger
-	tags               map[string]string
-	debugMetrics       bool
+	pprofPort             uint16
+	pprofServer           *http.Server
+	m                     Metrics
+	grpc                  GRPC
+	v2srv                 *v2.Server
+	downstreamFilePattern string
+	log                   *log.Logger
+	tags                  map[string]string
+	debugMetrics          bool
 }
 
 type Metrics interface {
@@ -62,13 +63,13 @@ func NewForwarderAgent(
 	log *log.Logger,
 ) *ForwarderAgent {
 	return &ForwarderAgent{
-		pprofPort:          cfg.MetricsServer.PprofPort,
-		grpc:               cfg.GRPC,
-		m:                  m,
-		downstreamPortsCfg: cfg.DownstreamIngressPortCfg,
-		log:                log,
-		tags:               cfg.Tags,
-		debugMetrics:       cfg.MetricsServer.DebugMetrics,
+		pprofPort:             cfg.MetricsServer.PprofPort,
+		grpc:                  cfg.GRPC,
+		m:                     m,
+		downstreamFilePattern: cfg.DownstreamIngressPortCfg,
+		log:                   log,
+		tags:                  cfg.Tags,
+		debugMetrics:          cfg.MetricsServer.DebugMetrics,
 	}
 }
 
@@ -91,11 +92,11 @@ func (s *ForwarderAgent) Run() {
 		ingressDropped.Add(float64(missed))
 	}))
 
-	downstreamAddrs := getDownstreamAddresses(s.downstreamPortsCfg, s.log)
-	clients := ingressClients(downstreamAddrs, s.grpc, s.log)
+	dests := downstreamDestinations(s.downstreamFilePattern, s.log)
+	writers := downstreamWriters(dests, s.grpc, s.log)
 	tagger := egress_v2.NewTagger(s.tags)
 	ew := egress_v2.NewEnvelopeWriter(
-		multiWriter{writers: clients},
+		multiWriter{writers: writers},
 		egress_v2.NewCounterAggregator(tagger.TagEnvelope),
 	)
 	go func() {
@@ -170,49 +171,68 @@ func (mw multiWriter) Write(e *loggregator_v2.Envelope) error {
 	return nil
 }
 
-type portConfig struct {
-	Ingress string `yaml:"ingress"`
+type destination struct {
+	Ingress  string `yaml:"ingress"`
+	Protocol string `yaml:"protocol"`
 }
 
-func getDownstreamAddresses(glob string, l *log.Logger) []string {
-	files, err := filepath.Glob(glob)
+func downstreamDestinations(pattern string, l *log.Logger) []destination {
+	files, err := filepath.Glob(pattern)
 	if err != nil {
 		l.Fatal("Unable to read downstream port location")
 	}
 
-	var addrs []string
+	var dests []destination
 	for _, f := range files {
 		yamlFile, err := os.ReadFile(f)
 		if err != nil {
 			l.Fatalf("cannot read file: %s", err)
 		}
 
-		var c portConfig
-		err = yaml.Unmarshal(yamlFile, &c)
+		var d destination
+		err = yaml.Unmarshal(yamlFile, &d)
 		if err != nil {
 			l.Fatalf("Unmarshal: %v", err)
 		}
 
-		addrs = append(addrs, fmt.Sprintf("127.0.0.1:%s", c.Ingress))
+		d.Ingress = fmt.Sprintf("127.0.0.1:%s", d.Ingress)
+
+		dests = append(dests, d)
 	}
 
-	return addrs
+	return dests
 }
 
-func ingressClients(downstreamAddrs []string,
-	grpc GRPC,
-	l *log.Logger) []Writer {
+func downstreamWriters(dests []destination, grpc GRPC, l *log.Logger) []Writer {
+	var writers []Writer
+	for _, d := range dests {
+		var w Writer
+		switch d.Protocol {
+		case "OTLP":
+			w = otlpClient(d, grpc, l)
+		default:
+			w = ingressClient(d, grpc, l)
+		}
+		writers = append(writers, w)
+	}
+	return writers
+}
 
-	var ingressClients []Writer
-	for _, addr := range downstreamAddrs {
-		dw := ingressClient(addr, grpc, l)
-		ingressClients = append(ingressClients, dw)
+func otlpClient(dest destination, grpc GRPC, l *log.Logger) Writer {
+	occl := log.New(l.Writer(), fmt.Sprintf("[OTEL COLLECTOR CLIENT] -> %s: ", dest.Ingress), l.Flags())
+	c, err := otelcolclient.New(dest.Ingress, occl)
+	if err != nil {
+		l.Fatalf("Failed to create OTel Collector client for %s: %s", dest.Ingress, err)
 	}
 
-	return ingressClients
+	dw := egress.NewDiodeWriter(context.Background(), c, gendiodes.AlertFunc(func(missed int) {
+		occl.Printf("Dropped %d logs for url %s", missed, dest.Ingress)
+	}), timeoutwaitgroup.New(time.Minute))
+
+	return dw
 }
 
-func ingressClient(addr string, grpc GRPC, l *log.Logger) Writer {
+func ingressClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 	clientCreds, err := loggregator.NewIngressTLSConfig(
 		grpc.CAFile,
 		grpc.CertFile,
@@ -222,20 +242,20 @@ func ingressClient(addr string, grpc GRPC, l *log.Logger) Writer {
 		l.Fatalf("failed to configure client TLS: %s", err)
 	}
 
-	il := log.New(os.Stderr, fmt.Sprintf("[INGRESS CLIENT] -> %s: ", addr), log.LstdFlags)
+	il := log.New(l.Writer(), fmt.Sprintf("[INGRESS CLIENT] -> %s: ", dest.Ingress), l.Flags())
 	ingressClient, err := loggregator.NewIngressClient(
 		clientCreds,
 		loggregator.WithLogger(il),
-		loggregator.WithAddr(addr),
+		loggregator.WithAddr(dest.Ingress),
 	)
 	if err != nil {
-		l.Fatalf("failed to create ingress client for %s: %s", addr, err)
+		l.Fatalf("failed to create ingress client for %s: %s", dest.Ingress, err)
 	}
 
 	ctx := context.Background()
 	wc := clientWriter{ingressClient}
 	dw := egress.NewDiodeWriter(ctx, wc, gendiodes.AlertFunc(func(missed int) {
-		il.Printf("Dropped %d logs for url %s", missed, addr)
+		il.Printf("Dropped %d logs for url %s", missed, dest.Ingress)
 	}), timeoutwaitgroup.New(time.Minute))
 	return dw
 }
