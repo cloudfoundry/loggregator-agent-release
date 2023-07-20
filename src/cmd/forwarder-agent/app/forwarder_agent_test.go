@@ -125,10 +125,6 @@ var _ = Describe("App", func() {
 		}, 5).ShouldNot(BeNil())
 	})
 
-	It("forwards all envelopes it receives downstream", func() {
-
-	})
-
 	Context("when debug configuration is enabled", func() {
 		BeforeEach(func() {
 			agentCfg.MetricsServer.DebugMetrics = true
