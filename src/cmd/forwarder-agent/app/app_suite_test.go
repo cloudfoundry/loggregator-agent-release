@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -194,4 +196,59 @@ func MakeSampleBigEnvelope() *loggregator_v2.Envelope {
 			"some-tag": "some-value",
 		},
 	}
+}
+
+// A fake OTel Collector metrics gRPC server that captures requests made to it.
+type spyOtelColMetricServer struct {
+	colmetricspb.UnimplementedMetricsServiceServer
+
+	srv *grpc.Server
+
+	requests chan *colmetricspb.ExportMetricsServiceRequest
+}
+
+// Creates a spyOtelColMetricServer, starts it listening on a random port,
+// registers it as a gRPC service, and writes out a temp file for the forwarder
+// agent to recognize it as a destination. The cfgPath it accepts is the folder
+// under which to write the temp file.
+func startSpyOtelColMetricServer(cfgPath string) *spyOtelColMetricServer {
+	s := &spyOtelColMetricServer{
+		srv:      grpc.NewServer(),
+		requests: make(chan *colmetricspb.ExportMetricsServiceRequest, 10000),
+	}
+
+	lis, err := net.Listen("tcp", "127.0.0.1:")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	colmetricspb.RegisterMetricsServiceServer(s.srv, s)
+	go s.srv.Serve(lis)
+
+	port, err := strconv.Atoi(strings.Split(lis.Addr().String(), ":")[1])
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	dir, err := os.MkdirTemp(cfgPath, "")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	tmpfn := filepath.Join(dir, "ingress_port.yml")
+	tmpfn, err = filepath.Abs(tmpfn)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+	contents := fmt.Sprintf(`---
+ingress: %d
+protocol: OTLP
+`, port)
+	err = os.WriteFile(tmpfn, []byte(contents), 0600)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+	return s
+}
+
+// Stops the spyOtelColMetricServer and shuts down an resources in use.
+func (s *spyOtelColMetricServer) Export(_ context.Context, req *colmetricspb.ExportMetricsServiceRequest) (*colmetricspb.ExportMetricsServiceResponse, error) {
+	s.requests <- req
+	return &colmetricspb.ExportMetricsServiceResponse{}, nil
+}
+
+// Stops the spyOtelColMetricServer and shuts down an resources in use.
+func (s *spyOtelColMetricServer) close() {
+	s.srv.Stop()
 }
