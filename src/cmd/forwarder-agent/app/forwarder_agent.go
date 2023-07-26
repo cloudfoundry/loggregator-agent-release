@@ -208,17 +208,17 @@ func downstreamWriters(dests []destination, grpc GRPC, l *log.Logger) []Writer {
 	for _, d := range dests {
 		var w Writer
 		switch d.Protocol {
-		case "OTLP":
-			w = otlpClient(d, grpc, l)
+		case "otelcol":
+			w = otelCollectorClient(d, grpc, l)
 		default:
-			w = ingressClient(d, grpc, l)
+			w = loggregatorClient(d, grpc, l)
 		}
 		writers = append(writers, w)
 	}
 	return writers
 }
 
-func otlpClient(dest destination, grpc GRPC, l *log.Logger) Writer {
+func otelCollectorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 	occl := log.New(l.Writer(), fmt.Sprintf("[OTEL COLLECTOR CLIENT] -> %s: ", dest.Ingress), l.Flags())
 	c, err := otelcolclient.New(dest.Ingress, occl)
 	if err != nil {
@@ -226,13 +226,13 @@ func otlpClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 	}
 
 	dw := egress.NewDiodeWriter(context.Background(), c, gendiodes.AlertFunc(func(missed int) {
-		occl.Printf("Dropped %d logs for url %s", missed, dest.Ingress)
+		occl.Printf("Dropped %d envelopes for url %s", missed, dest.Ingress)
 	}), timeoutwaitgroup.New(time.Minute))
 
 	return dw
 }
 
-func ingressClient(dest destination, grpc GRPC, l *log.Logger) Writer {
+func loggregatorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 	clientCreds, err := loggregator.NewIngressTLSConfig(
 		grpc.CAFile,
 		grpc.CertFile,
