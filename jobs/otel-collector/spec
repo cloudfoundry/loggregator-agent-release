@@ -10,6 +10,9 @@ packages:
 - otel-collector
 
 properties:
+  grpc_port:
+    description: "Port the collector is listening on to receive OTLP over gRPC"
+    default: 4317
   metrics_exporters:
     description: "Exporter configuration for aggregate metric egress"
     default: {}
