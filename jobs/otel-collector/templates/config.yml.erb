@@ -2,6 +2,7 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:<%= p('grpc_port') %>
 
 exporters: <%= YAML.dump(p('metrics_exporters')).sub("---", "").gsub("\n", "\n  ") %>
 
