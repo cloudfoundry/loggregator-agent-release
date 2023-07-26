@@ -234,7 +234,7 @@ func startSpyOtelColMetricServer(cfgPath string) *spyOtelColMetricServer {
 
 	contents := fmt.Sprintf(`---
 ingress: %d
-protocol: OTLP
+protocol: otelcol
 `, port)
 	err = os.WriteFile(tmpfn, []byte(contents), 0600)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
