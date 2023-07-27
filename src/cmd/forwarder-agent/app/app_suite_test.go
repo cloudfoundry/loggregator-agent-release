@@ -211,9 +211,15 @@ type spyOtelColMetricServer struct {
 // registers it as a gRPC service, and writes out a temp file for the forwarder
 // agent to recognize it as a destination. The cfgPath it accepts is the folder
 // under which to write the temp file.
-func startSpyOtelColMetricServer(cfgPath string) *spyOtelColMetricServer {
+func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commonName string) *spyOtelColMetricServer {
+	serverCreds, err := plumbing.NewServerCredentials(
+		tc.Cert(commonName),
+		tc.Key(commonName),
+		tc.CA(),
+	)
+
 	s := &spyOtelColMetricServer{
-		srv:      grpc.NewServer(),
+		srv:      grpc.NewServer(grpc.Creds(serverCreds)),
 		requests: make(chan *colmetricspb.ExportMetricsServiceRequest, 10000),
 	}
 

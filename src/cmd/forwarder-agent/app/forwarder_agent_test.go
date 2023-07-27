@@ -306,7 +306,7 @@ var _ = Describe("App", func() {
 		var otelServer *spyOtelColMetricServer
 
 		BeforeEach(func() {
-			otelServer = startSpyOtelColMetricServer(ingressCfgPath)
+			otelServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector")
 		})
 
 		AfterEach(func() {

@@ -4,6 +4,7 @@ package otelcolclient
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"log"
 
@@ -12,7 +13,7 @@ import (
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,9 +26,8 @@ type Client struct {
 
 // New dials the provided gRPC address and returns a *Client or error based off
 // that client connection.
-func New(addr string, l *log.Logger) (*Client, error) {
-	// TODO: setup real credentials
-	cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func New(addr string, tlsConfig *tls.Config, l *log.Logger) (*Client, error) {
+	cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
 		return nil, err
 	}
