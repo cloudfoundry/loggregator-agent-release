@@ -5,14 +5,23 @@ templates:
   bpm.yml.erb: config/bpm.yml
   config.yml.erb: config/config.yml
   ingress_port.yml.erb: config/ingress_port.yml
+  otel-collector.crt.erb: config/certs/otel-collector.crt
+  otel-collector.key.erb: config/certs/otel-collector.key
+  otel-collector-ca.crt.erb: config/certs/otel-collector-ca.crt
 
 packages:
 - otel-collector
 
 properties:
-  grpc_port:
+  ingress.grpc.port:
     description: "Port the collector is listening on to receive OTLP over gRPC"
     default: 4317
+  ingress.grpc.tls.ca_cert:
+    description: "CA root required for key/cert verification in gRPC ingress"
+  ingress.grpc.tls.cert:
+    description: "TLS server certificate for gRPC ingress"
+  ingress.grpc.tls.key:
+    description: "TLS server key for gRPC ingress"
   metrics_exporters:
     description: "Exporter configuration for aggregate metric egress"
     default: {}
