@@ -2,7 +2,12 @@ receivers:
   otlp:
     protocols:
       grpc:
-        endpoint: 127.0.0.1:<%= p('grpc_port') %>
+        endpoint: 127.0.0.1:<%= p('ingress.grpc.port') %>
+        tls:
+          client_ca_file: /var/vcap/jobs/otel-collector-windows/config/certs/otel-collector-ca.crt
+          cert_file: /var/vcap/jobs/otel-collector-windows/config/certs/otel-collector.crt
+          key_file: /var/vcap/jobs/otel-collector-windows/config/certs/otel-collector.key
+          min_version: "1.3"
 
 exporters: <%= YAML.dump(p('metrics_exporters')).sub("---", "").gsub("\n", "\n  ") %>
 

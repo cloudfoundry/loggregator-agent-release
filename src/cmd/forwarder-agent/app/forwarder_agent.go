@@ -9,6 +9,7 @@ import (
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/tlsconfig"
 
 	"net/http"
 
@@ -219,8 +220,19 @@ func downstreamWriters(dests []destination, grpc GRPC, l *log.Logger) []Writer {
 }
 
 func otelCollectorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
+	clientCreds, err := tlsconfig.Build(
+		tlsconfig.WithInternalServiceDefaults(),
+		tlsconfig.WithIdentityFromFile(grpc.CertFile, grpc.KeyFile),
+	).Client(
+		tlsconfig.WithAuthorityFromFile(grpc.CAFile),
+		tlsconfig.WithServerName("otel-collector"),
+	)
+	if err != nil {
+		l.Fatalf("failed to configure client TLS: %s", err)
+	}
+
 	occl := log.New(l.Writer(), fmt.Sprintf("[OTEL COLLECTOR CLIENT] -> %s: ", dest.Ingress), l.Flags())
-	c, err := otelcolclient.New(dest.Ingress, occl)
+	c, err := otelcolclient.New(dest.Ingress, clientCreds, occl)
 	if err != nil {
 		l.Fatalf("Failed to create OTel Collector client for %s: %s", dest.Ingress, err)
 	}
