@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("App", func() {
@@ -300,6 +303,26 @@ var _ = Describe("App", func() {
 			prevSize = len(ingressServer2.envelopes)
 			return notEqual
 		}, 5, 1).Should(BeTrue())
+	})
+
+	Context("when an OTel Collector is co-located but disabled", func() {
+		var buf *gbytes.Buffer
+
+		BeforeEach(func() {
+			buf = gbytes.NewBuffer()
+			GinkgoWriter.TeeTo(buf)
+
+			dir, err := os.MkdirTemp(ingressCfgPath, "")
+			Expect(err).ToNot(HaveOccurred())
+			tmpfn := filepath.Join(dir, "ingress_port.yml")
+
+			err = os.WriteFile(tmpfn, []byte{}, 0600)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+		It("logs a message", func() {
+			Eventually(buf).Should(gbytes.Say("No ingress port defined in .*/ingress_port.yml. Ignoring this destination."))
+		})
 	})
 
 	Context("when an OTel Collector is registered to forward to", func() {
