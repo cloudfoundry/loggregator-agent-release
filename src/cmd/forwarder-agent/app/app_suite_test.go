@@ -122,8 +122,6 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts, commonName st
 	dir, err := os.MkdirTemp(cfgPath, "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	tmpfn := filepath.Join(dir, "ingress_port.yml")
-	tmpfn, err = filepath.Abs(tmpfn)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	contents := fmt.Sprintf(configTempl, port[len(port)-1])
 	err = os.WriteFile(tmpfn, []byte(contents), 0600)
@@ -217,6 +215,7 @@ func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commo
 		tc.Key(commonName),
 		tc.CA(),
 	)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	s := &spyOtelColMetricServer{
 		srv:      grpc.NewServer(grpc.Creds(serverCreds)),
@@ -235,8 +234,6 @@ func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commo
 	dir, err := os.MkdirTemp(cfgPath, "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	tmpfn := filepath.Join(dir, "ingress_port.yml")
-	tmpfn, err = filepath.Abs(tmpfn)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	contents := fmt.Sprintf(`---
 ingress: %d
