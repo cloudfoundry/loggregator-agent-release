@@ -6,7 +6,10 @@
     "env" => {"NO_WINDOWS_SERVICE" => "1"}
   }
 
-  monit = { "processes" => [process] }
+  monit = { "processes" => [] }
+  if p('enabled')
+    monit["processes"] = [process]
+  end
 %>
 
 <%= JSON.pretty_generate(monit) %>

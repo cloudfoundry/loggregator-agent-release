@@ -196,9 +196,12 @@ func downstreamDestinations(pattern string, l *log.Logger) []destination {
 			l.Fatalf("Unmarshal: %v", err)
 		}
 
-		d.Ingress = fmt.Sprintf("127.0.0.1:%s", d.Ingress)
-
-		dests = append(dests, d)
+		if d.Ingress == "" {
+			l.Printf("No ingress port defined in %s. Ignoring this destination.", f)
+		} else {
+			d.Ingress = fmt.Sprintf("127.0.0.1:%s", d.Ingress)
+			dests = append(dests, d)
+		}
 	}
 
 	return dests
