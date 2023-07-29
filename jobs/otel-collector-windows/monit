@@ -1,7 +1,7 @@
 <%
   process = {
     "name" => "otel-collector",
-    "executable" => "/var/vcap/packages/otel-collector-windows/otelcol-contrib.exe",
+    "executable" => "/var/vcap/packages/otel-collector-windows/otel-collector.exe",
     "args" => ["--config", "/var/vcap/jobs/otel-collector-windows/config/config.yml"],
     "env" => {"NO_WINDOWS_SERVICE" => "1"}
   }
