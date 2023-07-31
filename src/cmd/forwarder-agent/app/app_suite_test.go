@@ -245,13 +245,11 @@ protocol: otelcol
 	return s
 }
 
-// Stops the spyOtelColMetricServer and shuts down an resources in use.
 func (s *spyOtelColMetricServer) Export(_ context.Context, req *colmetricspb.ExportMetricsServiceRequest) (*colmetricspb.ExportMetricsServiceResponse, error) {
 	s.requests <- req
 	return &colmetricspb.ExportMetricsServiceResponse{}, nil
 }
 
-// Stops the spyOtelColMetricServer and shuts down an resources in use.
 func (s *spyOtelColMetricServer) close() {
 	s.srv.Stop()
 }
