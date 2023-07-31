@@ -24,7 +24,7 @@ properties:
     description: "TLS server certificate for gRPC ingress"
   ingress.grpc.tls.key:
     description: "TLS server key for gRPC ingress"
-  metrics_exporters:
+  metric_exporters:
     description: "Exporter configuration for aggregate metric egress"
     default: {}
     example: |

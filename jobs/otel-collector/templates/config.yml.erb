@@ -9,7 +9,7 @@ receivers:
           key_file: /var/vcap/jobs/otel-collector/config/certs/otel-collector.key
           min_version: "1.3"
 
-exporters: <%= YAML.dump(p('metrics_exporters')).sub("---", "").gsub("\n", "\n  ") %>
+exporters: <%= YAML.dump(p('metric_exporters')).sub("---", "").gsub("\n", "\n  ") %>
 
 service:
   telemetry:
@@ -19,4 +19,4 @@ service:
     metrics:
       receivers:
       - otlp
-      exporters: <%= YAML.dump(p('metrics_exporters').keys).sub("---", "").gsub("\n", "\n      ") %>
+      exporters: <%= YAML.dump(p('metric_exporters').keys).sub("---", "").gsub("\n", "\n      ") %>
