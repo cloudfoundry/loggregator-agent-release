@@ -18,8 +18,12 @@ import (
 )
 
 type Client struct {
-	// The client API for the OTel Collector metrics service.
+	// The client API for the OTel Collector metrics service
 	msc colmetricspb.MetricsServiceClient
+	// Context passed to gRPC
+	ctx context.Context
+	// Cancel func invoked on shutdown
+	cancel func()
 	// The logger to use for errors
 	l *log.Logger
 }
@@ -32,7 +36,13 @@ func New(addr string, tlsConfig *tls.Config, l *log.Logger) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{msc: colmetricspb.NewMetricsServiceClient(cc), l: l}, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Client{
+		msc:    colmetricspb.NewMetricsServiceClient(cc),
+		ctx:    ctx,
+		cancel: cancel,
+		l:      l,
+	}, nil
 }
 
 // Write translates an envelope to OTLP and forwards it to the connected OTel
@@ -55,15 +65,16 @@ func (c *Client) Write(e *loggregator_v2.Envelope) error {
 	return err
 }
 
-// Close flushes any buffers and closes any connections.
+// Close cancels the underlying context.
 func (c *Client) Close() error {
+	c.cancel()
 	return nil
 }
 
 // writeCounter translates a loggregator v2 Counter to OTLP and forwards it.
 func (c *Client) writeCounter(e *loggregator_v2.Envelope) error {
 	atts := attributes(e)
-	resp, err := c.msc.Export(context.TODO(), &colmetricspb.ExportMetricsServiceRequest{
+	resp, err := c.msc.Export(c.ctx, &colmetricspb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricspb.ResourceMetrics{
 			{
 				ScopeMetrics: []*metricspb.ScopeMetrics{
@@ -123,7 +134,7 @@ func (c *Client) writeGauge(e *loggregator_v2.Envelope) error {
 		})
 	}
 
-	resp, err := c.msc.Export(context.TODO(), &colmetricspb.ExportMetricsServiceRequest{
+	resp, err := c.msc.Export(c.ctx, &colmetricspb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricspb.ResourceMetrics{
 			{
 				ScopeMetrics: []*metricspb.ScopeMetrics{
@@ -143,7 +154,7 @@ func (c *Client) writeGauge(e *loggregator_v2.Envelope) error {
 // writeTimer translates a loggregator v2 Timer to OTLP and forwards it.
 func (c *Client) writeTimer(e *loggregator_v2.Envelope) error {
 	atts := attributes(e)
-	resp, err := c.msc.Export(context.TODO(), &colmetricspb.ExportMetricsServiceRequest{
+	resp, err := c.msc.Export(c.ctx, &colmetricspb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricspb.ResourceMetrics{
 			{
 				ScopeMetrics: []*metricspb.ScopeMetrics{
