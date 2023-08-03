@@ -33,9 +33,12 @@ var _ = Describe("Client", func() {
 			response:    &colmetricspb.ExportMetricsServiceResponse{},
 			responseErr: nil,
 		}
+		ctx, cancel := context.WithCancel(context.Background())
 		c = Client{
-			msc: spyMSC,
-			l:   log.New(GinkgoWriter, "", 0),
+			msc:    spyMSC,
+			ctx:    ctx,
+			cancel: cancel,
+			l:      log.New(GinkgoWriter, "", 0),
 		}
 	})
 
@@ -566,15 +569,27 @@ var _ = Describe("Client", func() {
 			})
 		})
 	})
+
+	Describe("Close", func() {
+		It("cancels the context", func() {
+			envelope := &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}
+			Expect(c.Write(envelope)).ToNot(HaveOccurred())
+
+			Expect(c.Close()).ToNot(HaveOccurred())
+			Eventually(spyMSC.ctx.Done()).Should(BeClosed())
+		})
+	})
 })
 
 type spyMetricsServiceClient struct {
 	requests    chan *colmetricspb.ExportMetricsServiceRequest
 	response    *colmetricspb.ExportMetricsServiceResponse
 	responseErr error
+	ctx         context.Context
 }
 
 func (c *spyMetricsServiceClient) Export(ctx context.Context, in *colmetricspb.ExportMetricsServiceRequest, opts ...grpc.CallOption) (*colmetricspb.ExportMetricsServiceResponse, error) {
 	c.requests <- in
+	c.ctx = ctx
 	return c.response, c.responseErr
 }
