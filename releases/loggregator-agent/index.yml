@@ -161,6 +161,8 @@ builds:
     version: 7.2.2
   dbf7d099-3afd-42a9-5115-7e038f54893f:
     version: 7.2.1
+  ddb2dc37-2ab2-4df3-4d57-1f3ac5dd3e59:
+    version: 7.4.0
   e06cf376-ccb0-4cf3-5019-89bc20883fbf:
     version: "3.1"
   e11d32fe-959b-4530-5837-1329272b39c1:
