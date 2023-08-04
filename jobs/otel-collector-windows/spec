@@ -17,7 +17,7 @@ properties:
     default: true
   ingress.grpc.port:
     description: "Port the collector is listening on to receive OTLP over gRPC"
-    default: 4317
+    default: 3462
   ingress.grpc.tls.ca_cert:
     description: "CA root required for key/cert verification in gRPC ingress"
   ingress.grpc.tls.cert:
