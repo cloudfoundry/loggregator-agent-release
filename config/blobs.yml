@@ -1,8 +1,1 @@
-otelcol-contrib_0.79.0_linux_amd64.tar.gz:
-  size: 54313545
-  object_id: 9d6c0664-89f3-443d-6a6d-d199b33bbf1c
-  sha: sha256:5d1ca4ceb51b487f7648e361627adb3eb1ffdf6c7a7fdd35a4b3d560eb73e8aa
-otelcol-contrib_0.79.0_windows_amd64.tar.gz:
-  size: 53149526
-  object_id: 5251ce8d-725c-4415-697c-96fbf4498185
-  sha: sha256:c99b0ce58da8f7667f68539573c9356721ff2e63138a7242099b3b808479905e
+{}

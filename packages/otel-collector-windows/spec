@@ -1,8 +1,10 @@
 ---
 name: otel-collector-windows
 
-dependencies: []
+dependencies:
+- golang-1.20-windows
 
 files:
-- otelcol-contrib*windows_amd64.tar.gz
 - exiter.ps1
+- otel-collector-builder/**/*
+- otel-collector/**/*
