@@ -1,9 +1,27 @@
-. ./exiter.ps1
+. .\exiter.ps1
+. C:\var\vcap\packages\golang-1.20-windows\bosh\compile.ps1
+$env:CGO_ENABLED="0"
 
 $ErrorActionPreference = "Stop";
 trap { $host.SetShouldExit(1) }
 
-# [Powershell can't resolve symlinks correctly](https://github.com/PowerShell/PowerShell/issues/7818)
-# and tar won't extract to a path that includes a symlink. So we're left extracting to D:\tmp
-tar -xvf $(Resolve-Path "otelcol-contrib_*_windows_amd64.tar.gz") -C D:\tmp otelcol-contrib.exe
-move D:\tmp\otelcol-contrib.exe "${env:BOSH_INSTALL_TARGET}\otel-collector.exe"
+$BOSH_INSTALL_TARGET = Resolve-Path "${env:BOSH_INSTALL_TARGET}"
+if ((Get-Item $BOSH_INSTALL_TARGET).LinkType -ne "") {
+  $BOSH_INSTALL_TARGET = (Get-Item $BOSH_INSTALL_TARGET).Target
+}
+
+Push-Location otel-collector-builder\vendor\go.opentelemetry.io\collector\cmd\builder\
+  go.exe install
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Error compiling builder"
+  }
+Pop-Location
+
+& ${env:GOPATH}\bin\builder.exe --config otel-collector\config.yaml --skip-generate --skip-get-modules
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "Error building otel-collector"
+}
+
+Copy-Item "otel-collector\cf-otel-collector" -Destination "${env:BOSH_INSTALL_TARGET}\otel-collector.exe"
+
+Exit 0

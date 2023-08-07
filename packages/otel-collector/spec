@@ -1,7 +1,9 @@
 ---
 name: otel-collector
 
-dependencies: []
+dependencies:
+- golang-1.20-linux
 
 files:
-- otelcol-contrib*linux_amd64.tar.gz
+- otel-collector-builder/**/*
+- otel-collector/**/*
