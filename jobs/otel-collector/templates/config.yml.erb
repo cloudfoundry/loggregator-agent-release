@@ -1,12 +1,14 @@
 <%=
-otlp_grpc_endpoint = "127.0.0.1:#{p('ingress.grpc.port')}"
+if p('metric_exporters').keys.any?{|k| k.include?('/cf-internal')}
+  raise 'Metric exporters cannot be defined under cf-internal namespace'
+end
 
 config = {
   "receivers"=> {
     "otlp"=>{
       "protocols"=>{
         "grpc"=>{
-          "endpoint"=>otlp_grpc_endpoint,
+          "endpoint"=>"127.0.0.1:#{p('ingress.grpc.port')}",
           "tls"=>{
             "client_ca_file"=>"/var/vcap/jobs/otel-collector/config/certs/otel-collector-ca.crt",
              "cert_file"=>"/var/vcap/jobs/otel-collector/config/certs/otel-collector.crt",
