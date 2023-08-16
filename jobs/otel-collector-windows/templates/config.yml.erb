@@ -1,5 +1,9 @@
 <%=
-if p('metric_exporters').keys.any?{|k| k.include?('/cf-internal')}
+metric_exporters = p('metric_exporters')
+unless metric_exporters.respond_to?(:keys)
+  metric_exporters = YAML::load(metric_exporters)
+end
+if metric_exporters.keys.any?{|k| k.include?('/cf-internal')}
   raise 'Metric exporters cannot be defined under cf-internal namespace'
 end
 
@@ -19,10 +23,10 @@ config = {
       }
     }
   },
-  "exporters"=>p('metric_exporters'),
+  "exporters"=>metric_exporters,
   "service"=>{
     "telemetry"=>{"metrics"=>{"level"=>"none"}},
-    "pipelines"=>{"metrics"=>{"receivers"=>["otlp"], "exporters"=>p('metric_exporters').keys}}
+    "pipelines"=>{"metrics"=>{"receivers"=>["otlp"], "exporters"=>metric_exporters.keys}}
   }
 }
 
