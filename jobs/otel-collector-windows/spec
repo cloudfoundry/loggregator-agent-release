@@ -25,11 +25,11 @@ properties:
     description: "TLS server certificate for gRPC ingress"
   ingress.grpc.tls.key:
     description: "TLS server key for gRPC ingress"
-  service.telemetry.metrics.level:
-    description: "Level of metrics otel-collector exposes about itself"
+  telemetry.metrics.level:
+    description: "Level of metrics the collector exposes about itself"
     default: "basic"
-  service.telemetry.metrics.port:
-    description: "Port to serve otel-collector's internal metrics"
+  telemetry.metrics.port:
+    description: "Port to serve the collector's internal metrics"
     default: 14830
   metric_exporters:
     description: "Exporter configuration for aggregate metric egress"

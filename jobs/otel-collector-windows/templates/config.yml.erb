@@ -27,8 +27,8 @@ config = {
   "service"=>{
     "telemetry"=>{
       "metrics"=>{
-        "level"=>p('service.telemetry.metrics.level'),
-        "address"=>"127.0.0.1:#{p('service.telemetry.metrics.port')}"
+        "level"=>p('telemetry.metrics.level'),
+        "address"=>"127.0.0.1:#{p('telemetry.metrics.port')}"
       }
     },
     "pipelines"=>{"metrics"=>{"receivers"=>["otlp"], "exporters"=>metric_exporters.keys}}
