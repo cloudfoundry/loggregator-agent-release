@@ -8,6 +8,7 @@ templates:
   otel-collector.crt.erb: config/certs/otel-collector.crt
   otel-collector.key.erb: config/certs/otel-collector.key
   otel-collector-ca.crt.erb: config/certs/otel-collector-ca.crt
+  prom_scraper_config.yml.erb: config/prom_scraper_config.yml
 
 packages:
 - otel-collector
@@ -25,6 +26,12 @@ properties:
     description: "TLS server certificate for gRPC ingress"
   ingress.grpc.tls.key:
     description: "TLS server key for gRPC ingress"
+  telemetry.metrics.level:
+    description: "Level of metrics the collector exposes about itself"
+    default: "basic"
+  telemetry.metrics.port:
+    description: "Port to serve the collector's internal metrics"
+    default: 14830
   metric_exporters:
     description: "Exporter configuration for aggregate metric egress"
     default: {}
