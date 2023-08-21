@@ -14,7 +14,6 @@ import (
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/proto"
 )
 
 type Client struct {
@@ -54,8 +53,6 @@ func (c *Client) Write(e *loggregator_v2.Envelope) error {
 		err = c.writeCounter(e)
 	case *loggregator_v2.Envelope_Gauge:
 		err = c.writeGauge(e)
-	case *loggregator_v2.Envelope_Timer:
-		err = c.writeTimer(e)
 	}
 	// Need to log the error right now because the Forwarder Agent drops
 	// returned errors. If that changes we can remove this conditional.
@@ -140,43 +137,6 @@ func (c *Client) writeGauge(e *loggregator_v2.Envelope) error {
 				ScopeMetrics: []*metricspb.ScopeMetrics{
 					{
 						Metrics: metrics,
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		return err
-	}
-	return errorOnRejection(resp)
-}
-
-// writeTimer translates a loggregator v2 Timer to OTLP and forwards it.
-func (c *Client) writeTimer(e *loggregator_v2.Envelope) error {
-	atts := attributes(e)
-	resp, err := c.msc.Export(c.ctx, &colmetricspb.ExportMetricsServiceRequest{
-		ResourceMetrics: []*metricspb.ResourceMetrics{
-			{
-				ScopeMetrics: []*metricspb.ScopeMetrics{
-					{
-						Metrics: []*metricspb.Metric{
-							{
-								Name: e.GetTimer().GetName(),
-								Data: &metricspb.Metric_Histogram{
-									Histogram: &metricspb.Histogram{
-										AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-										DataPoints: []*metricspb.HistogramDataPoint{
-											{
-												TimeUnixNano: uint64(e.GetTimestamp()),
-												Attributes:   atts,
-												Count:        1,
-												Sum:          proto.Float64(float64(e.GetTimer().GetStop() - e.GetTimer().GetStart())),
-											},
-										},
-									},
-								},
-							},
-						},
 					},
 				},
 			},

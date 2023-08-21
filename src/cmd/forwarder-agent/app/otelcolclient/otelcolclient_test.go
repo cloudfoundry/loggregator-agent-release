@@ -14,7 +14,6 @@ import (
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -393,9 +392,9 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Context("when given a log", func() {
+		Context("when given a timer", func() {
 			BeforeEach(func() {
-				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}
+				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}
 			})
 
 			It("returns nil", func() {
@@ -408,149 +407,18 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Context("when given a timer", func() {
+		Context("when given a log", func() {
 			BeforeEach(func() {
-				envelope = &loggregator_v2.Envelope{
-					Timestamp:  1690405373300570810,
-					SourceId:   "fake-source-id",
-					InstanceId: "fake-instance-id",
-					Tags: map[string]string{
-						"app_name":  "dora",
-						"peer_type": "Server",
-					},
-					Message: &loggregator_v2.Envelope_Timer{
-						Timer: &loggregator_v2.Timer{
-							Name:  "http",
-							Start: 1690405373296932993,
-							Stop:  1690405373300561198,
-						},
-					},
-				}
+				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}
 			})
 
 			It("returns nil", func() {
 				Expect(returnedErr).NotTo(HaveOccurred())
 			})
 
-			It("succeeds", func() {
-				var msr *colmetricspb.ExportMetricsServiceRequest
-				Expect(spyMSC.requests).To(Receive(&msr))
-
-				expectedReq := &colmetricspb.ExportMetricsServiceRequest{
-					ResourceMetrics: []*metricspb.ResourceMetrics{
-						{
-							ScopeMetrics: []*metricspb.ScopeMetrics{
-								{
-									Metrics: []*metricspb.Metric{
-										{
-											Name: "http",
-											Data: &metricspb.Metric_Histogram{
-												Histogram: &metricspb.Histogram{
-													AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-													DataPoints: []*metricspb.HistogramDataPoint{
-														{
-															TimeUnixNano: 1690405373300570810,
-															Attributes: []*commonpb.KeyValue{
-																{
-																	Key:   "app_name",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "dora"}},
-																},
-																{
-																	Key:   "instance_id",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
-																},
-																{
-																	Key:   "peer_type",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "Server"}},
-																},
-																{
-																	Key:   "source_id",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
-																},
-															},
-															Count: 1,
-															Sum:   proto.Float64(3628205),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				}
-
-				s1 := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
-					return x.Key < y.Key
-				})
-				s2 := protocmp.SortRepeated(func(x *metricspb.Metric, y *metricspb.Metric) bool {
-					return x.Name < y.Name
-				})
-				Expect(cmp.Diff(msr, expectedReq, protocmp.Transform(), s1, s2)).To(BeEmpty())
-			})
-
-			Context("when Metric Service Client returns an error", func() {
-				BeforeEach(func() {
-					spyMSC.responseErr = errors.New("test-error")
-				})
-
-				It("returns it", func() {
-					Expect(returnedErr).To(MatchError("test-error"))
-				})
-
-				It("logs it", func() {
-					Eventually(buf).Should(gbytes.Say("Write error: test-error"))
-				})
-			})
-
-			Context("when Metric Service Client indicates data points were rejected", func() {
-				BeforeEach(func() {
-					spyMSC.response = &colmetricspb.ExportMetricsServiceResponse{
-						PartialSuccess: &colmetricspb.ExportMetricsPartialSuccess{
-							RejectedDataPoints: 1,
-							ErrorMessage:       "test-error-message",
-						},
-					}
-				})
-
-				It("returns it", func() {
-					Expect(returnedErr).To(MatchError("test-error-message"))
-				})
-
-				It("logs it", func() {
-					Eventually(buf).Should(gbytes.Say("Write error: test-error-message"))
-				})
-			})
-
-			Context("when the instance id or source id are provided as tags", func() {
-				BeforeEach(func() {
-					envelope.Tags = map[string]string{}
-					envelope.Tags["source_id"] = "some-other-source-id"
-					envelope.Tags["instance_id"] = "some-other-instance-id"
-				})
-
-				It("ignores them and uses the envelope fields instead", func() {
-					var msr *colmetricspb.ExportMetricsServiceRequest
-					Expect(spyMSC.requests).To(Receive(&msr))
-
-					expectedAtts := []*commonpb.KeyValue{
-						{
-							Key:   "instance_id",
-							Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
-						},
-						{
-							Key:   "source_id",
-							Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
-						},
-					}
-					sortFunc := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
-						return x.Key < y.Key
-					})
-					actualAtts := msr.GetResourceMetrics()[0].GetScopeMetrics()[0].GetMetrics()[0].GetHistogram().GetDataPoints()[0].GetAttributes()
-					Expect(cmp.Diff(actualAtts, expectedAtts, protocmp.Transform(), sortFunc)).To(BeEmpty())
-				})
+			It("does nothing", func() {
+				Expect(spyMSC.requests).NotTo(Receive())
+				Consistently(buf.Contents()).Should(HaveLen(0))
 			})
 		})
 
@@ -572,7 +440,7 @@ var _ = Describe("Client", func() {
 
 	Describe("Close", func() {
 		It("cancels the context", func() {
-			envelope := &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}
+			envelope := &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Gauge{}}
 			Expect(c.Write(envelope)).ToNot(HaveOccurred())
 
 			Expect(c.Close()).ToNot(HaveOccurred())
