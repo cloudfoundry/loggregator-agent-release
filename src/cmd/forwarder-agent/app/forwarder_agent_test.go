@@ -343,6 +343,7 @@ var _ = Describe("App", func() {
 			},
 			Entry("drops logs", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}),
 			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
+			Entry("drops timers", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}),
 		)
 
 		It("forwards counters", func() {
@@ -366,17 +367,5 @@ var _ = Describe("App", func() {
 			metric := req.ResourceMetrics[0].ScopeMetrics[0].Metrics[0]
 			Expect(metric.GetName()).To(Equal(name))
 		})
-
-		It("forwards timers", func() {
-			name := "test-timer-name"
-			ingressClient.EmitTimer(name, time.Time{}, time.Time{})
-
-			var req *colmetricspb.ExportMetricsServiceRequest
-			Eventually(otelServer.requests).Should(Receive(&req))
-
-			metric := req.ResourceMetrics[0].ScopeMetrics[0].Metrics[0]
-			Expect(metric.GetName()).To(Equal(name))
-		})
-
 	})
 })
