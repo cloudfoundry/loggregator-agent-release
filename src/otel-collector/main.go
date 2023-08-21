@@ -18,7 +18,7 @@ func main() {
 	info := component.BuildInfo{
 		Command:     "cf-otel-collector",
 		Description: "Cloud Foundry OpenTelemetry Collector",
-		Version:     "1.0.0",
+		Version:     "0.1.0",
 	}
 
 	if err := run(otelcol.CollectorSettings{BuildInfo: info, Factories: factories}); err != nil {
