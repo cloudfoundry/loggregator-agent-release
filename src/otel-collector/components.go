@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/collector/receiver"
 	otlpexporter "go.opentelemetry.io/collector/exporter/otlpexporter"
 	fileexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/fileexporter"
+	prometheusexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter"
 	otlpreceiver "go.opentelemetry.io/collector/receiver/otlpreceiver"
 )
 
@@ -34,6 +35,7 @@ func components() (otelcol.Factories, error) {
 	factories.Exporters, err = exporter.MakeFactoryMap(
 		otlpexporter.NewFactory(),
 		fileexporter.NewFactory(),
+		prometheusexporter.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
