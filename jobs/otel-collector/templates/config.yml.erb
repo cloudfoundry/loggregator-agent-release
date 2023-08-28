@@ -6,6 +6,9 @@ end
 if metric_exporters.keys.any?{|k| k.include?('/cf-internal')}
   raise 'Metric exporters cannot be defined under cf-internal namespace'
 end
+if metric_exporters.any?{|k, v| k.start_with?('prometheus') && v['endpoint'] && v['endpoint'].end_with?(':8889')}
+  raise 'Cannot define prometheus exporter listening on port 8889 (reserved for BBS API port)'
+end
 
 config = {
   "receivers"=> {
