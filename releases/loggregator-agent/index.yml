@@ -49,6 +49,8 @@ builds:
     version: 5.3.4
   423ca0ec-7a0c-40b0-526f-80c92c981b35:
     version: "2.1"
+  42bbbe83-6af6-4c28-7d97-eabb54840a2f:
+    version: 7.6.2
   44014fd9-d74c-484f-47ac-b3794f26fa8d:
     version: "3.4"
   45fc22d5-de0d-43fb-576b-799522fbe632:
