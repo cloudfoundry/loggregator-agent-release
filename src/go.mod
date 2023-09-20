@@ -24,7 +24,7 @@ require (
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/google/go-cmp v0.5.9
-	github.com/onsi/ginkgo/v2 v2.12.0
+	github.com/onsi/ginkgo/v2 v2.12.1
 	go.opentelemetry.io/proto/otlp v1.0.0
 	google.golang.org/protobuf v1.31.0
 )
