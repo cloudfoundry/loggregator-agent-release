@@ -235,12 +235,13 @@ func otelCollectorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 	}
 
 	occl := log.New(l.Writer(), fmt.Sprintf("[OTEL COLLECTOR CLIENT] -> %s: ", dest.Ingress), l.Flags())
-	c, err := otelcolclient.New(dest.Ingress, clientCreds, occl)
+
+	w, err := otelcolclient.NewGRPCWriter(dest.Ingress, clientCreds, occl)
 	if err != nil {
-		l.Fatalf("Failed to create OTel Collector client for %s: %s", dest.Ingress, err)
+		l.Fatalf("Failed to create OTel Collector gRPC writer for %s: %s", dest.Ingress, err)
 	}
 
-	dw := egress.NewDiodeWriter(context.Background(), c, gendiodes.AlertFunc(func(missed int) {
+	dw := egress.NewDiodeWriter(context.Background(), otelcolclient.New(w), gendiodes.AlertFunc(func(missed int) {
 		occl.Printf("Dropped %d envelopes for url %s", missed, dest.Ingress)
 	}), timeoutwaitgroup.New(time.Minute))
 
