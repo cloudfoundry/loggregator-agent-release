@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	"github.com/google/go-cmp/cmp"
@@ -33,12 +34,18 @@ var _ = Describe("Client", func() {
 			responseErr: nil,
 		}
 		ctx, cancel := context.WithCancel(context.Background())
-		c = Client{
+		w := GRPCWriter{
 			msc:    spyMSC,
 			ctx:    ctx,
 			cancel: cancel,
 			l:      log.New(GinkgoWriter, "", 0),
 		}
+		b := NewMetricBatcher(
+			1,
+			100*time.Millisecond,
+			w,
+		)
+		c = Client{b: b}
 	})
 
 	AfterEach(func() {
@@ -80,6 +87,20 @@ var _ = Describe("Client", func() {
 						},
 					},
 				}
+
+				ctx, cancel := context.WithCancel(context.Background())
+				w := GRPCWriter{
+					msc:    spyMSC,
+					ctx:    ctx,
+					cancel: cancel,
+					l:      log.New(GinkgoWriter, "", 0),
+				}
+				b := NewMetricBatcher(
+					2,
+					100*time.Millisecond,
+					w,
+				)
+				c = Client{b: b}
 			})
 
 			It("returns nil", func() {
@@ -178,16 +199,12 @@ var _ = Describe("Client", func() {
 				s2 := protocmp.SortRepeated(func(x *metricspb.Metric, y *metricspb.Metric) bool {
 					return x.Name < y.Name
 				})
-				Expect(cmp.Diff(msr, expectedReq, protocmp.Transform(), s1, s2)).To(BeEmpty())
+				Expect(cmp.Diff(expectedReq, msr, protocmp.Transform(), s1, s2)).To(BeEmpty())
 			})
 
 			Context("when Metric Service Client returns an error", func() {
 				BeforeEach(func() {
 					spyMSC.responseErr = errors.New("test-error")
-				})
-
-				It("returns it", func() {
-					Expect(returnedErr).To(MatchError("test-error"))
 				})
 
 				It("logs it", func() {
@@ -203,10 +220,6 @@ var _ = Describe("Client", func() {
 							ErrorMessage:       "test-error-message",
 						},
 					}
-				})
-
-				It("returns it", func() {
-					Expect(returnedErr).To(MatchError("test-error-message"))
 				})
 
 				It("logs it", func() {
@@ -334,10 +347,6 @@ var _ = Describe("Client", func() {
 					spyMSC.responseErr = errors.New("test-error")
 				})
 
-				It("returns it", func() {
-					Expect(returnedErr).To(MatchError("test-error"))
-				})
-
 				It("logs it", func() {
 					Eventually(buf).Should(gbytes.Say("Write error: test-error"))
 				})
@@ -351,10 +360,6 @@ var _ = Describe("Client", func() {
 							ErrorMessage:       "test-error-message",
 						},
 					}
-				})
-
-				It("returns it", func() {
-					Expect(returnedErr).To(MatchError("test-error-message"))
 				})
 
 				It("logs it", func() {
@@ -439,10 +444,20 @@ var _ = Describe("Client", func() {
 	})
 
 	Describe("Close", func() {
-		It("cancels the context", func() {
-			envelope := &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Gauge{}}
+		It("cancels the gRPC context", func() {
+			envelope := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Gauge{
+					Gauge: &loggregator_v2.Gauge{
+						Metrics: map[string]*loggregator_v2.GaugeValue{
+							"cpu": {
+								Unit:  "percentage",
+								Value: 0.3257,
+							},
+						},
+					},
+				},
+			}
 			Expect(c.Write(envelope)).ToNot(HaveOccurred())
-
 			Expect(c.Close()).ToNot(HaveOccurred())
 			Eventually(spyMSC.ctx.Done()).Should(BeClosed())
 		})
