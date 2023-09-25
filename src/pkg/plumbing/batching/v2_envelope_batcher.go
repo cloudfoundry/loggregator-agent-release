@@ -28,7 +28,7 @@ func (f V2EnvelopeWriterFunc) Write(batch []*loggregator_v2.Envelope) {
 	f(batch)
 }
 
-// NewV2EnvelopeBatcher creates a new ByteBatcher.
+// NewV2EnvelopeBatcher creates a new V2EnvelopeBatcher.
 func NewV2EnvelopeBatcher(size int, interval time.Duration, writer V2EnvelopeWriter) *V2EnvelopeBatcher {
 	genWriter := batching.WriterFunc(func(batch []interface{}) {
 		envBatch := make([]*loggregator_v2.Envelope, 0, len(batch))
