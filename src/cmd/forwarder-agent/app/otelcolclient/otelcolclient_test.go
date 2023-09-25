@@ -427,7 +427,7 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Context("when given a event", func() {
+		Context("when given an event", func() {
 			BeforeEach(func() {
 				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}
 			})
@@ -439,6 +439,52 @@ var _ = Describe("Client", func() {
 			It("does nothing", func() {
 				Expect(spyMSC.requests).NotTo(Receive())
 				Consistently(buf.Contents()).Should(HaveLen(0))
+			})
+		})
+
+		Context("when no writes have occurred for a while", func() {
+			BeforeEach(func() {
+				spyMSC = &spyMetricsServiceClient{
+					requests:    make(chan *colmetricspb.ExportMetricsServiceRequest, 1),
+					response:    &colmetricspb.ExportMetricsServiceResponse{},
+					responseErr: nil,
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				w := GRPCWriter{
+					msc:    spyMSC,
+					ctx:    ctx,
+					cancel: cancel,
+					l:      log.New(GinkgoWriter, "", 0),
+				}
+
+				b := NewMetricBatcher(
+					1000,
+					10*time.Millisecond,
+					w,
+				)
+				c = Client{b: b}
+				envelope = &loggregator_v2.Envelope{
+					Timestamp:  1257894000000000000,
+					SourceId:   "fake-source-id",
+					InstanceId: "fake-instance-id",
+					Tags: map[string]string{
+						"direction": "egress",
+						"origin":    "fake-origin.some-vm",
+					},
+					Message: &loggregator_v2.Envelope_Counter{
+						Counter: &loggregator_v2.Counter{
+							Name:  "dropped",
+							Delta: 5,
+							Total: 10,
+						},
+					},
+				}
+			})
+			It("flushes pending writes", func() {
+				Expect(returnedErr).NotTo(HaveOccurred())
+
+				var msr *colmetricspb.ExportMetricsServiceRequest
+				Eventually(spyMSC.requests).Should(Receive(&msr))
 			})
 		})
 	})
