@@ -20,7 +20,7 @@ require (
 )
 
 require (
-	code.cloudfoundry.org/go-loggregator/v9 v9.0.7
+	code.cloudfoundry.org/go-loggregator/v9 v9.0.8
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/google/go-cmp v0.5.9
