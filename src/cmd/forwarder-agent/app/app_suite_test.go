@@ -108,7 +108,7 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts, commonName st
 	lis, err := net.Listen("tcp", "127.0.0.1:")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	s.srv = grpc.NewServer(grpc.Creds(serverCreds))
+	s.srv = grpc.NewServer(grpc.Creds(serverCreds), grpc.MaxRecvMsgSize(10*1024*1024))
 	loggregator_v2.RegisterIngressServer(s.srv, s)
 
 	s.close = func() {
