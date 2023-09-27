@@ -200,7 +200,8 @@ func MakeSampleBigEnvelope() *loggregator_v2.Envelope {
 type spyOtelColMetricServer struct {
 	colmetricspb.UnimplementedMetricsServiceServer
 
-	srv *grpc.Server
+	srv  *grpc.Server
+	addr string
 
 	requests chan *colmetricspb.ExportMetricsServiceRequest
 }
@@ -217,18 +218,19 @@ func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commo
 	)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+	lis, err := net.Listen("tcp", "127.0.0.1:")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 	s := &spyOtelColMetricServer{
 		srv:      grpc.NewServer(grpc.Creds(serverCreds)),
 		requests: make(chan *colmetricspb.ExportMetricsServiceRequest, 10000),
+		addr:     lis.Addr().String(),
 	}
-
-	lis, err := net.Listen("tcp", "127.0.0.1:")
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	colmetricspb.RegisterMetricsServiceServer(s.srv, s)
 	go s.srv.Serve(lis) //nolint:errcheck
 
-	port, err := strconv.Atoi(strings.Split(lis.Addr().String(), ":")[1])
+	port, err := strconv.Atoi(strings.Split(s.addr, ":")[1])
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	dir, err := os.MkdirTemp(cfgPath, "")
