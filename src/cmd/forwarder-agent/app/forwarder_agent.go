@@ -94,7 +94,7 @@ func (s *ForwarderAgent) Run() {
 	}))
 
 	dests := downstreamDestinations(s.downstreamFilePattern, s.log)
-	writers := downstreamWriters(dests, s.grpc, s.log)
+	writers := downstreamWriters(dests, s.grpc, s.m, s.log)
 	tagger := egress_v2.NewTagger(s.tags)
 	ew := egress_v2.NewEnvelopeWriter(
 		multiWriter{writers: writers},
@@ -207,13 +207,13 @@ func downstreamDestinations(pattern string, l *log.Logger) []destination {
 	return dests
 }
 
-func downstreamWriters(dests []destination, grpc GRPC, l *log.Logger) []Writer {
+func downstreamWriters(dests []destination, grpc GRPC, m Metrics, l *log.Logger) []Writer {
 	var writers []Writer
 	for _, d := range dests {
 		var w Writer
 		switch d.Protocol {
 		case "otelcol":
-			w = otelCollectorClient(d, grpc, l)
+			w = otelCollectorClient(d, grpc, m, l)
 		default:
 			w = loggregatorClient(d, grpc, l)
 		}
@@ -222,7 +222,7 @@ func downstreamWriters(dests []destination, grpc GRPC, l *log.Logger) []Writer {
 	return writers
 }
 
-func otelCollectorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
+func otelCollectorClient(dest destination, grpc GRPC, m Metrics, l *log.Logger) Writer {
 	clientCreds, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
 		tlsconfig.WithIdentityFromFile(grpc.CertFile, grpc.KeyFile),
@@ -241,8 +241,17 @@ func otelCollectorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 		l.Fatalf("Failed to create OTel Collector gRPC writer for %s: %s", dest.Ingress, err)
 	}
 
+	expired := m.NewCounter(
+		"egress_expired_total",
+		"Total number of envelopes that expired before they could be egressed.",
+		metrics.WithMetricLabels(map[string]string{
+			"protocol":    dest.Protocol,
+			"destination": dest.Ingress,
+		}),
+	)
+
 	dw := egress.NewDiodeWriter(context.Background(), otelcolclient.New(w), gendiodes.AlertFunc(func(missed int) {
-		occl.Printf("Dropped %d envelopes for url %s", missed, dest.Ingress)
+		expired.Add(float64(missed))
 	}), timeoutwaitgroup.New(time.Minute))
 
 	return dw

@@ -367,5 +367,19 @@ var _ = Describe("App", func() {
 			metric := req.ResourceMetrics[0].ScopeMetrics[0].Metrics[0]
 			Expect(metric.GetName()).To(Equal(name))
 		})
+
+		It("emits an expired metric", func() {
+			et := map[string]string{
+				"protocol":    "otelcol",
+				"destination": otelServer.addr,
+			}
+
+			Eventually(agentMetrics.HasMetric).WithArguments("egress_expired_total", et).Should(BeTrue())
+
+			m := agentMetrics.GetMetric("egress_expired_total", et)
+			for k, v := range et {
+				Expect(m.Opts.ConstLabels).To(HaveKeyWithValue(k, v))
+			}
+		})
 	})
 })
