@@ -102,7 +102,7 @@ var _ = Describe("App", func() {
 		agent.Stop()
 	})
 
-	It("emits a dropped metric with direction", func() {
+	It("emits a dropped metric for envelope ingress", func() {
 		et := map[string]string{
 			"direction": "ingress",
 		}
@@ -115,6 +115,29 @@ var _ = Describe("App", func() {
 
 		Expect(m).ToNot(BeNil())
 		Expect(m.Opts.ConstLabels).To(HaveKeyWithValue("direction", "ingress"))
+	})
+
+	It("emits an expired metric for each egress destination", func() {
+		dests := []string{
+			ingressServer1.addr,
+			ingressServer2.addr,
+			ingressServer3.addr,
+		}
+		for i, d := range dests {
+			ingressServerName := fmt.Sprintf("ingressServer%d", i+1)
+
+			et := map[string]string{
+				"protocol":    "loggregator",
+				"destination": d,
+			}
+
+			Eventually(agentMetrics.HasMetric).WithArguments("egress_expired_total", et).Should(BeTrue(), fmt.Sprintf("no metric found for %s", ingressServerName))
+
+			m := agentMetrics.GetMetric("egress_expired_total", et)
+			for k, v := range et {
+				Expect(m.Opts.ConstLabels).To(HaveKeyWithValue(k, v), fmt.Sprintf("missing label for metric for %s", ingressServerName))
+			}
+		}
 	})
 
 	It("does not emit debug metrics", func() {
