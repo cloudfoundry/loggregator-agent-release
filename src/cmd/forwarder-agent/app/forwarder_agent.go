@@ -215,7 +215,7 @@ func downstreamWriters(dests []destination, grpc GRPC, m Metrics, l *log.Logger)
 		case "otelcol":
 			w = otelCollectorClient(d, grpc, m, l)
 		default:
-			w = loggregatorClient(d, grpc, l)
+			w = loggregatorClient(d, grpc, m, l)
 		}
 		writers = append(writers, w)
 	}
@@ -257,7 +257,7 @@ func otelCollectorClient(dest destination, grpc GRPC, m Metrics, l *log.Logger) 
 	return dw
 }
 
-func loggregatorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
+func loggregatorClient(dest destination, grpc GRPC, m Metrics, l *log.Logger) Writer {
 	clientCreds, err := loggregator.NewIngressTLSConfig(
 		grpc.CAFile,
 		grpc.CertFile,
@@ -277,9 +277,19 @@ func loggregatorClient(dest destination, grpc GRPC, l *log.Logger) Writer {
 		l.Fatalf("failed to create ingress client for %s: %s", dest.Ingress, err)
 	}
 
+	expired := m.NewCounter(
+		"egress_expired_total",
+		"Total number of envelopes that expired before they could be egressed.",
+		metrics.WithMetricLabels(map[string]string{
+			"protocol":    "loggregator",
+			"destination": dest.Ingress,
+		}),
+	)
+
 	ctx := context.Background()
 	wc := clientWriter{ingressClient}
 	dw := egress.NewDiodeWriter(ctx, wc, gendiodes.AlertFunc(func(missed int) {
+		expired.Add(float64(missed))
 		il.Printf("Dropped %d logs for url %s", missed, dest.Ingress)
 	}), timeoutwaitgroup.New(time.Minute))
 	return dw
