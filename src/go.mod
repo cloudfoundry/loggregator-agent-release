@@ -11,7 +11,7 @@ require (
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20230606195250-c7c0fdf1ccc4
 	github.com/onsi/gomega v1.28.0
-	github.com/prometheus/client_model v0.4.0
+	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.44.0
 	github.com/valyala/fasthttp v1.50.0
 	golang.org/x/net v0.15.0
