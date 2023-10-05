@@ -34,6 +34,10 @@ A simple agent that reads from any local prometheus-scrapable endpoint and forwa
 Configurable via files in colocated bosh jobs as described in the [docs][prom-scraper]
 scrapes are avoided in an HA environment.
 
+### OTel Collector
+This is the Cloud Foundry distribution of the OTel Collector. It accepts metrics in OTLP format and forwards them to any configured exporters.
+More information can be found in the [OpenTelemetry docs](https://opentelemetry.io/docs/collector)
+
 ## More Resources and Documentation
 
 ### Feedback
