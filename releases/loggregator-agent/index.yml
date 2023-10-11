@@ -5,6 +5,8 @@ builds:
     version: 5.3.8
   0db1f59c-aff0-4bc6-78a4-cc4c54a6e280:
     version: 6.5.6
+  0e0a8419-6b6f-4592-42e1-290a4bd79c6a:
+    version: 6.5.15
   13a46a3b-a7a3-4457-6efd-6cc2444a118d:
     version: "3.9"
   1445be42-8156-440a-57f5-9ef8062e160e:
