@@ -110,6 +110,7 @@ func NewSyslogAgent(
 			&cfg.Cache.Blacklist,
 			bindings.NewBindingFetcher(cfg.BindingsPerAppLimit, cacheClient, m, l),
 			m,
+			cfg.WarnOnInvalidDrains,
 			l,
 		)
 		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)

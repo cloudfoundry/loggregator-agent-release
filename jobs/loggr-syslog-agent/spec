@@ -160,3 +160,7 @@ properties:
   logging.format.timestamp:
     description: "Format for timestamp in component logs. Valid values are 'deprecated' and 'rfc3339'."
     default: "deprecated"
+
+  warn_on_invalid_drains:
+    description: "Whether to output log warnings on invalid drains"
+    default: true
