@@ -155,6 +155,8 @@ builds:
     version: 6.4.4
   b499f60b-0a09-4dfe-6f15-5d34181c60e1:
     version: "3.17"
+  b4fda78f-d6e2-449a-774a-23c27d03e9e9:
+    version: 7.7.0
   b51ff6b6-6be1-4aa3-5d33-0956af212c5b:
     version: 5.0.0
   b58952d6-45db-430c-538d-45cf1d50b66a:
