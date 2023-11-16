@@ -6,6 +6,7 @@ import (
 
 	"code.cloudfoundry.org/go-batching"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
+	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
 // MetricBatcher batches OpenTelemetry Metrics.
@@ -20,6 +21,7 @@ type MetricBatcher struct {
 type MetricWriter interface {
 	// Write submits the batch.
 	Write(batch []*metricspb.Metric)
+	WriteSpanImmediately(string, *tracepb.Span) error
 	Close() error
 }
 
