@@ -27,28 +27,8 @@ var _ = Describe("Store", func() {
 		Expect(store.Get()).To(Equal(bindings))
 	})
 
-	It("should store and retrieve legacy bindings", func() {
-		legacyStore := binding.NewLegacyStore()
-		bindings := []binding.LegacyBinding{
-			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
-			},
-		}
-
-		legacyStore.Set(bindings)
-		Expect(legacyStore.Get()).To(Equal(bindings))
-
-	})
-
 	It("should not return nil bindings", func() {
 		store := binding.NewStore(metricsHelpers.NewMetricsRegistry())
-		Expect(store.Get()).ToNot(BeNil())
-	})
-
-	It("should not return nil legacy bindings", func() {
-		store := binding.NewLegacyStore()
 		Expect(store.Get()).ToNot(BeNil())
 	})
 
@@ -68,25 +48,6 @@ var _ = Describe("Store", func() {
 
 		store.Set(bindings, 1)
 		store.Set(nil, 1)
-
-		storedBindings := store.Get()
-		Expect(storedBindings).ToNot(BeNil())
-		Expect(storedBindings).To(BeEmpty())
-	})
-
-	It("should not allow setting of legacy bindings to nil", func() {
-		store := binding.NewLegacyStore()
-
-		bindings := []binding.LegacyBinding{
-			{
-				AppID:    "app-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
-			},
-		}
-
-		store.Set(bindings)
-		store.Set(nil)
 
 		storedBindings := store.Get()
 		Expect(storedBindings).ToNot(BeNil())
@@ -163,14 +124,6 @@ var _ = Describe("Store", func() {
 					CA:   "ca2",
 				},
 				},
-			},
-		))
-		Expect(aggStore.LegacyGet()).To(ConsistOf(
-			binding.LegacyBinding{
-				AppID:       "",
-				Drains:      []string{"syslog://test-hostname:1000", "syslog://test2:1000"},
-				Hostname:    "",
-				V2Available: true,
 			},
 		))
 	})

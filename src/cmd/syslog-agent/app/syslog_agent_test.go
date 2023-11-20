@@ -3,7 +3,6 @@ package app_test
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -42,7 +41,7 @@ var _ = Describe("SyslogAgent", func() {
 		aggregateDrain *syslogTCPServer
 		appIDs         []string
 		cacheCerts     *testhelper.TestCerts
-		bindingCache   *fakeLegacyBindingCache
+		bindingCache   *fakeBindingCache
 
 		agentCerts   *testhelper.TestCerts
 		agentCfg     app.Config
@@ -63,26 +62,38 @@ var _ = Describe("SyslogAgent", func() {
 
 		appIDs = []string{"app-1", "app-2"}
 		cacheCerts = testhelper.GenerateCerts("binding-cache-ca")
-		bindingCache = &fakeLegacyBindingCache{
-			bindings: []binding.LegacyBinding{
+		bindingCache = &fakeBindingCache{
+			bindings: []binding.Binding{
 				{
-					AppID:    appIDs[0],
-					Hostname: fmt.Sprintf("%s.example.com", appIDs[0]),
-					Drains:   []string{appHTTPSDrain.server.URL},
+					Url: appHTTPSDrain.server.URL,
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{
+								{
+									Hostname: fmt.Sprintf("%s.example.com", appIDs[0]),
+									AppID:    appIDs[0],
+								},
+							},
+						},
+					},
 				},
 				{
-					AppID:    appIDs[1],
-					Hostname: fmt.Sprintf("%s.example.com", appIDs[1]),
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s", appTLSDrain.port()),
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", appTLSDrain.port()),
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{
+								{
+									Hostname: fmt.Sprintf("%s.example.com", appIDs[1]),
+									AppID:    appIDs[1],
+								},
+							},
+						},
 					},
 				},
 			},
-			aggregate: []binding.LegacyBinding{
+			aggregate: []binding.Binding{
 				{
-					Drains: []string{
-						fmt.Sprintf("syslog-tls://localhost:%s", aggregateDrain.port()),
-					},
+					Url: fmt.Sprintf("syslog-tls://localhost:%s", aggregateDrain.port()),
 				},
 			},
 		}
@@ -216,7 +227,7 @@ var _ = Describe("SyslogAgent", func() {
 				labels: map[string]string{
 					"direction":   "egress",
 					"drain_scope": "aggregate",
-					"drain_url":   bindingCache.aggregate[0].Drains[0],
+					"drain_url":   bindingCache.aggregate[0].Url,
 				},
 			},
 		}
@@ -284,8 +295,8 @@ var _ = Describe("SyslogAgent", func() {
 		BeforeEach(func() {
 			agentCfg.DefaultDrainMetadata = false
 
-			oldURL := bindingCache.aggregate[0].Drains[0]
-			bindingCache.aggregate[0].Drains[0] = fmt.Sprintf("%s?disable-metadata=false", oldURL)
+			oldURL := bindingCache.aggregate[0].Url
+			bindingCache.aggregate[0].Url = fmt.Sprintf("%s?disable-metadata=false", oldURL)
 		})
 
 		It("does not include tags in drains that do not set disable-metadata to false", func() {
@@ -311,10 +322,10 @@ var _ = Describe("SyslogAgent", func() {
 		BeforeEach(func() {
 			agentCfg.DefaultDrainMetadata = true
 
-			oldURL := bindingCache.aggregate[0].Drains[0]
-			bindingCache.aggregate[0].Drains[0] = fmt.Sprintf("%s?disable-metadata=true", oldURL)
-			oldURL = bindingCache.bindings[0].Drains[0]
-			bindingCache.bindings[0].Drains[0] = fmt.Sprintf("%s?disable-metadata=true", oldURL)
+			oldURL := bindingCache.aggregate[0].Url
+			bindingCache.aggregate[0].Url = fmt.Sprintf("%s?disable-metadata=true", oldURL)
+			oldURL = bindingCache.bindings[0].Url
+			bindingCache.bindings[0].Url = fmt.Sprintf("%s?disable-metadata=true", oldURL)
 		})
 
 		It("does not send tags to those drains", func() {
@@ -353,8 +364,8 @@ var _ = Describe("SyslogAgent", func() {
 
 		Context("when the ssl-strict-internal param is set in that drain URL", func() {
 			BeforeEach(func() {
-				oldURL := bindingCache.aggregate[0].Drains[0]
-				bindingCache.aggregate[0].Drains[0] = fmt.Sprintf("%s?ssl-strict-internal=true", oldURL)
+				oldURL := bindingCache.aggregate[0].Url
+				bindingCache.aggregate[0].Url = fmt.Sprintf("%s?ssl-strict-internal=true", oldURL)
 			})
 
 			It("uses internal TLS settings to communicate with that drain", func() {
@@ -463,53 +474,6 @@ func emitLogs(ctx context.Context, appIDs []string, grpcPort int, testCerts *tes
 			}
 		}
 	}()
-}
-
-type fakeLegacyBindingCache struct {
-	*httptest.Server
-	bindings  []binding.LegacyBinding
-	aggregate []binding.LegacyBinding
-}
-
-func (f *fakeLegacyBindingCache) startTLS(testCerts *testhelper.TestCerts) {
-	tlsConfig, err := tlsconfig.Build(
-		tlsconfig.WithInternalServiceDefaults(),
-		tlsconfig.WithIdentityFromFile(
-			testCerts.Cert("binding-cache"),
-			testCerts.Key("binding-cache"),
-		),
-	).Server(
-		tlsconfig.WithClientAuthenticationFromFile(testCerts.CA()),
-	)
-
-	Expect(err).ToNot(HaveOccurred())
-
-	f.Server = httptest.NewUnstartedServer(f)
-	f.Server.TLS = tlsConfig
-	f.Server.StartTLS()
-}
-
-func (f *fakeLegacyBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var results []binding.LegacyBinding
-	if r.URL.Path == "/bindings" {
-		results = f.bindings
-	} else if r.URL.Path == "/aggregate" {
-		results = f.aggregate
-	} else {
-		w.WriteHeader(500)
-		return
-	}
-
-	resultData, err := json.Marshal(results)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-
-	_, err = w.Write(resultData)
-	if err != nil {
-		w.WriteHeader(500)
-	}
 }
 
 type syslogHTTPSServer struct {

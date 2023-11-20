@@ -68,33 +68,6 @@ var _ = Describe("BindingFetcher", func() {
 				Credentials: []binding.Credentials{{Apps: []binding.App{{Hostname: "org.space.logspinner", AppID: "testAppID"}}}},
 			},
 		}
-
-		getter.legacyBindings = []binding.LegacyBinding{
-			{
-				AppID: "9be15160-4845-4f05-b089-40e827ba61f1",
-				Drains: []string{
-					"syslog://zzz-not-included.url-legacy",
-					"syslog://other.url-legacy",
-					"syslog://zzz-not-included-again.url-legacy",
-					"https://other.url-legacy",
-					"syslog://other-included.url-legacy"},
-				Hostname:    "org.space.logspinner-legacy",
-				V2Available: true,
-			},
-			{
-				AppID: "testAppID",
-				Drains: []string{
-					"syslog://zzz-not-included.url-legacy",
-					"syslog://other.url-legacy",
-					"syslog://zzz-not-included-again.url-legacy",
-					"https://other.url-legacy",
-					"syslog://other-included.url-legacy",
-				},
-				Hostname:    "org.space.logspinner-legacy",
-				V2Available: true,
-			},
-		}
-
 	})
 
 	It("returns the max number of v2 bindings by app id", func() {
@@ -141,61 +114,6 @@ var _ = Describe("BindingFetcher", func() {
 		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
 	})
 
-	It("returns the max number of syslog bindings by app id in case of v2 endpoint failing", func() {
-		getter.err = errors.New("getter error occurred")
-		getter.legacyBindings[0].V2Available = false
-		getter.legacyBindings[1].V2Available = false
-		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
-		fetchedBindings, err := fetcher.FetchBindings()
-		Expect(err).ToNot(HaveOccurred())
-
-		expectedSyslogBindings := []syslog.Binding{
-			{
-				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
-				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "https://other.url-legacy"},
-			},
-			{
-				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
-				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://other-included.url-legacy"},
-			},
-			{
-				AppId:    "9be15160-4845-4f05-b089-40e827ba61f1",
-				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://other.url-legacy"},
-			},
-			{
-				AppId:    "testAppID",
-				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "https://other.url-legacy"},
-			},
-			{
-				AppId:    "testAppID",
-				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://other-included.url-legacy"},
-			},
-			{
-				AppId:    "testAppID",
-				Hostname: "org.space.logspinner-legacy",
-				Drain:    syslog.Drain{Url: "syslog://other.url-legacy"},
-			},
-		}
-		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
-
-	})
-
-	It("returns an empty array of syslog bindings if v1 endpoint sends no results", func() {
-		getter.err = errors.New("getter error occurred")
-		getter.legacyBindings = []binding.LegacyBinding{}
-		fetcher = bindings.NewBindingFetcher(maxDrains, getter, metrics, logger)
-		fetchedBindings, err := fetcher.FetchBindings()
-		Expect(err).To(Not(HaveOccurred()))
-
-		var expectedSyslogBindings []syslog.Binding
-		Expect(fetchedBindings).To(ConsistOf(expectedSyslogBindings))
-	})
-
 	It("tracks the number of binding refreshes", func() {
 		_, err := fetcher.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
@@ -237,33 +155,18 @@ var _ = Describe("BindingFetcher", func() {
 
 	It("returns an error if the Getter returns an error", func() {
 		getter.err = errors.New("boom")
-		getter.legacyError = errors.New("boom-legacy")
 
 		_, err := fetcher.FetchBindings()
-		Expect(err).To(MatchError("boom-legacy"))
-	})
-
-	It("returns an error if the Getter returns an error and V2 is available", func() {
-		getter.err = errors.New("boom")
-
-		_, err := fetcher.FetchBindings()
-		Expect(err).To(MatchError("legacy endpoint is deprecated: skipping result parsing"))
+		Expect(err).To(MatchError("boom"))
 	})
 })
 
 type SpyGetter struct {
-	bindings       []binding.Binding
-	legacyBindings []binding.LegacyBinding
-	err            error
-	legacyError    error
+	bindings []binding.Binding
+	err      error
 }
 
 func (s *SpyGetter) Get() ([]binding.Binding, error) {
 	time.Sleep(10 * time.Millisecond)
 	return s.bindings, s.err
-}
-
-func (s *SpyGetter) LegacyGet() ([]binding.LegacyBinding, error) {
-	time.Sleep(10 * time.Millisecond)
-	return s.legacyBindings, s.legacyError
 }
