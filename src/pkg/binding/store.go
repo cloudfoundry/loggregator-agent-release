@@ -43,32 +43,6 @@ func (s *Store) Set(bindings []Binding, bindingCount int) {
 	s.mu.Unlock()
 }
 
-type LegacyStore struct {
-	mu             sync.Mutex
-	legacyBindings []LegacyBinding
-}
-
-func NewLegacyStore() *LegacyStore {
-	return &LegacyStore{
-		legacyBindings: make([]LegacyBinding, 0),
-	}
-}
-
-func (s *LegacyStore) Get() []LegacyBinding {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.legacyBindings
-}
-
-func (s *LegacyStore) Set(bindings []LegacyBinding) {
-	if bindings == nil {
-		bindings = []LegacyBinding{}
-	}
-	s.mu.Lock()
-	s.legacyBindings = bindings
-	s.mu.Unlock()
-}
-
 type AggregateStore struct {
 	Drains []Binding
 }
@@ -106,18 +80,4 @@ func NewAggregateStore(drainFileName string) *AggregateStore {
 
 func (store *AggregateStore) Get() []Binding {
 	return store.Drains
-}
-
-func (store *AggregateStore) LegacyGet() []LegacyBinding {
-	var drains []string
-	for _, binding := range store.Drains {
-		drains = append(drains, binding.Url)
-	}
-	return []LegacyBinding{
-		{
-			AppID:       "",
-			Drains:      drains,
-			V2Available: true,
-		},
-	}
 }

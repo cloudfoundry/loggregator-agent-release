@@ -244,56 +244,6 @@ var _ = Describe("App", func() {
 			}))
 	})
 
-	It("has an HTTP endpoint that returns legacy aggregate drains", func() {
-		addr := fmt.Sprintf("https://localhost:%d/aggregate", sbcPort)
-
-		var resp *http.Response
-		Eventually(func() error {
-			var err error
-			resp, err = client.Get(addr)
-			return err
-		}).Should(Succeed())
-		defer resp.Body.Close()
-
-		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-
-		body, err := io.ReadAll(resp.Body)
-		Expect(err).ToNot(HaveOccurred())
-
-		var result []binding.LegacyBinding
-		err = json.Unmarshal(body, &result)
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect(result).To(HaveLen(1))
-		Expect(result[0].Drains).To(ConsistOf("syslog://test-hostname:1000", "syslog://test2:1000"))
-	})
-
-	It("has an HTTP endpoint that returns legacy bindings", func() {
-		addr := fmt.Sprintf("https://localhost:%d/bindings", sbcPort)
-
-		var resp *http.Response
-		Eventually(func() error {
-			var err error
-			resp, err = client.Get(addr)
-			return err
-		}).Should(Succeed())
-		defer resp.Body.Close()
-
-		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-
-		body, err := io.ReadAll(resp.Body)
-		Expect(err).ToNot(HaveOccurred())
-
-		var results []binding.LegacyBinding
-		err = json.Unmarshal(body, &results)
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect(results).To(HaveLen(2))
-		result1 := binding.LegacyBinding{AppID: "app-id-1", Drains: []string{"syslog://drain-a", "syslog://drain-b"}, Hostname: "org.space.app-name-1", V2Available: true}
-		result2 := binding.LegacyBinding{AppID: "app-id-2", Drains: []string{"syslog://drain-c", "syslog://drain-d"}, Hostname: "org.space.app-name-2", V2Available: true}
-		Expect(results).Should(ConsistOf(result1, result2))
-	})
-
 	Context("when debug configuration is enabled", func() {
 		BeforeEach(func() {
 			sbcCfg.MetricsServer.DebugMetrics = true

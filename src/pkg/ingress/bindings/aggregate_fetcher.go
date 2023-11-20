@@ -1,15 +1,12 @@
 package bindings
 
 import (
-	"errors"
-
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 type CacheFetcher interface {
 	GetAggregate() ([]binding.Binding, error)
-	GetLegacyAggregate() ([]binding.LegacyBinding, error)
 }
 
 type AggregateDrainFetcher struct {
@@ -19,7 +16,7 @@ type AggregateDrainFetcher struct {
 
 func NewAggregateDrainFetcher(bindings []string, cf CacheFetcher) *AggregateDrainFetcher {
 	drainFetcher := &AggregateDrainFetcher{cf: cf}
-	parsedDrains := constructLegacyBindings(bindings)
+	parsedDrains := constructBindings(bindings)
 	drainFetcher.bindings = parsedDrains
 	return drainFetcher
 }
@@ -32,7 +29,7 @@ func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
 	} else if a.cf != nil {
 		aggregate, err := a.cf.GetAggregate()
 		if err != nil {
-			return a.FetchBindingsLegacyFallback()
+			return []syslog.Binding{}, err
 		}
 		syslogBindings := []syslog.Binding{}
 		for _, i := range aggregate {
@@ -58,22 +55,7 @@ func (a *AggregateDrainFetcher) FetchBindings() ([]syslog.Binding, error) {
 	}
 }
 
-func (a *AggregateDrainFetcher) FetchBindingsLegacyFallback() ([]syslog.Binding, error) {
-	aggregateLegacy, err := a.cf.GetLegacyAggregate()
-	if err != nil {
-		return []syslog.Binding{}, err
-	}
-	syslogBindings := []syslog.Binding{}
-	for _, i := range aggregateLegacy {
-		if i.V2Available {
-			return nil, errors.New("v2 is available")
-		}
-		syslogBindings = append(syslogBindings, constructLegacyBindings(i.Drains)...)
-	}
-	return syslogBindings, nil
-}
-
-func constructLegacyBindings(urls []string) []syslog.Binding {
+func constructBindings(urls []string) []syslog.Binding {
 	syslogBindings := []syslog.Binding{}
 	for _, u := range urls {
 		if u == "" {

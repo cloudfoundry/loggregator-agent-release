@@ -53,16 +53,13 @@ func (sbc *SyslogBindingCache) Run() {
 		go func() { sbc.log.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error()) }()
 	}
 	store := binding.NewStore(sbc.metrics)
-	legacyStore := binding.NewLegacyStore()
 	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
-	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, legacyStore, sbc.metrics, sbc.log)
+	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log)
 
 	go poller.Poll()
 
 	router := chi.NewRouter()
-	router.Get("/bindings", cache.LegacyHandler(legacyStore))
 	router.Get("/v2/bindings", cache.Handler(store))
-	router.Get("/aggregate", cache.LegacyAggregateHandler(aggregateStore))
 	router.Get("/v2/aggregate", cache.AggregateHandler(aggregateStore))
 
 	sbc.startServer(router)

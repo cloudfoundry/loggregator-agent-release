@@ -51,27 +51,6 @@ var _ = Describe("Client", func() {
 		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/bindings"))
 	})
 
-	It("returns legacy bindings from the cache", func() {
-		bindings := []binding.LegacyBinding{
-			{
-				AppID:       "app-id-1",
-				Drains:      []string{"drain-1"},
-				Hostname:    "host-1",
-				V2Available: true,
-			},
-		}
-
-		j, err := json.Marshal(bindings)
-		Expect(err).ToNot(HaveOccurred())
-		spyHTTPClient.response = &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(j)),
-		}
-
-		Expect(client.LegacyGet()).To(Equal(bindings))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/bindings"))
-	})
-
 	It("returns aggregate drains from the cache", func() {
 		bindings := []binding.Binding{
 			{
@@ -97,26 +76,6 @@ var _ = Describe("Client", func() {
 		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/v2/aggregate"))
 	})
 
-	It("returns legacy aggregate drains from the cache", func() {
-		bindings := []binding.LegacyBinding{
-			{
-				AppID:    "app-id-1",
-				Drains:   []string{"drain-1"},
-				Hostname: "host-1",
-			},
-		}
-
-		j, err := json.Marshal(bindings)
-		Expect(err).ToNot(HaveOccurred())
-		spyHTTPClient.response = &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(j)),
-		}
-
-		Expect(client.GetLegacyAggregate()).To(Equal(bindings))
-		Expect(spyHTTPClient.requestURL).To(Equal("https://cache.address.com/aggregate"))
-	})
-
 	It("returns empty bindings if an HTTP error occurs", func() {
 		spyHTTPClient.err = errors.New("http error")
 
@@ -125,18 +84,6 @@ var _ = Describe("Client", func() {
 		Expect(err).To(MatchError("http error"))
 
 		_, err = client.GetAggregate()
-
-		Expect(err).To(MatchError("http error"))
-	})
-
-	It("returns empty legacy bindings if an HTTP error occurs", func() {
-		spyHTTPClient.err = errors.New("http error")
-
-		_, err := client.Get()
-
-		Expect(err).To(MatchError("http error"))
-
-		_, err = client.GetLegacyAggregate()
 
 		Expect(err).To(MatchError("http error"))
 	})
@@ -155,21 +102,6 @@ var _ = Describe("Client", func() {
 
 		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
 	})
-
-	It("returns empty legacy bindings if cache returns a non-OK status code", func() {
-		spyHTTPClient.response = &http.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       io.NopCloser(strings.NewReader("")),
-		}
-
-		_, err := client.Get()
-
-		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
-
-		_, err = client.GetLegacyAggregate()
-
-		Expect(err).To(MatchError("unexpected http response from binding cache: 500"))
-	})
 })
 
 type spyHTTPClient struct {
@@ -183,11 +115,6 @@ func newSpyHTTPClient() *spyHTTPClient {
 }
 
 func (s *spyHTTPClient) Get(url string) (*http.Response, error) {
-	s.requestURL = url
-	return s.response, s.err
-}
-
-func (s *spyHTTPClient) LegacyGet(url string) (*http.Response, error) {
 	s.requestURL = url
 	return s.response, s.err
 }

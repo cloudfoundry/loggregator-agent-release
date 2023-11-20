@@ -1,7 +1,6 @@
 package bindings
 
 import (
-	"errors"
 	"log"
 	"math"
 	"sort"
@@ -22,7 +21,6 @@ type Metrics interface {
 // Getter is configured to fetch HTTP responses
 type Getter interface {
 	Get() ([]binding.Binding, error)
-	LegacyGet() ([]binding.LegacyBinding, error)
 }
 
 // BindingFetcher uses a Getter to fetch and decode Bindings
@@ -68,20 +66,8 @@ func (f *BindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	start := time.Now()
 	bindings, err := f.getter.Get()
 	if err != nil {
-		f.logger.Printf("fetching v2/bindings failed: %s . Falling back to /bindings endpoint", err)
-		var legacySyslogBindings []binding.LegacyBinding
-		legacySyslogBindings, err = f.getter.LegacyGet()
-		if err != nil {
-			return nil, err
-		}
-		if len(legacySyslogBindings) == 0 {
-			return []syslog.Binding{}, nil
-		}
-		if legacySyslogBindings[0].V2Available {
-			return nil, errors.New("legacy endpoint is deprecated: skipping result parsing")
-		}
-		latency = time.Since(start).Nanoseconds()
-		return f.legacyToSyslogBindings(legacySyslogBindings, f.limit), nil
+		f.logger.Printf("fetching v2/bindings failed: %s", err)
+		return nil, err
 	}
 	latency = time.Since(start).Nanoseconds()
 	return f.toSyslogBindings(bindings, f.limit), nil
@@ -139,29 +125,6 @@ func (f *BindingFetcher) toSyslogBindings(bs []binding.Binding, perAppLimit int)
 				AppId:    appID,
 				Hostname: b.hostname,
 				Drain:    d,
-			}
-			bindings = append(bindings, binding)
-		}
-	}
-
-	return bindings
-}
-
-func (f *BindingFetcher) legacyToSyslogBindings(bs []binding.LegacyBinding, perAppLimit int) []syslog.Binding {
-	var bindings []syslog.Binding
-	for _, b := range bs {
-		drains := b.Drains
-		sort.Strings(drains)
-
-		if perAppLimit < len(drains) {
-			drains = drains[:perAppLimit]
-		}
-
-		for _, d := range drains {
-			binding := syslog.Binding{
-				AppId:    b.AppID,
-				Hostname: b.Hostname,
-				Drain:    syslog.Drain{Url: d},
 			}
 			bindings = append(bindings, binding)
 		}

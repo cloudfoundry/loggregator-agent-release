@@ -298,12 +298,8 @@ func (f *fakeBindingCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/v2/bindings":
 		results, err = json.Marshal(f.bindings)
-	case "/bindings":
-		results, err = json.Marshal(binding.ToLegacyBindings(f.bindings))
 	case "/v2/aggregate":
 		results, err = json.Marshal(f.aggregate)
-	case "/aggregate":
-		results, err = json.Marshal(binding.ToLegacyBindings(f.aggregate))
 	default:
 		w.WriteHeader(500)
 		return
