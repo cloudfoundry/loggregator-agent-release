@@ -255,6 +255,20 @@ var _ = Describe("Client", func() {
 					Expect(cmp.Diff(actualAtts, expectedAtts, protocmp.Transform(), sortFunc)).To(BeEmpty())
 				})
 			})
+
+			Context("when the envelope has been converted from a v1 representation", func() {
+				BeforeEach(func() {
+					envelope.Tags["__v1_type"] = "ValueMetric"
+				})
+
+				It("drops the __v1_type tag", func() {
+					var msr *colmetricspb.ExportMetricsServiceRequest
+					Expect(spyMSC.requests).To(Receive(&msr))
+
+					actualAtts := msr.GetResourceMetrics()[0].GetScopeMetrics()[0].GetMetrics()[0].GetGauge().GetDataPoints()[0].GetAttributes()
+					Expect(actualAtts).ToNot(ContainElement(HaveField("Key", "__v1_type")))
+				})
+			})
 		})
 
 		Context("when given a counter", func() {
