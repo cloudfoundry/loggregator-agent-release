@@ -173,7 +173,7 @@ func attributes(e *loggregator_v2.Envelope) []*commonpb.KeyValue {
 	}
 
 	for k, v := range e.Tags {
-		if k == "instance_id" || k == "source_id" {
+		if k == "instance_id" || k == "source_id" || k == "__v1_type" {
 			continue
 		}
 
