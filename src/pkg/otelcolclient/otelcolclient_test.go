@@ -284,56 +284,57 @@ var _ = Describe("Client", func() {
 					Message: &loggregator_v2.Envelope_Counter{
 						Counter: &loggregator_v2.Counter{
 							Name:  "dropped",
-							Delta: 5,
 							Total: 10,
 						},
 					},
 				}
 			})
 
-			It("returns nil", func() {
-				Expect(returnedErr).NotTo(HaveOccurred())
-			})
+			Context("when the envelope has a total but no delta", func() {
+				It("returns nil", func() {
+					Expect(returnedErr).NotTo(HaveOccurred())
+				})
 
-			It("succeeds", func() {
-				var msr *colmetricspb.ExportMetricsServiceRequest
-				Expect(spyMSC.requests).To(Receive(&msr))
+				It("emits a monotonic sum", func() {
+					var msr *colmetricspb.ExportMetricsServiceRequest
+					Expect(spyMSC.requests).To(Receive(&msr))
 
-				expectedReq := &colmetricspb.ExportMetricsServiceRequest{
-					ResourceMetrics: []*metricspb.ResourceMetrics{
-						{
-							ScopeMetrics: []*metricspb.ScopeMetrics{
-								{
-									Metrics: []*metricspb.Metric{
-										{
-											Name: "dropped",
-											Data: &metricspb.Metric_Sum{
-												Sum: &metricspb.Sum{
-													AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-													IsMonotonic:            true,
-													DataPoints: []*metricspb.NumberDataPoint{
-														{
-															TimeUnixNano: 1257894000000000000,
-															Attributes: []*commonpb.KeyValue{
-																{
-																	Key:   "direction",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "egress"}},
+					expectedReq := &colmetricspb.ExportMetricsServiceRequest{
+						ResourceMetrics: []*metricspb.ResourceMetrics{
+							{
+								ScopeMetrics: []*metricspb.ScopeMetrics{
+									{
+										Metrics: []*metricspb.Metric{
+											{
+												Name: "dropped",
+												Data: &metricspb.Metric_Sum{
+													Sum: &metricspb.Sum{
+														AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
+														IsMonotonic:            true,
+														DataPoints: []*metricspb.NumberDataPoint{
+															{
+																TimeUnixNano: 1257894000000000000,
+																Attributes: []*commonpb.KeyValue{
+																	{
+																		Key:   "direction",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "egress"}},
+																	},
+																	{
+																		Key:   "instance_id",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+																	},
+																	{
+																		Key:   "origin",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
+																	},
+																	{
+																		Key:   "source_id",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
+																	},
 																},
-																{
-																	Key:   "instance_id",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+																Value: &metricspb.NumberDataPoint_AsInt{
+																	AsInt: 10,
 																},
-																{
-																	Key:   "origin",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
-																},
-																{
-																	Key:   "source_id",
-																	Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
-																},
-															},
-															Value: &metricspb.NumberDataPoint_AsInt{
-																AsInt: 10,
 															},
 														},
 													},
@@ -344,18 +345,102 @@ var _ = Describe("Client", func() {
 								},
 							},
 						},
-					},
-				}
+					}
 
-				s1 := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
-					return x.Key < y.Key
+					s1 := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
+						return x.Key < y.Key
+					})
+					s2 := protocmp.SortRepeated(func(x *metricspb.Metric, y *metricspb.Metric) bool {
+						return x.Name < y.Name
+					})
+					Expect(cmp.Diff(msr, expectedReq, protocmp.Transform(), s1, s2)).To(BeEmpty())
 				})
-				s2 := protocmp.SortRepeated(func(x *metricspb.Metric, y *metricspb.Metric) bool {
-					return x.Name < y.Name
-				})
-				Expect(cmp.Diff(msr, expectedReq, protocmp.Transform(), s1, s2)).To(BeEmpty())
 			})
+			Context("when the envelope has a delta and a calculated total", func() {
+				BeforeEach(func() {
+					envelope = &loggregator_v2.Envelope{
+						Timestamp:  1257894000000000000,
+						SourceId:   "fake-source-id",
+						InstanceId: "fake-instance-id",
+						Tags: map[string]string{
+							"direction": "egress",
+							"origin":    "fake-origin.some-vm",
+						},
+						Message: &loggregator_v2.Envelope_Counter{
+							Counter: &loggregator_v2.Counter{
+								Name:  "dropped",
+								Delta: 5,
+								Total: 10,
+							},
+						},
+					}
+				})
 
+				It("returns nil", func() {
+					Expect(returnedErr).NotTo(HaveOccurred())
+				})
+
+				It("emits a non-monotonic sum", func() {
+					var msr *colmetricspb.ExportMetricsServiceRequest
+					Expect(spyMSC.requests).To(Receive(&msr))
+
+					expectedReq := &colmetricspb.ExportMetricsServiceRequest{
+						ResourceMetrics: []*metricspb.ResourceMetrics{
+							{
+								ScopeMetrics: []*metricspb.ScopeMetrics{
+									{
+										Metrics: []*metricspb.Metric{
+											{
+												Name: "dropped",
+												Data: &metricspb.Metric_Sum{
+													Sum: &metricspb.Sum{
+														AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
+														IsMonotonic:            false,
+														DataPoints: []*metricspb.NumberDataPoint{
+															{
+																TimeUnixNano: 1257894000000000000,
+																Attributes: []*commonpb.KeyValue{
+																	{
+																		Key:   "direction",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "egress"}},
+																	},
+																	{
+																		Key:   "instance_id",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+																	},
+																	{
+																		Key:   "origin",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
+																	},
+																	{
+																		Key:   "source_id",
+																		Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
+																	},
+																},
+																Value: &metricspb.NumberDataPoint_AsInt{
+																	AsInt: 10,
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					}
+
+					s1 := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
+						return x.Key < y.Key
+					})
+					s2 := protocmp.SortRepeated(func(x *metricspb.Metric, y *metricspb.Metric) bool {
+						return x.Name < y.Name
+					})
+					Expect(cmp.Diff(msr, expectedReq, protocmp.Transform(), s1, s2)).To(BeEmpty())
+				})
+			})
 			Context("when Metric Service Client returns an error", func() {
 				BeforeEach(func() {
 					spyMSC.responseErr = errors.New("test-error")
