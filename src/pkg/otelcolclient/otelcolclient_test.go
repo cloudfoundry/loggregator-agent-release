@@ -310,7 +310,7 @@ var _ = Describe("Client", func() {
 											Data: &metricspb.Metric_Sum{
 												Sum: &metricspb.Sum{
 													AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-													IsMonotonic:            false,
+													IsMonotonic:            true,
 													DataPoints: []*metricspb.NumberDataPoint{
 														{
 															TimeUnixNano: 1257894000000000000,

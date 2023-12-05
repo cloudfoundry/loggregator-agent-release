@@ -113,6 +113,7 @@ func (c *Client) addCounterToBatch(e *loggregator_v2.Envelope) {
 		Data: &metricspb.Metric_Sum{
 			Sum: &metricspb.Sum{
 				AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
+				IsMonotonic:            true,
 				DataPoints: []*metricspb.NumberDataPoint{
 					{
 						TimeUnixNano: uint64(e.GetTimestamp()),
