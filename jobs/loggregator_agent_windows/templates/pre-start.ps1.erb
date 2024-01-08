@@ -7,7 +7,7 @@ end
 New-Item -Path /var/vcap/sys/run/loggregator_agent_windows -ItemType directory -Force
 New-Item -Path /var/vcap/sys/log/loggregator_agent_windows -ItemType directory -Force
 
-<%unless has_doppler%>
+<% if ! p('enabled') || ! has_doppler %>
 Remove-Item -Path /var/vcap/jobs/loggregator_agent_windows/config/ingress_port.yml
 Remove-Item -Path /var/vcap/jobs/loggregator_agent_windows/config/prom_scraper_config.yml
-<%end%>
+<% end %>
