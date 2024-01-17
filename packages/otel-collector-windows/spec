@@ -1,0 +1,10 @@
+---
+name: otel-collector-windows
+
+dependencies:
+- golang-1.20-windows
+
+files:
+- exiter.ps1
+- otel-collector-builder/**/*
+- otel-collector/**/*

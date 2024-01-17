@@ -35,10 +35,8 @@ Configurable via files in colocated bosh jobs as described in the [docs][prom-sc
 scrapes are avoided in an HA environment.
 
 ### OTel Collector
-This is the Cloud Foundry distribution of the OTel Collector. It can be found in the
-[otel-collector-release](https://github.com/cloudfoundry/otel-collector-release) repo. It accepts metrics in OTLP format
-and forwards them to any configured exporters. More information can be found in the [OpenTelemetry
-docs](https://opentelemetry.io/docs/collector)
+This is the Cloud Foundry distribution of the OTel Collector. It accepts metrics in OTLP format and forwards them to any configured exporters.
+More information can be found in the [OpenTelemetry docs](https://opentelemetry.io/docs/collector)
 
 ## More Resources and Documentation
 

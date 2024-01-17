@@ -1,0 +1,7 @@
+<% if p('enabled') %>
+check process otel-collector
+  with pidfile /var/vcap/sys/run/bpm/otel-collector/otel-collector.pid
+  start program "/var/vcap/jobs/bpm/bin/bpm start otel-collector"
+  stop program "/var/vcap/jobs/bpm/bin/bpm stop otel-collector"
+  group vcap
+<% end %>

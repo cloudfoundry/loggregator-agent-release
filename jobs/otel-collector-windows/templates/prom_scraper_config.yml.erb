@@ -1,0 +1,9 @@
+<% if p('enabled') %>
+---
+port: <%= p("telemetry.metrics.port") %>
+source_id: "otel-collector"
+instance_id: <%= spec.id || spec.index.to_s %>
+scheme: http
+labels:
+  origin: otel-collector
+<% end %>
