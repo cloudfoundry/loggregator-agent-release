@@ -1,0 +1,4 @@
+processes:
+- name: otel-collector
+  executable: /var/vcap/packages/otel-collector/otel-collector
+  args: ["--config", "/var/vcap/jobs/otel-collector/config/config.yml"]

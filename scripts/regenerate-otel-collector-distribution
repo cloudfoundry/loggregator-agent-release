@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euxo pipefail
+
+release_dir="$(dirname "$0")/.."
+
+pushd "${release_dir}/src/otel-collector-builder/vendor/go.opentelemetry.io/collector/cmd/builder"
+  CGO_ENABLED=0 go install
+popd
+
+pushd "${release_dir}/src/"
+  builder --skip-compilation --config=otel-collector/config.yaml
+  cd otel-collector
+  go mod vendor
+popd
