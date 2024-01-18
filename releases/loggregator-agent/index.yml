@@ -163,6 +163,8 @@ builds:
     version: 5.0.0
   b58952d6-45db-430c-538d-45cf1d50b66a:
     version: 6.3.10
+  ba40e346-87bf-4051-6c33-545059de3f7c:
+    version: 7.7.4
   bf7a43f8-9760-4c30-6675-c555e91006bf:
     version: "3.2"
   bfc9c111-2b2a-4ae1-674b-db42cff74163:
