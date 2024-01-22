@@ -11,7 +11,7 @@ require (
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20220627221915-ff36de9c3435
 	github.com/gorilla/mux v1.8.1
-	github.com/onsi/gomega v1.30.0
+	github.com/onsi/gomega v1.31.1
 	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.46.0
 	github.com/valyala/fasthttp v1.51.0
@@ -23,7 +23,7 @@ require (
 require (
 	code.cloudfoundry.org/go-loggregator/v9 v9.1.0
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
-	github.com/onsi/ginkgo/v2 v2.14.0
+	github.com/onsi/ginkgo/v2 v2.15.0
 	google.golang.org/protobuf v1.32.0
 )
 
