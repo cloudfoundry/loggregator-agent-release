@@ -16,7 +16,7 @@ require (
 	github.com/prometheus/common v0.46.0
 	github.com/valyala/fasthttp v1.51.0
 	golang.org/x/net v0.20.0
-	google.golang.org/grpc v1.60.1
+	google.golang.org/grpc v1.61.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -52,6 +52,6 @@ require (
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
