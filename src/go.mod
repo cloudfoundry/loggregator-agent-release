@@ -12,7 +12,7 @@ require (
 	github.com/cloudfoundry/sonde-go v0.0.0-20230606195250-c7c0fdf1ccc4
 	github.com/onsi/gomega v1.31.1
 	github.com/prometheus/client_model v0.6.0
-	github.com/prometheus/common v0.46.0
+	github.com/prometheus/common v0.47.0
 	github.com/valyala/fasthttp v1.52.0
 	golang.org/x/net v0.21.0
 	google.golang.org/grpc v1.61.0
