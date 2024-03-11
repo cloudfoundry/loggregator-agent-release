@@ -105,6 +105,8 @@ builds:
     version: "3.21"
   74b84bd4-0132-4ce6-60f9-75e1fc34fc37:
     version: "2.2"
+  76c8b685-d578-46f2-546e-65555c2b3c43:
+    version: 8.0.2
   76e2d955-aa44-44eb-6cc3-d4b27fe46595:
     version: 5.3.0
   787c53c3-1b36-4acd-4120-cb8d344a288c:
