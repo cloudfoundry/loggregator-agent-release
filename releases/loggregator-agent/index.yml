@@ -47,6 +47,8 @@ builds:
     version: "3.19"
   3ed5108b-94b0-4f8e-563c-9b49e2252c26:
     version: 6.3.13
+  402c9dee-cddb-4931-6075-d623423172fa:
+    version: 7.7.5
   407f554f-1ba5-472d-52a3-e31f8e9f7e33:
     version: 5.3.4
   423ca0ec-7a0c-40b0-526f-80c92c981b35:
