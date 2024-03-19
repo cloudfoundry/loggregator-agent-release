@@ -12,6 +12,8 @@ import (
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"google.golang.org/protobuf/proto"
 
 	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
@@ -349,24 +351,28 @@ var _ = Describe("App", func() {
 	})
 
 	Context("when an OTel Collector is registered to forward to", func() {
-		var otelServer *spyOtelColMetricServer
+		var (
+			otelMetricsServer *spyOtelColMetricServer
+			otelTraceServer   *spyOtelColTraceServer
+		)
 
 		BeforeEach(func() {
-			otelServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector")
+			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector")
+			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector")
 		})
 
 		AfterEach(func() {
-			otelServer.close()
+			otelMetricsServer.close()
+			otelTraceServer.close()
 		})
 
 		DescribeTable("some envelopes are not forwarded",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
-				Consistently(otelServer.requests, 3).ShouldNot(Receive())
+				Consistently(otelMetricsServer.requests, 3).ShouldNot(Receive())
 			},
 			Entry("drops logs", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}),
 			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
-			Entry("drops timers", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}),
 		)
 
 		It("forwards counters", func() {
@@ -374,7 +380,7 @@ var _ = Describe("App", func() {
 			ingressClient.EmitCounter(name)
 
 			var req *colmetricspb.ExportMetricsServiceRequest
-			Eventually(otelServer.requests).Should(Receive(&req))
+			Eventually(otelMetricsServer.requests).Should(Receive(&req))
 
 			metric := req.ResourceMetrics[0].ScopeMetrics[0].Metrics[0]
 			Expect(metric.GetName()).To(Equal(name))
@@ -385,16 +391,35 @@ var _ = Describe("App", func() {
 			ingressClient.EmitGauge(loggregator.WithGaugeValue(name, 20.2, "test-unit"))
 
 			var req *colmetricspb.ExportMetricsServiceRequest
-			Eventually(otelServer.requests).Should(Receive(&req))
+			Eventually(otelMetricsServer.requests).Should(Receive(&req))
 
 			metric := req.ResourceMetrics[0].ScopeMetrics[0].Metrics[0]
 			Expect(metric.GetName()).To(Equal(name))
 		})
 
+		It("forwards timers", func() {
+			name := "test-timer-name"
+			ingressClient.EmitTimer(name, time.Now(), time.Now().Add(time.Second), func(m proto.Message) {
+				switch e := m.(type) {
+				case *loggregator_v2.Envelope:
+					e.Tags["trace_id"] = "beefdeadbeefdeadbeefdeadbeefdead"
+					e.Tags["span_id"] = "deadbeefdeadbeef"
+				default:
+					panic(fmt.Sprintf("unsupported Message type: %T", m))
+				}
+			})
+
+			var req *coltracepb.ExportTraceServiceRequest
+			Eventually(otelTraceServer.requests).Should(Receive(&req))
+
+			trace := req.ResourceSpans[0].ScopeSpans[0].Spans[0]
+			Expect(trace.GetName()).To(Equal(name))
+		})
+
 		It("emits an expired metric", func() {
 			et := map[string]string{
 				"protocol":    "otelcol",
-				"destination": otelServer.addr,
+				"destination": otelMetricsServer.addr,
 			}
 
 			Eventually(agentMetrics.HasMetric).WithArguments("egress_expired_total", et).Should(BeTrue())
