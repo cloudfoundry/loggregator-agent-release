@@ -5,14 +5,18 @@ package otelcolclient
 import (
 	"context"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"log"
+	"net/url"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
+	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -20,6 +24,9 @@ import (
 type GRPCWriter struct {
 	// The client API for the OTel Collector metrics service
 	msc colmetricspb.MetricsServiceClient
+
+	// The client API for the OTel Collector trace service
+	tsc coltracepb.TraceServiceClient
 
 	// Context passed to gRPC
 	ctx context.Context
@@ -41,6 +48,7 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 	ctx, cancel := context.WithCancel(context.Background())
 	w := &GRPCWriter{
 		msc:    colmetricspb.NewMetricsServiceClient(cc),
+		tsc:    coltracepb.NewTraceServiceClient(cc),
 		ctx:    ctx,
 		cancel: cancel,
 		l:      l,
@@ -48,7 +56,7 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 	return w, nil
 }
 
-func (w GRPCWriter) Write(batch []*metricspb.Metric) {
+func (w GRPCWriter) WriteMetrics(batch []*metricspb.Metric) {
 	resp, err := w.msc.Export(w.ctx, &colmetricspb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricspb.ResourceMetrics{
 			{
@@ -69,6 +77,19 @@ func (w GRPCWriter) Write(batch []*metricspb.Metric) {
 	}
 }
 
+func (w GRPCWriter) WriteTrace(batch []*tracepb.ResourceSpans) {
+	resp, err := w.tsc.Export(w.ctx, &coltracepb.ExportTraceServiceRequest{
+		ResourceSpans: batch,
+	})
+	if err == nil {
+		err = errorOnTraceRejection(resp)
+	}
+
+	if err != nil {
+		w.l.Println("Write error:", err)
+	}
+}
+
 func (w GRPCWriter) Close() error {
 	w.cancel()
 	return nil
@@ -76,13 +97,13 @@ func (w GRPCWriter) Close() error {
 
 type Client struct {
 	// Batch metrics sent to OTel Collector
-	b *MetricBatcher
+	b *SignalBatcher
 }
 
 // New creates a new Client that will batch metrics.
-func New(w MetricWriter) *Client {
+func New(w Writer) *Client {
 	return &Client{
-		b: NewMetricBatcher(100, 100*time.Millisecond, w),
+		b: NewSignalBatcher(100, 100*time.Millisecond, w),
 	}
 }
 
@@ -91,9 +112,11 @@ func New(w MetricWriter) *Client {
 func (c *Client) Write(e *loggregator_v2.Envelope) error {
 	switch e.Message.(type) {
 	case *loggregator_v2.Envelope_Counter:
-		c.addCounterToBatch(e)
+		c.writeCounter(e)
 	case *loggregator_v2.Envelope_Gauge:
-		c.addGaugeToBatch(e)
+		c.writeGauge(e)
+	case *loggregator_v2.Envelope_Timer:
+		c.writeTimer(e)
 	}
 
 	return nil
@@ -105,10 +128,10 @@ func (c *Client) Close() error {
 	return c.b.w.Close()
 }
 
-// addCounterToBatch translates a loggregator v2 Counter to OTLP and adds the metric to the pending batch.
-func (c *Client) addCounterToBatch(e *loggregator_v2.Envelope) {
+// writeCounter translates a loggregator v2 Counter to OTLP and adds the metric to the pending batch.
+func (c *Client) writeCounter(e *loggregator_v2.Envelope) {
 	atts := attributes(e)
-	c.b.Write(&metricspb.Metric{
+	c.b.WriteMetric(&metricspb.Metric{
 		Name: e.GetCounter().GetName(),
 		Data: &metricspb.Metric_Sum{
 			Sum: &metricspb.Sum{
@@ -128,12 +151,12 @@ func (c *Client) addCounterToBatch(e *loggregator_v2.Envelope) {
 	})
 }
 
-// addGaugeToBatch translates a loggregator v2 Gauge to OTLP and adds the metrics to the pending batch.
-func (c *Client) addGaugeToBatch(e *loggregator_v2.Envelope) {
+// writeGauge translates a loggregator v2 Gauge to OTLP and adds the metrics to the pending batch.
+func (c *Client) writeGauge(e *loggregator_v2.Envelope) {
 	atts := attributes(e)
 
 	for k, v := range e.GetGauge().GetMetrics() {
-		c.b.Write(&metricspb.Metric{
+		c.b.WriteMetric(&metricspb.Metric{
 			Name: k,
 			Unit: v.GetUnit(),
 			Data: &metricspb.Metric_Gauge{
@@ -153,8 +176,65 @@ func (c *Client) addGaugeToBatch(e *loggregator_v2.Envelope) {
 	}
 }
 
+// writeTimer translates a loggregator v2 Timer to OTLP and adds the spans to the pending batch.
+func (c *Client) writeTimer(e *loggregator_v2.Envelope) {
+	if ok := validateTimerTags(e.GetTags()); !ok {
+		return
+	}
+
+	spanId, err := hex.DecodeString(e.GetTags()["span_id"])
+	if err != nil {
+		return
+	}
+	traceId, err := hex.DecodeString(e.GetTags()["trace_id"])
+	if err != nil {
+		return
+	}
+
+	name := e.GetTimer().GetName()
+	if uri, ok := e.GetTags()["uri"]; ok {
+		if u, err := url.Parse(uri); err == nil {
+			name = u.Path
+		}
+	}
+
+	kind := tracepb.Span_SPAN_KIND_INTERNAL
+	if e.GetTags()["peer_type"] == "Server" {
+		kind = tracepb.Span_SPAN_KIND_SERVER
+	}
+
+	atts := attributes(e)
+	c.b.WriteTrace(&tracepb.ResourceSpans{
+		ScopeSpans: []*tracepb.ScopeSpans{
+			{
+				Spans: []*tracepb.Span{
+					{
+						TraceId:           traceId,
+						SpanId:            spanId,
+						Name:              name,
+						Kind:              kind,
+						StartTimeUnixNano: uint64(e.GetTimer().GetStart()),
+						EndTimeUnixNano:   uint64(e.GetTimer().GetStop()),
+						Status: &tracepb.Status{
+							Code: tracepb.Status_STATUS_CODE_UNSET,
+						},
+						Attributes: atts,
+					},
+				},
+			},
+		},
+	})
+}
+
 func errorOnRejection(r *colmetricspb.ExportMetricsServiceResponse) error {
 	if ps := r.GetPartialSuccess(); ps != nil && ps.GetRejectedDataPoints() > 0 {
+		return errors.New(ps.GetErrorMessage())
+	}
+	return nil
+}
+
+func errorOnTraceRejection(r *coltracepb.ExportTraceServiceResponse) error {
+	if ps := r.GetPartialSuccess(); ps != nil && ps.GetRejectedSpans() > 0 {
 		return errors.New(ps.GetErrorMessage())
 	}
 	return nil
@@ -174,7 +254,7 @@ func attributes(e *loggregator_v2.Envelope) []*commonpb.KeyValue {
 	}
 
 	for k, v := range e.Tags {
-		if k == "instance_id" || k == "source_id" || k == "__v1_type" {
+		if k == "instance_id" || k == "source_id" || k == "__v1_type" || k == "span_id" || k == "trace_id" {
 			continue
 		}
 
@@ -184,4 +264,20 @@ func attributes(e *loggregator_v2.Envelope) []*commonpb.KeyValue {
 		})
 	}
 	return atts
+}
+
+func validateTimerTags(tags map[string]string) bool {
+	if tags == nil {
+		return false
+	}
+	if tags["peer_type"] == "Client" {
+		return false
+	}
+	if tags["span_id"] == "" {
+		return false
+	}
+	if tags["trace_id"] == "" {
+		return false
+	}
+	return true
 }

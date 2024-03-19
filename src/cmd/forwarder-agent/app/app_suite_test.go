@@ -20,6 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -253,5 +254,65 @@ func (s *spyOtelColMetricServer) Export(_ context.Context, req *colmetricspb.Exp
 }
 
 func (s *spyOtelColMetricServer) close() {
+	s.srv.Stop()
+}
+
+// A fake OTel Collector trace gRPC server that captures requests made to it.
+type spyOtelColTraceServer struct {
+	coltracepb.UnimplementedTraceServiceServer
+
+	srv  *grpc.Server
+	addr string
+
+	requests chan *coltracepb.ExportTraceServiceRequest
+}
+
+// Creates a spyOtelColTraceServer, starts it listening on a random port,
+// registers it as a gRPC service, and writes out a temp file for the forwarder
+// agent to recognize it as a destination. The cfgPath it accepts is the folder
+// under which to write the temp file.
+func startSpyOtelColTraceServer(cfgPath string, tc *testhelper.TestCerts, commonName string) *spyOtelColTraceServer {
+	serverCreds, err := plumbing.NewServerCredentials(
+		tc.Cert(commonName),
+		tc.Key(commonName),
+		tc.CA(),
+	)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	lis, err := net.Listen("tcp", "127.0.0.1:")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	s := &spyOtelColTraceServer{
+		srv:      grpc.NewServer(grpc.Creds(serverCreds)),
+		requests: make(chan *coltracepb.ExportTraceServiceRequest, 10000),
+		addr:     lis.Addr().String(),
+	}
+
+	coltracepb.RegisterTraceServiceServer(s.srv, s)
+	go s.srv.Serve(lis) //nolint:errcheck
+
+	port, err := strconv.Atoi(strings.Split(s.addr, ":")[1])
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	dir, err := os.MkdirTemp(cfgPath, "")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	tmpfn := filepath.Join(dir, "ingress_port.yml")
+
+	contents := fmt.Sprintf(`---
+ingress: %d
+protocol: otelcol
+`, port)
+	err = os.WriteFile(tmpfn, []byte(contents), 0600)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+	return s
+}
+
+func (s *spyOtelColTraceServer) Export(_ context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
+	s.requests <- req
+	return &coltracepb.ExportTraceServiceResponse{}, nil
+}
+
+func (s *spyOtelColTraceServer) close() {
 	s.srv.Stop()
 }
