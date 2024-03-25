@@ -13,7 +13,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/onsi/gomega v1.32.0
 	github.com/prometheus/client_model v0.6.0
-	github.com/prometheus/common v0.50.0
+	github.com/prometheus/common v0.51.1
 	github.com/valyala/fasthttp v1.52.0
 	golang.org/x/net v0.22.0
 	google.golang.org/grpc v1.62.1
