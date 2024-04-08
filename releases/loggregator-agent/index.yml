@@ -203,6 +203,8 @@ builds:
     version: "3.6"
   fa0a9733-56a9-4c11-6c03-10eac409f361:
     version: 6.5.0
+  fbdf31d8-43a8-4df4-6b75-7adbc5754aa6:
+    version: 7.7.6
   fff52338-485a-4982-7648-2d6cab47453c:
     version: 6.3.5
 format-version: "2"
