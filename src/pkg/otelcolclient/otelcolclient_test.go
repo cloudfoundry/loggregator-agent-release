@@ -23,6 +23,7 @@ import (
 var _ = Describe("Client", func() {
 	var (
 		c      Client
+		b      *SignalBatcher
 		spyMSC *spyMetricsServiceClient
 		spyTSC *spyTraceServiceClient
 		buf    *gbytes.Buffer
@@ -50,12 +51,12 @@ var _ = Describe("Client", func() {
 			cancel: cancel,
 			l:      log.New(GinkgoWriter, "", 0),
 		}
-		b := NewSignalBatcher(
+		b = NewSignalBatcher(
 			1,
 			100*time.Millisecond,
 			w,
 		)
-		c = Client{b: b}
+		c = Client{b: b, emitTraces: true}
 	})
 
 	AfterEach(func() {
@@ -110,7 +111,7 @@ var _ = Describe("Client", func() {
 					100*time.Millisecond,
 					w,
 				)
-				c = Client{b: b}
+				c = Client{b: b, emitTraces: true}
 			})
 
 			It("returns nil", func() {
@@ -551,7 +552,6 @@ var _ = Describe("Client", func() {
 											Kind:              tracepb.Span_SPAN_KIND_SERVER,
 											StartTimeUnixNano: 1710799972405641252,
 											EndTimeUnixNano:   1710799972408946683,
-											// Attributes:        []*commonpb.KeyValue{},
 											Status: &tracepb.Status{
 												Code: tracepb.Status_STATUS_CODE_UNSET,
 											},
@@ -647,6 +647,15 @@ var _ = Describe("Client", func() {
 					})
 				})
 			}
+
+			Context("when support for forwarding traces is not active", func() {
+				BeforeEach(func() {
+					c = Client{b: b, emitTraces: false}
+				})
+				It("does not forward a trace", func() {
+					Expect(spyTSC.requests).NotTo(Receive())
+				})
+			})
 
 			Context("when the timer has no peer_type tag", func() {
 				BeforeEach(func() {

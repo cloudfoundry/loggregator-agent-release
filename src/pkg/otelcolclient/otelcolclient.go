@@ -98,12 +98,15 @@ func (w GRPCWriter) Close() error {
 type Client struct {
 	// Batch metrics sent to OTel Collector
 	b *SignalBatcher
+	// Forward timers as traces
+	emitTraces bool
 }
 
 // New creates a new Client that will batch metrics.
-func New(w Writer) *Client {
+func New(w Writer, emitTraces bool) *Client {
 	return &Client{
-		b: NewSignalBatcher(100, 100*time.Millisecond, w),
+		b:          NewSignalBatcher(100, 100*time.Millisecond, w),
+		emitTraces: emitTraces,
 	}
 }
 
@@ -178,6 +181,10 @@ func (c *Client) writeGauge(e *loggregator_v2.Envelope) {
 
 // writeTimer translates a loggregator v2 Timer to OTLP and adds the spans to the pending batch.
 func (c *Client) writeTimer(e *loggregator_v2.Envelope) {
+	if !c.emitTraces {
+		return
+	}
+
 	if ok := validateTimerTags(e.GetTags()); !ok {
 		return
 	}

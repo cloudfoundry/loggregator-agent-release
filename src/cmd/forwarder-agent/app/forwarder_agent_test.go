@@ -13,7 +13,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
-	"google.golang.org/protobuf/proto"
 
 	"code.cloudfoundry.org/go-loggregator/v9"
 	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
@@ -359,6 +358,7 @@ var _ = Describe("App", func() {
 		BeforeEach(func() {
 			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector")
 			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector")
+			agentCfg.EmitOTelTraces = true
 		})
 
 		AfterEach(func() {
@@ -399,21 +399,47 @@ var _ = Describe("App", func() {
 
 		It("forwards timers", func() {
 			name := "test-timer-name"
-			ingressClient.EmitTimer(name, time.Now(), time.Now().Add(time.Second), func(m proto.Message) {
-				switch e := m.(type) {
-				case *loggregator_v2.Envelope:
-					e.Tags["trace_id"] = "beefdeadbeefdeadbeefdeadbeefdead"
-					e.Tags["span_id"] = "deadbeefdeadbeef"
-				default:
-					panic(fmt.Sprintf("unsupported Message type: %T", m))
-				}
-			})
+			ingressClient.EmitTimer(name, time.Now(), time.Now().Add(time.Second), WithSampleTraceIdAndSpanId())
 
 			var req *coltracepb.ExportTraceServiceRequest
 			Eventually(otelTraceServer.requests).Should(Receive(&req))
 
 			trace := req.ResourceSpans[0].ScopeSpans[0].Spans[0]
 			Expect(trace.GetName()).To(Equal(name))
+		})
+
+		Context("when support for forwarding timers as traces is not active", func() {
+			BeforeEach(func() {
+				agentCfg.EmitOTelTraces = false
+			})
+
+			It("only emits timers to other destinations", func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				var wg sync.WaitGroup
+				defer wg.Wait()
+				defer cancel()
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					ticker := time.NewTicker(10 * time.Millisecond)
+					for {
+						select {
+						case <-ctx.Done():
+							ticker.Stop()
+							return
+						case <-ticker.C:
+							ingressClient.EmitTimer("some-timer", time.Now(), time.Now().Add(time.Second), WithSampleTraceIdAndSpanId())
+						}
+					}
+				}()
+
+				var e *loggregator_v2.Envelope
+				Eventually(ingressServer1.envelopes, 5).Should(Receive(&e))
+				Expect(e.GetTimer().GetName()).To(Equal("some-timer"))
+				Consistently(otelTraceServer.requests, 5).ShouldNot(Receive())
+			})
 		})
 
 		It("emits an expired metric", func() {

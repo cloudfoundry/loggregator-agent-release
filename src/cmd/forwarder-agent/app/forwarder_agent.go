@@ -41,6 +41,7 @@ type ForwarderAgent struct {
 	log                   *log.Logger
 	tags                  map[string]string
 	debugMetrics          bool
+	emitOTelTraces        bool
 }
 
 type Metrics interface {
@@ -71,6 +72,7 @@ func NewForwarderAgent(
 		log:                   log,
 		tags:                  cfg.Tags,
 		debugMetrics:          cfg.MetricsServer.DebugMetrics,
+		emitOTelTraces:        cfg.EmitOTelTraces,
 	}
 }
 
@@ -94,7 +96,7 @@ func (s *ForwarderAgent) Run() {
 	}))
 
 	dests := downstreamDestinations(s.downstreamFilePattern, s.log)
-	writers := downstreamWriters(dests, s.grpc, s.m, s.log)
+	writers := downstreamWriters(dests, s.grpc, s.m, s.emitOTelTraces, s.log)
 	tagger := egress_v2.NewTagger(s.tags)
 	ew := egress_v2.NewEnvelopeWriter(
 		multiWriter{writers: writers},
@@ -207,13 +209,13 @@ func downstreamDestinations(pattern string, l *log.Logger) []destination {
 	return dests
 }
 
-func downstreamWriters(dests []destination, grpc GRPC, m Metrics, l *log.Logger) []Writer {
+func downstreamWriters(dests []destination, grpc GRPC, m Metrics, emitOTelTraces bool, l *log.Logger) []Writer {
 	var writers []Writer
 	for _, d := range dests {
 		var w Writer
 		switch d.Protocol {
 		case "otelcol":
-			w = otelCollectorClient(d, grpc, m, l)
+			w = otelCollectorClient(d, grpc, m, emitOTelTraces, l)
 		default:
 			w = loggregatorClient(d, grpc, m, l)
 		}
@@ -222,7 +224,7 @@ func downstreamWriters(dests []destination, grpc GRPC, m Metrics, l *log.Logger)
 	return writers
 }
 
-func otelCollectorClient(dest destination, grpc GRPC, m Metrics, l *log.Logger) Writer {
+func otelCollectorClient(dest destination, grpc GRPC, m Metrics, emitTraces bool, l *log.Logger) Writer {
 	clientCreds, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
 		tlsconfig.WithIdentityFromFile(grpc.CertFile, grpc.KeyFile),
@@ -250,7 +252,7 @@ func otelCollectorClient(dest destination, grpc GRPC, m Metrics, l *log.Logger) 
 		}),
 	)
 
-	dw := egress.NewDiodeWriter(context.Background(), otelcolclient.New(w), gendiodes.AlertFunc(func(missed int) {
+	dw := egress.NewDiodeWriter(context.Background(), otelcolclient.New(w, emitTraces), gendiodes.AlertFunc(func(missed int) {
 		expired.Add(float64(missed))
 	}), timeoutwaitgroup.New(time.Minute))
 
