@@ -197,6 +197,18 @@ func MakeSampleBigEnvelope() *loggregator_v2.Envelope {
 	}
 }
 
+func WithSampleTraceIdAndSpanId() loggregator.EmitTimerOption {
+	return func(m proto.Message) {
+		switch e := m.(type) {
+		case *loggregator_v2.Envelope:
+			e.Tags["trace_id"] = "beefdeadbeefdeadbeefdeadbeefdead"
+			e.Tags["span_id"] = "deadbeefdeadbeef"
+		default:
+			panic(fmt.Sprintf("unsupported Message type: %T", m))
+		}
+	}
+}
+
 // A fake OTel Collector metrics gRPC server that captures requests made to it.
 type spyOtelColMetricServer struct {
 	colmetricspb.UnimplementedMetricsServiceServer

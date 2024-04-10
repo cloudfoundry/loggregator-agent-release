@@ -34,6 +34,10 @@ properties:
     default: {}
     example: {"deployment": "cf"}
 
+  temporary_emit_otel_traces:
+    description: "Whether to emit traces to OpenTelemetry Collector downstream consumers"
+    default: false
+
   tls.ca_cert:
     description: |
       TLS loggregator root CA certificate. It is required for key/cert

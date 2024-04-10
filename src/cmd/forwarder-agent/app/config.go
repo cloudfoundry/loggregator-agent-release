@@ -29,6 +29,7 @@ type Config struct {
 	MetricsServer            config.MetricsServer
 	Tags                     map[string]string `env:"AGENT_TAGS"`
 	DebugMetrics             bool              `env:"DEBUG_METRICS, report"`
+	EmitOTelTraces           bool              `env:"EMIT_OTEL_TRACES, report"`
 }
 
 // LoadConfig will load the configuration for the forwarder agent from the
