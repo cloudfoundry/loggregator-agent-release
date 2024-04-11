@@ -31,6 +31,7 @@ type BatchHTTPSWriter struct {
 	batchSize    int
 	sendInterval time.Duration
 	sendTimer    *time.Timer
+	egrMsgCount  float64
 }
 
 func NewHTTPSWriter(
@@ -55,6 +56,7 @@ func NewHTTPSWriter(
 			msgBatch:     "",
 			batchSize:    BATCHSIZE,
 			sendInterval: time.Second,
+			egrMsgCount:  0,
 		}
 	} else {
 		return &HTTPSWriter{
@@ -74,7 +76,9 @@ func (w *BatchHTTPSWriter) sendMsgBatch() error {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("text/plain")
 	req.SetBodyString(w.msgBatch)
+	currentEgrCount := w.egrMsgCount
 
+	w.egrMsgCount = 0
 	w.msgBatch = ""
 	w.sendTimer = nil
 
@@ -89,6 +93,8 @@ func (w *BatchHTTPSWriter) sendMsgBatch() error {
 		return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
 	}
 
+	w.egressMetric.Add(currentEgrCount)
+
 	return nil
 }
 
@@ -100,12 +106,8 @@ func (w *BatchHTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	for _, msg := range msgs {
-		if len(w.msgBatch) == 0 {
-			w.msgBatch = string(msg)
-		} else {
-			w.msgBatch += string(msg)
-		}
-		w.egressMetric.Add(1)
+		w.msgBatch += string(msg)
+		w.egrMsgCount += 1
 	}
 
 	if w.sendTimer == nil {
