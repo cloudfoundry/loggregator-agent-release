@@ -44,7 +44,7 @@ func NewPusherFetcher(mc MetricClient, opts ...grpc.DialOption) *PusherFetcher {
 }
 
 func (p *PusherFetcher) Fetch(addr string) (io.Closer, plumbing.DopplerIngestor_PusherClient, error) {
-	conn, err := grpc.Dial(addr, p.opts...)
+	conn, err := grpc.NewClient(addr, p.opts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error dialing ingestor stream to %s: %s", addr, err)
 	}

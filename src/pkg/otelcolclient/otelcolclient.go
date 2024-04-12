@@ -33,7 +33,7 @@ type GRPCWriter struct {
 
 // NewGRPCWriter dials the provided gRPC address and returns a *GRPCWriter.
 func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWriter, error) {
-	cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	cc, err := grpc.NewClient(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
 		return nil, err
 	}
