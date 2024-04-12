@@ -1,6 +1,7 @@
 package syslog
 
 import (
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -27,10 +28,10 @@ type HTTPSWriter struct {
 
 type BatchHTTPSWriter struct {
 	HTTPSWriter
-	msgBatch     string
+	msgBatch     bytes.Buffer
 	batchSize    int
 	sendInterval time.Duration
-	sendTimer    *time.Timer
+	sendTimer    TriggerTimer
 	egrMsgCount  float64
 }
 
@@ -53,7 +54,6 @@ func NewHTTPSWriter(
 				egressMetric:    egressMetric,
 				syslogConverter: c,
 			},
-			msgBatch:     "",
 			batchSize:    BATCHSIZE,
 			sendInterval: time.Second,
 			egrMsgCount:  0,
@@ -71,16 +71,48 @@ func NewHTTPSWriter(
 }
 
 func (w *BatchHTTPSWriter) sendMsgBatch() error {
+	currentEgrCount := w.egrMsgCount
+	currentMsg := w.msgBatch.Bytes()
+
+	w.egrMsgCount = 0
+	w.msgBatch.Reset()
+
+	return w.sendHttpRequest(currentMsg, currentEgrCount)
+}
+
+// Modified Write function
+func (w *BatchHTTPSWriter) Write(env *loggregator_v2.Envelope) error {
+	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
+	if err != nil {
+		return err
+	}
+
+	for _, msg := range msgs {
+		w.msgBatch.Write(msg)
+		w.egrMsgCount += 1
+		w.startAndTriggerSend()
+	}
+	return nil
+}
+
+// TODO: Error back propagation. Errors are not looked at further down the call chain
+func (w *BatchHTTPSWriter) startAndTriggerSend() {
+	if !w.sendTimer.Running() {
+		w.sendTimer.Start(w.sendInterval, func() {
+			w.sendMsgBatch()
+		})
+	}
+	if w.msgBatch.Len() >= w.batchSize {
+		w.sendTimer.Trigger()
+	}
+}
+
+func (w *HTTPSWriter) sendHttpRequest(msg []byte, msgCount float64) error {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(w.url.String())
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("text/plain")
-	req.SetBodyString(w.msgBatch)
-	currentEgrCount := w.egrMsgCount
-
-	w.egrMsgCount = 0
-	w.msgBatch = ""
-	w.sendTimer = nil
+	req.SetBody(msg)
 
 	resp := fasthttp.AcquireResponse()
 
@@ -93,36 +125,7 @@ func (w *BatchHTTPSWriter) sendMsgBatch() error {
 		return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
 	}
 
-	w.egressMetric.Add(currentEgrCount)
-
-	return nil
-}
-
-// Modified Write function
-func (w *BatchHTTPSWriter) Write(env *loggregator_v2.Envelope) error {
-	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
-	if err != nil {
-		return err
-	}
-
-	for _, msg := range msgs {
-		w.msgBatch += string(msg)
-		w.egrMsgCount += 1
-	}
-
-	if w.sendTimer == nil {
-		w.sendTimer = time.AfterFunc(w.sendInterval, func() {
-			w.sendMsgBatch()
-		})
-	}
-
-	if len(w.msgBatch) >= w.batchSize {
-		w.sendTimer.Stop()
-		err = w.sendMsgBatch()
-		if err != nil {
-			return err
-		}
-	}
+	w.egressMetric.Add(msgCount)
 
 	return nil
 }
@@ -134,24 +137,10 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	for _, msg := range msgs {
-		req := fasthttp.AcquireRequest()
-		req.SetRequestURI(w.url.String())
-		req.Header.SetMethod("POST")
-		req.Header.SetContentType("text/plain")
-		req.SetBody(msg)
-
-		resp := fasthttp.AcquireResponse()
-
-		err := w.client.Do(req, resp)
+		err = w.sendHttpRequest(msg, 1)
 		if err != nil {
-			return w.sanitizeError(w.url, err)
+			return err
 		}
-
-		if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
-			return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
-		}
-
-		w.egressMetric.Add(1)
 	}
 
 	return nil
