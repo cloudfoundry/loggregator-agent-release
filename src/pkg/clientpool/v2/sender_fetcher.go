@@ -44,7 +44,7 @@ func NewSenderFetcher(mc MetricClient, opts ...grpc.DialOption) *SenderFetcher {
 }
 
 func (p *SenderFetcher) Fetch(addr string) (io.Closer, loggregator_v2.Ingress_BatchSenderClient, error) {
-	conn, err := grpc.Dial(addr, p.opts...)
+	conn, err := grpc.NewClient(addr, p.opts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error dialing ingestor stream to %s: %s", addr, err)
 	}
