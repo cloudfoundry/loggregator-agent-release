@@ -207,7 +207,7 @@ func agentClient(port int, testCerts *testhelper.TestCerts) loggregator_v2.Ingre
 		panic(err)
 	}
 
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
 		panic(err)
 	}
