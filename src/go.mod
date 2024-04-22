@@ -6,7 +6,7 @@ toolchain go1.21.9
 
 require (
 	code.cloudfoundry.org/go-batching v0.0.0-20240325232529-c21ea48767e2
-	code.cloudfoundry.org/go-diodes v0.0.0-20240325171903-fa19631aa7ba
+	code.cloudfoundry.org/go-diodes v0.0.0-20240419195010-376885f5f3d4
 	code.cloudfoundry.org/go-envstruct v1.7.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20240325232813-eb1144b007e4
 	code.cloudfoundry.org/tlsconfig v0.0.0-20240417163319-a2cf10de323a
@@ -22,7 +22,7 @@ require (
 )
 
 require (
-	code.cloudfoundry.org/go-loggregator/v9 v9.2.0
+	code.cloudfoundry.org/go-loggregator/v9 v9.2.1
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/google/go-cmp v0.6.0
@@ -44,7 +44,7 @@ require (
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
-	github.com/prometheus/procfs v0.13.0 // indirect
+	github.com/prometheus/procfs v0.14.0 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
