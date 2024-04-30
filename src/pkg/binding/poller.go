@@ -85,10 +85,9 @@ func NewPoller(ac client, pi time.Duration, s Setter, legacyStore LegacySetter, 
 }
 
 func (p *Poller) Poll() {
-	t := time.NewTicker(p.pollingInterval)
-
-	for range t.C {
+	for {
 		p.poll()
+		time.Sleep(p.pollingInterval)
 	}
 }
 
