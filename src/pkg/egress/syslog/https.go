@@ -1,7 +1,6 @@
 package syslog
 
 import (
-	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -15,8 +14,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const BATCHSIZE = 256 * 1024
-
 type HTTPSWriter struct {
 	hostname        string
 	appID           string
@@ -24,15 +21,6 @@ type HTTPSWriter struct {
 	client          *fasthttp.Client
 	egressMetric    metrics.Counter
 	syslogConverter *Converter
-}
-
-type BatchHTTPSWriter struct {
-	HTTPSWriter
-	msgBatch     bytes.Buffer
-	batchSize    int
-	sendInterval time.Duration
-	sendTimer    TriggerTimer
-	egrMsgCount  float64
 }
 
 func NewHTTPSWriter(
@@ -44,66 +32,13 @@ func NewHTTPSWriter(
 ) egress.WriteCloser {
 
 	client := httpClient(netConf, tlsConf)
-	if binding.URL.Query().Get("batching") == "true" {
-		return &BatchHTTPSWriter{
-			HTTPSWriter: HTTPSWriter{
-				url:             binding.URL,
-				appID:           binding.AppID,
-				hostname:        binding.Hostname,
-				client:          client,
-				egressMetric:    egressMetric,
-				syslogConverter: c,
-			},
-			batchSize:    BATCHSIZE,
-			sendInterval: time.Second,
-			egrMsgCount:  0,
-		}
-	} else {
-		return &HTTPSWriter{
-			url:             binding.URL,
-			appID:           binding.AppID,
-			hostname:        binding.Hostname,
-			client:          client,
-			egressMetric:    egressMetric,
-			syslogConverter: c,
-		}
-	}
-}
-
-func (w *BatchHTTPSWriter) sendMsgBatch() error {
-	currentEgrCount := w.egrMsgCount
-	currentMsg := w.msgBatch.Bytes()
-
-	w.egrMsgCount = 0
-	w.msgBatch.Reset()
-
-	return w.sendHttpRequest(currentMsg, currentEgrCount)
-}
-
-// Modified Write function
-func (w *BatchHTTPSWriter) Write(env *loggregator_v2.Envelope) error {
-	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
-	if err != nil {
-		return err
-	}
-
-	for _, msg := range msgs {
-		w.msgBatch.Write(msg)
-		w.egrMsgCount += 1
-		w.startAndTriggerSend()
-	}
-	return nil
-}
-
-// TODO: Error back propagation. Errors are not looked at further down the call chain
-func (w *BatchHTTPSWriter) startAndTriggerSend() {
-	if !w.sendTimer.Running() {
-		w.sendTimer.Start(w.sendInterval, func() {
-			w.sendMsgBatch()
-		})
-	}
-	if w.msgBatch.Len() >= w.batchSize {
-		w.sendTimer.Trigger()
+	return &HTTPSWriter{
+		url:             binding.URL,
+		appID:           binding.AppID,
+		hostname:        binding.Hostname,
+		client:          client,
+		egressMetric:    egressMetric,
+		syslogConverter: c,
 	}
 }
 
