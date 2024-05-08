@@ -2,16 +2,16 @@ module code.cloudfoundry.org/loggregator-agent-release/src
 
 go 1.21.0
 
-toolchain go1.21.9
+toolchain go1.21.10
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20240325232529-c21ea48767e2
-	code.cloudfoundry.org/go-diodes v0.0.0-20240419195010-376885f5f3d4
+	code.cloudfoundry.org/go-batching v0.0.0-20240507185452-b51464486eb5
+	code.cloudfoundry.org/go-diodes v0.0.0-20240507202434-96dd3c119b5c
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20240325232813-eb1144b007e4
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20240507185439-f0b17e194563
 	code.cloudfoundry.org/tlsconfig v0.0.0-20240506165053-ee50c1ee9388
 	github.com/cloudfoundry/dropsonde v1.1.0
-	github.com/cloudfoundry/sonde-go v0.0.0-20240311165458-423aa0d4dfc8
+	github.com/cloudfoundry/sonde-go v0.0.0-20240507181428-8b8ae008ea35
 	github.com/onsi/gomega v1.33.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.53.0
@@ -26,7 +26,7 @@ require (
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/google/go-cmp v0.6.0
-	github.com/onsi/ginkgo/v2 v2.17.2
+	github.com/onsi/ginkgo/v2 v2.17.3
 	go.opentelemetry.io/proto/otlp v1.2.0
 	google.golang.org/protobuf v1.34.1
 )
@@ -38,7 +38,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/google/pprof v0.0.0-20240430035430-e4905b036c4e // indirect
+	github.com/google/pprof v0.0.0-20240507183855-6f11f98ebb1c // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
