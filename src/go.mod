@@ -37,7 +37,7 @@ require (
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/google/pprof v0.0.0-20240507183855-6f11f98ebb1c // indirect
+	github.com/google/pprof v0.0.0-20240508145209-1db217f89380 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
