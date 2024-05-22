@@ -50,7 +50,7 @@ github.com/cloudfoundry/sonde-go/events
 # github.com/go-chi/chi/v5 v5.0.12
 ## explicit; go 1.14
 github.com/go-chi/chi/v5
-# github.com/go-logr/logr v1.4.1
+# github.com/go-logr/logr v1.4.2
 ## explicit; go 1.18
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
@@ -88,7 +88,7 @@ github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zlib
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/onsi/ginkgo/v2 v2.17.3
+# github.com/onsi/ginkgo/v2 v2.18.0
 ## explicit; go 1.20
 github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
@@ -261,10 +261,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/tokeninternal
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20240520151616-dc85e6b867a5
+# google.golang.org/genproto/googleapis/api v0.0.0-20240521202816-d264139d666e
 ## explicit; go 1.20
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20240520151616-dc85e6b867a5
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20240521202816-d264139d666e
 ## explicit; go 1.20
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.64.0
