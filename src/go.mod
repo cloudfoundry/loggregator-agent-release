@@ -8,14 +8,14 @@ require (
 	code.cloudfoundry.org/go-batching v0.0.0-20240522165838-74c69d79243c
 	code.cloudfoundry.org/go-diodes v0.0.0-20240515174142-71582f284718
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20240522170000-72a4274ce4cc
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20240523160243-6c152ef80e25
 	code.cloudfoundry.org/tlsconfig v0.0.0-20240522170710-79df114af82a
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20240515174134-adba8bce1248
 	github.com/onsi/gomega v1.33.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.53.0
-	github.com/valyala/fasthttp v1.53.0
+	github.com/valyala/fasthttp v1.54.0
 	golang.org/x/net v0.25.0
 	google.golang.org/grpc v1.64.0
 	gopkg.in/yaml.v2 v2.4.0
