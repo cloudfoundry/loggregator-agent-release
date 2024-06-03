@@ -15,7 +15,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/onsi/gomega v1.33.1
 	github.com/prometheus/client_model v0.6.1
-	github.com/prometheus/common v0.53.0
+	github.com/prometheus/common v0.54.0
 	github.com/valyala/fasthttp v1.54.0
 	golang.org/x/net v0.25.0
 	google.golang.org/grpc v1.64.0
@@ -42,7 +42,7 @@ require (
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
-	github.com/prometheus/procfs v0.15.0 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/spf13/cobra v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
