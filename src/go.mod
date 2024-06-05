@@ -2,14 +2,14 @@ module code.cloudfoundry.org/loggregator-agent-release/src
 
 go 1.21.0
 
-toolchain go1.21.10
+toolchain go1.21.11
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20240522165838-74c69d79243c
-	code.cloudfoundry.org/go-diodes v0.0.0-20240515174142-71582f284718
+	code.cloudfoundry.org/go-batching v0.0.0-20240604201829-c8533406dd64
+	code.cloudfoundry.org/go-diodes v0.0.0-20240604201846-c756bfed2ed3
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20240523160243-6c152ef80e25
-	code.cloudfoundry.org/tlsconfig v0.0.0-20240530171334-2593348de0c6
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20240604201903-7cef498efb7a
+	code.cloudfoundry.org/tlsconfig v0.0.0-20240604172015-5be76e21ea65
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20240515174134-adba8bce1248
 	github.com/gorilla/mux v1.8.1
@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.54.0
 	github.com/valyala/fasthttp v1.54.0
-	golang.org/x/net v0.25.0
+	golang.org/x/net v0.26.0
 	google.golang.org/grpc v1.64.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -48,12 +48,12 @@ require (
 	github.com/square/certstrap v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.step.sm/crypto v0.46.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
-	golang.org/x/tools v0.21.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/tools v0.22.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240604185151-ef581f913117 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
