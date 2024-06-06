@@ -172,8 +172,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
-go.step.sm/crypto v0.46.0 h1:cuVZMpDbmEsUX+atC24+VineQr4gO+zO46MxbIVai4Y=
-go.step.sm/crypto v0.46.0/go.mod h1:hcr0oTS2vGRTGSZxoVYxE+RRcsd4xP3rpqt3wPwYGqc=
+go.step.sm/crypto v0.47.0 h1:LWxiKWiN0Y/A5+dq+fTIAvFYAL8oe3PQmCurjtn6ZBU=
+go.step.sm/crypto v0.47.0/go.mod h1:0NMEfYrFfV5jqs8aJY5wRqIShBV8y/fyDLTseyv5xhY=
 go.uber.org/atomic v1.4.0/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/multierr v1.1.0/go.mod h1:wR5kodmAFQ0UK8QlbwjlSNy0Z68gJhDJUG5sjR94q/0=
 go.uber.org/zap v1.10.0/go.mod h1:vwi/ZaCAaUcBkycHslxD9B2zi4UTXhF60s6SWpuDF0Q=
