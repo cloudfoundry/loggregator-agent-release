@@ -27,8 +27,8 @@ require (
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/google/go-cmp v0.6.0
 	github.com/onsi/ginkgo/v2 v2.19.0
-	go.opentelemetry.io/proto/otlp v1.2.0
-	google.golang.org/protobuf v1.34.1
+	go.opentelemetry.io/proto/otlp v1.3.1
+	google.golang.org/protobuf v1.34.2
 )
 
 require (
@@ -41,7 +41,7 @@ require (
 	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.17.8 // indirect
+	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
