@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -eux
+
+set +e
+which protoc
+if [[ $? -eq 1 ]]; then
+  set +x
+  echo 'You must install the protobuf compiler to proceed: https://github.com/protocolbuffers/protobuf/releases'
+  echo 'Checkout https://github.com/protocolbuffers/protobuf/releases'
+  echo '(or consider `brew install protobuf`)'
+  exit 1
+fi
+which go
+if [[ $? -eq 1 ]]; then
+  set +x
+  echo 'You must install Golang to proceed: https://go.dev/dl/'
+  echo '(or consider `brew install go`)'
+  exit 1
+fi
+set -e
+
+LOGGREGATOR_AGENT_RELEASE_DIR="$(dirname "$0")/.."
+RELATIVE_PROTO_FILEPATH="loggregator-agent-release/src/pkg/plumbing/doppler.proto"
+GO_DEPENDENCIES=(
+  'google.golang.org/protobuf/cmd/protoc-gen-go'
+  'google.golang.org/grpc/cmd/protoc-gen-go-grpc'
+)
+
+for dep in "${GO_DEPENDENCIES[@]}"; do
+  go install "${dep}@latest"
+done
+
+pushd "${LOGGREGATOR_AGENT_RELEASE_DIR}/.." > /dev/null
+  protoc -I=. --go_out=. --go-grpc_out=. "${RELATIVE_PROTO_FILEPATH}"
+popd > /dev/null
