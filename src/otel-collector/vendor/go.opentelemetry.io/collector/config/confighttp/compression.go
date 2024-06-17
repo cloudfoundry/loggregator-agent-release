@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 
 	"go.opentelemetry.io/collector/config/configcompression"
@@ -20,11 +21,11 @@ import (
 
 type compressRoundTripper struct {
 	rt              http.RoundTripper
-	compressionType configcompression.CompressionType
+	compressionType configcompression.Type
 	compressor      *compressor
 }
 
-func newCompressRoundTripper(rt http.RoundTripper, compressionType configcompression.CompressionType) (*compressRoundTripper, error) {
+func newCompressRoundTripper(rt http.RoundTripper, compressionType configcompression.Type) (*compressRoundTripper, error) {
 	encoder, err := newCompressor(compressionType)
 	if err != nil {
 		return nil, err
@@ -66,26 +67,28 @@ func (r *compressRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 }
 
 type decompressor struct {
-	errHandler func(w http.ResponseWriter, r *http.Request, errorMsg string, statusCode int)
-	base       http.Handler
-	decoders   map[string]func(body io.ReadCloser) (io.ReadCloser, error)
+	errHandler         func(w http.ResponseWriter, r *http.Request, errorMsg string, statusCode int)
+	base               http.Handler
+	decoders           map[string]func(body io.ReadCloser) (io.ReadCloser, error)
+	maxRequestBodySize int64
 }
 
 // httpContentDecompressor offloads the task of handling compressed HTTP requests
 // by identifying the compression format in the "Content-Encoding" header and re-writing
 // request body so that the handlers further in the chain can work on decompressed data.
 // It supports gzip and deflate/zlib compression.
-func httpContentDecompressor(h http.Handler, eh func(w http.ResponseWriter, r *http.Request, errorMsg string, statusCode int), decoders map[string]func(body io.ReadCloser) (io.ReadCloser, error)) http.Handler {
+func httpContentDecompressor(h http.Handler, maxRequestBodySize int64, eh func(w http.ResponseWriter, r *http.Request, errorMsg string, statusCode int), decoders map[string]func(body io.ReadCloser) (io.ReadCloser, error)) http.Handler {
 	errHandler := defaultErrorHandler
 	if eh != nil {
 		errHandler = eh
 	}
 
 	d := &decompressor{
-		errHandler: errHandler,
-		base:       h,
+		maxRequestBodySize: maxRequestBodySize,
+		errHandler:         errHandler,
+		base:               h,
 		decoders: map[string]func(body io.ReadCloser) (io.ReadCloser, error){
-			"": func(body io.ReadCloser) (io.ReadCloser, error) {
+			"": func(io.ReadCloser) (io.ReadCloser, error) {
 				// Not a compressed payload. Nothing to do.
 				return nil, nil
 			},
@@ -117,6 +120,18 @@ func httpContentDecompressor(h http.Handler, eh func(w http.ResponseWriter, r *h
 				}
 				return zr, nil
 			},
+			"snappy": func(body io.ReadCloser) (io.ReadCloser, error) {
+				sr := snappy.NewReader(body)
+				sb := new(bytes.Buffer)
+				_, err := io.Copy(sb, sr)
+				if err != nil {
+					return nil, err
+				}
+				if err = body.Close(); err != nil {
+					return nil, err
+				}
+				return io.NopCloser(sb), nil
+			},
 		},
 	}
 	d.decoders["deflate"] = d.decoders["zlib"]
@@ -142,7 +157,7 @@ func (d *decompressor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// "Content-Length" is set to -1 as the size of the decompressed body is unknown.
 		r.Header.Del("Content-Length")
 		r.ContentLength = -1
-		r.Body = newBody
+		r.Body = http.MaxBytesReader(w, newBody, d.maxRequestBodySize)
 	}
 	d.base.ServeHTTP(w, r)
 }
