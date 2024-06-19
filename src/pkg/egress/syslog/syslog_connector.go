@@ -166,12 +166,4 @@ func (w *SyslogConnector) emitLoggregatorErrorLog(appID, message string) {
 	w.logClient.EmitLog(message, option)
 }
 func (w *SyslogConnector) emitStandardOutErrorLog(appID, scheme, url string, missed int) {
-	errorAppOrAggregate := fmt.Sprintf("for %s's app drain", appID)
-	if appID == "" {
-		errorAppOrAggregate = "for aggregate drain"
-	}
-	log.Printf(
-		"Dropped %d %s logs %s with url %s",
-		missed, scheme, errorAppOrAggregate, url,
-	)
 }

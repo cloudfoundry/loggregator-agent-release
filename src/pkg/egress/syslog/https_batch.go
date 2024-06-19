@@ -40,7 +40,7 @@ func NewHTTPSBatchWriter(
 			syslogConverter: c,
 		},
 		batchSize:    BATCHSIZE,
-		sendInterval: time.Second,
+		sendInterval: 1 * time.Second,
 		egrMsgCount:  0,
 	}
 }
@@ -99,16 +99,17 @@ func NewTriggerTimer(d time.Duration, f func()) *TriggerTimer {
 
 func (t *TriggerTimer) initWait(duration time.Duration) {
 	timer := time.NewTimer(duration)
-	<-timer.C
-	if !t.triggered {
-		t.execFunc()
-	}
-
+	go func() {
+		<-timer.C
+		t.Trigger()
+	}()
 }
 
 func (t *TriggerTimer) Trigger() {
-	t.triggered = true
-	t.execFunc()
+	if !t.triggered {
+		t.triggered = true
+		t.execFunc()
+	}
 }
 
 func (t *TriggerTimer) Running() bool {
