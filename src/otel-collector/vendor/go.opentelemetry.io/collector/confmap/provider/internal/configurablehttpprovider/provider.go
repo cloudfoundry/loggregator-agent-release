@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/collector/confmap"
-	"go.opentelemetry.io/collector/confmap/provider/internal"
 )
 
 type SchemeType string
@@ -38,7 +37,7 @@ type provider struct {
 // One example for http-uri: http://localhost:3333/getConfig
 // One example for https-uri: https://localhost:3333/getConfig
 // This is used by the http and https external implementations.
-func New(scheme SchemeType) confmap.Provider {
+func New(scheme SchemeType, _ confmap.ProviderSettings) confmap.Provider {
 	return &provider{scheme: scheme}
 }
 
@@ -109,7 +108,7 @@ func (fmp *provider) Retrieve(_ context.Context, uri string, _ confmap.WatcherFu
 		return nil, fmt.Errorf("fail to read the response body from uri %q: %w", uri, err)
 	}
 
-	return internal.NewRetrievedFromYAML(body)
+	return confmap.NewRetrievedFromYAML(body)
 }
 
 func (fmp *provider) Scheme() string {

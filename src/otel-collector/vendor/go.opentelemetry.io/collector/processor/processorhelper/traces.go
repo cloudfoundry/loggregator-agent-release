@@ -28,7 +28,7 @@ type tracesProcessor struct {
 // NewTracesProcessor creates a processor.Traces that ensure context propagation and the right tags are set.
 func NewTracesProcessor(
 	_ context.Context,
-	set processor.CreateSettings,
+	set processor.Settings,
 	_ component.Config,
 	nextConsumer consumer.Traces,
 	tracesFunc ProcessTracesFunc,
@@ -37,10 +37,6 @@ func NewTracesProcessor(
 	// TODO: Add observability Traces support
 	if tracesFunc == nil {
 		return nil, errors.New("nil tracesFunc")
-	}
-
-	if nextConsumer == nil {
-		return nil, component.ErrNilNextConsumer
 	}
 
 	eventOptions := spanAttributes(set.ID)

@@ -28,7 +28,7 @@ type logProcessor struct {
 // NewLogsProcessor creates a processor.Logs that ensure context propagation and the right tags are set.
 func NewLogsProcessor(
 	_ context.Context,
-	set processor.CreateSettings,
+	set processor.Settings,
 	_ component.Config,
 	nextConsumer consumer.Logs,
 	logsFunc ProcessLogsFunc,
@@ -37,10 +37,6 @@ func NewLogsProcessor(
 	// TODO: Add observability metrics support
 	if logsFunc == nil {
 		return nil, errors.New("nil logsFunc")
-	}
-
-	if nextConsumer == nil {
-		return nil, component.ErrNilNextConsumer
 	}
 
 	eventOptions := spanAttributes(set.ID)

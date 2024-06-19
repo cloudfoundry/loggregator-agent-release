@@ -1,6 +1,15 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
+// Package graph contains the internal graph representation of the pipelines.
+//
+// [Build] is the constructor for a [Graph] object.  The method calls out to helpers that transform the graph from a config
+// to a DAG of components.  The configuration undergoes additional validation here as well, and is used to instantiate
+// the components of the pipeline.
+//
+// [Graph.StartAll] starts all components in each pipeline.
+//
+// [Graph.ShutdownAll] stops all components in each pipeline.
 package graph // import "go.opentelemetry.io/collector/service/internal/graph"
 
 import (
@@ -53,6 +62,8 @@ type Graph struct {
 	telemetry servicetelemetry.TelemetrySettings
 }
 
+// Build builds a full pipeline graph.
+// Build also validates the configuration of the pipelines and does the actual initialization of each Component in the Graph.
 func Build(ctx context.Context, set Settings) (*Graph, error) {
 	pipelines := &Graph{
 		componentGraph: simple.NewDirectedGraph(),
@@ -73,18 +84,22 @@ func Build(ctx context.Context, set Settings) (*Graph, error) {
 	return pipelines, pipelines.buildComponents(ctx, set)
 }
 
-// Creates a node for each instance of a component and adds it to the graph
+// Creates a node for each instance of a component and adds it to the graph.
+// Validates that connectors are configured to export and receive correctly.
 func (g *Graph) createNodes(set Settings) error {
-	// Build a list of all connectors for easy reference
+	// Build a list of all connectors for easy reference.
 	connectors := make(map[component.ID]struct{})
 
-	// Keep track of connectors and where they are used. (map[connectorID][]pipelineID)
+	// Keep track of connectors and where they are used. (map[connectorID][]pipelineID).
 	connectorsAsExporter := make(map[component.ID][]component.ID)
 	connectorsAsReceiver := make(map[component.ID][]component.ID)
 
+	// Build each pipelineNodes struct for each pipeline by parsing the pipelineCfg.
+	// Also populates the connectors, connectorsAsExporter and connectorsAsReceiver maps.
 	for pipelineID, pipelineCfg := range set.PipelineConfigs {
 		pipe := g.pipelines[pipelineID]
 		for _, recvID := range pipelineCfg.Receivers {
+			// Checks if this receiver is a connector or a regular receiver.
 			if set.ConnectorBuilder.IsConfigured(recvID) {
 				connectors[recvID] = struct{}{}
 				connectorsAsReceiver[recvID] = append(connectorsAsReceiver[recvID], pipelineID)
@@ -138,6 +153,7 @@ func (g *Graph) createNodes(set Settings) error {
 
 		for expType := range expTypes {
 			for recType := range recTypes {
+				// Typechecks the connector's receiving and exporting datatypes.
 				if connectorStability(connFactory, expType, recType) != component.StabilityLevelUndefined {
 					expTypes[expType] = true
 					recTypes[recType] = true
@@ -241,12 +257,15 @@ func (g *Graph) createConnector(exprPipelineID, rcvrPipelineID, connID component
 	return connNode
 }
 
+// Iterates through the pipelines and creates edges between components.
 func (g *Graph) createEdges() {
 	for _, pg := range g.pipelines {
+		// Draw edges from each receiver to the capability node.
 		for _, receiver := range pg.receivers {
 			g.componentGraph.SetEdge(g.componentGraph.NewEdge(receiver, pg.capabilitiesNode))
 		}
 
+		// Iterates through processors, chaining them together.  starts with the capabilities node.
 		var from, to graph.Node
 		from = pg.capabilitiesNode
 		for _, processor := range pg.processors {
@@ -254,6 +273,8 @@ func (g *Graph) createEdges() {
 			g.componentGraph.SetEdge(g.componentGraph.NewEdge(from, to))
 			from = processor
 		}
+		// Always inserts a fanout node before any exporters. If there is only one
+		// exporter, the fanout node is still created and acts as a noop.
 		to = pg.fanOutNode
 		g.componentGraph.SetEdge(g.componentGraph.NewEdge(from, to))
 
@@ -263,6 +284,9 @@ func (g *Graph) createEdges() {
 	}
 }
 
+// Uses the already built graph g to instantiate the actual components for each component of each pipeline.
+// Handles calling the factories for each component - and hooking up each component to the next.
+// Also calculates whether each pipeline mutates data so the receiver can know whether it needs to clone the data.
 func (g *Graph) buildComponents(ctx context.Context, set Settings) error {
 	nodes, err := topo.Sort(g.componentGraph)
 	if err != nil {
@@ -282,13 +306,17 @@ func (g *Graph) buildComponents(ctx context.Context, set Settings) error {
 		case *receiverNode:
 			err = n.buildComponent(ctx, telemetrySettings, set.BuildInfo, set.ReceiverBuilder, g.nextConsumers(n.ID()))
 		case *processorNode:
+			// nextConsumers is guaranteed to be length 1.  Either it is the next processor or it is the fanout node for the exporters.
 			err = n.buildComponent(ctx, telemetrySettings, set.BuildInfo, set.ProcessorBuilder, g.nextConsumers(n.ID())[0])
 		case *exporterNode:
 			err = n.buildComponent(ctx, telemetrySettings, set.BuildInfo, set.ExporterBuilder)
 		case *connectorNode:
 			err = n.buildComponent(ctx, telemetrySettings, set.BuildInfo, set.ConnectorBuilder, g.nextConsumers(n.ID()))
 		case *capabilitiesNode:
-			capability := consumer.Capabilities{MutatesData: false}
+			capability := consumer.Capabilities{
+				// The fanOutNode represents the aggregate capabilities of the exporters in the pipeline.
+				MutatesData: g.pipelines[n.pipelineID].fanOutNode.getConsumer().Capabilities().MutatesData,
+			}
 			for _, proc := range g.pipelines[n.pipelineID].processors {
 				capability.MutatesData = capability.MutatesData || proc.getConsumer().Capabilities().MutatesData
 			}
@@ -319,7 +347,6 @@ func (g *Graph) buildComponents(ctx context.Context, set Settings) error {
 			case component.DataTypeMetrics:
 				consumers := make([]consumer.Metrics, 0, len(nexts))
 				for _, next := range nexts {
-
 					consumers = append(consumers, next.(consumer.Metrics))
 				}
 				n.baseConsumer = fanoutconsumer.NewMetrics(consumers)
@@ -386,12 +413,20 @@ func (g *Graph) StartAll(ctx context.Context, host component.Host) error {
 		}
 
 		instanceID := g.instanceIDs[node.ID()]
-		_ = g.telemetry.ReportComponentStatus(instanceID, component.NewStatusEvent(component.StatusStarting))
+		g.telemetry.Status.ReportStatus(
+			instanceID,
+			component.NewStatusEvent(component.StatusStarting),
+		)
 
 		if compErr := comp.Start(ctx, host); compErr != nil {
-			_ = g.telemetry.ReportComponentStatus(instanceID, component.NewPermanentErrorEvent(compErr))
+			g.telemetry.Status.ReportStatus(
+				instanceID,
+				component.NewPermanentErrorEvent(compErr),
+			)
 			return compErr
 		}
+
+		g.telemetry.Status.ReportOKIfStarting(instanceID)
 	}
 	return nil
 }
@@ -417,15 +452,24 @@ func (g *Graph) ShutdownAll(ctx context.Context) error {
 		}
 
 		instanceID := g.instanceIDs[node.ID()]
-		_ = g.telemetry.ReportComponentStatus(instanceID, component.NewStatusEvent(component.StatusStopping))
+		g.telemetry.Status.ReportStatus(
+			instanceID,
+			component.NewStatusEvent(component.StatusStopping),
+		)
 
 		if compErr := comp.Shutdown(ctx); compErr != nil {
 			errs = multierr.Append(errs, compErr)
-			_ = g.telemetry.ReportComponentStatus(instanceID, component.NewPermanentErrorEvent(compErr))
+			g.telemetry.Status.ReportStatus(
+				instanceID,
+				component.NewPermanentErrorEvent(compErr),
+			)
 			continue
 		}
 
-		_ = g.telemetry.ReportComponentStatus(instanceID, component.NewStatusEvent(component.StatusStopped))
+		g.telemetry.Status.ReportStatus(
+			instanceID,
+			component.NewStatusEvent(component.StatusStopped),
+		)
 	}
 	return errs
 }
