@@ -28,7 +28,7 @@ type metricsProcessor struct {
 // NewMetricsProcessor creates a processor.Metrics that ensure context propagation and the right tags are set.
 func NewMetricsProcessor(
 	_ context.Context,
-	set processor.CreateSettings,
+	set processor.Settings,
 	_ component.Config,
 	nextConsumer consumer.Metrics,
 	metricsFunc ProcessMetricsFunc,
@@ -37,10 +37,6 @@ func NewMetricsProcessor(
 	// TODO: Add observability metrics support
 	if metricsFunc == nil {
 		return nil, errors.New("nil metricsFunc")
-	}
-
-	if nextConsumer == nil {
-		return nil, component.ErrNilNextConsumer
 	}
 
 	eventOptions := spanAttributes(set.ID)

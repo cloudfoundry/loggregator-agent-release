@@ -5,12 +5,17 @@ package connector // import "go.opentelemetry.io/collector/connector"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.uber.org/zap"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+)
+
+var (
+	errNilNextConsumer = errors.New("nil next Consumer")
 )
 
 // A Traces connector acts as an exporter from a traces pipeline and a receiver
@@ -30,13 +35,6 @@ type Traces interface {
 	consumer.Traces
 }
 
-// TracesRouter feeds the first consumer.Traces in each of the specified pipelines.
-// The router will create a fanout consumer for the set of pipelines and return a uuid
-type TracesRouter interface {
-	Consumer(...component.ID) (consumer.Traces, error)
-	PipelineIDs() []component.ID
-}
-
 // A Metrics connector acts as an exporter from a metrics pipeline and a receiver
 // to one or more traces, metrics, or logs pipelines.
 // Metrics feeds a consumer.Traces, consumer.Metrics, or consumer.Logs with data.
@@ -53,15 +51,9 @@ type Metrics interface {
 	consumer.Metrics
 }
 
-// MetricsRouter feeds the first consumer.Metrics in each of the specified pipelines.
-type MetricsRouter interface {
-	Consumer(...component.ID) (consumer.Metrics, error)
-	PipelineIDs() []component.ID
-}
-
 // A Logs connector acts as an exporter from a logs pipeline and a receiver
 // to one or more traces, metrics, or logs pipelines.
-// Logs feeds a consumer.Logs, consumer.Metrics, or consumer.Logs with data.
+// Logs feeds a consumer.Traces, consumer.Metrics, or consumer.Logs with data.
 //
 // Examples:
 //   - Structured logs containing span information could be consumed and emitted as traces.
@@ -74,14 +66,13 @@ type Logs interface {
 	consumer.Logs
 }
 
-// LogsRouter feeds the first consumer.Logs in each of the specified pipelines.
-type LogsRouter interface {
-	Consumer(...component.ID) (consumer.Logs, error)
-	PipelineIDs() []component.ID
-}
-
 // CreateSettings configures Connector creators.
-type CreateSettings struct {
+//
+// Deprecated: [v0.103.0] Use connector.Settings instead.
+type CreateSettings = Settings
+
+// Settings configures Connector creators.
+type Settings struct {
 	// ID returns the ID of the component that will be created.
 	ID component.ID
 
@@ -107,17 +98,17 @@ type Factory interface {
 	// tests of any implementation of the Factory interface.
 	CreateDefaultConfig() component.Config
 
-	CreateTracesToTraces(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Traces) (Traces, error)
-	CreateTracesToMetrics(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Metrics) (Traces, error)
-	CreateTracesToLogs(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Logs) (Traces, error)
+	CreateTracesToTraces(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Traces) (Traces, error)
+	CreateTracesToMetrics(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Metrics) (Traces, error)
+	CreateTracesToLogs(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Logs) (Traces, error)
 
-	CreateMetricsToTraces(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Traces) (Metrics, error)
-	CreateMetricsToMetrics(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Metrics) (Metrics, error)
-	CreateMetricsToLogs(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Logs) (Metrics, error)
+	CreateMetricsToTraces(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Traces) (Metrics, error)
+	CreateMetricsToMetrics(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Metrics) (Metrics, error)
+	CreateMetricsToLogs(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Logs) (Metrics, error)
 
-	CreateLogsToTraces(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Traces) (Logs, error)
-	CreateLogsToMetrics(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Metrics) (Logs, error)
-	CreateLogsToLogs(ctx context.Context, set CreateSettings, cfg component.Config, nextConsumer consumer.Logs) (Logs, error)
+	CreateLogsToTraces(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Traces) (Logs, error)
+	CreateLogsToMetrics(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Metrics) (Logs, error)
+	CreateLogsToLogs(ctx context.Context, set Settings, cfg component.Config, nextConsumer consumer.Logs) (Logs, error)
 
 	TracesToTracesStability() component.StabilityLevel
 	TracesToMetricsStability() component.StabilityLevel
@@ -150,12 +141,12 @@ func (f factoryOptionFunc) apply(o *factory) {
 }
 
 // CreateTracesToTracesFunc is the equivalent of Factory.CreateTracesToTraces().
-type CreateTracesToTracesFunc func(context.Context, CreateSettings, component.Config, consumer.Traces) (Traces, error)
+type CreateTracesToTracesFunc func(context.Context, Settings, component.Config, consumer.Traces) (Traces, error)
 
 // CreateTracesToTraces implements Factory.CreateTracesToTraces().
 func (f CreateTracesToTracesFunc) CreateTracesToTraces(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Traces) (Traces, error) {
 	if f == nil {
@@ -165,12 +156,12 @@ func (f CreateTracesToTracesFunc) CreateTracesToTraces(
 }
 
 // CreateTracesToMetricsFunc is the equivalent of Factory.CreateTracesToMetrics().
-type CreateTracesToMetricsFunc func(context.Context, CreateSettings, component.Config, consumer.Metrics) (Traces, error)
+type CreateTracesToMetricsFunc func(context.Context, Settings, component.Config, consumer.Metrics) (Traces, error)
 
 // CreateTracesToMetrics implements Factory.CreateTracesToMetrics().
 func (f CreateTracesToMetricsFunc) CreateTracesToMetrics(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Metrics,
 ) (Traces, error) {
@@ -181,12 +172,12 @@ func (f CreateTracesToMetricsFunc) CreateTracesToMetrics(
 }
 
 // CreateTracesToLogsFunc is the equivalent of Factory.CreateTracesToLogs().
-type CreateTracesToLogsFunc func(context.Context, CreateSettings, component.Config, consumer.Logs) (Traces, error)
+type CreateTracesToLogsFunc func(context.Context, Settings, component.Config, consumer.Logs) (Traces, error)
 
 // CreateTracesToLogs implements Factory.CreateTracesToLogs().
 func (f CreateTracesToLogsFunc) CreateTracesToLogs(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Logs,
 ) (Traces, error) {
@@ -197,12 +188,12 @@ func (f CreateTracesToLogsFunc) CreateTracesToLogs(
 }
 
 // CreateMetricsToTracesFunc is the equivalent of Factory.CreateMetricsToTraces().
-type CreateMetricsToTracesFunc func(context.Context, CreateSettings, component.Config, consumer.Traces) (Metrics, error)
+type CreateMetricsToTracesFunc func(context.Context, Settings, component.Config, consumer.Traces) (Metrics, error)
 
 // CreateMetricsToTraces implements Factory.CreateMetricsToTraces().
 func (f CreateMetricsToTracesFunc) CreateMetricsToTraces(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Traces,
 ) (Metrics, error) {
@@ -213,12 +204,12 @@ func (f CreateMetricsToTracesFunc) CreateMetricsToTraces(
 }
 
 // CreateMetricsToMetricsFunc is the equivalent of Factory.CreateMetricsToTraces().
-type CreateMetricsToMetricsFunc func(context.Context, CreateSettings, component.Config, consumer.Metrics) (Metrics, error)
+type CreateMetricsToMetricsFunc func(context.Context, Settings, component.Config, consumer.Metrics) (Metrics, error)
 
 // CreateMetricsToMetrics implements Factory.CreateMetricsToTraces().
 func (f CreateMetricsToMetricsFunc) CreateMetricsToMetrics(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Metrics,
 ) (Metrics, error) {
@@ -229,12 +220,12 @@ func (f CreateMetricsToMetricsFunc) CreateMetricsToMetrics(
 }
 
 // CreateMetricsToLogsFunc is the equivalent of Factory.CreateMetricsToLogs().
-type CreateMetricsToLogsFunc func(context.Context, CreateSettings, component.Config, consumer.Logs) (Metrics, error)
+type CreateMetricsToLogsFunc func(context.Context, Settings, component.Config, consumer.Logs) (Metrics, error)
 
 // CreateMetricsToLogs implements Factory.CreateMetricsToLogs().
 func (f CreateMetricsToLogsFunc) CreateMetricsToLogs(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Logs,
 ) (Metrics, error) {
@@ -245,12 +236,12 @@ func (f CreateMetricsToLogsFunc) CreateMetricsToLogs(
 }
 
 // CreateLogsToTracesFunc is the equivalent of Factory.CreateLogsToTraces().
-type CreateLogsToTracesFunc func(context.Context, CreateSettings, component.Config, consumer.Traces) (Logs, error)
+type CreateLogsToTracesFunc func(context.Context, Settings, component.Config, consumer.Traces) (Logs, error)
 
 // CreateLogsToTraces implements Factory.CreateLogsToTraces().
 func (f CreateLogsToTracesFunc) CreateLogsToTraces(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Traces,
 ) (Logs, error) {
@@ -261,12 +252,12 @@ func (f CreateLogsToTracesFunc) CreateLogsToTraces(
 }
 
 // CreateLogsToMetricsFunc is the equivalent of Factory.CreateLogsToMetrics().
-type CreateLogsToMetricsFunc func(context.Context, CreateSettings, component.Config, consumer.Metrics) (Logs, error)
+type CreateLogsToMetricsFunc func(context.Context, Settings, component.Config, consumer.Metrics) (Logs, error)
 
 // CreateLogsToMetrics implements Factory.CreateLogsToMetrics().
 func (f CreateLogsToMetricsFunc) CreateLogsToMetrics(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Metrics,
 ) (Logs, error) {
@@ -277,12 +268,12 @@ func (f CreateLogsToMetricsFunc) CreateLogsToMetrics(
 }
 
 // CreateLogsToLogsFunc is the equivalent of Factory.CreateLogsToLogs().
-type CreateLogsToLogsFunc func(context.Context, CreateSettings, component.Config, consumer.Logs) (Logs, error)
+type CreateLogsToLogsFunc func(context.Context, Settings, component.Config, consumer.Logs) (Logs, error)
 
 // CreateLogsToLogs implements Factory.CreateLogsToLogs().
 func (f CreateLogsToLogsFunc) CreateLogsToLogs(
 	ctx context.Context,
-	set CreateSettings,
+	set Settings,
 	cfg component.Config,
 	nextConsumer consumer.Logs,
 ) (Logs, error) {
@@ -474,7 +465,10 @@ func NewBuilder(cfgs map[component.ID]component.Config, factories map[component.
 }
 
 // CreateTracesToTraces creates a Traces connector based on the settings and config.
-func (b *Builder) CreateTracesToTraces(ctx context.Context, set CreateSettings, next consumer.Traces) (Traces, error) {
+func (b *Builder) CreateTracesToTraces(ctx context.Context, set Settings, next consumer.Traces) (Traces, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -490,7 +484,10 @@ func (b *Builder) CreateTracesToTraces(ctx context.Context, set CreateSettings, 
 }
 
 // CreateTracesToMetrics creates a Traces connector based on the settings and config.
-func (b *Builder) CreateTracesToMetrics(ctx context.Context, set CreateSettings, next consumer.Metrics) (Traces, error) {
+func (b *Builder) CreateTracesToMetrics(ctx context.Context, set Settings, next consumer.Metrics) (Traces, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -506,7 +503,10 @@ func (b *Builder) CreateTracesToMetrics(ctx context.Context, set CreateSettings,
 }
 
 // CreateTracesToLogs creates a Traces connector based on the settings and config.
-func (b *Builder) CreateTracesToLogs(ctx context.Context, set CreateSettings, next consumer.Logs) (Traces, error) {
+func (b *Builder) CreateTracesToLogs(ctx context.Context, set Settings, next consumer.Logs) (Traces, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -522,7 +522,10 @@ func (b *Builder) CreateTracesToLogs(ctx context.Context, set CreateSettings, ne
 }
 
 // CreateMetricsToTraces creates a Metrics connector based on the settings and config.
-func (b *Builder) CreateMetricsToTraces(ctx context.Context, set CreateSettings, next consumer.Traces) (Metrics, error) {
+func (b *Builder) CreateMetricsToTraces(ctx context.Context, set Settings, next consumer.Traces) (Metrics, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -538,7 +541,10 @@ func (b *Builder) CreateMetricsToTraces(ctx context.Context, set CreateSettings,
 }
 
 // CreateMetricsToMetrics creates a Metrics connector based on the settings and config.
-func (b *Builder) CreateMetricsToMetrics(ctx context.Context, set CreateSettings, next consumer.Metrics) (Metrics, error) {
+func (b *Builder) CreateMetricsToMetrics(ctx context.Context, set Settings, next consumer.Metrics) (Metrics, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -554,7 +560,10 @@ func (b *Builder) CreateMetricsToMetrics(ctx context.Context, set CreateSettings
 }
 
 // CreateMetricsToLogs creates a Metrics connector based on the settings and config.
-func (b *Builder) CreateMetricsToLogs(ctx context.Context, set CreateSettings, next consumer.Logs) (Metrics, error) {
+func (b *Builder) CreateMetricsToLogs(ctx context.Context, set Settings, next consumer.Logs) (Metrics, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -570,7 +579,10 @@ func (b *Builder) CreateMetricsToLogs(ctx context.Context, set CreateSettings, n
 }
 
 // CreateLogsToTraces creates a Logs connector based on the settings and config.
-func (b *Builder) CreateLogsToTraces(ctx context.Context, set CreateSettings, next consumer.Traces) (Logs, error) {
+func (b *Builder) CreateLogsToTraces(ctx context.Context, set Settings, next consumer.Traces) (Logs, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -586,7 +598,10 @@ func (b *Builder) CreateLogsToTraces(ctx context.Context, set CreateSettings, ne
 }
 
 // CreateLogsToMetrics creates a Logs connector based on the settings and config.
-func (b *Builder) CreateLogsToMetrics(ctx context.Context, set CreateSettings, next consumer.Metrics) (Logs, error) {
+func (b *Builder) CreateLogsToMetrics(ctx context.Context, set Settings, next consumer.Metrics) (Logs, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
@@ -602,7 +617,10 @@ func (b *Builder) CreateLogsToMetrics(ctx context.Context, set CreateSettings, n
 }
 
 // CreateLogsToLogs creates a Logs connector based on the settings and config.
-func (b *Builder) CreateLogsToLogs(ctx context.Context, set CreateSettings, next consumer.Logs) (Logs, error) {
+func (b *Builder) CreateLogsToLogs(ctx context.Context, set Settings, next consumer.Logs) (Logs, error) {
+	if next == nil {
+		return nil, errNilNextConsumer
+	}
 	cfg, existsCfg := b.cfgs[set.ID]
 	if !existsCfg {
 		return nil, fmt.Errorf("connector %q is not configured", set.ID)
