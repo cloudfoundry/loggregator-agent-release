@@ -11,7 +11,7 @@ require (
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20240604201903-7cef498efb7a
 	code.cloudfoundry.org/tlsconfig v0.0.0-20240613173017-075d5b187a0d
 	github.com/cloudfoundry/dropsonde v1.1.0
-	github.com/cloudfoundry/sonde-go v0.0.0-20240515174134-adba8bce1248
+	github.com/cloudfoundry/sonde-go v0.0.0-20240620221854-09ef53324489
 	github.com/gorilla/mux v1.8.1
 	github.com/onsi/gomega v1.33.1
 	github.com/prometheus/client_model v0.6.1
