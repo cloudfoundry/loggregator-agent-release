@@ -9,7 +9,7 @@ import (
 	_ "net/http/pprof" //nolint:gosec
 	"time"
 
-	"code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"

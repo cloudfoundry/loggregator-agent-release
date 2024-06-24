@@ -14,7 +14,7 @@ import (
 
 	_ "net/http/pprof" //nolint:gosec
 
-	"code.cloudfoundry.org/go-loggregator/v9"
+	"code.cloudfoundry.org/go-loggregator/v10"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/scraper"
 )
 
