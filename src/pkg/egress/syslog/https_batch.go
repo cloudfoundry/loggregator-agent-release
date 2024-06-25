@@ -14,10 +14,9 @@ const BATCHSIZE = 256 * 1024
 
 type HTTPSBatchWriter struct {
 	HTTPSWriter
-	msgBatch     bytes.Buffer
+	msgs         chan []byte
 	batchSize    int
 	sendInterval time.Duration
-	sendTimer    *TriggerTimer
 	egrMsgCount  float64
 }
 
@@ -30,7 +29,7 @@ func NewHTTPSBatchWriter(
 ) egress.WriteCloser {
 	client := httpClient(netConf, tlsConf)
 	binding.URL.Scheme = "https" // reset the scheme for usage to a valid http scheme
-	return &HTTPSBatchWriter{
+	BatchWriter := &HTTPSBatchWriter{
 		HTTPSWriter: HTTPSWriter{
 			url:             binding.URL,
 			appID:           binding.AppID,
@@ -42,17 +41,10 @@ func NewHTTPSBatchWriter(
 		batchSize:    BATCHSIZE,
 		sendInterval: 1 * time.Second,
 		egrMsgCount:  0,
+		msgs:         make(chan []byte),
 	}
-}
-
-func (w *HTTPSBatchWriter) sendMsgBatch() error {
-	currentEgrCount := w.egrMsgCount
-	currentMsg := w.msgBatch.Bytes()
-
-	w.egrMsgCount = 0
-	w.msgBatch.Reset()
-
-	return w.sendHttpRequest(currentMsg, currentEgrCount)
+	go BatchWriter.startSender()
+	return BatchWriter
 }
 
 // Modified Write function
@@ -63,55 +55,34 @@ func (w *HTTPSBatchWriter) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	for _, msg := range msgs {
-		w.msgBatch.Write(msg)
-		w.egrMsgCount += 1
-		w.startAndTriggerSend()
+		w.msgs <- msg
 	}
 	return nil
 }
 
-// TODO: Error back propagation. Errors are not looked at further down the call chain
-func (w *HTTPSBatchWriter) startAndTriggerSend() {
-	if w.sendTimer == nil || !w.sendTimer.Running() {
-		w.sendTimer = NewTriggerTimer(w.sendInterval, func() {
-			w.sendMsgBatch()
-		})
+func (w *HTTPSBatchWriter) startSender() {
+	t := time.NewTimer(w.sendInterval)
+
+	var msgBatch bytes.Buffer
+	var msgCount float64
+	for {
+		select {
+		case msg := <-w.msgs:
+			msgBatch.Write(msg)
+			msgCount++
+			if msgBatch.Len() >= w.batchSize {
+				w.sendHttpRequest(msgBatch.Bytes(), msgCount)
+				msgBatch.Reset()
+				msgCount = 0
+				t.Reset(w.sendInterval)
+			}
+		case <-t.C:
+			if msgBatch.Len() > 0 {
+				w.sendHttpRequest(msgBatch.Bytes(), msgCount)
+				msgBatch.Reset()
+				msgCount = 0
+			}
+			t.Reset(w.sendInterval)
+		}
 	}
-	if w.msgBatch.Len() >= w.batchSize {
-		w.sendTimer.Trigger()
-	}
-}
-
-type TriggerTimer struct {
-	triggered bool
-	execFunc  func()
-}
-
-func NewTriggerTimer(d time.Duration, f func()) *TriggerTimer {
-	timer := &TriggerTimer{
-		triggered: false,
-		execFunc:  f,
-	}
-	timer.initWait(d)
-
-	return timer
-}
-
-func (t *TriggerTimer) initWait(duration time.Duration) {
-	timer := time.NewTimer(duration)
-	go func() {
-		<-timer.C
-		t.Trigger()
-	}()
-}
-
-func (t *TriggerTimer) Trigger() {
-	if !t.triggered {
-		t.triggered = true
-		t.execFunc()
-	}
-}
-
-func (t *TriggerTimer) Running() bool {
-	return !t.triggered
 }

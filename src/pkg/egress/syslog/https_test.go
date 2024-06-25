@@ -78,7 +78,6 @@ var _ = Describe("HTTPWriter", func() {
 			&metricsHelpers.SpyMetric{},
 			c,
 		)
-
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
 		Expect(writer.Write(env)).To(HaveOccurred())
 	})

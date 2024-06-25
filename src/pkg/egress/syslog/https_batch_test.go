@@ -17,45 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var triggered = 0
 var string_to_1024_chars = "saljdflajsdssdfsdfljkfkajafjajlköflkjöjaklgljksdjlakljkflkjweljklkwjejlkfekljwlkjefjklwjklsdajkljklwerlkaskldgjksakjekjwrjkljasdjkgfkljwejklrkjlklasdkjlsadjlfjlkadfljkajklsdfjklslkdfjkllkjasdjkflsdlakfjklasldfkjlasdjfkjlsadlfjklaljsafjlslkjawjklerkjljklasjkdfjklwerjljalsdjkflwerjlkwejlkarjklalkklfsdjlfhkjsdfkhsewhkjjasdjfkhwkejrkjahjefkhkasdjhfkashfkjwehfkksadfjaskfkhjdshjfhewkjhasdfjdajskfjwehkfajkankaskjdfasdjhfkkjhjjkasdfjhkjahksdf"
-
-var _ = Describe("TriggerTimer testing", func() {
-	BeforeEach(func() {
-		triggered = 0
-	})
-
-	It("Timer triggered by call", func() {
-		timer := syslog.NewTriggerTimer(10*time.Millisecond, trigger)
-		timer.Trigger()
-		//expect timer to be triggered and therefore stopped
-		Expect(timer.Running()).To(BeFalse())
-		Expect(triggered).To(Equal(1))
-		time.Sleep(12 * time.Millisecond)
-		//expect timer to stay stopped and not trigger func again
-		Expect(timer.Running()).To(BeFalse())
-		Expect(triggered).To(Equal(1))
-	})
-
-	It("Timer triggered by time elapsed", func() {
-		timer := syslog.NewTriggerTimer(10*time.Millisecond, trigger)
-		//expect timer to be running and untriggered
-		Expect(timer.Running()).To(BeTrue())
-		Expect(triggered).To(Equal(0))
-		time.Sleep(12 * time.Millisecond)
-		//expect timer to be triggered and stopped
-		Expect(timer.Running()).To(BeFalse())
-		Expect(triggered).To(Equal(1))
-		//expect timer to not be able to be retriggered
-		timer.Trigger()
-		Expect(timer.Running()).To(BeFalse())
-		Expect(triggered).To(Equal(1))
-	})
-})
-
-func trigger() {
-	triggered += 1
-}
 
 var _ = Describe("HTTPS_batch_testing", func() {
 	var (
@@ -125,6 +87,7 @@ var _ = Describe("HTTPS_batch_testing", func() {
 		for i := 0; i < 300; i++ {
 			writer.Write(env1)
 		}
+		time.Sleep(100 * time.Millisecond)
 		Expect(drain.messages).To(HaveLen(256))
 	})
 
@@ -134,6 +97,7 @@ var _ = Describe("HTTPS_batch_testing", func() {
 			writer.Write(env1)
 			time.Sleep(99 * time.Millisecond)
 		}
+		Expect(drain.messages).To(HaveLen(0))
 		time.Sleep(100 * time.Millisecond)
 		Expect(drain.messages).To(HaveLen(10))
 	})
