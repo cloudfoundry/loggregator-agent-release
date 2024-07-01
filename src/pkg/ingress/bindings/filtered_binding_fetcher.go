@@ -11,7 +11,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
-var allowedSchemes = []string{"syslog", "syslog-tls", "https"}
+var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
 
 type IPChecker interface {
 	ResolveAddr(host string) (net.IP, error)
