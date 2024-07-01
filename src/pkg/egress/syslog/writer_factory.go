@@ -106,6 +106,14 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 			egressMetric,
 			converter,
 		)
+	case "https-batch":
+		w = NewHTTPSBatchWriter(
+			ub,
+			f.netConf,
+			tlsCfg,
+			egressMetric,
+			converter,
+		)
 	case "syslog":
 		w = NewTCPWriter(
 			ub,

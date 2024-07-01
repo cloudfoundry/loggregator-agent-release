@@ -23,7 +23,7 @@ var _ = Describe("EgressFactory", func() {
 	})
 
 	Context("when the url begins with https", func() {
-		It("returns an https writer", func() {
+		It("returns an single https writer", func() {
 			url, err := url.Parse("https://syslog.example.com")
 			Expect(err).ToNot(HaveOccurred())
 			urlBinding := &syslog.URLBinding{
@@ -37,6 +37,25 @@ var _ = Describe("EgressFactory", func() {
 			Expect(ok).To(BeTrue())
 
 			_, ok = retryWriter.Writer.(*syslog.HTTPSWriter)
+			Expect(ok).To(BeTrue())
+		})
+	})
+
+	Context("when the url begins with https and enables batching", func() {
+		It("returns an single https writer", func() {
+			url, err := url.Parse("https-batch://syslog.example.com")
+			Expect(err).ToNot(HaveOccurred())
+			urlBinding := &syslog.URLBinding{
+				URL: url,
+			}
+
+			writer, err := f.NewWriter(urlBinding)
+			Expect(err).ToNot(HaveOccurred())
+
+			retryWriter, ok := writer.(*syslog.RetryWriter)
+			Expect(ok).To(BeTrue())
+
+			_, ok = retryWriter.Writer.(*syslog.HTTPSBatchWriter)
 			Expect(ok).To(BeTrue())
 		})
 	})
