@@ -143,6 +143,8 @@ builds:
     version: 7.6.0
   a6048519-3f35-4d3d-5c97-13ff273ff778:
     version: 5.3.3
+  a931d172-8225-4a11-68f1-5d4280a54463:
+    version: 7.7.8
   a9781d2e-75bf-4e98-4073-a5f81f4c9149:
     version: 6.3.12
   a9e5cb8c-cdb2-41f6-60b2-340b3e1a4be3:
