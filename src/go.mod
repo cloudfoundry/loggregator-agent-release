@@ -9,7 +9,7 @@ require (
 	code.cloudfoundry.org/go-diodes v0.0.0-20240604201846-c756bfed2ed3
 	code.cloudfoundry.org/go-envstruct v1.7.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20240604201903-7cef498efb7a
-	code.cloudfoundry.org/tlsconfig v0.0.0-20240705175211-7a5a6eee6ef2
+	code.cloudfoundry.org/tlsconfig v0.0.0-20240710175717-1267031d8b88
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20240620221854-09ef53324489
 	github.com/gorilla/mux v1.8.1
@@ -37,7 +37,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/google/pprof v0.0.0-20240625030939-27f56978b8b0 // indirect
+	github.com/google/pprof v0.0.0-20240711041743-f6c9dda6c6da // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -48,13 +48,13 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	go.step.sm/crypto v0.48.1 // indirect
+	go.step.sm/crypto v0.49.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240708141625-4ad9e859172b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240709173604-40e1e62336c5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
