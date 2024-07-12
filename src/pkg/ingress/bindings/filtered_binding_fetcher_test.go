@@ -195,11 +195,15 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when the drain host fails to resolve", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
+		var mockic *mockIPChecker
 
 		BeforeEach(func() {
 			logBuffer = bytes.Buffer{}
 			log.SetOutput(&logBuffer)
 			warn = true
+			mockic = newMockIPChecker()
+			mockic.ResolveAddrOutput.Ret0 <- net.IP{}
+			mockic.ResolveAddrOutput.Ret1 <- errors.New("oof ouch ip not resolved")
 		})
 
 		JustBeforeEach(func() {
@@ -207,9 +211,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://some.invalid.host"}},
 			}
 			filter = bindings.NewFilteredBindingFetcher(
-				&spyIPChecker{
-					resolveAddrError: errors.New("resolve error"),
-				},
+				mockic,
 				&SpyBindingReader{bindings: input},
 				metrics,
 				warn,
@@ -223,6 +225,23 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
 			Expect(logBuffer.String()).Should(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+		})
+
+		It("caches bindings that failed to resolve", func() {
+			actual, err := filter.FetchBindings()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(Equal([]syslog.Binding{}))
+			Eventually(mockic.ResolveAddrCalled).Should(Receive())
+			Expect(logBuffer.String()).Should(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
+			Expect(logBuffer.String()).ToNot(MatchRegexp("Skipped resolve ip address for syslog drain with url"))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+
+			actual, err = filter.FetchBindings()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(BeEmpty())
+			Consistently(mockic.ResolveAddrCalled).ShouldNot(Receive())
+			Expect(logBuffer.String()).Should(MatchRegexp("Skipped resolve ip address for syslog drain with url"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 
