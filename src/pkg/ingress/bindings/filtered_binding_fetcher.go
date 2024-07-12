@@ -4,12 +4,15 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
-
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 )
+
+//go:generate hel --type IPChecker
 
 var allowedSchemes = []string{"syslog", "syslog-tls", "https"}
 
@@ -30,6 +33,7 @@ type FilteredBindingFetcher struct {
 	logger            *log.Logger
 	invalidDrains     metrics.Gauge
 	blacklistedDrains metrics.Gauge
+	failedHostsCache  *simplecache.SimpleCache[string, bool]
 }
 
 func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, warn bool, lc *log.Logger) *FilteredBindingFetcher {
@@ -52,6 +56,7 @@ func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, 
 		logger:            lc,
 		invalidDrains:     invalidDrains,
 		blacklistedDrains: blacklistedDrains,
+		failedHostsCache:  simplecache.New[string, bool](120 * time.Second),
 	}
 }
 
@@ -91,9 +96,17 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
+		_, exists := f.failedHostsCache.Get(u.Host)
+		if exists {
+			invalidDrains += 1
+			f.printWarning("Skipped resolve ip address for syslog drain with url %s for application %s due to prior failure", anonymousUrl.String(), b.AppId)
+			continue
+		}
+
 		ip, err := f.ipChecker.ResolveAddr(u.Host)
 		if err != nil {
 			invalidDrains += 1
+			f.failedHostsCache.Set(u.Host, true)
 			f.printWarning("Cannot resolve ip address for syslog drain with url %s for application %s", anonymousUrl.String(), b.AppId)
 			continue
 		}
