@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 
@@ -349,29 +350,43 @@ var _ = Describe("App", func() {
 		})
 	})
 
-	Context("when an OTel Collector is registered to forward to", func() {
+	Context("when an OTel Collector is registered to", func() {
 		var (
 			otelMetricsServer *spyOtelColMetricServer
 			otelTraceServer   *spyOtelColTraceServer
+			otelLogsServer    *spyOtelColLogServer
 		)
 
 		BeforeEach(func() {
 			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector")
 			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector")
+			otelLogsServer = startSpyOtelColLogServer(ingressCfgPath, agentCerts, "otel-collector")
 			agentCfg.EmitOTelTraces = true
 		})
 
 		AfterEach(func() {
 			otelMetricsServer.close()
 			otelTraceServer.close()
+			otelLogsServer.close()
 		})
 
-		DescribeTable("some envelopes are not forwarded",
+		DescribeTable("not forward log and event envelopes to otel metrics",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
 				Consistently(otelMetricsServer.requests, 3).ShouldNot(Receive())
 			},
 			Entry("drops logs", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}),
+			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
+		)
+
+		DescribeTable("not forward counters, gagues, timers and event envelopes to otel logs",
+			func(e *loggregator_v2.Envelope) {
+				ingressClient.Emit(e)
+				Consistently(otelLogsServer.requests, 3).ShouldNot(Receive())
+			},
+			Entry("drops counters", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Counter{}}),
+			Entry("drops gauges", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Gauge{}}),
+			Entry("drops timers", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}),
 			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
 		)
 
@@ -406,6 +421,17 @@ var _ = Describe("App", func() {
 
 			trace := req.ResourceSpans[0].ScopeSpans[0].Spans[0]
 			Expect(trace.GetName()).To(Equal(name))
+		})
+
+		It("forwards logs", func() {
+			body := "test log body"
+			ingressClient.EmitLog(body, loggregator.WithStdout())
+
+			var req *collogspb.ExportLogsServiceRequest
+			Eventually(otelLogsServer.requests).Should(Receive(&req))
+
+			log := req.ResourceLogs[0].ScopeLogs[0].LogRecords[0]
+			Expect(log.GetBody().GetStringValue()).To(Equal(body))
 		})
 
 		Context("when support for forwarding timers as traces is not active", func() {
