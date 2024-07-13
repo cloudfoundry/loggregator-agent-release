@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
+	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
+	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc"
@@ -27,6 +29,9 @@ type GRPCWriter struct {
 
 	// The client API for the OTel Collector trace service
 	tsc coltracepb.TraceServiceClient
+
+	// The client API for the OTel Collector logs service
+	lsc collogspb.LogsServiceClient
 
 	// Context passed to gRPC
 	ctx context.Context
@@ -49,11 +54,24 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 	w := &GRPCWriter{
 		msc:    colmetricspb.NewMetricsServiceClient(cc),
 		tsc:    coltracepb.NewTraceServiceClient(cc),
+		lsc:    collogspb.NewLogsServiceClient(cc),
 		ctx:    ctx,
 		cancel: cancel,
 		l:      l,
 	}
 	return w, nil
+}
+
+func (w GRPCWriter) WriteLogs(batch []*logspb.ResourceLogs) {
+	resp, err := w.lsc.Export(w.ctx, &collogspb.ExportLogsServiceRequest{
+		ResourceLogs: batch,
+	})
+	if err == nil {
+		err = errorOnLogsRejection(resp)
+	}
+	if err != nil {
+		w.l.Println("Write error:", err)
+	}
 }
 
 func (w GRPCWriter) WriteMetrics(batch []*metricspb.Metric) {
@@ -71,7 +89,6 @@ func (w GRPCWriter) WriteMetrics(batch []*metricspb.Metric) {
 	if err == nil {
 		err = errorOnRejection(resp)
 	}
-
 	if err != nil {
 		w.l.Println("Write error:", err)
 	}
@@ -84,7 +101,6 @@ func (w GRPCWriter) WriteTrace(batch []*tracepb.ResourceSpans) {
 	if err == nil {
 		err = errorOnTraceRejection(resp)
 	}
-
 	if err != nil {
 		w.l.Println("Write error:", err)
 	}
@@ -100,13 +116,16 @@ type Client struct {
 	b *SignalBatcher
 	// Forward timers as traces
 	emitTraces bool
+	// Forward events as logs
+	emitEvents bool
 }
 
-// New creates a new Client that will batch metrics.
-func New(w Writer, emitTraces bool) *Client {
+// New creates a new Client that will batch metrics and logs.
+func New(w Writer, emitTraces bool, emitEvents bool) *Client {
 	return &Client{
 		b:          NewSignalBatcher(100, 100*time.Millisecond, w),
 		emitTraces: emitTraces,
+		emitEvents: emitEvents,
 	}
 }
 
@@ -120,8 +139,11 @@ func (c *Client) Write(e *loggregator_v2.Envelope) error {
 		c.writeGauge(e)
 	case *loggregator_v2.Envelope_Timer:
 		c.writeTimer(e)
+	case *loggregator_v2.Envelope_Log:
+		c.writeLog(e)
+	case *loggregator_v2.Envelope_Event:
+		c.writeEvent(e)
 	}
-
 	return nil
 }
 
@@ -129,6 +151,76 @@ func (c *Client) Write(e *loggregator_v2.Envelope) error {
 // TODO: add flushing of batcher before canceling
 func (c *Client) Close() error {
 	return c.b.w.Close()
+}
+
+// writeCounter translates a loggregator v2 Counter to OTLP and adds the metric to the pending batch.
+func (c *Client) writeLog(e *loggregator_v2.Envelope) {
+	atts := attributes(e)
+	svrtyNumber := logspb.SeverityNumber_SEVERITY_NUMBER_UNSPECIFIED
+	switch e.GetLog().GetType() {
+	case loggregator_v2.Log_OUT:
+		svrtyNumber = logspb.SeverityNumber_SEVERITY_NUMBER_INFO
+	case loggregator_v2.Log_ERR:
+		svrtyNumber = logspb.SeverityNumber_SEVERITY_NUMBER_ERROR
+	}
+	c.b.WriteLog(&logspb.ResourceLogs{
+		ScopeLogs: []*logspb.ScopeLogs{
+			{
+				LogRecords: []*logspb.LogRecord{
+					{
+						TimeUnixNano:         uint64(e.GetTimestamp()),
+						Attributes:           atts,
+						ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+						SeverityText:         svrtyNumber.String(),
+						SeverityNumber:       svrtyNumber,
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_StringValue{
+								StringValue: string(e.GetLog().GetPayload()),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func (c *Client) writeEvent(e *loggregator_v2.Envelope) {
+	if !c.emitEvents {
+		return
+	}
+	atts := attributes(e)
+	body := e.GetEvent().GetBody()
+	title := e.GetEvent().GetTitle()
+	c.b.WriteLog(&logspb.ResourceLogs{
+		ScopeLogs: []*logspb.ScopeLogs{
+			{
+				LogRecords: []*logspb.LogRecord{
+					{
+						TimeUnixNano:         uint64(e.GetTimestamp()),
+						Attributes:           atts,
+						ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_KvlistValue{
+								KvlistValue: &commonpb.KeyValueList{
+									Values: []*commonpb.KeyValue{
+										{
+											Key:   "title",
+											Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: title}},
+										},
+										{
+											Key:   "body",
+											Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: body}},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
 }
 
 // writeCounter translates a loggregator v2 Counter to OTLP and adds the metric to the pending batch.
@@ -242,6 +334,13 @@ func errorOnRejection(r *colmetricspb.ExportMetricsServiceResponse) error {
 
 func errorOnTraceRejection(r *coltracepb.ExportTraceServiceResponse) error {
 	if ps := r.GetPartialSuccess(); ps != nil && ps.GetRejectedSpans() > 0 {
+		return errors.New(ps.GetErrorMessage())
+	}
+	return nil
+}
+
+func errorOnLogsRejection(r *collogspb.ExportLogsServiceResponse) error {
+	if ps := r.GetPartialSuccess(); ps != nil && ps.GetRejectedLogRecords() > 0 {
 		return errors.New(ps.GetErrorMessage())
 	}
 	return nil

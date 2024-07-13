@@ -11,9 +11,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
+	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
+	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc"
@@ -26,6 +28,7 @@ var _ = Describe("Client", func() {
 		b      *SignalBatcher
 		spyMSC *spyMetricsServiceClient
 		spyTSC *spyTraceServiceClient
+		spyLSC *spyLogsServiceClient
 		buf    *gbytes.Buffer
 	)
 
@@ -42,11 +45,16 @@ var _ = Describe("Client", func() {
 			response:    &coltracepb.ExportTraceServiceResponse{},
 			responseErr: nil,
 		}
-
+		spyLSC = &spyLogsServiceClient{
+			requests:    make(chan *collogspb.ExportLogsServiceRequest, 1),
+			response:    &collogspb.ExportLogsServiceResponse{},
+			responseErr: nil,
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		w := GRPCWriter{
 			msc:    spyMSC,
 			tsc:    spyTSC,
+			lsc:    spyLSC,
 			ctx:    ctx,
 			cancel: cancel,
 			l:      log.New(GinkgoWriter, "", 0),
@@ -56,7 +64,7 @@ var _ = Describe("Client", func() {
 			100*time.Millisecond,
 			w,
 		)
-		c = Client{b: b, emitTraces: true}
+		c = Client{b: b, emitTraces: true, emitEvents: true}
 	})
 
 	AfterEach(func() {
@@ -716,33 +724,238 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Context("when given a log", func() {
+		Context("when given a stdout log", func() {
 			BeforeEach(func() {
-				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}
+				envelope = &loggregator_v2.Envelope{
+					Timestamp:  1257894000000000000,
+					SourceId:   "fake-source-id",
+					InstanceId: "fake-instance-id",
+					Tags: map[string]string{
+						"direction": "egress",
+						"origin":    "fake-origin.some-vm",
+					},
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{
+							Payload: []byte("log message"),
+							Type:    loggregator_v2.Log_OUT,
+						},
+					},
+				}
 			})
 
 			It("returns nil", func() {
 				Expect(returnedErr).NotTo(HaveOccurred())
 			})
 
-			It("does nothing", func() {
-				Expect(spyMSC.requests).NotTo(Receive())
-				Consistently(buf.Contents()).Should(HaveLen(0))
+			It("emits an info log", func() {
+				var lsr *collogspb.ExportLogsServiceRequest
+				Expect(spyLSC.requests).To(Receive(&lsr))
+
+				expectedReq := &collogspb.ExportLogsServiceRequest{
+					ResourceLogs: []*logspb.ResourceLogs{
+						{
+							ScopeLogs: []*logspb.ScopeLogs{
+								{
+									LogRecords: []*logspb.LogRecord{
+										{
+											ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+											TimeUnixNano:         uint64(1257894000000000000),
+											SeverityText:         logspb.SeverityNumber_SEVERITY_NUMBER_INFO.String(),
+											SeverityNumber:       logspb.SeverityNumber_SEVERITY_NUMBER_INFO,
+											Body: &commonpb.AnyValue{
+												Value: &commonpb.AnyValue_StringValue{
+													StringValue: "log message",
+												},
+											},
+											Attributes: []*commonpb.KeyValue{
+												{
+													Key:   "direction",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "egress"}},
+												},
+												{
+													Key:   "instance_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+												},
+												{
+													Key:   "origin",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
+												},
+												{
+													Key:   "source_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				dict := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
+					return x.Key < y.Key
+				})
+				Expect(lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano).NotTo(BeZero())
+				expectedReq.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano = lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano
+				Expect(cmp.Diff(lsr, expectedReq, protocmp.Transform(), dict)).To(BeEmpty())
 			})
 		})
 
-		Context("when given an event", func() {
+		Context("when given a stderr log", func() {
 			BeforeEach(func() {
-				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}
+				envelope = &loggregator_v2.Envelope{
+					Timestamp:  1257894000000000000,
+					SourceId:   "fake-source-id",
+					InstanceId: "fake-instance-id",
+					Tags: map[string]string{
+						"direction": "egress",
+						"origin":    "fake-origin.some-vm",
+					},
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{
+							Payload: []byte("log error message"),
+							Type:    loggregator_v2.Log_ERR,
+						},
+					},
+				}
 			})
 
 			It("returns nil", func() {
 				Expect(returnedErr).NotTo(HaveOccurred())
 			})
 
-			It("does nothing", func() {
-				Expect(spyMSC.requests).NotTo(Receive())
-				Consistently(buf.Contents()).Should(HaveLen(0))
+			It("emits an error log", func() {
+				var lsr *collogspb.ExportLogsServiceRequest
+				Expect(spyLSC.requests).To(Receive(&lsr))
+
+				expectedReq := &collogspb.ExportLogsServiceRequest{
+					ResourceLogs: []*logspb.ResourceLogs{
+						{
+							ScopeLogs: []*logspb.ScopeLogs{
+								{
+									LogRecords: []*logspb.LogRecord{
+										{
+											ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+											TimeUnixNano:         uint64(1257894000000000000),
+											SeverityText:         logspb.SeverityNumber_SEVERITY_NUMBER_ERROR.String(),
+											SeverityNumber:       logspb.SeverityNumber_SEVERITY_NUMBER_ERROR,
+											Body: &commonpb.AnyValue{
+												Value: &commonpb.AnyValue_StringValue{
+													StringValue: "log error message",
+												},
+											},
+											Attributes: []*commonpb.KeyValue{
+												{
+													Key:   "direction",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "egress"}},
+												},
+												{
+													Key:   "instance_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+												},
+												{
+													Key:   "origin",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
+												},
+												{
+													Key:   "source_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				dict := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
+					return x.Key < y.Key
+				})
+				Expect(lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano).NotTo(BeZero())
+				expectedReq.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano = lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano
+				Expect(cmp.Diff(lsr, expectedReq, protocmp.Transform(), dict)).To(BeEmpty())
+			})
+		})
+
+		Context("when given event", func() {
+			BeforeEach(func() {
+				envelope = &loggregator_v2.Envelope{
+					Timestamp:  1257894000000000000,
+					SourceId:   "fake-source-id",
+					InstanceId: "fake-instance-id",
+					Tags: map[string]string{
+						"origin": "fake-origin.some-vm",
+					},
+					Message: &loggregator_v2.Envelope_Event{
+						Event: &loggregator_v2.Event{
+							Title: "event title",
+							Body:  "event body",
+						},
+					},
+				}
+			})
+
+			It("returns nil", func() {
+				Expect(returnedErr).NotTo(HaveOccurred())
+			})
+
+			It("emits an event log", func() {
+				var lsr *collogspb.ExportLogsServiceRequest
+				Expect(spyLSC.requests).To(Receive(&lsr))
+
+				expectedReq := &collogspb.ExportLogsServiceRequest{
+					ResourceLogs: []*logspb.ResourceLogs{
+						{
+							ScopeLogs: []*logspb.ScopeLogs{
+								{
+									LogRecords: []*logspb.LogRecord{
+										{
+											ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+											TimeUnixNano:         uint64(1257894000000000000),
+											Body: &commonpb.AnyValue{
+												Value: &commonpb.AnyValue_KvlistValue{
+													KvlistValue: &commonpb.KeyValueList{
+														Values: []*commonpb.KeyValue{
+															{
+																Key:   "title",
+																Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "event title"}},
+															},
+															{
+																Key:   "body",
+																Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "event body"}},
+															},
+														},
+													},
+												},
+											},
+											Attributes: []*commonpb.KeyValue{
+												{
+													Key:   "instance_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+												},
+												{
+													Key:   "origin",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
+												},
+												{
+													Key:   "source_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				dict := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
+					return x.Key < y.Key
+				})
+				Expect(lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano).NotTo(BeZero())
+				expectedReq.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano = lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano
+				Expect(cmp.Diff(lsr, expectedReq, protocmp.Transform(), dict)).To(BeEmpty())
 			})
 		})
 
@@ -822,6 +1035,19 @@ type spyMetricsServiceClient struct {
 }
 
 func (c *spyMetricsServiceClient) Export(ctx context.Context, in *colmetricspb.ExportMetricsServiceRequest, opts ...grpc.CallOption) (*colmetricspb.ExportMetricsServiceResponse, error) {
+	c.requests <- in
+	c.ctx = ctx
+	return c.response, c.responseErr
+}
+
+type spyLogsServiceClient struct {
+	requests    chan *collogspb.ExportLogsServiceRequest
+	response    *collogspb.ExportLogsServiceResponse
+	responseErr error
+	ctx         context.Context
+}
+
+func (c *spyLogsServiceClient) Export(ctx context.Context, in *collogspb.ExportLogsServiceRequest, opts ...grpc.CallOption) (*collogspb.ExportLogsServiceResponse, error) {
 	c.requests <- in
 	c.ctx = ctx
 	return c.response, c.responseErr
