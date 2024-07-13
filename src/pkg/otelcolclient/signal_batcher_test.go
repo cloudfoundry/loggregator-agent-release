@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
@@ -33,6 +34,16 @@ var _ = Describe("SignalBatcher", func() {
 		Expect(writer.TraceBatchLen()).To(Equal(2))
 	})
 
+	It("batches logs", func() {
+		writer := &spySignalWriter{}
+		b := NewSignalBatcher(2, time.Minute, writer)
+		b.WriteLog(&logspb.ResourceLogs{})
+		Expect(writer.LogsBatchLen()).To(Equal(0))
+
+		b.WriteLog(&logspb.ResourceLogs{})
+		Expect(writer.LogsBatchLen()).To(Equal(2))
+	})
+
 	Context("when no writes have occurred for a while", func() {
 		It("flushes pending writes", func() {
 			writer := &spySignalWriter{}
@@ -50,6 +61,7 @@ var _ = Describe("SignalBatcher", func() {
 type spySignalWriter struct {
 	metrics []*metricspb.Metric
 	trace   []*tracepb.ResourceSpans
+	logs    []*logspb.ResourceLogs
 	mu      sync.Mutex
 }
 
@@ -65,6 +77,12 @@ func (w *spySignalWriter) WriteTrace(batch []*tracepb.ResourceSpans) {
 	w.trace = batch
 }
 
+func (w *spySignalWriter) WriteLogs(batch []*logspb.ResourceLogs) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.logs = batch
+}
+
 func (w *spySignalWriter) MetricsBatchLen() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -75,6 +93,12 @@ func (w *spySignalWriter) TraceBatchLen() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return len(w.trace)
+}
+
+func (w *spySignalWriter) LogsBatchLen() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return len(w.logs)
 }
 
 func (w *spySignalWriter) Close() error {

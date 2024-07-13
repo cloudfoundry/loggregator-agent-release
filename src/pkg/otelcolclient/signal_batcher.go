@@ -5,15 +5,16 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-batching"
+	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
 // SignalBatcher batches OpenTelemetry signals.
 type SignalBatcher struct {
-	metricsBatcher, traceBatcher *batching.Batcher
-	w                            Writer
-	mu                           sync.Mutex
+	metricsBatcher, traceBatcher, logsBatcher *batching.Batcher
+	w                                         Writer
+	mu                                        sync.Mutex
 }
 
 // Writer is used to submit the completed batches of OpenTelemetry signals. The
@@ -23,6 +24,8 @@ type Writer interface {
 	WriteMetrics(batch []*metricspb.Metric)
 	// WriteTrace submits the batch.
 	WriteTrace(batch []*tracepb.ResourceSpans)
+	// WriteLogs submits the batch.
+	WriteLogs(batch []*logspb.ResourceLogs)
 	Close() error
 }
 
@@ -42,10 +45,17 @@ func NewSignalBatcher(size int, interval time.Duration, writer Writer) *SignalBa
 		}
 		writer.WriteTrace(envBatch)
 	})
-
+	logsWriter := batching.WriterFunc(func(batch []any) {
+		envBatch := make([]*logspb.ResourceLogs, 0, len(batch))
+		for _, element := range batch {
+			envBatch = append(envBatch, element.(*logspb.ResourceLogs))
+		}
+		writer.WriteLogs(envBatch)
+	})
 	sb := &SignalBatcher{
 		metricsBatcher: batching.NewBatcher(size, interval, metricsWriter),
 		traceBatcher:   batching.NewBatcher(size, interval, traceWriter),
+		logsBatcher:    batching.NewBatcher(size, interval, logsWriter),
 		w:              writer,
 	}
 	go func() {
@@ -75,8 +85,17 @@ func (b *SignalBatcher) WriteTrace(data *tracepb.ResourceSpans) {
 	b.traceBatcher.Write(data)
 }
 
+// WriteLogs stores data to the log batch. It will not submit the batch to
+// the writer until either the batch has been filled, or the interval has
+// lapsed.
+func (b *SignalBatcher) WriteLog(data *logspb.ResourceLogs) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.logsBatcher.Write(data)
+}
+
 // Flush will write a partial batch if there is data and the interval has
-// lapsed. Otherwise it is a NOP. This method should be called freqently to
+// lapsed. Otherwise it is a NOP. This method should be called frequently to
 // make sure batches do not stick around for long periods of time. As a result
 // it would be a bad idea to call Flush after an operation that might block
 // for an un-specified amount of time.
@@ -85,4 +104,5 @@ func (b *SignalBatcher) Flush() {
 	defer b.mu.Unlock()
 	b.metricsBatcher.Flush()
 	b.traceBatcher.Flush()
+	b.logsBatcher.Flush()
 }

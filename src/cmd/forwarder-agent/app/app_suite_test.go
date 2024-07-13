@@ -19,6 +19,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	colmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"google.golang.org/grpc"
@@ -326,5 +327,65 @@ func (s *spyOtelColTraceServer) Export(_ context.Context, req *coltracepb.Export
 }
 
 func (s *spyOtelColTraceServer) close() {
+	s.srv.Stop()
+}
+
+// A fake OTel Collector logs gRPC server that captures requests made to it.
+type spyOtelColLogServer struct {
+	collogspb.UnimplementedLogsServiceServer
+
+	srv  *grpc.Server
+	addr string
+
+	requests chan *collogspb.ExportLogsServiceRequest
+}
+
+// Creates a spyOtelColLogServer, starts it listening on a random port,
+// registers it as a gRPC service, and writes out a temp file for the forwarder
+// agent to recognize it as a destination. The cfgPath it accepts is the folder
+// under which to write the temp file.
+func startSpyOtelColLogServer(cfgPath string, tc *testhelper.TestCerts, commonName string) *spyOtelColLogServer {
+	serverCreds, err := plumbing.NewServerCredentials(
+		tc.Cert(commonName),
+		tc.Key(commonName),
+		tc.CA(),
+	)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	lis, err := net.Listen("tcp", "127.0.0.1:")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	s := &spyOtelColLogServer{
+		srv:      grpc.NewServer(grpc.Creds(serverCreds)),
+		requests: make(chan *collogspb.ExportLogsServiceRequest, 10000),
+		addr:     lis.Addr().String(),
+	}
+
+	collogspb.RegisterLogsServiceServer(s.srv, s)
+	go s.srv.Serve(lis) //nolint:errcheck
+
+	port, err := strconv.Atoi(strings.Split(s.addr, ":")[1])
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	dir, err := os.MkdirTemp(cfgPath, "")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	tmpfn := filepath.Join(dir, "ingress_port.yml")
+
+	contents := fmt.Sprintf(`---
+ingress: %d
+protocol: otelcol
+`, port)
+	err = os.WriteFile(tmpfn, []byte(contents), 0600)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+	return s
+}
+
+func (s *spyOtelColLogServer) Export(_ context.Context, req *collogspb.ExportLogsServiceRequest) (*collogspb.ExportLogsServiceResponse, error) {
+	s.requests <- req
+	return &collogspb.ExportLogsServiceResponse{}, nil
+}
+
+func (s *spyOtelColLogServer) close() {
 	s.srv.Stop()
 }
