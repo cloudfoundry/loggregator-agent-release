@@ -64,7 +64,7 @@ var _ = Describe("Client", func() {
 			100*time.Millisecond,
 			w,
 		)
-		c = Client{b: b, emitTraces: true}
+		c = Client{b: b, emitTraces: true, emitEvents: true}
 	})
 
 	AfterEach(func() {
@@ -878,18 +878,84 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Context("when given an event", func() {
+		Context("when given event", func() {
 			BeforeEach(func() {
-				envelope = &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}
+				envelope = &loggregator_v2.Envelope{
+					Timestamp:  1257894000000000000,
+					SourceId:   "fake-source-id",
+					InstanceId: "fake-instance-id",
+					Tags: map[string]string{
+						"origin": "fake-origin.some-vm",
+					},
+					Message: &loggregator_v2.Envelope_Event{
+						Event: &loggregator_v2.Event{
+							Title: "event title",
+							Body:  "event body",
+						},
+					},
+				}
 			})
 
 			It("returns nil", func() {
 				Expect(returnedErr).NotTo(HaveOccurred())
 			})
 
-			It("does nothing", func() {
-				Expect(spyMSC.requests).NotTo(Receive())
-				Consistently(buf.Contents()).Should(HaveLen(0))
+			It("emits an event log", func() {
+				var lsr *collogspb.ExportLogsServiceRequest
+				Expect(spyLSC.requests).To(Receive(&lsr))
+
+				expectedReq := &collogspb.ExportLogsServiceRequest{
+					ResourceLogs: []*logspb.ResourceLogs{
+						{
+							ScopeLogs: []*logspb.ScopeLogs{
+								{
+									LogRecords: []*logspb.LogRecord{
+										{
+											ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+											TimeUnixNano:         uint64(1257894000000000000),
+											Body: &commonpb.AnyValue{
+												Value: &commonpb.AnyValue_KvlistValue{
+													KvlistValue: &commonpb.KeyValueList{
+														Values: []*commonpb.KeyValue{
+															{
+																Key:   "title",
+																Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "event title"}},
+															},
+															{
+																Key:   "body",
+																Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "event body"}},
+															},
+														},
+													},
+												},
+											},
+											Attributes: []*commonpb.KeyValue{
+												{
+													Key:   "instance_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-instance-id"}},
+												},
+												{
+													Key:   "origin",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-origin.some-vm"}},
+												},
+												{
+													Key:   "source_id",
+													Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "fake-source-id"}},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				dict := protocmp.SortRepeated(func(x *commonpb.KeyValue, y *commonpb.KeyValue) bool {
+					return x.Key < y.Key
+				})
+				Expect(lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano).NotTo(BeZero())
+				expectedReq.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano = lsr.ResourceLogs[0].ScopeLogs[0].LogRecords[0].ObservedTimeUnixNano
+				Expect(cmp.Diff(lsr, expectedReq, protocmp.Transform(), dict)).To(BeEmpty())
 			})
 		})
 

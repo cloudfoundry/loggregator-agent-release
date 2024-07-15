@@ -116,13 +116,16 @@ type Client struct {
 	b *SignalBatcher
 	// Forward timers as traces
 	emitTraces bool
+	// Forward events as logs
+	emitEvents bool
 }
 
 // New creates a new Client that will batch metrics and logs.
-func New(w Writer, emitTraces bool) *Client {
+func New(w Writer, emitTraces bool, emitEvents bool) *Client {
 	return &Client{
 		b:          NewSignalBatcher(100, 100*time.Millisecond, w),
 		emitTraces: emitTraces,
+		emitEvents: emitEvents,
 	}
 }
 
@@ -138,6 +141,8 @@ func (c *Client) Write(e *loggregator_v2.Envelope) error {
 		c.writeTimer(e)
 	case *loggregator_v2.Envelope_Log:
 		c.writeLog(e)
+	case *loggregator_v2.Envelope_Event:
+		c.writeEvent(e)
 	}
 	return nil
 }
@@ -171,6 +176,44 @@ func (c *Client) writeLog(e *loggregator_v2.Envelope) {
 						Body: &commonpb.AnyValue{
 							Value: &commonpb.AnyValue_StringValue{
 								StringValue: string(e.GetLog().GetPayload()),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func (c *Client) writeEvent(e *loggregator_v2.Envelope) {
+	if !c.emitEvents {
+		return
+	}
+	atts := attributes(e)
+	body := e.GetEvent().GetBody()
+	title := e.GetEvent().GetTitle()
+	c.b.WriteLog(&logspb.ResourceLogs{
+		ScopeLogs: []*logspb.ScopeLogs{
+			{
+				LogRecords: []*logspb.LogRecord{
+					{
+						TimeUnixNano:         uint64(e.GetTimestamp()),
+						Attributes:           atts,
+						ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_KvlistValue{
+								KvlistValue: &commonpb.KeyValueList{
+									Values: []*commonpb.KeyValue{
+										{
+											Key:   "title",
+											Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: title}},
+										},
+										{
+											Key:   "body",
+											Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: body}},
+										},
+									},
+								},
 							},
 						},
 					},
