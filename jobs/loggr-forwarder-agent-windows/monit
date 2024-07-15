@@ -25,6 +25,7 @@
        "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
        "DOWNSTREAM_INGRESS_PORT_GLOB" => p("downstream_ingress_port_glob"),
        "EMIT_OTEL_TRACES" => "#{p("temporary_emit_otel_traces")}",
+       "EMIT_EVENTS_AS_OTEL_LOGS" => "#{p("emit_events_as_otel_logs")}",
        "METRICS_PORT" => "#{p("metrics.port")}",
        "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
        "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",
