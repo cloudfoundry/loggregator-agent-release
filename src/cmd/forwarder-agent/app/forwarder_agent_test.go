@@ -350,7 +350,7 @@ var _ = Describe("App", func() {
 		})
 	})
 
-	Context("when an OTel Collector is registered to", func() {
+	Context("when an OTel Collector is registered to forward to", func() {
 		var (
 			otelMetricsServer *spyOtelColMetricServer
 			otelTraceServer   *spyOtelColTraceServer
@@ -385,7 +385,7 @@ var _ = Describe("App", func() {
 			otelLogsServer.close()
 		})
 
-		DescribeTable("not forward log and event envelopes to otel metrics",
+		DescribeTable("do not forward log nor event envelopes to otel metrics",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
 				Consistently(otelMetricsServer.requests, 3).ShouldNot(Receive())
@@ -394,7 +394,7 @@ var _ = Describe("App", func() {
 			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
 		)
 
-		DescribeTable("not forward counters, gagues and timers envelopes to otel logs",
+		DescribeTable("do not forward counters, gagues nor timers envelopes to otel logs",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
 				Consistently(otelLogsServer.requests, 3).ShouldNot(Receive())
