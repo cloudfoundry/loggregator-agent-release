@@ -451,7 +451,8 @@ var _ = Describe("App", func() {
 		It("forwards events", func() {
 			title := "event title"
 			body := "event body"
-			ingressClient.EmitEvent(context.TODO(), title, body)
+			err := ingressClient.EmitEvent(context.TODO(), title, body)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 			var req *collogspb.ExportLogsServiceRequest
 			Eventually(otelLogsServer.requests).Should(Receive(&req))
@@ -492,7 +493,8 @@ var _ = Describe("App", func() {
 							ticker.Stop()
 							return
 						case <-ticker.C:
-							ingressClient.EmitEvent(context.TODO(), "title", "event body")
+							err := ingressClient.EmitEvent(context.TODO(), "title", "event body")
+							ExpectWithOffset(1, err).NotTo(HaveOccurred())
 						}
 					}
 				}()
