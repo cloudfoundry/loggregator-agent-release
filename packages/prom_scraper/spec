@@ -2,7 +2,7 @@
 name: prom_scraper
 
 dependencies:
-- golang-1.21-linux
+- golang-1.22-linux
 files:
 - cmd/prom-scraper/**/*.go
 - cmd/prom-scraper/get-metrics.sh
