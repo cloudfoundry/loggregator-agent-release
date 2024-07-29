@@ -2,7 +2,9 @@
 
 module code.cloudfoundry.org/loggregator-agent-release/src/otel-collector
 
-go 1.22.0
+go 1.21.0
+
+toolchain go1.22.5
 
 require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/fileexporter v0.103.0
