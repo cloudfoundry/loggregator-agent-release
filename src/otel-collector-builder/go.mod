@@ -1,6 +1,6 @@
 module code.cloudfoundry.org/loggregator-agent-release/src/otel-collector-builder
 
-go 1.21.0
+go 1.22.0
 
 require go.opentelemetry.io/collector/cmd/builder v0.103.0
 
