@@ -67,6 +67,8 @@ builds:
     version: 6.0.2
   47894426-8099-4a35-687c-4ad897140393:
     version: "3.11"
+  47b914fe-9a27-42fa-5cc2-939ee138380e:
+    version: 8.1.5
   482786b1-3e5e-42b9-4f75-1be906dced3b:
     version: 7.2.3
   49d8da5f-c409-41ab-4414-cbbf20623367:
