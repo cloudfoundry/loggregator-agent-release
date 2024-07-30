@@ -12,7 +12,7 @@ require (
 	code.cloudfoundry.org/tlsconfig v0.0.0-20240712175922-ffce9516cec8
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20240620221854-09ef53324489
-	github.com/onsi/gomega v1.34.0
+	github.com/onsi/gomega v1.34.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.55.0
 	github.com/valyala/fasthttp v1.55.0
@@ -50,8 +50,9 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	go.step.sm/crypto v0.50.0 // indirect
+	go.step.sm/crypto v0.51.1 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
