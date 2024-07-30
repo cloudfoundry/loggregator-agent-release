@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"code.cloudfoundry.org/go-loggregator/v9/rfc5424"
+	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/syslog-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
