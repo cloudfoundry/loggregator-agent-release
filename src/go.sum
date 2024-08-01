@@ -7,8 +7,8 @@ code.cloudfoundry.org/go-envstruct v1.7.0 h1:6e90Z+lTPrI2jMJOoKErskL7a+Qm97GFiit
 code.cloudfoundry.org/go-envstruct v1.7.0/go.mod h1:xm6Eto/WB7Qq1iwEN29jUQXDeUCJ+nruwAnnrpY0s4E=
 code.cloudfoundry.org/go-loggregator/v10 v10.0.0 h1:7tSJp4QFh8064jp13zNGoKoIuu8a2GhoGkr53nr9uu0=
 code.cloudfoundry.org/go-loggregator/v10 v10.0.0/go.mod h1:gRbT/3OQzBaXtII0vMmCVnF52B0Fvz9XZcCXUrcXpkg=
-code.cloudfoundry.org/go-metric-registry v0.0.0-20240730230437-8d70948403b7 h1:VYGrrTXwdAuKPJz5QmtwewHI86LHxLPOgFHo2i8TWew=
-code.cloudfoundry.org/go-metric-registry v0.0.0-20240730230437-8d70948403b7/go.mod h1:lFz9KDaRZkDB4Z+Re39NNLKnEudqzMMH7Z882iYVTR0=
+code.cloudfoundry.org/go-metric-registry v0.0.0-20240731205343-e778db45fec9 h1:kIPFr+yfAFA85gUnnQXf64EN8d09zUg3Hcb90esogeI=
+code.cloudfoundry.org/go-metric-registry v0.0.0-20240731205343-e778db45fec9/go.mod h1:RwIvGwiDh2eLGn5sN6yRTC6USAk1iWCBdG0WmLIrQps=
 code.cloudfoundry.org/tlsconfig v0.0.0-20240730181439-b476395a9e4e h1:Z18hGYNNUAk/dOqEhJNgRGmvnDGXFS+bJUsp0OgNNms=
 code.cloudfoundry.org/tlsconfig v0.0.0-20240730181439-b476395a9e4e/go.mod h1:rzAVGsG1hc6rKuO3zhRZX0rAPtoHLPliSi5478EV6vs=
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
