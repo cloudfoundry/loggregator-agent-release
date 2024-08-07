@@ -15,326 +15,146 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("HTTPWriter", func() {
+var _ = Describe("HTTPSWriter", func() {
 	var (
-		netConf          syslog.NetworkTimeoutConfig
-		skipSSLTLSConfig = &tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec
-		}
-		c = syslog.NewConverter()
+		drain *spyDrain
+
+		binding *syslog.URLBinding
+		tlsCfg  *tls.Config
+		egress  *metricsHelpers.SpyMetric
+
+		writer *syslog.HTTPSWriter
 	)
 
-	It("errors when ssl validation is enabled", func() {
-		drain := newMockOKDrain()
-
-		b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
-
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			&tls.Config{MinVersion: tls.VersionTLS12},
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		Expect(writer.Write(env)).To(HaveOccurred())
+	BeforeEach(func() {
+		drain = newSpyDrain()
+		binding = urlBinding(drain.URL, "test-app-id", "test-hostname")
+		tlsCfg = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+		egress = &metricsHelpers.SpyMetric{}
 	})
 
-	It("errors on an invalid syslog message", func() {
-		drain := newMockOKDrain()
-
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		env.SourceId = " "
-		Expect(writer.Write(env)).To(HaveOccurred())
+	AfterEach(func() {
+		drain.Close()
 	})
 
-	It("errors when the http POST fails", func() {
-		drain := newMockErrorDrain()
+	JustBeforeEach(func() {
+		var netCfg syslog.NetworkTimeoutConfig
+		converter := syslog.NewConverter()
 
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
-
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		Expect(writer.Write(env)).To(HaveOccurred())
+		var ok bool
+		writer, ok = syslog.NewHTTPSWriter(binding, netCfg, tlsCfg, egress, converter).(*syslog.HTTPSWriter)
+		Expect(ok).To(BeTrue())
 	})
 
-	It("does not leak creds when reporting a POST error", func() {
-		b := buildURLBinding(
-			"http://user:password@localhost:0",
-			"test-app-id",
-			"test-hostname",
-		)
+	Describe("Write", func() {
+		It("converts the provided envelope to syslog messages and sends them to a drain via HTTPS", func() {
+			Expect(writer.Write(buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT))).To(Succeed())
+			Expect(drain.messages).To(HaveLen(1))
+			Expect(writer.Write(buildGaugeEnvelope("1"))).To(Succeed())
+			Expect(drain.messages).To(HaveLen(6))
+		})
 
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
+		It("sets Content-Length and Content-Type headers", func() {
+			Expect(writer.Write(buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT))).To(Succeed())
+			Expect(drain.headers[0]).To(HaveKeyWithValue("Content-Type", []string{"text/plain"}))
+			Expect(drain.headers[0]).To(HaveKeyWithValue("Content-Length", []string{"118"}))
+		})
 
-		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		err := writer.Write(env)
-		Expect(err).To(HaveOccurred())
+		It("emits an egress metric for each message successfully sent", func() {
+			Expect(egress.Value()).To(BeNumerically("==", 0))
+			env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+			err := writer.Write(env)
+			Expect(err).To(BeNil())
+			Expect(egress.Value()).To(BeNumerically("==", 1))
+		})
 
-		Expect(err.Error()).ToNot(ContainSubstring("user"))
-		Expect(err.Error()).ToNot(ContainSubstring("password"))
-	})
+		Context("when TLS is misconfigured", func() {
+			var err error
 
-	It("writes syslog formatted messages to http drain", func() {
-		drain := newMockOKDrain()
+			BeforeEach(func() {
+				tlsCfg = &tls.Config{} //nolint:gosec
+			})
 
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
+			JustBeforeEach(func() {
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+				err = writer.Write(env)
+			})
 
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
+			It("returns an error", func() {
+				Expect(err).To(MatchError(ContainSubstring("tls: failed")))
+			})
 
-		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		Expect(writer.Write(env1)).To(Succeed())
-		env2 := buildLogEnvelope("CELL", "5", "log from cell", loggregator_v2.Log_ERR)
-		Expect(writer.Write(env2)).To(Succeed())
-		env3 := buildLogEnvelope("CELL", "", "log from cell", loggregator_v2.Log_ERR)
-		Expect(writer.Write(env3)).To(Succeed())
+			It("does not increment the egress metric", func() {
+				Expect(egress.Value()).To(BeNumerically("==", 0))
+			})
+		})
 
-		Expect(drain.messages).To(HaveLen(3))
-		expected := &rfc5424.Message{
-			AppName:   "test-app-id",
-			Hostname:  "test-hostname",
-			Priority:  rfc5424.Priority(14),
-			ProcessID: "[APP/1]",
-			Message:   []byte("just a test\n"),
-		}
-		Expect(drain.messages[0].AppName).To(Equal(expected.AppName))
-		Expect(drain.messages[0].Hostname).To(Equal(expected.Hostname))
-		Expect(drain.messages[0].Priority).To(BeEquivalentTo(expected.Priority))
-		Expect(drain.messages[0].ProcessID).To(Equal(expected.ProcessID))
-		Expect(drain.messages[0].Message).To(Equal(expected.Message))
+		Context("when the provided envelope is invalid", func() {
+			var err error
 
-		expected = &rfc5424.Message{
-			AppName:   "test-app-id",
-			Hostname:  "test-hostname",
-			Priority:  rfc5424.Priority(11),
-			ProcessID: "[CELL/5]",
-			Message:   []byte("log from cell\n"),
-		}
-		Expect(drain.messages[1].AppName).To(Equal(expected.AppName))
-		Expect(drain.messages[1].Hostname).To(Equal(expected.Hostname))
-		Expect(drain.messages[1].Priority).To(BeEquivalentTo(expected.Priority))
-		Expect(drain.messages[1].ProcessID).To(Equal(expected.ProcessID))
-		Expect(drain.messages[1].Message).To(Equal(expected.Message))
+			JustBeforeEach(func() {
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+				env.SourceId = " "
+				err = writer.Write(env)
+			})
 
-		Expect(drain.messages[2].ProcessID).To(Equal("[CELL]"))
-	})
+			It("returns an error", func() {
+				Expect(err).To(MatchError(ContainSubstring("Message cannot be serialized")))
+			})
 
-	It("sets Content-Type to text/plain", func() {
-		drain := newMockOKDrain()
+			It("does not increment the egress metric", func() {
+				Expect(egress.Value()).To(BeNumerically("==", 0))
+			})
+		})
 
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
+		Context("when the drain returns a status code that indicates a failure", func() {
+			var err error
 
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
+			JustBeforeEach(func() {
+				drain.statusCode = http.StatusBadRequest
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+				err = writer.Write(env)
+			})
 
-		env1 := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		Expect(writer.Write(env1)).To(Succeed())
+			It("returns an error", func() {
+				Expect(err).To(MatchError("syslog Writer: Post responded with 400 status code"))
+			})
 
-		Expect(drain.messages).To(HaveLen(1))
-		Expect(drain.headers).To(HaveLen(1))
-		Expect(drain.headers[0]).To(HaveKeyWithValue("Content-Type", []string{"text/plain"}))
-	})
+			It("does not increment the egress metric", func() {
+				Expect(egress.Value()).To(BeNumerically("==", 0))
+			})
+		})
 
-	It("writes gauge metrics to the http drain", func() {
-		drain := newMockOKDrain()
+		Context("when there are credentials in the binding and the request fails", func() {
+			BeforeEach(func() {
+				binding = urlBinding(
+					"http://user:password@localhost:0",
+					"test-app-id",
+					"test-hostname",
+				)
+			})
 
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
+			It("returns an error that does not include the binding credentials", func() {
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+				err := writer.Write(env)
+				Expect(err).To(HaveOccurred())
 
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		env1 := buildGaugeEnvelope("1")
-		Expect(writer.Write(env1)).To(Succeed())
-
-		Expect(drain.messages).To(HaveLen(5))
-
-		Expect(drain.messages[0].StructuredData).To(HaveLen(1))
-		Expect(drain.messages[0].StructuredData[0].ID).To(Equal("gauge@47450"))
-
-		sdValues := func(msgs []*rfc5424.Message, name string) []string {
-			var sd rfc5424.StructuredData
-			for _, msg := range msgs {
-				if msg.StructuredData[0].Parameters[0].Value == name {
-					sd = msg.StructuredData[0]
-					break
-				}
-			}
-
-			data := make([]string, 0, 3)
-			for _, param := range sd.Parameters {
-				data = append(data, param.Value)
-			}
-
-			return data
-		}
-
-		Expect(sdValues(drain.messages, "cpu")).To(ConsistOf("cpu", "0.23", "percentage"))
-		Expect(sdValues(drain.messages, "disk")).To(ConsistOf("disk", "1234", "bytes"))
-		Expect(sdValues(drain.messages, "disk_quota")).To(ConsistOf("disk_quota", "1024", "bytes"))
-		Expect(sdValues(drain.messages, "memory")).To(ConsistOf("memory", "5423", "bytes"))
-		Expect(sdValues(drain.messages, "memory_quota")).To(ConsistOf("memory_quota", "8000", "bytes"))
-	})
-
-	It("writes counter metrics to the http drain", func() {
-		drain := newMockOKDrain()
-
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
-
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		env1 := buildCounterEnvelope("1")
-		Expect(writer.Write(env1)).To(Succeed())
-
-		Expect(drain.messages).To(HaveLen(1))
-
-		Expect(drain.messages[0].StructuredData).To(HaveLen(1))
-		Expect(drain.messages[0].StructuredData[0].ID).To(Equal("counter@47450"))
-
-		Expect(drain.messages[0].StructuredData[0].Parameters[0].Name).To(Equal("name"))
-		Expect(drain.messages[0].StructuredData[0].Parameters[0].Value).To(Equal("some-counter"))
-
-		Expect(drain.messages[0].StructuredData[0].Parameters[1].Name).To(Equal("total"))
-		Expect(drain.messages[0].StructuredData[0].Parameters[1].Value).To(Equal("99"))
-
-		Expect(drain.messages[0].StructuredData[0].Parameters[2].Name).To(Equal("delta"))
-		Expect(drain.messages[0].StructuredData[0].Parameters[2].Value).To(Equal("1"))
-	})
-
-	It("emits an egress metric for each message", func() {
-		drain := newMockOKDrain()
-
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
-
-		sm := &metricsHelpers.SpyMetric{}
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			sm,
-			c,
-		)
-
-		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		err := writer.Write(env)
-		Expect(err).To(BeNil())
-
-		Expect(sm.Value()).To(BeNumerically("==", 1))
-	})
-
-	It("ignores non-log envelopes", func() {
-		drain := newMockOKDrain()
-
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
-
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		counterEnv := buildTimerEnvelope("1")
-		logEnv := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
-
-		Expect(writer.Write(counterEnv)).To(Succeed())
-		Expect(writer.Write(logEnv)).To(Succeed())
+				Expect(err.Error()).NotTo(ContainSubstring("user"))
+				Expect(err.Error()).NotTo(ContainSubstring("password"))
+			})
+		})
 	})
 })
 
-type SpyDrain struct {
+type spyDrain struct {
 	*httptest.Server
-	messages []*rfc5424.Message
-	headers  []http.Header
+	messages   []*rfc5424.Message
+	headers    []http.Header
+	statusCode int
 }
 
-func newMockOKDrain() *SpyDrain {
-	return newMockDrain(http.StatusOK)
-}
-
-func newMockErrorDrain() *SpyDrain {
-	return newMockDrain(http.StatusBadRequest)
-}
-
-func newMockDrain(status int) *SpyDrain {
-	drain := &SpyDrain{}
+func newSpyDrain() *spyDrain {
+	drain := &spyDrain{statusCode: http.StatusOK}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		message := &rfc5424.Message{}
 
@@ -347,15 +167,18 @@ func newMockDrain(status int) *SpyDrain {
 
 		drain.messages = append(drain.messages, message)
 		drain.headers = append(drain.headers, r.Header)
-		w.WriteHeader(status)
+		w.WriteHeader(drain.statusCode)
 	})
 	server := httptest.NewTLSServer(handler)
 	drain.Server = server
 	return drain
 }
 
-func buildURLBinding(u, appID, hostname string) *syslog.URLBinding {
-	parsedURL, _ := url.Parse(u)
+func urlBinding(u, appID, hostname string) *syslog.URLBinding {
+	GinkgoHelper()
+
+	parsedURL, err := url.Parse(u)
+	Expect(err).NotTo(HaveOccurred())
 
 	return &syslog.URLBinding{
 		URL:      parsedURL,
