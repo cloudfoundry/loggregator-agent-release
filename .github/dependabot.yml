@@ -13,15 +13,6 @@ updates:
       interval: "weekly"
   - package-ecosystem: "gomod"
     directory: "/src"
-    target-branch: "v6.x"
-    schedule:
-      interval: "weekly"
-    labels:
-    - "v6.x"
-    - "go"
-    - "dependencies"
-  - package-ecosystem: "gomod"
-    directory: "/src"
     target-branch: "v7.x"
     schedule:
       interval: "weekly"
