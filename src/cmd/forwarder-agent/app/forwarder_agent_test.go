@@ -362,7 +362,8 @@ var _ = Describe("App", func() {
 			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector")
 			otelLogsServer = startSpyOtelColLogServer(ingressCfgPath, agentCerts, "otel-collector")
 			agentCfg.EmitOTelTraces = true
-			agentCfg.EmitEventsAsOTelLogs = true
+			agentCfg.EmitOTelMetrics = true
+			agentCfg.EmitOTelLogs = true
 		})
 
 		JustBeforeEach(func() {
@@ -388,7 +389,7 @@ var _ = Describe("App", func() {
 		DescribeTable("do not forward log nor event envelopes to otel metrics",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
-				Consistently(otelMetricsServer.requests, 3).ShouldNot(Receive())
+				Consistently(otelMetricsServer.requests, 0.5).ShouldNot(Receive())
 			},
 			Entry("drops logs", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}),
 			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
@@ -397,7 +398,7 @@ var _ = Describe("App", func() {
 		DescribeTable("do not forward counters, gagues nor timers envelopes to otel logs",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
-				Consistently(otelLogsServer.requests, 3).ShouldNot(Receive())
+				Consistently(otelLogsServer.requests, 0.5).ShouldNot(Receive())
 			},
 			Entry("drops counters", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Counter{}}),
 			Entry("drops gauges", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Gauge{}}),
@@ -471,12 +472,12 @@ var _ = Describe("App", func() {
 			}
 		})
 
-		Context("when support for forwarding events as traces is not active", func() {
+		Context("when forwarding logs is not active", func() {
 			BeforeEach(func() {
-				agentCfg.EmitEventsAsOTelLogs = false
+				agentCfg.EmitOTelLogs = false
 			})
 
-			It("only emits events to other destinations", func() {
+			It("does not emit logs", func() {
 				ctx, cancel := context.WithCancel(context.Background())
 				var wg sync.WaitGroup
 				defer wg.Wait()
@@ -493,17 +494,108 @@ var _ = Describe("App", func() {
 							ticker.Stop()
 							return
 						case <-ticker.C:
-							err := ingressClient.EmitEvent(context.TODO(), "title", "event body")
-							ExpectWithOffset(1, err).NotTo(HaveOccurred())
+							ingressClient.EmitLog("test log", loggregator.WithStdout())
 						}
 					}
 				}()
 
 				var e *loggregator_v2.Envelope
-				Eventually(ingressServer1.envelopes, 5).Should(Receive(&e))
+				Eventually(ingressServer1.envelopes, 0.5).Should(Receive(&e))
+				Expect(e.GetLog().GetPayload()).To(Equal([]byte("test log")))
+				Consistently(otelLogsServer.requests, 0.5).ShouldNot(Receive())
+			})
+
+			It("does not emit events", func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				var wg sync.WaitGroup
+				defer wg.Wait()
+				defer cancel()
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					ticker := time.NewTicker(10 * time.Millisecond)
+					for {
+						select {
+						case <-ctx.Done():
+							ticker.Stop()
+							return
+						case <-ticker.C:
+							Expect(ingressClient.EmitEvent(context.TODO(), "title", "event body")).NotTo(HaveOccurred())
+						}
+					}
+				}()
+
+				var e *loggregator_v2.Envelope
+				Eventually(ingressServer1.envelopes, 0.5).Should(Receive(&e))
 				Expect(e.GetEvent().GetTitle()).To(Equal("title"))
 				Expect(e.GetEvent().GetBody()).To(Equal("event body"))
-				Consistently(otelLogsServer.requests, 5).ShouldNot(Receive())
+				Consistently(otelLogsServer.requests, 0.5).ShouldNot(Receive())
+			})
+		})
+
+		Context("when support for forwarding metrics is not active", func() {
+			BeforeEach(func() {
+				agentCfg.EmitOTelMetrics = false
+			})
+
+			It("only emits counters to other destinations", func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				var wg sync.WaitGroup
+				defer wg.Wait()
+				defer cancel()
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					ticker := time.NewTicker(10 * time.Millisecond)
+					for {
+						select {
+						case <-ctx.Done():
+							ticker.Stop()
+							return
+						case <-ticker.C:
+							name := "test-counter-name"
+							ingressClient.EmitCounter(name)
+						}
+					}
+				}()
+
+				var e *loggregator_v2.Envelope
+				Eventually(ingressServer1.envelopes, 0.5).Should(Receive(&e))
+				Expect(e.GetCounter().GetName()).To(Equal("test-counter-name"))
+
+				Consistently(otelMetricsServer.requests, 0.5).ShouldNot(Receive())
+			})
+
+			It("only emits gauges to other destinations", func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				var wg sync.WaitGroup
+				defer wg.Wait()
+				defer cancel()
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					ticker := time.NewTicker(10 * time.Millisecond)
+					for {
+						select {
+						case <-ctx.Done():
+							ticker.Stop()
+							return
+						case <-ticker.C:
+							ingressClient.EmitGauge(loggregator.WithGaugeValue("gauge-name", 20.2, "test-unit"))
+						}
+					}
+				}()
+
+				var e *loggregator_v2.Envelope
+				Eventually(ingressServer1.envelopes, 0.5).Should(Receive(&e))
+				Expect(e.GetGauge().GetMetrics()["gauge-name"].Value).To(Equal(20.2))
+				Consistently(otelMetricsServer.requests, 0.5).ShouldNot(Receive())
 			})
 		})
 
@@ -535,9 +627,9 @@ var _ = Describe("App", func() {
 				}()
 
 				var e *loggregator_v2.Envelope
-				Eventually(ingressServer1.envelopes, 5).Should(Receive(&e))
+				Eventually(ingressServer1.envelopes, 0.5).Should(Receive(&e))
 				Expect(e.GetTimer().GetName()).To(Equal("some-timer"))
-				Consistently(otelTraceServer.requests, 5).ShouldNot(Receive())
+				Consistently(otelTraceServer.requests, 0.5).ShouldNot(Receive())
 			})
 		})
 

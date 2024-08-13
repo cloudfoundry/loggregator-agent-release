@@ -30,7 +30,8 @@ type Config struct {
 	Tags                     map[string]string `env:"AGENT_TAGS"`
 	DebugMetrics             bool              `env:"DEBUG_METRICS, report"`
 	EmitOTelTraces           bool              `env:"EMIT_OTEL_TRACES, report"`
-	EmitEventsAsOTelLogs     bool              `env:"EMIT_EVENTS_AS_OTEL_LOGS, report"`
+	EmitOTelMetrics          bool              `env:"EMIT_OTEL_METRICS, report"`
+	EmitOTelLogs             bool              `env:"EMIT_OTEL_LOGS, report"`
 }
 
 // LoadConfig will load the configuration for the forwarder agent from the
