@@ -64,7 +64,7 @@ var _ = Describe("Client", func() {
 			100*time.Millisecond,
 			w,
 		)
-		c = Client{b: b, emitTraces: true, emitEvents: true}
+		c = Client{b: b, emitTraces: true, emitMetrics: true, emitLogs: true}
 	})
 
 	AfterEach(func() {
@@ -119,11 +119,20 @@ var _ = Describe("Client", func() {
 					100*time.Millisecond,
 					w,
 				)
-				c = Client{b: b, emitTraces: true}
+				c = Client{b: b, emitTraces: true, emitMetrics: true, emitLogs: true}
 			})
 
 			It("returns nil", func() {
 				Expect(returnedErr).NotTo(HaveOccurred())
+			})
+
+			Context("when emiting metrics is disabled", func() {
+				BeforeEach(func() {
+					c.emitMetrics = false
+				})
+				It("does not forward the gauge", func() {
+					Expect(spyMSC.requests).NotTo(Receive())
+				})
 			})
 
 			It("converts the envelope to OTLP and passes it to the Metric Service Client", func() {
@@ -307,6 +316,15 @@ var _ = Describe("Client", func() {
 						},
 					},
 				}
+			})
+
+			Context("when emiting metrics is disabled", func() {
+				BeforeEach(func() {
+					c.emitMetrics = false
+				})
+				It("does not forward the counter", func() {
+					Expect(spyMSC.requests).NotTo(Receive())
+				})
 			})
 
 			Context("when the envelope has a total but no delta", func() {
@@ -747,6 +765,15 @@ var _ = Describe("Client", func() {
 				Expect(returnedErr).NotTo(HaveOccurred())
 			})
 
+			Context("when emiting logs is disabled", func() {
+				BeforeEach(func() {
+					c.emitLogs = false
+				})
+				It("does not forward the log", func() {
+					Expect(spyLSC.requests).NotTo(Receive())
+				})
+			})
+
 			It("emits an info log", func() {
 				var lsr *collogspb.ExportLogsServiceRequest
 				Expect(spyLSC.requests).To(Receive(&lsr))
@@ -979,7 +1006,7 @@ var _ = Describe("Client", func() {
 					10*time.Millisecond,
 					w,
 				)
-				c = Client{b: b}
+				c = Client{b: b, emitTraces: true, emitMetrics: true, emitLogs: true}
 				envelope = &loggregator_v2.Envelope{
 					Timestamp:  1257894000000000000,
 					SourceId:   "fake-source-id",

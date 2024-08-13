@@ -112,20 +112,19 @@ func (w GRPCWriter) Close() error {
 }
 
 type Client struct {
-	// Batch metrics sent to OTel Collector
-	b *SignalBatcher
-	// Forward timers as traces
-	emitTraces bool
-	// Forward events as logs
-	emitEvents bool
+	b           *SignalBatcher
+	emitTraces  bool
+	emitMetrics bool
+	emitLogs    bool
 }
 
 // New creates a new Client that will batch metrics and logs.
-func New(w Writer, emitTraces bool, emitEvents bool) *Client {
+func New(w Writer, emitTraces bool, emitMetrics bool, emitLogs bool) *Client {
 	return &Client{
-		b:          NewSignalBatcher(100, 100*time.Millisecond, w),
-		emitTraces: emitTraces,
-		emitEvents: emitEvents,
+		b:           NewSignalBatcher(100, 100*time.Millisecond, w),
+		emitTraces:  emitTraces,
+		emitMetrics: emitMetrics,
+		emitLogs:    emitLogs,
 	}
 }
 
@@ -155,6 +154,9 @@ func (c *Client) Close() error {
 
 // writeCounter translates a loggregator v2 Counter to OTLP and adds the metric to the pending batch.
 func (c *Client) writeLog(e *loggregator_v2.Envelope) {
+	if !c.emitLogs {
+		return
+	}
 	atts := attributes(e)
 	svrtyNumber := logspb.SeverityNumber_SEVERITY_NUMBER_UNSPECIFIED
 	switch e.GetLog().GetType() {
@@ -186,7 +188,7 @@ func (c *Client) writeLog(e *loggregator_v2.Envelope) {
 }
 
 func (c *Client) writeEvent(e *loggregator_v2.Envelope) {
-	if !c.emitEvents {
+	if !c.emitLogs {
 		return
 	}
 	atts := attributes(e)
@@ -225,6 +227,9 @@ func (c *Client) writeEvent(e *loggregator_v2.Envelope) {
 
 // writeCounter translates a loggregator v2 Counter to OTLP and adds the metric to the pending batch.
 func (c *Client) writeCounter(e *loggregator_v2.Envelope) {
+	if !c.emitMetrics {
+		return
+	}
 	atts := attributes(e)
 	c.b.WriteMetric(&metricspb.Metric{
 		Name: e.GetCounter().GetName(),
@@ -248,6 +253,9 @@ func (c *Client) writeCounter(e *loggregator_v2.Envelope) {
 
 // writeGauge translates a loggregator v2 Gauge to OTLP and adds the metrics to the pending batch.
 func (c *Client) writeGauge(e *loggregator_v2.Envelope) {
+	if !c.emitMetrics {
+		return
+	}
 	atts := attributes(e)
 
 	for k, v := range e.GetGauge().GetMetrics() {
