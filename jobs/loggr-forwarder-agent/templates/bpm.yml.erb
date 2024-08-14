@@ -29,7 +29,7 @@
       "AGENT_TAGS" => tags.map { |k, v| "#{k}:#{v}" }.join(","),
 
       "DOWNSTREAM_INGRESS_PORT_GLOB" => p("downstream_ingress_port_glob"),
-      "EMIT_OTEL_TRACES" => p("temporary_emit_otel_traces"),
+      "EMIT_OTEL_TRACES" => p("emit_otel_traces"),
       "EMIT_OTEL_METRICS" =>  p("emit_otel_metrics"),
       "EMIT_OTEL_LOGS" =>  p("emit_otel_logs"),
 
