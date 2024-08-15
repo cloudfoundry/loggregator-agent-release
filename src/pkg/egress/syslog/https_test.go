@@ -287,7 +287,6 @@ func newMockDrain(status int) *SpyDrain {
 		Expect(err).ToNot(HaveOccurred())
 		defer r.Body.Close()
 
-		println(body)
 		err = message.UnmarshalBinary(body)
 		Expect(err).ToNot(HaveOccurred())
 
