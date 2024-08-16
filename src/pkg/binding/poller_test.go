@@ -391,7 +391,7 @@ var _ = Describe("Poller", func() {
 			V5Available: true,
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		p := binding.NewPoller(apiClient, 100*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
@@ -402,7 +402,7 @@ var _ = Describe("Poller", func() {
 		apiClient.statusCode <- 404
 		apiClient.legacyStatusCode <- 404
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, legacyStore, metrics, logger)
+		p := binding.NewPoller(apiClient, 100*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
