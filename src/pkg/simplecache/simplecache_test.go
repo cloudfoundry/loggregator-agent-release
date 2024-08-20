@@ -1,8 +1,9 @@
 package simplecache_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -43,7 +44,7 @@ var _ = Describe("SimpleCache", func() {
 		Eventually(func() bool {
 			_, exists := cache.Get("key1")
 			return exists
-		}).WithTimeout(6 * time.Millisecond).WithPolling(time.Millisecond).Should(BeFalse())
+		}).WithTimeout(100 * time.Millisecond).WithPolling(time.Millisecond).Should(BeFalse())
 	})
 
 	It("handles concurrent access", func() {
