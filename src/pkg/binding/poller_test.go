@@ -381,7 +381,6 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("skips parsing v4 results if CAPI v5 endpoint is unavailable but CAPI is already updated", func() {
-
 		apiClient.statusCode <- 404
 		apiClient.legacyBindings <- legacyResponse{
 			Results: map[string]struct {
@@ -394,8 +393,15 @@ var _ = Describe("Poller", func() {
 		p := binding.NewPoller(apiClient, 100*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
-		Eventually(store.bindings).Should(BeEmpty())
-		Eventually(legacyStore.bindings).Should(BeEmpty())
+		var lastSetBinding []binding.Binding
+		var lastSetLegacyBinding []binding.LegacyBinding
+		Eventually(store.bindings).Should(Receive(&lastSetBinding))
+		Eventually(legacyStore.bindings).Should(Receive(&lastSetLegacyBinding))
+		Expect(lastSetBinding).To(BeEmpty())
+		Expect(lastSetLegacyBinding).To(BeEmpty())
+
+		Expect(legacyStore.bindings).To(BeEmpty())
+		Expect(store.bindings).To(BeEmpty())
 	})
 
 	It("does not update the stores if both response codes are bad", func() {
@@ -405,8 +411,15 @@ var _ = Describe("Poller", func() {
 		p := binding.NewPoller(apiClient, 100*time.Millisecond, store, legacyStore, metrics, logger)
 		go p.Poll()
 
-		Eventually(store.bindings).Should(BeEmpty())
-		Eventually(legacyStore.bindings).Should(BeEmpty())
+		var lastSetBinding []binding.Binding
+		var lastSetLegacyBinding []binding.LegacyBinding
+		Eventually(store.bindings).Should(Receive(&lastSetBinding))
+		Eventually(legacyStore.bindings).Should(Receive(&lastSetLegacyBinding))
+		Expect(lastSetBinding).To(BeEmpty())
+		Expect(lastSetLegacyBinding).To(BeEmpty())
+
+		Expect(legacyStore.bindings).To(BeEmpty())
+		Expect(store.bindings).To(BeEmpty())
 	})
 
 	It("tracks the number of bindings returned from CAPI", func() {
