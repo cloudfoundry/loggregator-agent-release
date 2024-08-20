@@ -12,5 +12,5 @@ func GetFreePort() uint16 {
 	}
 
 	defer l.Close()
-	return uint16(l.Addr().(*net.TCPAddr).Port)
+	return uint16(l.Addr().(*net.TCPAddr).Port) //#nosec G115
 }
