@@ -13,7 +13,7 @@ code.cloudfoundry.org/go-loggregator/v10
 code.cloudfoundry.org/go-loggregator/v10/conversion
 code.cloudfoundry.org/go-loggregator/v10/rfc5424
 code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20240813203836-dd62fec970e7
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20240821231813-756f75a2fe8e
 ## explicit; go 1.21
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
@@ -91,7 +91,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/onsi/ginkgo/v2 v2.20.0
+# github.com/onsi/ginkgo/v2 v2.20.1
 ## explicit; go 1.20
 github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
@@ -130,7 +130,7 @@ github.com/onsi/gomega/types
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.20.0
+# github.com/prometheus/client_golang v1.20.1
 ## explicit; go 1.20
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
@@ -271,10 +271,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/tokeninternal
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142
+# google.golang.org/genproto/googleapis/api v0.0.0-20240820151423-278611b39280
 ## explicit; go 1.21
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20240820151423-278611b39280
 ## explicit; go 1.21
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.65.0
