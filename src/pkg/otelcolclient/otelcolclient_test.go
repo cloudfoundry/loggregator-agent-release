@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
@@ -330,6 +331,28 @@ var _ = Describe("Client", func() {
 			Context("when the envelope has a total but no delta", func() {
 				It("returns nil", func() {
 					Expect(returnedErr).NotTo(HaveOccurred())
+				})
+
+				Context("when counter value is rolling over", func() {
+					BeforeEach(func() {
+						envelope.Message.(*loggregator_v2.Envelope_Counter).Counter.Total = math.MaxInt64 + 1
+					})
+					It("goes back to 0", func() {
+						var msr *colmetricspb.ExportMetricsServiceRequest
+						Expect(spyMSC.requests).To(Receive(&msr))
+						Expect(msr.ResourceMetrics[0].ScopeMetrics[0].Metrics[0].Data.(*metricspb.Metric_Sum).Sum.DataPoints[0].Value.(*metricspb.NumberDataPoint_AsInt).AsInt).To(Equal(int64(0)))
+					})
+				})
+
+				Context("when counter value goes up to unsigned max int", func() {
+					BeforeEach(func() {
+						envelope.Message.(*loggregator_v2.Envelope_Counter).Counter.Total = math.MaxUint64
+					})
+					It("has gone all the way up to signed int max (twice)", func() {
+						var msr *colmetricspb.ExportMetricsServiceRequest
+						Expect(spyMSC.requests).To(Receive(&msr))
+						Expect(msr.ResourceMetrics[0].ScopeMetrics[0].Metrics[0].Data.(*metricspb.Metric_Sum).Sum.DataPoints[0].Value.(*metricspb.NumberDataPoint_AsInt).AsInt).To(Equal(int64(math.MaxInt64)))
+					})
 				})
 
 				It("emits a monotonic sum", func() {
