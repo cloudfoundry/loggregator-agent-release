@@ -242,7 +242,7 @@ func (c *Client) writeCounter(e *loggregator_v2.Envelope) {
 						TimeUnixNano: uint64(e.GetTimestamp()),
 						Attributes:   atts,
 						Value: &metricspb.NumberDataPoint_AsInt{
-							AsInt: int64(e.GetCounter().GetTotal()), //#nosec G115
+							AsInt: int64(e.GetCounter().GetTotal() << 1 >> 1), //#nosec G115
 						},
 					},
 				},
