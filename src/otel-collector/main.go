@@ -21,7 +21,7 @@ func main() {
 	info := component.BuildInfo{
 		Command:     "cf-otel-collector",
 		Description: "Cloud Foundry OpenTelemetry Collector",
-		Version:     "7.7.11",
+		Version:     "7.7.12",
 	}
 
 	set := otelcol.CollectorSettings{
