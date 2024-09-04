@@ -177,6 +177,8 @@ builds:
     version: 6.3.10
   ba40e346-87bf-4051-6c33-545059de3f7c:
     version: 7.7.4
+  bbbc2ebc-01e0-4f00-64a7-c6da6bc9de5f:
+    version: 7.7.12
   bf7a43f8-9760-4c30-6675-c555e91006bf:
     version: "3.2"
   bfc9c111-2b2a-4ae1-674b-db42cff74163:
