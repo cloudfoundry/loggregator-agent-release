@@ -35,16 +35,16 @@ properties:
     example: {"deployment": "cf"}
 
   emit_otel_traces:
-    description: "Whether to emit traces to OpenTelemetry Collector downstream consumers"
-    default: false
+    description: "Emit traces to downstream OpenTelemetry consumers"
+    default: true
 
   emit_otel_metrics:
-    description: "Whether to emit metrics to OpenTelemetry Collector downstream consumers"
+    description: "Emit metrics to downstream OpenTelemetry consumers"
     default: true
 
   emit_otel_logs:
-    description: "Whether to emit logs to OpenTelemetry Collector downstream consumers"
-    default: false
+    description: "Emit logs to downstream OpenTelemetry consumers"
+    default: true
 
   tls.ca_cert:
     description: |
