@@ -170,9 +170,9 @@ func (c *Client) writeLog(e *loggregator_v2.Envelope) {
 			{
 				LogRecords: []*logspb.LogRecord{
 					{
-						TimeUnixNano:         uint64(e.GetTimestamp()),
+						TimeUnixNano:         uint64(e.GetTimestamp()), // nolint:gosec
 						Attributes:           atts,
-						ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+						ObservedTimeUnixNano: uint64(time.Now().UnixNano()), // nolint:gosec
 						SeverityText:         svrtyNumber.String(),
 						SeverityNumber:       svrtyNumber,
 						Body: &commonpb.AnyValue{
@@ -199,9 +199,9 @@ func (c *Client) writeEvent(e *loggregator_v2.Envelope) {
 			{
 				LogRecords: []*logspb.LogRecord{
 					{
-						TimeUnixNano:         uint64(e.GetTimestamp()),
+						TimeUnixNano:         uint64(e.GetTimestamp()), // nolint:gosec
 						Attributes:           atts,
-						ObservedTimeUnixNano: uint64(time.Now().UnixNano()),
+						ObservedTimeUnixNano: uint64(time.Now().UnixNano()), // nolint:gosec
 						Body: &commonpb.AnyValue{
 							Value: &commonpb.AnyValue_KvlistValue{
 								KvlistValue: &commonpb.KeyValueList{
@@ -239,7 +239,7 @@ func (c *Client) writeCounter(e *loggregator_v2.Envelope) {
 				IsMonotonic:            e.GetCounter().GetDelta() == 0,
 				DataPoints: []*metricspb.NumberDataPoint{
 					{
-						TimeUnixNano: uint64(e.GetTimestamp()),
+						TimeUnixNano: uint64(e.GetTimestamp()), // nolint:gosec
 						Attributes:   atts,
 						Value: &metricspb.NumberDataPoint_AsInt{
 							AsInt: int64(e.GetCounter().GetTotal() << 1 >> 1), //#nosec G115
@@ -266,7 +266,7 @@ func (c *Client) writeGauge(e *loggregator_v2.Envelope) {
 				Gauge: &metricspb.Gauge{
 					DataPoints: []*metricspb.NumberDataPoint{
 						{
-							TimeUnixNano: uint64(e.GetTimestamp()),
+							TimeUnixNano: uint64(e.GetTimestamp()), // nolint:gosec
 							Attributes:   atts,
 							Value: &metricspb.NumberDataPoint_AsDouble{
 								AsDouble: v.GetValue(),
@@ -320,8 +320,8 @@ func (c *Client) writeTimer(e *loggregator_v2.Envelope) {
 						SpanId:            spanId,
 						Name:              name,
 						Kind:              kind,
-						StartTimeUnixNano: uint64(e.GetTimer().GetStart()),
-						EndTimeUnixNano:   uint64(e.GetTimer().GetStop()),
+						StartTimeUnixNano: uint64(e.GetTimer().GetStart()), // nolint:gosec
+						EndTimeUnixNano:   uint64(e.GetTimer().GetStop()),  // nolint:gosec
 						Status: &tracepb.Status{
 							Code: tracepb.Status_STATUS_CODE_UNSET,
 						},
