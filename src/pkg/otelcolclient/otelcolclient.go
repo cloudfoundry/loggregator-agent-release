@@ -116,7 +116,7 @@ func (c *Client) addCounterToBatch(e *loggregator_v2.Envelope) {
 				IsMonotonic:            e.GetCounter().GetDelta() == 0,
 				DataPoints: []*metricspb.NumberDataPoint{
 					{
-						TimeUnixNano: uint64(e.GetTimestamp()),
+						TimeUnixNano: uint64(e.GetTimestamp()), // nolint:gosec
 						Attributes:   atts,
 						Value: &metricspb.NumberDataPoint_AsInt{
 							AsInt: int64(e.GetCounter().GetTotal()), //#nosec G115
@@ -140,7 +140,7 @@ func (c *Client) addGaugeToBatch(e *loggregator_v2.Envelope) {
 				Gauge: &metricspb.Gauge{
 					DataPoints: []*metricspb.NumberDataPoint{
 						{
-							TimeUnixNano: uint64(e.GetTimestamp()),
+							TimeUnixNano: uint64(e.GetTimestamp()), // nolint:gosec
 							Attributes:   atts,
 							Value: &metricspb.NumberDataPoint_AsDouble{
 								AsDouble: v.GetValue(),
