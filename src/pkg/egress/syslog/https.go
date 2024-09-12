@@ -50,6 +50,7 @@ func (w *HTTPSWriter) sendHttpRequest(msg []byte, msgCount float64) error {
 	req.SetBody(msg)
 
 	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
 
 	err := w.client.Do(req, resp)
 	if err != nil {
@@ -100,12 +101,10 @@ func (*HTTPSWriter) Close() error {
 	return nil
 }
 
-func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
+func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
 	return &fasthttp.Client{
-		MaxConnsPerHost:     5,
-		MaxIdleConnDuration: 90 * time.Second,
+		MaxConnsPerHost:     100,
+		MaxIdleConnDuration: 10 * time.Second,
 		TLSConfig:           tlsConf,
-		ReadTimeout:         20 * time.Second,
-		WriteTimeout:        20 * time.Second,
 	}
 }

@@ -14,7 +14,7 @@ import (
 
 //go:generate hel --type IPChecker
 
-var allowedSchemes = []string{"syslog", "syslog-tls", "https"}
+var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
 
 type IPChecker interface {
 	ResolveAddr(host string) (net.IP, error)
