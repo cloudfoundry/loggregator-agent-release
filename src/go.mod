@@ -5,10 +5,10 @@ go 1.22.0
 toolchain go1.22.7
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20240826183250-00c4aeaff7d0
-	code.cloudfoundry.org/go-diodes v0.0.0-20240813203737-5032edb05ceb
+	code.cloudfoundry.org/go-batching v0.0.0-20240911223457-d5519e55d3b9
+	code.cloudfoundry.org/go-diodes v0.0.0-20240911205836-e7f77fdf9650
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20240828184116-9710cd731bb8
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20240911230103-8810864fa5d2
 	code.cloudfoundry.org/tlsconfig v0.5.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20240807231527-361c7ad33dc7
@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/common v0.59.1
 	github.com/valyala/fasthttp v1.55.0
 	golang.org/x/net v0.29.0
-	google.golang.org/grpc v1.66.1
+	google.golang.org/grpc v1.66.2
 	gopkg.in/yaml.v2 v2.4.0
 )
 
