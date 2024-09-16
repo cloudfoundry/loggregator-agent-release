@@ -39,7 +39,7 @@ func NewHTTPSBatchWriter(
 			syslogConverter: c,
 		},
 		batchSize:    BATCHSIZE,
-		sendInterval: 3 * time.Second,
+		sendInterval: 1 * time.Second,
 		egrMsgCount:  0,
 		msgs:         make(chan []byte),
 	}

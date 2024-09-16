@@ -53,7 +53,7 @@ var _ = Describe("HTTPS_batch_testing", func() {
 		Expect(writer.Write(env1)).To(Succeed())
 		env2 := buildLogEnvelope("APP", "2", "message 2", loggregator_v2.Log_OUT)
 		Expect(writer.Write(env2)).To(Succeed())
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 
 		Expect(drain.messages).To(HaveLen(2))
 		expected := &rfc5424.Message{
