@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -70,7 +71,8 @@ func (w *HTTPSWriter) sendHttpRequest(msg []byte, msgCount float64) error {
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
 	if err != nil {
-		return err
+		log.Printf("failed to parse syslog, dropping faulty message, err: %s", err)
+		return nil
 	}
 
 	for _, msg := range msgs {
