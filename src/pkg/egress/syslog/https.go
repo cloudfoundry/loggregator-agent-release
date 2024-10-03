@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -32,7 +33,6 @@ func NewHTTPSWriter(
 ) egress.WriteCloser {
 
 	client := httpClient(netConf, tlsConf)
-
 	return &HTTPSWriter{
 		url:             binding.URL,
 		appID:           binding.AppID,
@@ -43,31 +43,43 @@ func NewHTTPSWriter(
 	}
 }
 
+func (w *HTTPSWriter) sendHttpRequest(msg []byte, msgCount float64) error {
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(w.url.String())
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("text/plain")
+	req.SetBody(msg)
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+
+	err := w.client.Do(req, resp)
+	if err != nil {
+		return w.sanitizeError(w.url, err)
+	}
+
+	if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
+		return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
+	}
+
+	w.egressMetric.Add(msgCount)
+
+	return nil
+}
+
 func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 	msgs, err := w.syslogConverter.ToRFC5424(env, w.hostname)
 	if err != nil {
-		return err
+		log.Printf("failed to parse syslog, dropping faulty message, err: %s", err)
+		return nil
 	}
 
 	for _, msg := range msgs {
-		req := fasthttp.AcquireRequest()
-		req.SetRequestURI(w.url.String())
-		req.Header.SetMethod("POST")
-		req.Header.SetContentType("text/plain")
-		req.SetBody(msg)
-
-		resp := fasthttp.AcquireResponse()
-
-		err := w.client.Do(req, resp)
+		err = w.sendHttpRequest(msg, 1)
 		if err != nil {
-			return w.sanitizeError(w.url, err)
+			return err
 		}
-
-		if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
-			return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
-		}
-
-		w.egressMetric.Add(1)
 	}
 
 	return nil
@@ -92,7 +104,7 @@ func (*HTTPSWriter) Close() error {
 	return nil
 }
 
-func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
+func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
 	return &fasthttp.Client{
 		MaxConnsPerHost:     5,
 		MaxIdleConnDuration: 90 * time.Second,
