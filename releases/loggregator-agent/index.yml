@@ -205,6 +205,8 @@ builds:
     version: "3.16"
   c9e02cf6-8947-4c23-540d-d4e461f64b17:
     version: 6.3.6
+  d04e8aa4-5fbb-4c77-52fe-c93ff51bea25:
+    version: 8.3.0
   d4bc947b-a477-4c82-434e-c09deaa7cdcb:
     version: 7.2.2
   dbf7d099-3afd-42a9-5115-7e038f54893f:
