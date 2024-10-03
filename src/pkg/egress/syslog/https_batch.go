@@ -11,7 +11,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
-const BATCHSIZE = 1024 * 1024
+const BATCHSIZE = 256 * 1024
 
 type HTTPSBatchWriter struct {
 	HTTPSWriter

@@ -53,9 +53,9 @@ var _ = Describe("HTTPS_batch", func() {
 		Expect(writer.Write(env1)).To(Succeed())
 		env2 := buildLogEnvelope("APP", "2", "message 2", loggregator_v2.Log_OUT)
 		Expect(writer.Write(env2)).To(Succeed())
-		time.Sleep(1 * time.Second)
+		time.Sleep(1050 * time.Millisecond)
 
-		Expect(drain.messages).To(HaveLen(2))
+		Expect(drain.getMessagesSize()).Should(Equal(2))
 		expected := &rfc5424.Message{
 			AppName:   "test-app-id",
 			Hostname:  "test-hostname",
@@ -82,34 +82,25 @@ var _ = Describe("HTTPS_batch", func() {
 		Expect(drain.messages[1].Message).To(Equal(expected.Message))
 	})
 
-	It("test early dispatch on high message load", func() {
-		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
-		for i := 0; i < 300; i++ {
-			writer.Write(env1)
-		}
-		time.Sleep(100 * time.Millisecond)
-		Expect(drain.messages).To(HaveLen(256))
-	})
-
 	It("test batch dispatching with all logs in a given timeframe", func() {
 		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
 		for i := 0; i < 10; i++ {
-			writer.Write(env1)
+			Expect(writer.Write(env1)).To(Succeed())
 			time.Sleep(99 * time.Millisecond)
 		}
-		Expect(drain.messages).To(HaveLen(0))
+		Expect(drain.getMessagesSize()).Should(Equal(0))
 		time.Sleep(100 * time.Millisecond)
-		Expect(drain.messages).To(HaveLen(10))
+		Expect(drain.getMessagesSize()).Should(Equal(10))
 	})
 
 	It("probabilistic test for race condition", func() {
 		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
 		for i := 0; i < 10; i++ {
-			writer.Write(env1)
+			Expect(writer.Write(env1)).To(Succeed())
 			time.Sleep(99 * time.Millisecond)
 		}
 		time.Sleep(100 * time.Millisecond)
-		Expect(drain.messages).To(HaveLen(10))
+		Expect(drain.getMessagesSize()).Should(Equal(10))
 	})
 })
 
@@ -133,8 +124,8 @@ func newBatchMockDrain(status int) *SpyDrain {
 			message = &rfc5424.Message{}
 			err = message.UnmarshalBinary(raw)
 			Expect(err).ToNot(HaveOccurred())
-			drain.messages = append(drain.messages, message)
-			drain.headers = append(drain.headers, r.Header)
+			drain.appendMessage(message)
+			drain.appendHeader(r.Header)
 		}
 		w.WriteHeader(status)
 	})

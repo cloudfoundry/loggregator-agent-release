@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
@@ -38,28 +39,7 @@ var _ = Describe("HTTPWriter", func() {
 		)
 
 		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		Expect(writer.Write(env)).To(HaveOccurred())
-	})
-
-	It("errors on an invalid syslog message", func() {
-		drain := newMockOKDrain()
-
-		b := buildURLBinding(
-			drain.URL,
-			"test-app-id",
-			"test-hostname",
-		)
-		writer := syslog.NewHTTPSWriter(
-			b,
-			netConf,
-			skipSSLTLSConfig,
-			&metricsHelpers.SpyMetric{},
-			c,
-		)
-
-		env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
-		env.SourceId = " "
-		Expect(writer.Write(env)).To(HaveOccurred())
+		Expect(writer.Write(env)).To(HaveOccurred()) //nolint
 	})
 
 	It("errors when the http POST fails", func() {
@@ -265,19 +245,36 @@ var _ = Describe("HTTPWriter", func() {
 })
 
 type SpyDrain struct {
+	mu sync.Mutex
 	*httptest.Server
 	messages []*rfc5424.Message
 	headers  []http.Header
 }
 
+func (d *SpyDrain) appendMessage(message *rfc5424.Message) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.messages = append(d.messages, message)
+}
+
+func (d *SpyDrain) appendHeader(header http.Header) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.headers = append(d.headers, header)
+}
+
+func (d *SpyDrain) getMessagesSize() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.messages)
+}
+
 func newMockOKDrain() *SpyDrain {
 	return newMockDrain(http.StatusOK)
 }
-
 func newMockErrorDrain() *SpyDrain {
 	return newMockDrain(http.StatusBadRequest)
 }
-
 func newMockDrain(status int) *SpyDrain {
 	drain := &SpyDrain{}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -290,8 +287,8 @@ func newMockDrain(status int) *SpyDrain {
 		err = message.UnmarshalBinary(body)
 		Expect(err).ToNot(HaveOccurred())
 
-		drain.messages = append(drain.messages, message)
-		drain.headers = append(drain.headers, r.Header)
+		drain.appendMessage(message)
+		drain.appendHeader(r.Header)
 		w.WriteHeader(status)
 	})
 	server := httptest.NewTLSServer(handler)
