@@ -43,7 +43,7 @@ func NewHTTPSWriter(
 	}
 }
 
-func (w *HTTPSWriter) sendHttpRequest(msg []byte, msgCount float64) error {
+func (w *HTTPSWriter) sendHttpRequest(msg []byte) error {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(w.url.String())
 	req.Header.SetMethod("POST")
@@ -63,8 +63,6 @@ func (w *HTTPSWriter) sendHttpRequest(msg []byte, msgCount float64) error {
 		return fmt.Errorf("syslog Writer: Post responded with %d status code", resp.StatusCode())
 	}
 
-	w.egressMetric.Add(msgCount)
-
 	return nil
 }
 
@@ -76,10 +74,11 @@ func (w *HTTPSWriter) Write(env *loggregator_v2.Envelope) error {
 	}
 
 	for _, msg := range msgs {
-		err = w.sendHttpRequest(msg, 1)
+		err = w.sendHttpRequest(msg)
 		if err != nil {
 			return err
 		}
+		w.egressMetric.Add(1)
 	}
 
 	return nil

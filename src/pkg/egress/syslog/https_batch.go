@@ -15,6 +15,7 @@ const BATCHSIZE = 256 * 1024
 
 type HTTPSBatchWriter struct {
 	HTTPSWriter
+	*Retryer
 	msgs         chan []byte
 	batchSize    int
 	sendInterval time.Duration
@@ -27,6 +28,7 @@ func NewHTTPSBatchWriter(
 	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
 	c *Converter,
+	retryer *Retryer,
 ) egress.WriteCloser {
 	client := httpClient(netConf, tlsConf)
 	binding.URL.Scheme = "https" // reset the scheme for usage to a valid http scheme
@@ -43,6 +45,7 @@ func NewHTTPSBatchWriter(
 		sendInterval: 1 * time.Second,
 		egrMsgCount:  0,
 		msgs:         make(chan []byte),
+		Retryer:      retryer,
 	}
 	go BatchWriter.startSender()
 	return BatchWriter
@@ -74,6 +77,13 @@ func (w *HTTPSBatchWriter) startSender() {
 		msgCount = 0
 		t.Reset(w.sendInterval)
 	}
+	sendBatch := func() {
+		err := w.Retryer.Retry(msgBatch.Bytes(), w.sendHttpRequest)
+		if err == nil {
+			w.egressMetric.Add(msgCount)
+		}
+		reset()
+	}
 	for {
 		select {
 		case msg := <-w.msgs:
@@ -84,14 +94,12 @@ func (w *HTTPSBatchWriter) startSender() {
 			} else {
 				msgCount++
 				if length >= w.batchSize {
-					w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
-					reset()
+					sendBatch()
 				}
 			}
 		case <-t.C:
 			if msgBatch.Len() > 0 {
-				w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
-				reset()
+				sendBatch()
 			}
 		}
 	}

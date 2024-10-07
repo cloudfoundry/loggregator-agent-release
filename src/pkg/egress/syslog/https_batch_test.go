@@ -39,12 +39,18 @@ var _ = Describe("HTTPS_batch", func() {
 			"test-app-id",
 			"test-hostname",
 		)
+		retryer := syslog.NewBackoffRetryer(
+			b,
+			syslog.ExponentialDuration,
+			2,
+		)
 		writer = syslog.NewHTTPSBatchWriter(
 			b,
 			netConf,
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
 			c,
+			retryer,
 		)
 	})
 
