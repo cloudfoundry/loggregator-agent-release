@@ -13,7 +13,7 @@ code.cloudfoundry.org/go-loggregator/v9
 code.cloudfoundry.org/go-loggregator/v9/conversion
 code.cloudfoundry.org/go-loggregator/v9/rfc5424
 code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20241007183436-1a2326addb3c
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20241016180114-4959be80b5ec
 ## explicit; go 1.22
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
@@ -44,7 +44,7 @@ github.com/cespare/xxhash/v2
 # github.com/cloudfoundry/dropsonde v1.1.0
 ## explicit; go 1.18
 github.com/cloudfoundry/dropsonde/emitter
-# github.com/cloudfoundry/sonde-go v0.0.0-20241007161526-e3ce7aa1aabc
+# github.com/cloudfoundry/sonde-go v0.0.0-20241016180203-3c0e1c24e908
 ## explicit; go 1.18
 github.com/cloudfoundry/sonde-go/events
 # github.com/go-chi/chi/v5 v5.1.0
@@ -65,7 +65,7 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/pprof v0.0.0-20241009165004-a3522334989c
+# github.com/google/pprof v0.0.0-20241017200806-017d972448fc
 ## explicit; go 1.22
 github.com/google/pprof/profile
 # github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
@@ -130,7 +130,7 @@ github.com/onsi/gomega/types
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.20.4
+# github.com/prometheus/client_golang v1.20.5
 ## explicit; go 1.20
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
@@ -264,10 +264,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20241007155032-5fefd90f89a9
+# google.golang.org/genproto/googleapis/api v0.0.0-20241015192408-796eee8c2d53
 ## explicit; go 1.21
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20241007155032-5fefd90f89a9
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53
 ## explicit; go 1.21
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.67.1
