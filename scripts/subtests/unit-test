@@ -6,7 +6,7 @@ set -o pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 flags='-r --randomize-all --randomize-suites --fail-on-pending --keep-going --race --trace'
-if [ "${CI:-false}" = 'true' ]; then
+if [ "${CI:-false}" = 'false' ]; then
     flags="${flags} -p"
 fi
 pushd "${SCRIPT_DIR}/../../src" > /dev/null
