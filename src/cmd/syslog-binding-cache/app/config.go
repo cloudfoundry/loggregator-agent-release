@@ -4,9 +4,9 @@ import (
 	"log"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-
 	envstruct "code.cloudfoundry.org/go-envstruct"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/blacklist"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 )
 
 // Config holds the configuration for the syslog binding cache
@@ -31,6 +31,22 @@ type Config struct {
 	CachePort int `env:"CACHE_PORT, required, report"`
 
 	MetricsServer config.MetricsServer
+
+	AgentAddress string `env:"AGENT_ADDR, required, report"`
+	GRPC         GRPC
+	Blacklist    blacklist.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+
+	WarnOnInvalidDrains bool `env:"WARN_ON_INVALID_DRAINS,    report"`
+}
+
+// GRPC stores the configuration for the router as a server using a PORT
+// with mTLS certs and as a client.
+type GRPC struct {
+	Port         int      `env:"AGENT_PORT,                     report"`
+	CAFile       string   `env:"AGENT_CA_FILE_PATH,   required, report"`
+	CertFile     string   `env:"AGENT_CERT_FILE_PATH, required, report"`
+	KeyFile      string   `env:"AGENT_KEY_FILE_PATH,  required, report"`
+	CipherSuites []string `env:"AGENT_CIPHER_SUITES,            report"`
 }
 
 // LoadConfig will load the configuration for the syslog binding cache from the

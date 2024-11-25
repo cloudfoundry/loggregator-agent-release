@@ -1,39 +1,48 @@
-package binding_test
+package binding
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/blacklist"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 )
 
 var _ = Describe("Poller", func() {
 	var (
-		apiClient *fakeAPIClient
-		store     *fakeStore
-		metrics   *metricsHelpers.SpyMetricsRegistry
-		logger    = log.New(GinkgoWriter, "", 0)
+		apiClient    *fakeAPIClient
+		store        *fakeStore
+		metrics      *metricsHelpers.SpyMetricsRegistry
+		logger       = log.New(GinkgoWriter, "", 0)
+		appLogStream applog.AppLogStream
+		logClient    = testhelper.NewSpyLogClient()
 	)
 
 	BeforeEach(func() {
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
 		metrics = metricsHelpers.NewMetricsRegistry()
+		factory := applog.NewAppLogStreamFactory()
+		logClient = testhelper.NewSpyLogClient()
+		appLogStream = factory.NewAppLogStream(logClient, "test")
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -41,15 +50,15 @@ var _ = Describe("Poller", func() {
 
 	It("calls the api client and stores the result", func() {
 		apiClient.bindings <- response{
-			Results: []binding.Binding{
+			Results: []Binding{
 				{
-					Url: "drain-0",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-0",
+					Credentials: []Credentials{
 						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 						{
-							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{
+							Apps: []App{
 								{Hostname: "app-hostname1", AppID: "app-id-1"},
 								{Hostname: "app-hostname2", AppID: "app-id-2"},
 							},
@@ -57,30 +66,30 @@ var _ = Describe("Poller", func() {
 					},
 				},
 				{
-					Url: "drain-1",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-1",
+					Credentials: []Credentials{
 						{
-							Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
-		var expectedBindings []binding.Binding
+		var expectedBindings []Binding
 		Eventually(store.bindings).Should(Receive(&expectedBindings))
-		Expect(expectedBindings).To(ConsistOf([]binding.Binding{
+		Expect(expectedBindings).To(ConsistOf([]Binding{
 			{
-				Url: "drain-0",
-				Credentials: []binding.Credentials{
+				Url: "syslog://drain-0",
+				Credentials: []Credentials{
 					{
-						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 					{
-						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{
+						Apps: []App{
 							{Hostname: "app-hostname1", AppID: "app-id-1"},
 							{Hostname: "app-hostname2", AppID: "app-id-2"},
 						},
@@ -88,10 +97,10 @@ var _ = Describe("Poller", func() {
 				},
 			},
 			{
-				Url: "drain-1",
-				Credentials: []binding.Credentials{
+				Url: "syslog://drain-1",
+				Credentials: []Credentials{
 					{
-						Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 					},
 				},
 			},
@@ -101,20 +110,20 @@ var _ = Describe("Poller", func() {
 	It("fetches the next page of bindings and stores the result", func() {
 		apiClient.bindings <- response{
 			NextID: 2,
-			Results: []binding.Binding{
+			Results: []Binding{
 				{
-					Url: "drain-0",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-0",
+					Credentials: []Credentials{
 						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
 				{
-					Url: "drain-1",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-1",
+					Credentials: []Credentials{
 						{
-							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 						},
 					},
 				},
@@ -122,62 +131,62 @@ var _ = Describe("Poller", func() {
 		}
 
 		apiClient.bindings <- response{
-			Results: []binding.Binding{
+			Results: []Binding{
 				{
-					Url: "drain-2",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-2",
+					Credentials: []Credentials{
 						{
-							Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+							Apps: []App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
 						},
 					},
 				},
 				{
-					Url: "drain-3",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-3",
+					Credentials: []Credentials{
 						{
-							Cert: "cert3", Key: "key3", CA: "ca3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
+							Apps: []App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
 						},
 					},
 				},
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
-		var expectedBindings []binding.Binding
+		var expectedBindings []Binding
 		Eventually(store.bindings).Should(Receive(&expectedBindings))
 		Expect(expectedBindings).To(ConsistOf(
-			[]binding.Binding{
+			[]Binding{
 				{
-					Url: "drain-0",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-0",
+					Credentials: []Credentials{
 						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
 				{
-					Url: "drain-1",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-1",
+					Credentials: []Credentials{
 						{
-							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 						},
 					},
 				},
 				{
-					Url: "drain-2",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-2",
+					Credentials: []Credentials{
 						{
-							Cert: "cert2", Key: "key2", CA: "ca2", Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+							Apps: []App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
 						},
 					},
 				},
 				{
-					Url: "drain-3",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-3",
+					Credentials: []Credentials{
 						{
-							Cert: "cert3", Key: "key3", CA: "ca3", Apps: []binding.App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
+							Apps: []App{{Hostname: "app-hostname3", AppID: "app-id-3"}},
 						},
 					},
 				},
@@ -188,7 +197,7 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("tracks the number of API errors", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
@@ -201,7 +210,7 @@ var _ = Describe("Poller", func() {
 	It("does not update the stores if the response code is bad", func() {
 		apiClient.statusCode <- 404
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
@@ -209,75 +218,392 @@ var _ = Describe("Poller", func() {
 
 	It("tracks the number of bindings returned from CAPI", func() {
 		apiClient.bindings <- response{
-			Results: []binding.Binding{
+			Results: []Binding{
 				{
-					Url: "drain-0",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-0.example.com",
+					Credentials: []Credentials{
 						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
 				{
-					Url: "drain-1",
-					Credentials: []binding.Credentials{
+					Url: "syslog://drain-1.example.com",
+					Credentials: []Credentials{
 						{
-							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
 						},
 					},
 				},
 			},
 		}
-		binding.NewPoller(apiClient, time.Hour, store, metrics, logger)
+		NewPoller(apiClient, time.Hour, store, metrics, logger, appLogStream, &dummyIPChecker{}, true)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 2))
 	})
 
-	It("tracks the isolated CalculateBindingsCount call", func() {
-		noBinding := []binding.Binding{}
-		singleBinding := []binding.Binding{
-			{
-				Url: "drain-0",
-				Credentials: []binding.Credentials{
-					{
-						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+	It("filters invalid bindings", func() {
+		apiClient.bindings <- response{
+			Results: []Binding{
+				{
+					Url: "drain-0",
+					Credentials: []Credentials{
+						{
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
 					},
 				},
-			},
-			{
-				Url: "drain-1",
-				Credentials: []binding.Credentials{
-					{
-						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+				{
+					Url: "drain-1",
+					Credentials: []Credentials{
+						{
+							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						},
 					},
 				},
-			},
-		}
-		multipleBindings := []binding.Binding{
-			{
-				Url: "drain-0",
-				Credentials: []binding.Credentials{
-					{
-						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
-					},
-				},
-			},
-			{
-				Url: "drain-1",
-				Credentials: []binding.Credentials{
-					{
-						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+				{
+					Url: "syslog://drain-2.example.com",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+						},
 					},
 				},
 			},
 		}
-		Expect(binding.CalculateBindingCount(noBinding)).
-			To(BeNumerically("==", 0))
-		Expect(binding.CalculateBindingCount(singleBinding)).
+		NewPoller(apiClient, time.Hour, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+
+		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 1))
-		Expect(binding.CalculateBindingCount(multipleBindings)).
+	})
+
+	It("tracks the isolated CalculateBindingsCount call", func() {
+		noBinding := []Binding{}
+		singleBinding := []Binding{
+			{
+				Url: "drain-0",
+				Credentials: []Credentials{
+					{
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+			{
+				Url: "drain-1",
+				Credentials: []Credentials{
+					{
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+		}
+		multipleBindings := []Binding{
+			{
+				Url: "drain-0",
+				Credentials: []Credentials{
+					{
+						Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+					},
+				},
+			},
+			{
+				Url: "drain-1",
+				Credentials: []Credentials{
+					{
+						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+					},
+				},
+			},
+		}
+		Expect(CalculateBindingCount(noBinding)).
+			To(BeNumerically("==", 0))
+		Expect(CalculateBindingCount(singleBinding)).
+			To(BeNumerically("==", 1))
+		Expect(CalculateBindingCount(multipleBindings)).
 			To(BeNumerically("==", 2))
+	})
+
+	Describe("checkBindings", func() {
+		It("returns no binding which contains an invalid URL and increases invalid_drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog:/invalid-url-a-slash-is-missing",
+					Credentials: []Credentials{
+						{
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				&dummyIPChecker{},
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("No hostname found in syslog drain url syslog:/invalid-url-a-slash-is-missing")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+		})
+
+		It("returns no binding which contains an invalid scheme in URL and increases invalid_drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog-ssl://drain-0",
+					Credentials: []Credentials{
+						{
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				&dummyIPChecker{},
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("Invalid Scheme for syslog drain url syslog-ssl://drain-0")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+		})
+
+		It("returns no binding with unresolvable URL and increases invalid_drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
+					Credentials: []Credentials{
+						{
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				&unresolvableIPChecker{},
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("Cannot resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+		})
+
+		It("returns no binding which has a blacklisted IP and increases invalid_drains and blacklisted drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog://192.168.188.15",
+					Credentials: []Credentials{
+						{
+							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+			blacklistRanges, _ := blacklist.NewBlacklistRanges(
+				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				blacklistRanges,
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("Resolved ip address for syslog drain with url syslog://192.168.188.15 is blacklisted")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 1))
+		})
+
+		It("returns no binding when there is a prior IP checking failure for URL and increases invalid_drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+				{
+					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+			blacklistRanges, _ := blacklist.NewBlacklistRanges(
+				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				blacklistRanges,
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("Skipped resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com due to prior failure")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 2))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+		})
+
+		It("returns no binding when key pair cannot be loaded and does not increase invalid_drains and blacklisted drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog-tls://drain-0",
+					Credentials: []Credentials{
+						{
+							Cert: "cert0", Key: "key0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				&dummyIPChecker{},
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("failed to load certificate for syslog-tls://drain-0")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 0))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+		})
+
+		It("returns no binding when CA cannot be loaded and does not increase invalid_drains and blacklisted drains", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog-tls://drain-0",
+					Credentials: []Credentials{
+						{
+							CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			blacklistedDrainsGauge := metrics.NewGauge(
+				"blacklisted_drains",
+				"Count of blacklisted drains encountered in last binding fetch.",
+			)
+			invalidDrainsGauge := metrics.NewGauge(
+				"invalid_drains",
+				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			)
+
+			filteredBindings := checkBindings(
+				bindings,
+				&appLogStream,
+				&dummyIPChecker{},
+				logger,
+				cache,
+				blacklistedDrainsGauge,
+				invalidDrainsGauge,
+				true,
+			)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logClient.Message()).To(ContainElement(Equal("failed to load root CA for syslog-tls://drain-0")))
+			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 0))
+			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+		})
 	})
 })
 
@@ -329,20 +655,40 @@ func (c *fakeAPIClient) called() int64 {
 }
 
 type fakeStore struct {
-	bindings chan []binding.Binding
+	bindings chan []Binding
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
-		bindings: make(chan []binding.Binding, 100),
+		bindings: make(chan []Binding, 100),
 	}
 }
 
-func (c *fakeStore) Set(b []binding.Binding, bindingCount int) {
+func (c *fakeStore) Set(b []Binding, bindingCount int) {
 	c.bindings <- b
 }
 
 type response struct {
-	Results []binding.Binding
+	Results []Binding
 	NextID  int `json:"next_id"`
+}
+
+type dummyIPChecker struct{}
+
+func (d *dummyIPChecker) ResolveAddr(host string) (net.IP, error) {
+	return net.IPv4(127, 0, 0, 1), nil
+}
+
+func (*dummyIPChecker) CheckBlacklist(ip net.IP) error {
+	return nil
+}
+
+type unresolvableIPChecker struct{}
+
+func (d *unresolvableIPChecker) ResolveAddr(host string) (net.IP, error) {
+	return nil, fmt.Errorf("unable to resolve DNS entry: %s", host)
+}
+
+func (*unresolvableIPChecker) CheckBlacklist(ip net.IP) error {
+	return nil
 }

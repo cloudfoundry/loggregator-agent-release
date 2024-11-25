@@ -47,34 +47,34 @@ var _ = Describe("App", func() {
 	BeforeEach(func() {
 		r := results{
 			{
-				Url: "syslog://drain-a",
+				Url: "syslog://localhost:1000",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "org.space.app-name-1", AppID: "app-id-1"}},
+						Apps: []binding.App{{Hostname: "org.space.app-name-1", AppID: "app-id-1"}},
 					},
 				},
 			},
 			{
-				Url: "syslog://drain-b",
+				Url: "syslog://localhost:1001",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "org.space.app-name-1", AppID: "app-id-1"}},
+						Apps: []binding.App{{Hostname: "org.space.app-name-1", AppID: "app-id-1"}},
 					},
 				},
 			},
 			{
-				Url: "syslog://drain-c",
+				Url: "syslog://localhost:1002",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "org.space.app-name-2", AppID: "app-id-2"}},
+						Apps: []binding.App{{Hostname: "org.space.app-name-2", AppID: "app-id-2"}},
 					},
 				},
 			},
 			{
-				Url: "syslog://drain-d",
+				Url: "syslog://localhost:1003",
 				Credentials: []binding.Credentials{
 					{
-						Cert: "cert", Key: "key", Apps: []binding.App{{Hostname: "org.space.app-name-2", AppID: "app-id-2"}},
+						Apps: []binding.App{{Hostname: "org.space.app-name-2", AppID: "app-id-2"}},
 					},
 				},
 			},
@@ -107,6 +107,7 @@ var _ = Describe("App", func() {
 		err = aggDrainFile.Close()
 		Expect(err).ToNot(HaveOccurred())
 		sbcCerts = testhelper.GenerateCerts("binding-cache-ca")
+		grpcPort := 30000 + GinkgoParallelProcess()
 		sbcCfg = app.Config{
 			APIURL:              capi.URL,
 			APIPollingInterval:  10 * time.Millisecond,
@@ -127,6 +128,12 @@ var _ = Describe("App", func() {
 				CertFile:  sbcCerts.Cert("metron"),
 				KeyFile:   sbcCerts.Key("metron"),
 				PprofPort: uint16(pprofPort),
+			},
+			GRPC: app.GRPC{
+				Port:     grpcPort,
+				CAFile:   sbcCerts.CA(),
+				CertFile: sbcCerts.Cert("metron"),
+				KeyFile:  sbcCerts.Key("metron"),
 			},
 		}
 		sbcMetrics = metricsHelpers.NewMetricsRegistry()
@@ -189,13 +196,13 @@ var _ = Describe("App", func() {
 
 		Expect(results).To(HaveLen(4))
 		b := findBindings(results, "app-id-1")
-		Expect(b[0].Url).To(Equal("syslog://drain-a"))
-		Expect(b[1].Url).To(Equal("syslog://drain-b"))
+		Expect(b[0].Url).To(Equal("syslog://localhost:1000"))
+		Expect(b[1].Url).To(Equal("syslog://localhost:1001"))
 		Expect(b[0].Credentials[0].Apps[0].Hostname).To(Equal("org.space.app-name-1"))
 
 		b = findBindings(results, "app-id-2")
-		Expect(b[0].Url).To(Equal("syslog://drain-c"))
-		Expect(b[1].Url).To(Equal("syslog://drain-d"))
+		Expect(b[0].Url).To(Equal("syslog://localhost:1002"))
+		Expect(b[1].Url).To(Equal("syslog://localhost:1003"))
 		Expect(b[0].Credentials[0].Apps[0].Hostname).To(Equal("org.space.app-name-2"))
 	})
 

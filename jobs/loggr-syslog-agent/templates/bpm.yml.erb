@@ -37,6 +37,7 @@
       "PPROF_PORT" => "#{p("metrics.pprof_port")}",
       "USE_RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
       "WARN_ON_INVALID_DRAINS" => "#{p("warn_on_invalid_drains")}",
+      "LOGGREGATOR_AGENT_ADDR" => "localhost:#{p('port')}",
     }
   }
   if_p("drain_cipher_suites") do | ciphers |
