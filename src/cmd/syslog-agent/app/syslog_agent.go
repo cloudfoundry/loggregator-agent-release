@@ -57,18 +57,6 @@ func NewSyslogAgent(
 	m Metrics,
 	l *log.Logger,
 ) *SyslogAgent {
-	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
-	writerFactory := syslog.NewWriterFactory(
-		internalTlsConfig,
-		externalTlsConfig,
-		syslog.NetworkTimeoutConfig{
-			Keepalive:    10 * time.Second,
-			DialTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		},
-		m,
-	)
-
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		cfg.GRPC.CAFile,
 		cfg.GRPC.CertFile,
@@ -86,12 +74,25 @@ func NewSyslogAgent(
 		l.Panicf("failed to create log client for syslog connector: %q", err)
 	}
 
+	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
+	writerFactory := syslog.NewWriterFactory(
+		internalTlsConfig,
+		externalTlsConfig,
+		syslog.NetworkTimeoutConfig{
+			Keepalive:    10 * time.Second,
+			DialTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		},
+		m,
+		syslog.NewLoggregatorEmitter(logClient, "syslog_agent"),
+	)
+
 	connector := syslog.NewSyslogConnector(
 		cfg.DrainSkipCertVerify,
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithLogClient(logClient, "syslog_agent"),
+		syslog.WithLoggregatorEmitter(syslog.NewLoggregatorEmitter(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient
