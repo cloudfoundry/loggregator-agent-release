@@ -90,14 +90,14 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 
 		if invalidScheme(u.Scheme) {
 			f.printWarning("Invalid scheme %s in syslog drain url %s for application %s", u.Scheme, anonymousUrl.String(), b.AppId)
-			f.emitter.WriteLog(b.AppId, fmt.Sprintf("Invalid scheme %s in syslog drain url %s", u.Scheme, anonymousUrl.String()))
+			f.emitter.EmitLog(b.AppId, fmt.Sprintf("Invalid scheme %s in syslog drain url %s", u.Scheme, anonymousUrl.String()))
 			continue
 		}
 
 		if len(u.Host) == 0 {
 			invalidDrains += 1
 			f.printWarning("No hostname found in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
-			f.emitter.WriteLog(b.AppId, fmt.Sprintf("No hostname found in syslog drain url %s", anonymousUrl.String()))
+			f.emitter.EmitLog(b.AppId, fmt.Sprintf("No hostname found in syslog drain url %s", anonymousUrl.String()))
 			continue
 		}
 
@@ -105,7 +105,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 		if exists {
 			invalidDrains += 1
 			f.printWarning("Skipped resolve ip address for syslog drain with url %s for application %s due to prior failure", anonymousUrl.String(), b.AppId)
-			f.emitter.WriteLog(b.AppId, fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()))
+			f.emitter.EmitLog(b.AppId, fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()))
 			continue
 		}
 
@@ -114,7 +114,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			invalidDrains += 1
 			f.failedHostsCache.Set(u.Host, true)
 			f.printWarning("Cannot resolve ip address for syslog drain with url %s for application %s", anonymousUrl.String(), b.AppId)
-			f.emitter.WriteLog(b.AppId, fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()))
+			f.emitter.EmitLog(b.AppId, fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()))
 			continue
 		}
 
@@ -123,7 +123,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			invalidDrains += 1
 			blacklistedDrains += 1
 			f.printWarning("Resolved ip address for syslog drain with url %s for application %s is blacklisted", anonymousUrl.String(), b.AppId)
-			f.emitter.WriteLog(b.AppId, fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()))
+			f.emitter.EmitLog(b.AppId, fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()))
 			continue
 		}
 

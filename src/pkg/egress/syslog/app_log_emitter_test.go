@@ -7,12 +7,12 @@ import (
 )
 
 var _ = Describe("Loggregator Emitter", func() {
-	Describe("WriteLog()", func() {
+	Describe("EmitLog()", func() {
 		It("emits a log message", func() {
 			logClient := NewSpyLogClient()
-			emitter := syslog.NewLoggregatorEmitter(logClient, "0")
+			emitter := syslog.NewAppLogEmitter(logClient, "0")
 
-			emitter.WriteLog("app-id", "some-message")
+			emitter.EmitLog("app-id", "some-message")
 
 			messages := logClient.message()
 			appIDs := logClient.appID()
@@ -28,9 +28,9 @@ var _ = Describe("Loggregator Emitter", func() {
 
 		It("does not emit a log message if the appID is empty", func() {
 			logClient := NewSpyLogClient()
-			emitter := syslog.NewLoggregatorEmitter(logClient, "0")
+			emitter := syslog.NewAppLogEmitter(logClient, "0")
 
-			emitter.WriteLog("", "some-message")
+			emitter.EmitLog("", "some-message")
 
 			messages := logClient.message()
 			appIDs := logClient.appID()

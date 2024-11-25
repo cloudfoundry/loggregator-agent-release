@@ -59,7 +59,7 @@ func (r *RetryWriter) Write(e *loggregator_v2.Envelope) error {
 
 		sleepDuration := r.retryDuration(i)
 		log.Printf(logTemplate, r.binding.URL.Host, sleepDuration, err)
-		r.emitter.WriteLog(e.SourceId, fmt.Sprintf(logTemplate, r.binding.URL.Host, sleepDuration, err))
+		r.emitter.EmitLog(e.SourceId, fmt.Sprintf(logTemplate, r.binding.URL.Host, sleepDuration, err))
 
 		time.Sleep(sleepDuration)
 	}

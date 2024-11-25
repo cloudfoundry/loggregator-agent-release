@@ -44,7 +44,7 @@ type SyslogConnector struct {
 
 	droppedMetric metrics.Counter
 
-	loggregatorEmitter AppLogEmitter
+	appLogEmitter AppLogEmitter
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -78,11 +78,11 @@ func NewSyslogConnector(
 // ConnectorOption allows a syslog connector to be customized.
 type ConnectorOption func(*SyslogConnector)
 
-// WithLoggregatorEmitter returns a ConnectorOption that will set up logging for any
+// WithAppLogEmitter returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithLoggregatorEmitter(emitter AppLogEmitter) ConnectorOption {
+func WithAppLogEmitter(emitter AppLogEmitter) ConnectorOption {
 	return func(sc *SyslogConnector) {
-		sc.loggregatorEmitter = emitter
+		sc.appLogEmitter = emitter
 	}
 }
 
@@ -94,7 +94,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		return nil, err
 	}
 
-	writer, err := w.writerFactory.NewWriter(urlBinding, w.loggregatorEmitter)
+	writer, err := w.writerFactory.NewWriter(urlBinding, w.appLogEmitter)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		w.droppedMetric.Add(float64(missed))
 		drainDroppedMetric.Add(float64(missed))
 
-		w.loggregatorEmitter.WriteLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
+		w.appLogEmitter.EmitLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
 		w.emitStandardOutErrorLog(b.AppId, urlBinding.Scheme(), anonymousUrl.String(), missed)
 	}), w.wg)
 
