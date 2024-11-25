@@ -175,7 +175,7 @@ type spyLogClient struct {
 	_sourceInstance map[string]struct{}
 }
 
-func newSpyLogClient() *spyLogClient {
+func NewSpyLogClient() *spyLogClient {
 	return &spyLogClient{
 		_sourceType:     make(map[string]struct{}),
 		_sourceInstance: make(map[string]struct{}),
@@ -257,5 +257,6 @@ func buildRetryWriter(
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
 		w,
+		syslog.LoggregatorEmitter{},
 	)
 }

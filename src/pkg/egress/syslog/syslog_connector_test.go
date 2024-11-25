@@ -172,13 +172,13 @@ var _ = Describe("SyslogConnector", func() {
 		})
 
 		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
-			logClient := newSpyLogClient()
+			logClient := NewSpyLogClient()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithLogClient(logClient, "3"),
+				syslog.WithLoggregatorEmitter(syslog.NewLoggregatorEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{AppId: "app-id",
@@ -214,13 +214,13 @@ var _ = Describe("SyslogConnector", func() {
 		})
 
 		It("doesn't emit LGR and SYS log to the log client about aggregate drains drops", func() {
-			logClient := newSpyLogClient()
+			logClient := NewSpyLogClient()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithLogClient(logClient, "3"),
+				syslog.WithLoggregatorEmitter(syslog.NewLoggregatorEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}
@@ -276,6 +276,7 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
+	emitter syslog.LoggregatorEmitter,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

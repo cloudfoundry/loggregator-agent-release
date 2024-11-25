@@ -41,18 +41,20 @@ type WriterFactory struct {
 	externalTlsConfig *tls.Config
 	netConf           NetworkTimeoutConfig
 	m                 metricClient
+	emitter           LoggregatorEmitter
 }
 
-func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient) WriterFactory {
+func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient, emitter LoggregatorEmitter) WriterFactory {
 	return WriterFactory{
 		internalTlsConfig: internalTlsConfig,
 		externalTlsConfig: externalTlsConfig,
 		netConf:           netConf,
 		m:                 m,
+		emitter:           emitter,
 	}
 }
 
-func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
+func (f WriterFactory) NewWriter(ub *URLBinding, emitter LoggregatorEmitter) (egress.WriteCloser, error) {
 	tlsCfg := f.externalTlsConfig.Clone()
 	if ub.InternalTls {
 		tlsCfg = f.internalTlsConfig.Clone()
@@ -60,7 +62,9 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 	if len(ub.Certificate) > 0 && len(ub.PrivateKey) > 0 {
 		cert, err := tls.X509KeyPair(ub.Certificate, ub.PrivateKey)
 		if err != nil {
-			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", err.Error())
+			errorMessage := err.Error()
+			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", errorMessage)
+			f.emitter.WriteLog(ub.AppID, fmt.Sprintf("failed to load certificate: %s", errorMessage))
 			return nil, err
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
@@ -69,6 +73,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 		ok := tlsCfg.RootCAs.AppendCertsFromPEM(ub.CA)
 		if !ok {
 			err := NewWriterFactoryErrorf(ub.URL, "failed to load root CA")
+			f.emitter.WriteLog(ub.AppID, "failed to load root CA")
 			return nil, err
 		}
 	}
@@ -140,5 +145,6 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 		ExponentialDuration,
 		maxRetries,
 		w,
+		emitter,
 	)
 }
