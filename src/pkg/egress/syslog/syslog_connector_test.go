@@ -276,7 +276,7 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
-	emitter syslog.LoggregatorEmitter,
+	emitter syslog.AppLogEmitter,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

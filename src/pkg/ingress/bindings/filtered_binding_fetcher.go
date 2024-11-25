@@ -35,10 +35,10 @@ type FilteredBindingFetcher struct {
 	invalidDrains     metrics.Gauge
 	blacklistedDrains metrics.Gauge
 	failedHostsCache  *simplecache.SimpleCache[string, bool]
-	emitter           syslog.LoggregatorEmitter
+	emitter           syslog.AppLogEmitter
 }
 
-func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, warn bool, lc *log.Logger, emitter syslog.LoggregatorEmitter) *FilteredBindingFetcher {
+func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, warn bool, lc *log.Logger, emitter syslog.AppLogEmitter) *FilteredBindingFetcher {
 	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
 
 	invalidDrains := m.NewGauge(

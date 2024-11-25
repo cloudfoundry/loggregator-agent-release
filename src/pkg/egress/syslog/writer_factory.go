@@ -41,10 +41,10 @@ type WriterFactory struct {
 	externalTlsConfig *tls.Config
 	netConf           NetworkTimeoutConfig
 	m                 metricClient
-	emitter           LoggregatorEmitter
+	emitter           AppLogEmitter
 }
 
-func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient, emitter LoggregatorEmitter) WriterFactory {
+func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient, emitter AppLogEmitter) WriterFactory {
 	return WriterFactory{
 		internalTlsConfig: internalTlsConfig,
 		externalTlsConfig: externalTlsConfig,
@@ -54,7 +54,7 @@ func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Conf
 	}
 }
 
-func (f WriterFactory) NewWriter(ub *URLBinding, emitter LoggregatorEmitter) (egress.WriteCloser, error) {
+func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.WriteCloser, error) {
 	tlsCfg := f.externalTlsConfig.Clone()
 	if ub.InternalTls {
 		tlsCfg = f.internalTlsConfig.Clone()

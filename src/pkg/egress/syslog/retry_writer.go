@@ -22,7 +22,7 @@ type RetryWriter struct {
 	retryDuration RetryDuration
 	maxRetries    int
 	binding       *URLBinding
-	emitter       LoggregatorEmitter
+	emitter       AppLogEmitter
 }
 
 func NewRetryWriter(
@@ -30,7 +30,7 @@ func NewRetryWriter(
 	retryDuration RetryDuration,
 	maxRetries int,
 	writer egress.WriteCloser,
-	emitter LoggregatorEmitter,
+	emitter AppLogEmitter,
 ) (egress.WriteCloser, error) {
 	return &RetryWriter{
 		Writer:        writer,

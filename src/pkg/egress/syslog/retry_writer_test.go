@@ -257,6 +257,6 @@ func buildRetryWriter(
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
 		w,
-		syslog.LoggregatorEmitter{},
+		syslog.AppLogEmitter{},
 	)
 }
