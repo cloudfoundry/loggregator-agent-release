@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/blacklist"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -24,7 +27,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	"code.cloudfoundry.org/tlsconfig"
 )
 
@@ -48,6 +50,8 @@ var _ = Describe("SyslogAgent", func() {
 		agentMetrics *metricsHelpers.SpyMetricsRegistry
 		agentLogr    *log.Logger
 		agent        *app.SyslogAgent
+
+		factory applog.AppLogStreamFactory
 	)
 
 	BeforeEach(func() {
@@ -134,7 +138,9 @@ var _ = Describe("SyslogAgent", func() {
 			agentCfg.Cache.PollingInterval = 10 * time.Millisecond
 		}
 
-		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr)
+		factory := applog.NewAppLogStreamFactory()
+
+		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &factory)
 		go agent.Run()
 	})
 
@@ -238,6 +244,14 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(agentMetrics.GetDebugMetricsEnabled).Should(BeFalse())
 	})
 
+	It("configures appLogStream", func() {
+		spyFactory := testhelper.SpyAppLogStreamFactory{}
+		app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &spyFactory)
+
+		Expect(spyFactory.SourceIndex()).Should(Equal("syslog_agent"))
+		Expect(spyFactory.LogClient()).ShouldNot(BeNil())
+	})
+
 	Context("when debug configuration is enabled", func() {
 		BeforeEach(func() {
 			agentCfg.MetricsServer.DebugMetrics = true
@@ -272,8 +286,8 @@ var _ = Describe("SyslogAgent", func() {
 		BeforeEach(func() {
 			url, err := url.Parse(appHTTPSDrain.server.URL)
 			Expect(err).NotTo(HaveOccurred())
-			agentCfg.Cache.Blacklist = bindings.BlacklistRanges{
-				Ranges: []bindings.BlacklistRange{
+			agentCfg.Cache.Blacklist = blacklist.BlacklistRanges{
+				Ranges: []blacklist.BlacklistRange{
 					{
 						Start: url.Hostname(),
 						End:   url.Hostname(),
@@ -423,7 +437,7 @@ var _ = Describe("SyslogAgent", func() {
 			cfgCopy.GRPC.KeyFile = "invalid"
 
 			msg := `failed to configure client TLS: "failed to load keypair: open invalid: no such file or directory"`
-			Expect(func() { app.NewSyslogAgent(cfgCopy, agentMetrics, agentLogr) }).To(PanicWith(msg))
+			Expect(func() { app.NewSyslogAgent(cfgCopy, agentMetrics, agentLogr, factory) }).To(PanicWith(msg))
 		})
 	})
 })

@@ -1,6 +1,9 @@
 package syslog_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
+
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -176,13 +179,14 @@ var _ = Describe("SyslogConnector", func() {
 		})
 
 		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
-			logClient := newSpyLogClient()
+			logClient := testhelper.NewSpyLogClient()
+			factory := applog.NewAppLogStreamFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithLogClient(logClient, "3"),
+				syslog.WithAppLogStream(factory.NewAppLogStream(logClient, "3")),
 			)
 
 			binding := syslog.Binding{AppId: "app-id",
@@ -205,26 +209,27 @@ var _ = Describe("SyslogConnector", func() {
 				}
 			}(writer)
 
-			Eventually(logClient.message).Should(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
-			Eventually(logClient.appID).Should(ContainElement("app-id"))
+			Eventually(logClient.Message).Should(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
+			Eventually(logClient.AppID).Should(ContainElement("app-id"))
 
-			Eventually(logClient.sourceType).Should(HaveLen(2))
-			Eventually(logClient.sourceType).Should(HaveKey("LGR"))
-			Eventually(logClient.sourceType).Should(HaveKey("SYS"))
+			Eventually(logClient.SourceType).Should(HaveLen(2))
+			Eventually(logClient.SourceType).Should(HaveKey("LGR"))
+			Eventually(logClient.SourceType).Should(HaveKey("SYS"))
 
-			Eventually(logClient.sourceInstance).Should(HaveLen(2))
-			Eventually(logClient.sourceInstance).Should(HaveKey(""))
-			Eventually(logClient.sourceInstance).Should(HaveKey("3"))
+			Eventually(logClient.SourceInstance).Should(HaveLen(2))
+			Eventually(logClient.SourceInstance).Should(HaveKey(""))
+			Eventually(logClient.SourceInstance).Should(HaveKey("3"))
 		})
 
 		It("doesn't emit LGR and SYS log to the log client about aggregate drains drops", func() {
-			logClient := newSpyLogClient()
+			logClient := testhelper.NewSpyLogClient()
+			factory := applog.NewAppLogStreamFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithLogClient(logClient, "3"),
+				syslog.WithAppLogStream(factory.NewAppLogStream(logClient, "3")),
 			)
 
 			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}
@@ -243,7 +248,7 @@ var _ = Describe("SyslogConnector", func() {
 				}
 			}(writer)
 
-			Consistently(logClient.message).ShouldNot(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
+			Consistently(logClient.Message()).ShouldNot(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
 		})
 
 		It("does not panic on unknown dropped metrics", func() {
@@ -280,6 +285,7 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
+	appLogStream applog.AppLogStream,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

@@ -1,12 +1,19 @@
 package binding
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 )
 
 type Poller struct {
@@ -17,6 +24,18 @@ type Poller struct {
 	logger                     *log.Logger
 	bindingRefreshErrorCounter metrics.Counter
 	lastBindingCount           metrics.Gauge
+	invalidDrains              metrics.Gauge
+	blacklistedDrains          metrics.Gauge
+	appLogStream               applog.AppLogStream
+	checker                    IPChecker
+	failedHostsCache           *simplecache.SimpleCache[string, bool]
+	warn                       bool
+}
+
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . IPChecker
+type IPChecker interface {
+	ResolveAddr(host string) (net.IP, error)
+	CheckBlacklist(ip net.IP) error
 }
 
 type client interface {
@@ -51,7 +70,20 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger) *Poller {
+var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
+
+func NewPoller(
+	ac client,
+	pi time.Duration,
+	s Setter,
+	m Metrics,
+	logger *log.Logger,
+	logStream applog.AppLogStream,
+	checker IPChecker,
+	warn bool,
+) *Poller {
+	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
+
 	p := &Poller{
 		apiClient:       ac,
 		pollingInterval: pi,
@@ -65,6 +97,20 @@ func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Log
 			"last_binding_refresh_count",
 			"Current number of bindings received from binding provider during last refresh.",
 		),
+		invalidDrains: m.NewGauge(
+			"invalid_drains",
+			"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			opt,
+		),
+		blacklistedDrains: m.NewGauge(
+			"blacklisted_drains",
+			"Count of blacklisted drains encountered in last binding fetch.",
+			opt,
+		),
+		appLogStream:     logStream,
+		checker:          checker,
+		failedHostsCache: simplecache.New[string, bool](120 * time.Second),
+		warn:             warn,
 	}
 	p.poll()
 	return p
@@ -88,7 +134,10 @@ func (p *Poller) poll() {
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			p.logger.Printf("unexpected response from internal bindings endpoint. status code: %d", resp.StatusCode)
+			p.logger.Printf(
+				"unexpected response from internal bindings endpoint. status code: %d",
+				resp.StatusCode,
+			)
 			return
 		}
 
@@ -107,9 +156,219 @@ func (p *Poller) poll() {
 		}
 	}
 
-	bindingCount := CalculateBindingCount(bindings)
+	filteredBindings := checkBindings(
+		bindings,
+		&p.appLogStream,
+		p.checker,
+		p.logger,
+		p.failedHostsCache,
+		p.blacklistedDrains,
+		p.invalidDrains,
+		p.warn,
+	)
+
+	bindingCount := CalculateBindingCount(filteredBindings)
 	p.lastBindingCount.Set(float64(bindingCount))
-	p.store.Set(bindings, bindingCount)
+	p.store.Set(filteredBindings, bindingCount)
+}
+
+func checkBindings(
+	bindings []Binding,
+	logStream *applog.AppLogStream,
+	checker IPChecker,
+	logger *log.Logger,
+	failedHostsCache *simplecache.SimpleCache[string, bool],
+	blacklistedDrainsGauge metrics.Gauge,
+	invalidDrainsGauge metrics.Gauge,
+	warn bool,
+) []Binding {
+	logger.Printf("checking bindings - found %d bindings", len(bindings))
+	var invalidDrains float64 = 0
+	var blacklistedDrains float64 = 0
+	var filteredBindings []Binding
+	for _, b := range bindings {
+		if len(b.Credentials) == 0 {
+			logger.Print("No credentials - which include appIDs - for a binding. Check the bindings in the cloud controller.")
+			continue
+		}
+
+		u, err := url.Parse(b.Url)
+		if err != nil {
+			invalidDrains += 1
+			if warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						"Cannot parse syslog drain URL.",
+						cred.Apps,
+						logStream,
+						logger,
+					)
+
+				}
+			}
+			continue
+		}
+
+		anonymousUrl := *u
+		anonymousUrl.User = nil
+		anonymousUrl.RawQuery = ""
+
+		if invalidScheme(u.Scheme) {
+			invalidDrains += 1
+			if warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						fmt.Sprintf("Invalid Scheme for syslog drain url %s", anonymousUrl.String()),
+						cred.Apps,
+						logStream,
+						logger,
+					)
+				}
+			}
+			continue
+		}
+
+		if len(u.Host) == 0 {
+			invalidDrains += 1
+			if warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						fmt.Sprintf("No hostname found in syslog drain url %s", anonymousUrl.String()),
+						cred.Apps,
+						logStream,
+						logger,
+					)
+				}
+			}
+			continue
+		}
+
+		_, exists := failedHostsCache.Get(u.Host)
+		if exists {
+			invalidDrains += 1
+			if warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						fmt.Sprintf(
+							"Skipped resolve ip address for syslog drain with url %s due to prior failure",
+							anonymousUrl.String(),
+						),
+						cred.Apps,
+						logStream,
+						logger,
+					)
+				}
+			}
+			continue
+		}
+
+		ip, err := checker.ResolveAddr(u.Host)
+		if err != nil {
+			invalidDrains += 1
+			failedHostsCache.Set(u.Host, true)
+			if warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						fmt.Sprintf(
+							"Cannot resolve ip address for syslog drain with url %s",
+							anonymousUrl.String(),
+						),
+						cred.Apps,
+						logStream,
+						logger,
+					)
+				}
+			}
+			continue
+		}
+
+		err = checker.CheckBlacklist(ip)
+		if err != nil {
+			invalidDrains += 1
+			blacklistedDrains += 1
+			if warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						fmt.Sprintf(
+							"Resolved ip address for syslog drain with url %s is blacklisted",
+							anonymousUrl.String(),
+						),
+						cred.Apps,
+						logStream,
+						logger,
+					)
+				}
+			}
+			continue
+		}
+
+		var validCredentials []Credentials
+		for _, cred := range b.Credentials {
+			if len(cred.Cert) > 0 && len(cred.Key) > 0 {
+				_, err := tls.X509KeyPair([]byte(cred.Cert), []byte(cred.Key))
+				if err != nil {
+					if warn {
+						sendAppLogMessage(
+							fmt.Sprintf("failed to load certificate for %s", anonymousUrl.String()),
+							cred.Apps,
+							logStream,
+							logger,
+						)
+					}
+					continue
+				}
+			}
+
+			if len(cred.CA) > 0 {
+				certPool := x509.NewCertPool()
+				ok := certPool.AppendCertsFromPEM([]byte(cred.CA))
+				if !ok {
+					if warn {
+						sendAppLogMessage(
+							fmt.Sprintf("failed to load root CA for %s", anonymousUrl.String()),
+							cred.Apps,
+							logStream,
+							logger,
+						)
+					}
+					continue
+				}
+			}
+
+			validCredentials = append(validCredentials, cred)
+		}
+
+		if len(validCredentials) > 0 {
+			filteredBindings = append(filteredBindings, Binding{
+				Url:         b.Url,
+				Credentials: validCredentials,
+			})
+		}
+	}
+	blacklistedDrainsGauge.Set(blacklistedDrains)
+	invalidDrainsGauge.Set(invalidDrains)
+	return filteredBindings
+}
+
+func sendAppLogMessage(msg string, apps []App, logStream *applog.AppLogStream, logger *log.Logger) {
+	for _, app := range apps {
+		appId := app.AppID
+		if appId == "" {
+			continue
+		}
+		logStream.Emit(msg, appId)
+		logger.Printf("%s for app %s", msg, appId)
+	}
+}
+
+func invalidScheme(scheme string) bool {
+	for _, s := range allowedSchemes {
+		if s == scheme {
+			return false
+		}
+	}
+
+	return true
 }
 
 func CalculateBindingCount(bindings []Binding) int {
