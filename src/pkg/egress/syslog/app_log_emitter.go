@@ -9,13 +9,13 @@ type LogClient interface {
 	EmitLog(message string, opts ...loggregator.EmitLogOption)
 }
 
-type LoggregatorEmitter struct {
+type AppLogEmitter struct {
 	logClient   LogClient
 	sourceIndex string
 }
 
 // WriteLog writes a message in the application log stream using a LogClient.
-func (appLogEmitter *LoggregatorEmitter) WriteLog(appID string, message string) {
+func (appLogEmitter *AppLogEmitter) WriteLog(appID string, message string) {
 	if appLogEmitter.logClient == nil || appID == "" {
 		return
 	}
@@ -31,9 +31,9 @@ func (appLogEmitter *LoggregatorEmitter) WriteLog(appID string, message string) 
 	appLogEmitter.logClient.EmitLog(message, option)
 }
 
-// NewLoggregatorEmitter creates a new LoggregatorEmitter.
-func NewLoggregatorEmitter(logClient LogClient, sourceIndex string) LoggregatorEmitter {
-	return LoggregatorEmitter{
+// NewLoggregatorEmitter creates a new AppLogEmitter.
+func NewLoggregatorEmitter(logClient LogClient, sourceIndex string) AppLogEmitter {
+	return AppLogEmitter{
 		logClient:   logClient,
 		sourceIndex: sourceIndex,
 	}

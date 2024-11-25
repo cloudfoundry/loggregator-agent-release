@@ -33,7 +33,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		}
 		bindingReader := &SpyBindingReader{bindings: input}
 
-		filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log, syslog.LoggregatorEmitter{})
+		filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log, syslog.AppLogEmitter{})
 		actual, err := filter.FetchBindings()
 
 		Expect(err).ToNot(HaveOccurred())
@@ -43,7 +43,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	It("returns an error if the binding reader cannot fetch bindings", func() {
 		bindingReader := &SpyBindingReader{nil, errors.New("Woops")}
 
-		filter := bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log, syslog.LoggregatorEmitter{})
+		filter := bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log, syslog.AppLogEmitter{})
 		actual, err := filter.FetchBindings()
 
 		Expect(err).To(HaveOccurred())
@@ -64,7 +64,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "://"}},
 			}
-			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.LoggregatorEmitter{})
+			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.AppLogEmitter{})
 		})
 
 		It("removes the binding", func() {
@@ -102,7 +102,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https:///path"}},
 			}
-			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.LoggregatorEmitter{})
+			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.AppLogEmitter{})
 		})
 
 		It("removes the binding", func() {
@@ -151,7 +151,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		})
 
 		JustBeforeEach(func() {
-			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.LoggregatorEmitter{})
+			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.AppLogEmitter{})
 		})
 
 		It("ignores the bindings", func() {
@@ -192,7 +192,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			input := []syslog.Binding{
 				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "syslog://some.invalid.host"}},
 			}
-			filter = bindings.NewFilteredBindingFetcher(mockic, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.LoggregatorEmitter{})
+			filter = bindings.NewFilteredBindingFetcher(mockic, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.AppLogEmitter{})
 		})
 
 		It("removes bindings that failed to resolve", func() {
@@ -251,7 +251,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{
 				checkBlacklistError: errors.New("blacklist error"),
 				resolvedIP:          net.ParseIP("127.0.0.1"),
-			}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.LoggregatorEmitter{})
+			}, &SpyBindingReader{bindings: input}, metrics, warn, log, syslog.AppLogEmitter{})
 		})
 
 		It("removes the binding", func() {

@@ -32,7 +32,7 @@ type Credentials struct {
 }
 
 type writerFactory interface {
-	NewWriter(*URLBinding, LoggregatorEmitter) (egress.WriteCloser, error)
+	NewWriter(*URLBinding, AppLogEmitter) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
@@ -44,7 +44,7 @@ type SyslogConnector struct {
 
 	droppedMetric metrics.Counter
 
-	loggregatorEmitter LoggregatorEmitter
+	loggregatorEmitter AppLogEmitter
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -80,7 +80,7 @@ type ConnectorOption func(*SyslogConnector)
 
 // WithLoggregatorEmitter returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithLoggregatorEmitter(emitter LoggregatorEmitter) ConnectorOption {
+func WithLoggregatorEmitter(emitter AppLogEmitter) ConnectorOption {
 	return func(sc *SyslogConnector) {
 		sc.loggregatorEmitter = emitter
 	}
