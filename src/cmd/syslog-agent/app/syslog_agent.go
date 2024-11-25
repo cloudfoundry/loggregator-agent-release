@@ -84,7 +84,7 @@ func NewSyslogAgent(
 			WriteTimeout: 10 * time.Second,
 		},
 		m,
-		syslog.NewLoggregatorEmitter(logClient, "syslog_agent"),
+		syslog.NewAppLogEmitter(logClient, "syslog_agent"),
 	)
 
 	connector := syslog.NewSyslogConnector(
@@ -92,7 +92,7 @@ func NewSyslogAgent(
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithLoggregatorEmitter(syslog.NewLoggregatorEmitter(logClient, "syslog_agent")),
+		syslog.WithAppLogEmitter(syslog.NewAppLogEmitter(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient
@@ -113,7 +113,7 @@ func NewSyslogAgent(
 			m,
 			cfg.WarnOnInvalidDrains,
 			l,
-			syslog.NewLoggregatorEmitter(logClient, "syslog_agent"),
+			syslog.NewAppLogEmitter(logClient, "syslog_agent"),
 		)
 		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)
 	}
