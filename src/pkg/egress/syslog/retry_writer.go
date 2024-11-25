@@ -1,6 +1,7 @@
 package syslog
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"time"
@@ -21,6 +22,7 @@ type RetryWriter struct {
 	retryDuration RetryDuration
 	maxRetries    int
 	binding       *URLBinding
+	emitter       AppLogEmitter
 }
 
 func NewRetryWriter(
@@ -28,12 +30,14 @@ func NewRetryWriter(
 	retryDuration RetryDuration,
 	maxRetries int,
 	writer egress.WriteCloser,
+	emitter AppLogEmitter,
 ) (egress.WriteCloser, error) {
 	return &RetryWriter{
 		Writer:        writer,
 		retryDuration: retryDuration,
 		maxRetries:    maxRetries,
 		binding:       urlBinding,
+		emitter:       emitter,
 	}, nil
 }
 
@@ -55,6 +59,7 @@ func (r *RetryWriter) Write(e *loggregator_v2.Envelope) error {
 
 		sleepDuration := r.retryDuration(i)
 		log.Printf(logTemplate, r.binding.URL.Host, sleepDuration, err)
+		r.emitter.EmitLog(e.SourceId, fmt.Sprintf(logTemplate, r.binding.URL.Host, sleepDuration, err))
 
 		time.Sleep(sleepDuration)
 	}

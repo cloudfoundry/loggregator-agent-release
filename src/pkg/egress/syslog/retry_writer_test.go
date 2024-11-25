@@ -1,13 +1,12 @@
 package syslog_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"errors"
 	"net/url"
-	"sync"
 	"sync/atomic"
 	"time"
 
-	"code.cloudfoundry.org/go-loggregator/v10"
 	v2 "code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -165,81 +164,6 @@ func (s *spyWriteCloser) WriteAttempts() int {
 	return int(atomic.LoadInt64(&s.writeAttempts))
 }
 
-type spyLogClient struct {
-	mu       sync.Mutex
-	_message []string
-	_appID   []string
-
-	// We use maps to ensure that we can query the keys
-	_sourceType     map[string]struct{}
-	_sourceInstance map[string]struct{}
-}
-
-func newSpyLogClient() *spyLogClient {
-	return &spyLogClient{
-		_sourceType:     make(map[string]struct{}),
-		_sourceInstance: make(map[string]struct{}),
-	}
-}
-
-func (s *spyLogClient) EmitLog(message string, opts ...loggregator.EmitLogOption) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	env := &v2.Envelope{
-		Tags: make(map[string]string),
-	}
-
-	for _, o := range opts {
-		o(env)
-	}
-
-	s._message = append(s._message, message)
-	s._appID = append(s._appID, env.SourceId)
-	s._sourceType[env.GetTags()["source_type"]] = struct{}{}
-	s._sourceInstance[env.GetInstanceId()] = struct{}{}
-}
-
-func (s *spyLogClient) message() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s._message
-}
-
-func (s *spyLogClient) appID() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s._appID
-}
-
-func (s *spyLogClient) sourceType() map[string]struct{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Copy map so the orig does not escape the mutex and induce a race.
-	m := make(map[string]struct{})
-	for k := range s._sourceType {
-		m[k] = struct{}{}
-	}
-
-	return m
-}
-
-func (s *spyLogClient) sourceInstance() map[string]struct{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Copy map so the orig does not escape the mutex and induce a race.
-	m := make(map[string]struct{})
-	for k := range s._sourceInstance {
-		m[k] = struct{}{}
-	}
-
-	return m
-}
-
 func buildDelay(multiplier time.Duration) func(int) time.Duration {
 	return func(attempt int) time.Duration {
 		return time.Duration(attempt) * multiplier
@@ -252,10 +176,13 @@ func buildRetryWriter(
 	maxRetries int,
 	delayMultiplier time.Duration,
 ) (egress.WriteCloser, error) {
+	factory := syslog.NewAppLogEmitterFactory()
+	emitter := factory.NewAppLogEmitter(testhelper.NewSpyLogClient(), "test-index")
 	return syslog.NewRetryWriter(
 		urlBinding,
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
 		w,
+		emitter,
 	)
 }
