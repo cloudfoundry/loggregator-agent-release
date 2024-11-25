@@ -11,6 +11,7 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 
@@ -55,6 +56,9 @@ var _ = Describe("TLSWriter", func() {
 			Hostname: "test-hostname",
 			URL:      url,
 		}
+		factory := applog.NewAppLogStreamFactory()
+		logClient := testhelper.NewSpyLogClient()
+		appLogStream := factory.NewAppLogStream(logClient, "3")
 		writer := syslog.NewTLSWriter(
 			binding,
 			netConf,
@@ -63,6 +67,7 @@ var _ = Describe("TLSWriter", func() {
 			},
 			egressCounter,
 			syslog.NewConverter(),
+			appLogStream,
 		)
 		defer writer.Close()
 
