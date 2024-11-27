@@ -1,6 +1,7 @@
 package syslog_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -9,14 +10,14 @@ import (
 var _ = Describe("Loggregator Emitter", func() {
 	Describe("EmitLog()", func() {
 		It("emits a log message", func() {
-			logClient := NewSpyLogClient()
+			logClient := testhelper.NewSpyLogClient()
 			emitter := syslog.NewAppLogEmitter(logClient, "0")
 
 			emitter.EmitLog("app-id", "some-message")
 
-			messages := logClient.message()
-			appIDs := logClient.appID()
-			sourceTypes := logClient.sourceType()
+			messages := logClient.Message()
+			appIDs := logClient.AppID()
+			sourceTypes := logClient.SourceType()
 			Expect(messages).To(HaveLen(2))
 			Expect(messages[0]).To(Equal("some-message"))
 			Expect(messages[1]).To(Equal("some-message"))
@@ -27,14 +28,14 @@ var _ = Describe("Loggregator Emitter", func() {
 		})
 
 		It("does not emit a log message if the appID is empty", func() {
-			logClient := NewSpyLogClient()
+			logClient := testhelper.NewSpyLogClient()
 			emitter := syslog.NewAppLogEmitter(logClient, "0")
 
 			emitter.EmitLog("", "some-message")
 
-			messages := logClient.message()
-			appIDs := logClient.appID()
-			sourceTypes := logClient.sourceType()
+			messages := logClient.Message()
+			appIDs := logClient.AppID()
+			sourceTypes := logClient.SourceType()
 			Expect(messages).To(HaveLen(0))
 			Expect(appIDs).To(HaveLen(0))
 			Expect(sourceTypes).ToNot(HaveKey("LGR"))
