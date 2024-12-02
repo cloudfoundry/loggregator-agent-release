@@ -5,10 +5,10 @@ go 1.22.0
 toolchain go1.22.9
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20241104233206-68f6863ec92a
+	code.cloudfoundry.org/go-batching v0.0.0-20241125161418-1c4c43ed1a1e
 	code.cloudfoundry.org/go-diodes v0.0.0-20241125060457-612558937770
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20241104233614-1bb1a592dfb9
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20241125210533-4270b99b04f2
 	code.cloudfoundry.org/tlsconfig v0.10.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20241016180203-3c0e1c24e908
@@ -38,7 +38,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/google/pprof v0.0.0-20241122213907-cbe949e5a41b // indirect
+	github.com/google/pprof v0.0.0-20241128161848-dc51965c6481 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
