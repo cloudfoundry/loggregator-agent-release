@@ -1,7 +1,6 @@
 module code.cloudfoundry.org/loggregator-agent-release/src
 
 go 1.22.0
-
 toolchain go1.22.9
 
 require (
@@ -17,7 +16,7 @@ require (
 	github.com/prometheus/common v0.60.1
 	github.com/valyala/fasthttp v1.57.0
 	golang.org/x/net v0.31.0
-	google.golang.org/grpc v1.68.0-dev
+	google.golang.org/grpc v1.68.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -27,7 +26,7 @@ require (
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/google/go-cmp v0.6.0
 	github.com/onsi/ginkgo/v2 v2.22.0
-	go.opentelemetry.io/proto/otlp v1.3.1
+	go.opentelemetry.io/proto/otlp v1.4.0
 	google.golang.org/protobuf v1.35.2
 )
 
@@ -39,7 +38,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/pprof v0.0.0-20241128161848-dc51965c6481 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
