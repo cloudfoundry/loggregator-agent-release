@@ -33,7 +33,14 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		}
 		bindingReader := &SpyBindingReader{bindings: input}
 
-		filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log)
+		filter = bindings.NewFilteredBindingFetcher(
+			&spyIPChecker{},
+			bindingReader,
+			metrics,
+			true,
+			log,
+			syslog.AppLogEmitter{},
+		)
 		actual, err := filter.FetchBindings()
 
 		Expect(err).ToNot(HaveOccurred())
@@ -43,7 +50,14 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	It("returns an error if the binding reader cannot fetch bindings", func() {
 		bindingReader := &SpyBindingReader{nil, errors.New("Woops")}
 
-		filter := bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log)
+		filter := bindings.NewFilteredBindingFetcher(
+			&spyIPChecker{},
+			bindingReader,
+			metrics,
+			true,
+			log,
+			syslog.AppLogEmitter{},
+		)
 		actual, err := filter.FetchBindings()
 
 		Expect(err).To(HaveOccurred())
@@ -70,6 +84,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
+				syslog.AppLogEmitter{},
 			)
 		})
 
@@ -114,6 +129,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
+				syslog.AppLogEmitter{},
 			)
 		})
 
@@ -169,6 +185,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
+				syslog.AppLogEmitter{},
 			)
 		})
 
@@ -216,6 +233,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
+				syslog.AppLogEmitter{},
 			)
 		})
 
@@ -281,6 +299,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
+				syslog.AppLogEmitter{},
 			)
 		})
 
