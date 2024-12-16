@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/common v0.61.0
 	github.com/valyala/fasthttp v1.58.0
 	golang.org/x/net v0.32.0
-	google.golang.org/grpc v1.68.1
+	google.golang.org/grpc v1.69.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
