@@ -74,7 +74,7 @@ func (w *HTTPSBatchWriter) startSender() {
 
 	sendBatch := func() {
 		if msgBatch.Len() > 0 {
-			w.sendHttpRequest(msgBatch.Bytes(), msgCount)
+			w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
 			msgBatch.Reset()
 			msgCount = 0
 		}
