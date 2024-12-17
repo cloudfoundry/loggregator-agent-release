@@ -13,6 +13,8 @@ import (
 
 const BATCHSIZE = 256 * 1024
 
+var DefaultSendInterval = 1 * time.Second
+
 type HTTPSBatchWriter struct {
 	HTTPSWriter
 	msgs         chan []byte
@@ -40,7 +42,7 @@ func NewHTTPSBatchWriter(
 			syslogConverter: c,
 		},
 		batchSize:    BATCHSIZE,
-		sendInterval: 1 * time.Second,
+		sendInterval: DefaultSendInterval,
 		egrMsgCount:  0,
 		msgs:         make(chan []byte),
 	}
@@ -74,7 +76,7 @@ func (w *HTTPSBatchWriter) startSender() {
 
 	sendBatch := func() {
 		if msgBatch.Len() > 0 {
-			w.sendHttpRequest(msgBatch.Bytes(), msgCount)
+			w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
 			msgBatch.Reset()
 			msgCount = 0
 		}
