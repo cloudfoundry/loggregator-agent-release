@@ -65,34 +65,37 @@ func (w *HTTPSBatchWriter) Write(env *loggregator_v2.Envelope) error {
 }
 
 func (w *HTTPSBatchWriter) startSender() {
-	t := time.NewTimer(w.sendInterval)
-
 	var msgBatch bytes.Buffer
 	var msgCount float64
-	reset := func() {
-		msgBatch.Reset()
-		msgCount = 0
-		t.Reset(w.sendInterval)
+	ticker := time.NewTicker(w.sendInterval)
+	defer ticker.Stop()
+
+	msgCount = 0
+
+	sendBatch := func() {
+		if msgBatch.Len() > 0 {
+			w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
+			msgBatch.Reset()
+			msgCount = 0
+		}
 	}
+
 	for {
 		select {
 		case msg := <-w.msgs:
-			length, buffer_err := msgBatch.Write(msg)
+			_, buffer_err := msgBatch.Write(msg)
 			if buffer_err != nil {
-				log.Printf("Failed to write to buffer, dropping buffer of size %d , err: %s", length, buffer_err)
-				reset()
+				log.Printf("Failed to write to buffer, dropping buffer of size %d , err: %s", msgBatch.Len(), buffer_err)
+				msgBatch.Reset()
+				msgCount = 0
 			} else {
 				msgCount++
-				if length >= w.batchSize {
-					w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
-					reset()
+				if msgBatch.Len() >= w.batchSize {
+					sendBatch()
 				}
 			}
-		case <-t.C:
-			if msgBatch.Len() > 0 {
-				w.sendHttpRequest(msgBatch.Bytes(), msgCount) //nolint:errcheck
-				reset()
-			}
+		case <-ticker.C:
+			sendBatch()
 		}
 	}
 }
