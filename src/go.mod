@@ -1,7 +1,6 @@
 module code.cloudfoundry.org/loggregator-agent-release/src
 
 go 1.22.0
-
 toolchain go1.22.10
 
 require (
@@ -27,7 +26,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/google/go-cmp v0.6.0
 	github.com/onsi/ginkgo/v2 v2.22.1
-	go.opentelemetry.io/proto/otlp v1.3.1
+	go.opentelemetry.io/proto/otlp v1.4.0
 	google.golang.org/protobuf v1.36.1
 )
 
