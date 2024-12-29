@@ -19,6 +19,10 @@ import (
 
 var string_to_1024_chars = "saljdflajsdssdfsdfljkfkajafjajlköflkjöjaklgljksdjlakljkflkjweljklkwjejlkfekljwlkjefjklwjklsdajkljklwerlkaskldgjksakjekjwrjkljasdjkgfkljwejklrkjlklasdkjlsadjlfjlkadfljkajklsdfjklslkdfjkllkjasdjkflsdlakfjklasldfkjlasdjfkjlsadlfjklaljsafjlslkjawjklerkjljklasjkdfjklwerjljalsdjkflwerjlkwejlkarjklalkklfsdjlfhkjsdfkhsewhkjjasdjfkhwkejrkjahjefkhkasdjhfkashfkjwehfkksadfjaskfkhjdshjfhewkjhasdfjdajskfjwehkfajkankaskjdfasdjhfkkjhjjkasdfjhkjahksdf"
 
+func init() {
+	syslog.DefaultSendInterval = 100 * time.Millisecond // Modify behavior for tests
+}
+
 var _ = Describe("HTTPS_batch", func() {
 	var (
 		netConf          syslog.NetworkTimeoutConfig
@@ -86,21 +90,33 @@ var _ = Describe("HTTPS_batch", func() {
 		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
 		for i := 0; i < 10; i++ {
 			Expect(writer.Write(env1)).To(Succeed())
-			time.Sleep(99 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 		Expect(drain.getMessagesSize()).Should(Equal(0))
 		time.Sleep(100 * time.Millisecond)
 		Expect(drain.getMessagesSize()).Should(Equal(10))
 	})
 
-	It("probabilistic test for race condition", func() {
+	It("test dispatching for batches before timewindow is finished", func() {
 		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 300; i++ {
 			Expect(writer.Write(env1)).To(Succeed())
-			time.Sleep(99 * time.Millisecond)
 		}
-		time.Sleep(100 * time.Millisecond)
-		Expect(drain.getMessagesSize()).Should(Equal(10))
+		Expect(drain.getMessagesSize()).Should(Equal(256))
+		time.Sleep(101 * time.Millisecond)
+		Expect(drain.getMessagesSize()).Should(Equal(300))
+	})
+
+	It("test for hanging after some ticks", func() {
+		// This test will not succeed on the timer based implementation,
+		// it works fine with a ticker based implementation.
+		env1 := buildLogEnvelope("APP", "1", "only a short test message", loggregator_v2.Log_OUT)
+		for i := 0; i < 5; i++ {
+			Expect(writer.Write(env1)).To(Succeed())
+			time.Sleep(300 * time.Millisecond)
+		}
+		time.Sleep(101 * time.Millisecond)
+		Expect(drain.getMessagesSize()).Should(Equal(5))
 	})
 })
 
