@@ -9,7 +9,7 @@ require (
 	code.cloudfoundry.org/go-diodes v0.0.0-20241223074059-7f8c1f03edeb
 	code.cloudfoundry.org/go-envstruct v1.7.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20241216212740-f99815f94a2a
-	code.cloudfoundry.org/tlsconfig v0.13.0
+	code.cloudfoundry.org/tlsconfig v0.14.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20241223073712-8666f251e654
 	github.com/onsi/gomega v1.36.1
