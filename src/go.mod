@@ -25,7 +25,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/google/go-cmp v0.6.0
 	github.com/onsi/ginkgo/v2 v2.22.2
-	go.opentelemetry.io/proto/otlp v1.3.1
+	go.opentelemetry.io/proto/otlp v1.5.0
 	google.golang.org/protobuf v1.36.1
 )
 
