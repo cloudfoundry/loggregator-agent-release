@@ -216,6 +216,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 		})
 
 		It("will not be able to connect with those drains", func() {
+			//todo check if pr check runs
 			ctx, cancel := context.WithCancel(context.Background())
 			emitLogs(ctx, appIDs, grpcPort, agentCerts)
 			defer cancel()
