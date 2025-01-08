@@ -41,16 +41,14 @@ type WriterFactory struct {
 	externalTlsConfig *tls.Config
 	netConf           NetworkTimeoutConfig
 	m                 metricClient
-	emitter           AppLogEmitter
 }
 
-func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient, emitter AppLogEmitter) WriterFactory {
+func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient) WriterFactory {
 	return WriterFactory{
 		internalTlsConfig: internalTlsConfig,
 		externalTlsConfig: externalTlsConfig,
 		netConf:           netConf,
 		m:                 m,
-		emitter:           emitter,
 	}
 }
 
@@ -64,7 +62,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 		if err != nil {
 			errorMessage := err.Error()
 			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", errorMessage)
-			f.emitter.EmitLog(ub.AppID, fmt.Sprintf("failed to load certificate: %s", errorMessage))
+			emitter.EmitLog(ub.AppID, fmt.Sprintf("failed to load certificate: %s", errorMessage))
 			return nil, err
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
@@ -73,7 +71,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 		ok := tlsCfg.RootCAs.AppendCertsFromPEM(ub.CA)
 		if !ok {
 			err := NewWriterFactoryErrorf(ub.URL, "failed to load root CA")
-			f.emitter.EmitLog(ub.AppID, "failed to load root CA")
+			emitter.EmitLog(ub.AppID, "failed to load root CA")
 			return nil, err
 		}
 	}
