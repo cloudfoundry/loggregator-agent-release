@@ -2,12 +2,12 @@ package syslog
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
 	"log"
 
-	metrics "code.cloudfoundry.org/go-metric-registry"
+	"golang.org/x/net/context"
 
 	"code.cloudfoundry.org/go-diodes"
+	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 )
 
