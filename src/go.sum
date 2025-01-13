@@ -9,8 +9,8 @@ code.cloudfoundry.org/go-loggregator/v10 v10.0.1 h1:rivqd/B1gjA9ihA4p6K5EijRSyv0
 code.cloudfoundry.org/go-loggregator/v10 v10.0.1/go.mod h1:DKE0kBqMXWqAzd8CMl5CAbRFUpWGBWPpmOyY4znP6ts=
 code.cloudfoundry.org/go-metric-registry v0.0.0-20241216212740-f99815f94a2a h1:o0CYJ5Xpd84l+nIV7OFcTrUS0w/xm/G5ZCvqhVNA7Ao=
 code.cloudfoundry.org/go-metric-registry v0.0.0-20241216212740-f99815f94a2a/go.mod h1:LQEPfezhF2NsdnSxnBCmJm1qacL7+3+Fe9A/kLn7l5s=
-code.cloudfoundry.org/tlsconfig v0.14.0 h1:VqUDzLvrYTMF8tfuTSEFoynouR+7k2tZsIjIsHfepOM=
-code.cloudfoundry.org/tlsconfig v0.14.0/go.mod h1:5PijwOC6oYPIrEGFmYmv+eqLnXjvVIxnGMz3RPn/4vA=
+code.cloudfoundry.org/tlsconfig v0.15.0 h1:hio3k6sDncLRkI1R3cM21wGZ01tHknAIGIQN0P/bl6A=
+code.cloudfoundry.org/tlsconfig v0.15.0/go.mod h1:XyJDLJLOYeWgtdiiryJD6sdXtIl6PYKO03UhvtwZjtU=
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
 git.sr.ht/~nelsam/hel/v3 v3.0.4 h1:ElleA4q9XHTskFod5T7cC4oXOULo41jKRjYijTIlJgw=
