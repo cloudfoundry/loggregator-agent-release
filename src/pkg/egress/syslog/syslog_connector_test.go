@@ -174,12 +174,13 @@ var _ = Describe("SyslogConnector", func() {
 
 		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
 			logClient := testhelper.NewSpyLogClient()
+			factory := syslog.NewDefaultAppLogEmitterFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogEmitter(syslog.NewAppLogEmitter(logClient, "3")),
+				syslog.WithAppLogEmitter(factory.NewAppLogEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{AppId: "app-id",
@@ -216,12 +217,13 @@ var _ = Describe("SyslogConnector", func() {
 
 		It("doesn't emit LGR and SYS log to the log client about aggregate drains drops", func() {
 			logClient := testhelper.NewSpyLogClient()
+			factory := syslog.NewDefaultAppLogEmitterFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogEmitter(syslog.NewAppLogEmitter(logClient, "3")),
+				syslog.WithAppLogEmitter(factory.NewAppLogEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}

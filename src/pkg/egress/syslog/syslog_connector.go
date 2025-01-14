@@ -122,7 +122,9 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		w.droppedMetric.Add(float64(missed))
 		drainDroppedMetric.Add(float64(missed))
 
-		w.appLogEmitter.EmitLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
+		if w.appLogEmitter != nil {
+			w.appLogEmitter.EmitLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
+		}
 		w.emitStandardOutErrorLog(b.AppId, urlBinding.Scheme(), anonymousUrl.String(), missed)
 	}), w.wg)
 

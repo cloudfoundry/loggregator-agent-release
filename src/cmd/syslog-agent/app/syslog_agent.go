@@ -56,6 +56,7 @@ func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
+	factory syslog.AppLogEmitterFactory,
 ) *SyslogAgent {
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		cfg.GRPC.CAFile,
@@ -87,7 +88,7 @@ func NewSyslogAgent(
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithAppLogEmitter(syslog.NewAppLogEmitter(logClient, "syslog_agent")),
+		syslog.WithAppLogEmitter(factory.NewAppLogEmitter(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient
@@ -108,7 +109,7 @@ func NewSyslogAgent(
 			m,
 			cfg.WarnOnInvalidDrains,
 			l,
-			syslog.NewAppLogEmitter(logClient, "syslog_agent"),
+			factory.NewAppLogEmitter(logClient, "syslog_agent"),
 		)
 		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)
 	}
