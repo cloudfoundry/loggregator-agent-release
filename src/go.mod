@@ -5,19 +5,19 @@ go 1.23.0
 toolchain go1.23.4
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20241223135445-b8f45a03eb70
-	code.cloudfoundry.org/go-diodes v0.0.0-20241223074059-7f8c1f03edeb
+	code.cloudfoundry.org/go-batching v0.0.0-20250107092849-12350a48cdcd
+	code.cloudfoundry.org/go-diodes v0.0.0-20250107092748-442ea8f9957b
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20241216212740-f99815f94a2a
-	code.cloudfoundry.org/tlsconfig v0.14.0
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20250107131239-51ba784c3fe1
+	code.cloudfoundry.org/tlsconfig v0.15.0
 	github.com/cloudfoundry/dropsonde v1.1.0
-	github.com/cloudfoundry/sonde-go v0.0.0-20241223073712-8666f251e654
+	github.com/cloudfoundry/sonde-go v0.0.0-20250113140334-595e96981704
 	github.com/onsi/gomega v1.36.2
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.61.0
 	github.com/valyala/fasthttp v1.58.0
 	golang.org/x/net v0.34.0
-	google.golang.org/grpc v1.69.2
+	google.golang.org/grpc v1.69.4
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -28,7 +28,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/onsi/ginkgo/v2 v2.22.2
 	go.opentelemetry.io/proto/otlp v1.5.0
-	google.golang.org/protobuf v1.36.1
+	google.golang.org/protobuf v1.36.2
 )
 
 require (
