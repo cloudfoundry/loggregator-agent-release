@@ -1,7 +1,7 @@
-# code.cloudfoundry.org/go-batching v0.0.0-20241223135445-b8f45a03eb70
+# code.cloudfoundry.org/go-batching v0.0.0-20250107092849-12350a48cdcd
 ## explicit; go 1.22.0
 code.cloudfoundry.org/go-batching
-# code.cloudfoundry.org/go-diodes v0.0.0-20241223074059-7f8c1f03edeb
+# code.cloudfoundry.org/go-diodes v0.0.0-20250107092748-442ea8f9957b
 ## explicit; go 1.22.0
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.7.0
@@ -13,11 +13,11 @@ code.cloudfoundry.org/go-loggregator/v9
 code.cloudfoundry.org/go-loggregator/v9/conversion
 code.cloudfoundry.org/go-loggregator/v9/rfc5424
 code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20241216212740-f99815f94a2a
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20250107131239-51ba784c3fe1
 ## explicit; go 1.22.0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.14.0
+# code.cloudfoundry.org/tlsconfig v0.15.0
 ## explicit; go 1.22
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -44,7 +44,7 @@ github.com/cespare/xxhash/v2
 # github.com/cloudfoundry/dropsonde v1.1.0
 ## explicit; go 1.18
 github.com/cloudfoundry/dropsonde/emitter
-# github.com/cloudfoundry/sonde-go v0.0.0-20241223073712-8666f251e654
+# github.com/cloudfoundry/sonde-go v0.0.0-20250113140334-595e96981704
 ## explicit; go 1.18
 github.com/cloudfoundry/sonde-go/events
 # github.com/go-chi/chi/v5 v5.2.0
@@ -168,13 +168,13 @@ github.com/valyala/bytebufferpool
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
-# go.opentelemetry.io/proto/otlp v1.3.1
-## explicit; go 1.17
+# go.opentelemetry.io/proto/otlp v1.5.0
+## explicit; go 1.22.0
 go.opentelemetry.io/proto/otlp/collector/metrics/v1
 go.opentelemetry.io/proto/otlp/common/v1
 go.opentelemetry.io/proto/otlp/metrics/v1
 go.opentelemetry.io/proto/otlp/resource/v1
-# go.step.sm/crypto v0.56.0
+# go.step.sm/crypto v0.57.0
 ## explicit; go 1.22
 go.step.sm/crypto/fingerprint
 go.step.sm/crypto/internal/bcrypt_pbkdf
@@ -185,7 +185,7 @@ go.step.sm/crypto/keyutil
 go.step.sm/crypto/pemutil
 go.step.sm/crypto/randutil
 go.step.sm/crypto/x25519
-# golang.org/x/crypto v0.31.0
+# golang.org/x/crypto v0.32.0
 ## explicit; go 1.20
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -201,7 +201,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 # golang.org/x/mod v0.22.0
 ## explicit; go 1.22.0
 golang.org/x/mod/semver
-# golang.org/x/net v0.33.0
+# golang.org/x/net v0.34.0
 ## explicit; go 1.18
 golang.org/x/net/context
 golang.org/x/net/html
@@ -243,7 +243,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.28.0
+# golang.org/x/tools v0.29.0
 ## explicit; go 1.22.0
 golang.org/x/tools/cover
 golang.org/x/tools/go/ast/astutil
@@ -265,13 +265,13 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20250102185135-69823020774d
+# google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 ## explicit; go 1.22
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250102185135-69823020774d
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f
 ## explicit; go 1.22
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.69.2
+# google.golang.org/grpc v1.69.4
 ## explicit; go 1.22
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -331,7 +331,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.36.1
+# google.golang.org/protobuf v1.36.3
 ## explicit; go 1.21
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/protojson
