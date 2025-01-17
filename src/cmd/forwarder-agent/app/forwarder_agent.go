@@ -249,7 +249,6 @@ func otelCollectorClient(dest destination, grpc GRPC, m Metrics, l *log.Logger) 
 			"destination": dest.Ingress,
 		}),
 	)
-
 	dw := egress.NewDiodeWriter(context.Background(), otelcolclient.New(w), gendiodes.AlertFunc(func(missed int) {
 		expired.Add(float64(missed))
 	}), timeoutwaitgroup.New(time.Minute))
