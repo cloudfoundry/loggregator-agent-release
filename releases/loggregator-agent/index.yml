@@ -79,6 +79,8 @@ builds:
     version: "3.7"
   51088622-f92b-4e79-5e61-131e1c5b24a3:
     version: 6.3.9
+  54008825-ad3a-4906-5583-d4ff7d9cae68:
+    version: 7.8.0
   5647769d-7123-40db-4933-29582eec6b50:
     version: 7.7.10
   564d07a4-20ad-41ab-7b8a-6142e80ad7ec:
