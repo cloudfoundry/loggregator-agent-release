@@ -375,7 +375,9 @@ var _ = Describe("App", func() {
 				<-otelTraceServer.requests
 			}
 			// test-title events
-			Eventually(otelLogsServer.requests).Should(HaveLen(1))
+			if agentCfg.EmitOTelLogs == true {
+				Eventually(otelLogsServer.requests).Should(HaveLen(1))
+			}
 			for len(otelLogsServer.requests) > 0 {
 				<-otelLogsServer.requests
 			}
