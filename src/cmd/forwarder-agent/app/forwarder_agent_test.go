@@ -375,6 +375,9 @@ var _ = Describe("App", func() {
 				<-otelTraceServer.requests
 			}
 			// test-title events
+			if agentCfg.EmitOTelLogs == true {
+				Eventually(otelLogsServer.requests).Should(HaveLen(1))
+			}
 			for len(otelLogsServer.requests) > 0 {
 				<-otelLogsServer.requests
 			}
@@ -389,16 +392,28 @@ var _ = Describe("App", func() {
 		DescribeTable("do not forward log nor event envelopes to otel metrics",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
-				Consistently(otelMetricsServer.requests, 0.5).ShouldNot(Receive())
+				Consistently(otelMetricsServer.requests, 3).ShouldNot(Receive())
 			},
 			Entry("drops logs", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}),
 			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
+			Entry("drops timers", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Timer{}}),
+		)
+
+		DescribeTable("do not forward log nor events nor gauges envelopes to otel traces",
+			func(e *loggregator_v2.Envelope) {
+				ingressClient.Emit(e)
+				Consistently(otelTraceServer.requests, 3).ShouldNot(Receive())
+			},
+			Entry("drops logs", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Log{}}),
+			Entry("drops events", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
+			Entry("drops counters", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
+			Entry("drops gauges", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Event{}}),
 		)
 
 		DescribeTable("do not forward counters, gagues nor timers envelopes to otel logs",
 			func(e *loggregator_v2.Envelope) {
 				ingressClient.Emit(e)
-				Consistently(otelLogsServer.requests, 0.5).ShouldNot(Receive())
+				Consistently(otelLogsServer.requests, 3).ShouldNot(Receive())
 			},
 			Entry("drops counters", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Counter{}}),
 			Entry("drops gauges", &loggregator_v2.Envelope{Message: &loggregator_v2.Envelope_Gauge{}}),
