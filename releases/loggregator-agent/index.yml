@@ -183,6 +183,8 @@ builds:
     version: 7.1.1
   b1820df8-2a56-42d5-57a4-12d71851baab:
     version: 6.1.1
+  b31b89cf-b8e9-4744-589c-2a96c7214f79:
+    version: 8.3.4
   b34a8d6a-7e15-4487-63a6-4dcedc3eff6a:
     version: 6.3.7
   b3c50069-508b-4c34-6436-7a8cc26d38d2:
