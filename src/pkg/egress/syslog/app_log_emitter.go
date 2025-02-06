@@ -10,18 +10,13 @@ type LogClient interface {
 }
 
 // AppLogEmitter abstracts the sending of a log to the application log stream.
-type AppLogEmitter interface {
-	EmitLog(appID string, message string)
-}
-
-// DefaultAppLogEmitter is an implementation of AppLogEmitter which sends logs to an instance of a LogClient
-type DefaultAppLogEmitter struct {
+type AppLogEmitter struct {
 	logClient   LogClient
 	sourceIndex string
 }
 
 // EmitLog writes a message in the application log stream using a LogClient.
-func (appLogEmitter *DefaultAppLogEmitter) EmitLog(appID string, message string) {
+func (appLogEmitter *AppLogEmitter) EmitLog(appID string, message string) {
 	if appLogEmitter.logClient == nil || appID == "" {
 		return
 	}
@@ -46,9 +41,9 @@ type AppLogEmitterFactory interface {
 type DefaultAppLogEmitterFactory struct {
 }
 
-// NewAppLogEmitter creates a new DefaultAppLogEmitter.
+// NewAppLogEmitter creates a new AppLogEmitter.
 func (factory *DefaultAppLogEmitterFactory) NewAppLogEmitter(logClient LogClient, sourceIndex string) AppLogEmitter {
-	return &DefaultAppLogEmitter{
+	return AppLogEmitter{
 		logClient:   logClient,
 		sourceIndex: sourceIndex,
 	}

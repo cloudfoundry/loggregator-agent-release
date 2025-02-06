@@ -25,8 +25,8 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 	BeforeEach(func() {
 		metrics = metricsHelpers.NewMetricsRegistry()
-		spyEmitter := testhelper.NewSpyAppEmitter()
-		emitter = &spyEmitter
+		factory := syslog.NewDefaultAppLogEmitterFactory()
+		emitter = factory.NewAppLogEmitter(testhelper.NewSpyLogClient(), "test-index")
 	})
 
 	It("returns valid bindings", func() {

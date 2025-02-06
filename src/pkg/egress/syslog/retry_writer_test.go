@@ -176,12 +176,13 @@ func buildRetryWriter(
 	maxRetries int,
 	delayMultiplier time.Duration,
 ) (egress.WriteCloser, error) {
-	emitter := testhelper.NewSpyAppEmitter()
+	factory := syslog.NewDefaultAppLogEmitterFactory()
+	emitter := factory.NewAppLogEmitter(testhelper.NewSpyLogClient(), "test-index")
 	return syslog.NewRetryWriter(
 		urlBinding,
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
 		w,
-		&emitter,
+		emitter,
 	)
 }
