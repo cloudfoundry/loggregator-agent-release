@@ -17,7 +17,7 @@ code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
 ## explicit; go 1.22.0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.16.0
+# code.cloudfoundry.org/tlsconfig v0.17.0
 ## explicit; go 1.22
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -47,8 +47,8 @@ github.com/cloudfoundry/dropsonde/emitter
 # github.com/cloudfoundry/sonde-go v0.0.0-20250127102140-78b0e7da13b3
 ## explicit; go 1.18
 github.com/cloudfoundry/sonde-go/events
-# github.com/go-chi/chi/v5 v5.2.0
-## explicit; go 1.14
+# github.com/go-chi/chi/v5 v5.2.1
+## explicit; go 1.20
 github.com/go-chi/chi/v5
 # github.com/go-logr/logr v1.4.2
 ## explicit; go 1.18
@@ -65,10 +65,10 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/pprof v0.0.0-20250202011525-fc3143867406
+# github.com/google/pprof v0.0.0-20250208200701-d0013a598941
 ## explicit; go 1.22
 github.com/google/pprof/profile
-# github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.0
+# github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1
 ## explicit; go 1.22
 github.com/grpc-ecosystem/grpc-gateway/v2/internal/httprule
 github.com/grpc-ecosystem/grpc-gateway/v2/runtime
@@ -189,7 +189,7 @@ go.step.sm/crypto/keyutil
 go.step.sm/crypto/pemutil
 go.step.sm/crypto/randutil
 go.step.sm/crypto/x25519
-# golang.org/x/crypto v0.32.0
+# golang.org/x/crypto v0.33.0
 ## explicit; go 1.20
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -217,15 +217,15 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sync v0.10.0
+# golang.org/x/sync v0.11.0
 ## explicit; go 1.18
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.29.0
+# golang.org/x/sys v0.30.0
 ## explicit; go 1.18
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.21.0
+# golang.org/x/text v0.22.0
 ## explicit; go 1.18
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -269,10 +269,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20250127172529-29210b9bc287
+# google.golang.org/genproto/googleapis/api v0.0.0-20250207221924-e9438ea467c6
 ## explicit; go 1.22
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250127172529-29210b9bc287
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250207221924-e9438ea467c6
 ## explicit; go 1.22
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.70.0
@@ -335,7 +335,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.36.4
+# google.golang.org/protobuf v1.36.5
 ## explicit; go 1.21
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/protojson
