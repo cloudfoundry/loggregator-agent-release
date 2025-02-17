@@ -16,7 +16,7 @@ require (
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.62.0
 	github.com/valyala/fasthttp v1.58.0
-	golang.org/x/net v0.34.0
+	golang.org/x/net v0.35.0
 	google.golang.org/grpc v1.70.0
 	gopkg.in/yaml.v2 v2.4.0
 )
