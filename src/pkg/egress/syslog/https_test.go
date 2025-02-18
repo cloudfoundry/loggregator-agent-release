@@ -251,6 +251,11 @@ type SpyDrain struct {
 	headers  []http.Header
 }
 
+func (d *SpyDrain) Reset() {
+	d.messages = nil
+	d.headers = nil
+}
+
 func (d *SpyDrain) appendMessage(message *rfc5424.Message) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
