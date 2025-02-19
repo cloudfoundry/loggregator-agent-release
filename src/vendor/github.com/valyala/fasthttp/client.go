@@ -111,6 +111,9 @@ func DoDeadline(req *Request, resp *Response, deadline time.Time) error {
 // It is recommended obtaining req and resp via AcquireRequest
 // and AcquireResponse in performance-critical code.
 func DoRedirects(req *Request, resp *Response, maxRedirectsCount int) error {
+	if defaultClient.DisablePathNormalizing {
+		req.URI().DisablePathNormalizing = true
+	}
 	_, _, err := doRequestFollowRedirects(req, resp, req.URI().String(), maxRedirectsCount, &defaultClient)
 	return err
 }
@@ -177,6 +180,9 @@ type Client struct {
 
 	readerPool sync.Pool
 	writerPool sync.Pool
+
+	// Transport defines a transport-like mechanism that wraps every request/response.
+	Transport RoundTripper
 
 	// Callback for establishing new connections to hosts.
 	//
@@ -458,6 +464,9 @@ func (c *Client) DoDeadline(req *Request, resp *Response, deadline time.Time) er
 // It is recommended obtaining req and resp via AcquireRequest
 // and AcquireResponse in performance-critical code.
 func (c *Client) DoRedirects(req *Request, resp *Response, maxRedirectsCount int) error {
+	if c.DisablePathNormalizing {
+		req.URI().DisablePathNormalizing = true
+	}
 	_, _, err := doRequestFollowRedirects(req, resp, req.URI().String(), maxRedirectsCount, c)
 	return err
 }
@@ -526,6 +535,7 @@ func (c *Client) Do(req *Request, resp *Response) error {
 		if hc == nil {
 			hc = &HostClient{
 				Addr:                          AddMissingPort(string(host), isTLS),
+				Transport:                     c.Transport,
 				Name:                          c.Name,
 				NoDefaultUserAgentHeader:      c.NoDefaultUserAgentHeader,
 				Dial:                          c.Dial,
@@ -917,6 +927,21 @@ type clientConn struct {
 	lastUseTime time.Time
 }
 
+// CreatedTime returns net.Conn the client.
+func (cc *clientConn) Conn() net.Conn {
+	return cc.c
+}
+
+// CreatedTime returns time the client was created.
+func (cc *clientConn) CreatedTime() time.Time {
+	return cc.createdTime
+}
+
+// LastUseTime returns time the client was last used.
+func (cc *clientConn) LastUseTime() time.Time {
+	return cc.lastUseTime
+}
+
 var startTimeUnix = time.Now().Unix()
 
 // LastUseTime returns time the client was last used.
@@ -1147,6 +1172,10 @@ func doRequestFollowRedirects(
 			break
 		}
 		url = getRedirectURL(url, location, req.DisableRedirectPathNormalizing)
+
+		if string(req.Header.Method()) == "POST" && (statusCode == 301 || statusCode == 302) {
+			req.Header.SetMethod(MethodGet)
+		}
 	}
 
 	return statusCode, body, err
@@ -1294,6 +1323,9 @@ func (c *HostClient) DoDeadline(req *Request, resp *Response, deadline time.Time
 // It is recommended obtaining req and resp via AcquireRequest
 // and AcquireResponse in performance-critical code.
 func (c *HostClient) DoRedirects(req *Request, resp *Response, maxRedirectsCount int) error {
+	if c.DisablePathNormalizing {
+		req.URI().DisablePathNormalizing = true
+	}
 	_, _, err := doRequestFollowRedirects(req, resp, req.URI().String(), maxRedirectsCount, c)
 	return err
 }
@@ -1511,7 +1543,7 @@ func (c *HostClient) SetMaxConns(newMaxConns int) {
 	c.connsLock.Unlock()
 }
 
-func (c *HostClient) acquireConn(reqTimeout time.Duration, connectionClose bool) (cc *clientConn, err error) {
+func (c *HostClient) AcquireConn(reqTimeout time.Duration, connectionClose bool) (cc *clientConn, err error) {
 	createConn := false
 	startCleaner := false
 
@@ -1634,7 +1666,7 @@ func (c *HostClient) dialConnFor(w *wantConn) {
 	cc := acquireClientConn(conn)
 	if !w.tryDeliver(cc, nil) {
 		// not delivered, return idle connection
-		c.releaseConn(cc)
+		c.ReleaseConn(cc)
 	}
 }
 
@@ -1652,7 +1684,7 @@ func (c *HostClient) CloseIdleConnections() {
 	c.connsLock.Unlock()
 
 	for _, cc := range scratch {
-		c.closeConn(cc)
+		c.CloseConn(cc)
 	}
 }
 
@@ -1693,7 +1725,7 @@ func (c *HostClient) connsCleaner() {
 
 		// Close idle connections.
 		for i, cc := range scratch {
-			c.closeConn(cc)
+			c.CloseConn(cc)
 			scratch[i] = nil
 		}
 
@@ -1712,7 +1744,7 @@ func (c *HostClient) connsCleaner() {
 	}
 }
 
-func (c *HostClient) closeConn(cc *clientConn) {
+func (c *HostClient) CloseConn(cc *clientConn) {
 	c.decConnsCount()
 	cc.c.Close()
 	releaseClientConn(cc)
@@ -1772,7 +1804,7 @@ func releaseClientConn(cc *clientConn) {
 
 var clientConnPool sync.Pool
 
-func (c *HostClient) releaseConn(cc *clientConn) {
+func (c *HostClient) ReleaseConn(cc *clientConn) {
 	cc.lastUseTime = time.Now()
 	if c.MaxConnWaitTimeout <= 0 {
 		c.connsLock.Lock()
@@ -1810,7 +1842,7 @@ func (c *HostClient) releaseConn(cc *clientConn) {
 	}
 }
 
-func (c *HostClient) acquireWriter(conn net.Conn) *bufio.Writer {
+func (c *HostClient) AcquireWriter(conn net.Conn) *bufio.Writer {
 	var v any
 	if c.clientWriterPool != nil {
 		v = c.clientWriterPool.Get()
@@ -1837,7 +1869,7 @@ func (c *HostClient) acquireWriter(conn net.Conn) *bufio.Writer {
 	return bw
 }
 
-func (c *HostClient) releaseWriter(bw *bufio.Writer) {
+func (c *HostClient) ReleaseWriter(bw *bufio.Writer) {
 	if c.clientWriterPool != nil {
 		c.clientWriterPool.Put(bw)
 	} else {
@@ -1845,7 +1877,7 @@ func (c *HostClient) releaseWriter(bw *bufio.Writer) {
 	}
 }
 
-func (c *HostClient) acquireReader(conn net.Conn) *bufio.Reader {
+func (c *HostClient) AcquireReader(conn net.Conn) *bufio.Reader {
 	var v any
 	if c.clientReaderPool != nil {
 		v = c.clientReaderPool.Get()
@@ -1872,7 +1904,7 @@ func (c *HostClient) acquireReader(conn net.Conn) *bufio.Reader {
 	return br
 }
 
-func (c *HostClient) releaseReader(br *bufio.Reader) {
+func (c *HostClient) ReleaseReader(br *bufio.Reader) {
 	if c.clientReaderPool != nil {
 		c.clientReaderPool.Put(br)
 	} else {
@@ -2137,7 +2169,7 @@ func (w *wantConn) cancel(c *HostClient, err error) {
 	w.mu.Unlock()
 
 	if conn != nil {
-		c.releaseConn(conn)
+		c.ReleaseConn(conn)
 	}
 }
 
@@ -2818,7 +2850,7 @@ func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}) error
 			continue
 		}
 
-		w.resp.parseNetConn(conn)
+		w.resp.ParseNetConn(conn)
 
 		if writeTimeout > 0 {
 			// Set Deadline every time, since golang has fixed the performance issue
@@ -2965,13 +2997,13 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		deadline = time.Now().Add(req.timeout)
 	}
 
-	cc, err := hc.acquireConn(req.timeout, req.ConnectionClose())
+	cc, err := hc.AcquireConn(req.timeout, req.ConnectionClose())
 	if err != nil {
 		return false, err
 	}
 	conn := cc.c
 
-	resp.parseNetConn(conn)
+	resp.ParseNetConn(conn)
 
 	writeDeadline := deadline
 	if hc.WriteTimeout > 0 {
@@ -2982,7 +3014,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	}
 
 	if err = conn.SetWriteDeadline(writeDeadline); err != nil {
-		hc.closeConn(cc)
+		hc.CloseConn(cc)
 		return true, err
 	}
 
@@ -2992,7 +3024,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		resetConnection = true
 	}
 
-	bw := hc.acquireWriter(conn)
+	bw := hc.AcquireWriter(conn)
 	err = req.Write(bw)
 
 	if resetConnection {
@@ -3002,7 +3034,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	if err == nil {
 		err = bw.Flush()
 	}
-	hc.releaseWriter(bw)
+	hc.ReleaseWriter(bw)
 
 	// Return ErrTimeout on any timeout.
 	if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
@@ -3010,7 +3042,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	}
 
 	if err != nil {
-		hc.closeConn(cc)
+		hc.CloseConn(cc)
 		return true, err
 	}
 
@@ -3023,7 +3055,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	}
 
 	if err = conn.SetReadDeadline(readDeadline); err != nil {
-		hc.closeConn(cc)
+		hc.CloseConn(cc)
 		return true, err
 	}
 
@@ -3034,11 +3066,11 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		resp.Header.DisableNormalizing()
 	}
 
-	br := hc.acquireReader(conn)
+	br := hc.AcquireReader(conn)
 	err = resp.ReadLimitBody(br, hc.MaxResponseBodySize)
 	if err != nil {
-		hc.releaseReader(br)
-		hc.closeConn(cc)
+		hc.ReleaseReader(br)
+		hc.CloseConn(cc)
 		// Don't retry in case of ErrBodyTooLarge since we will just get the same again.
 		needRetry := err != ErrBodyTooLarge
 		return needRetry, err
@@ -3048,25 +3080,25 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	if customStreamBody && resp.bodyStream != nil {
 		rbs := resp.bodyStream
 		resp.bodyStream = newCloseReaderWithError(rbs, func(wErr error) error {
-			hc.releaseReader(br)
+			hc.ReleaseReader(br)
 			if r, ok := rbs.(*requestStream); ok {
 				releaseRequestStream(r)
 			}
 			if closeConn || resp.ConnectionClose() || wErr != nil {
-				hc.closeConn(cc)
+				hc.CloseConn(cc)
 			} else {
-				hc.releaseConn(cc)
+				hc.ReleaseConn(cc)
 			}
 			return nil
 		})
 		return false, nil
 	}
-	hc.releaseReader(br)
+	hc.ReleaseReader(br)
 
 	if closeConn {
-		hc.closeConn(cc)
+		hc.CloseConn(cc)
 	} else {
-		hc.releaseConn(cc)
+		hc.ReleaseConn(cc)
 	}
 	return false, nil
 }

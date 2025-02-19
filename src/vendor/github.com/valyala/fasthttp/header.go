@@ -34,9 +34,9 @@ type ResponseHeader struct {
 	contentEncoding []byte
 	server          []byte
 	mulHeader       [][]byte
+	trailer         [][]byte
 
-	h       []argsKV
-	trailer []argsKV
+	h []argsKV
 
 	cookies []argsKV
 	bufK    []byte
@@ -72,9 +72,9 @@ type RequestHeader struct {
 	contentType []byte
 	userAgent   []byte
 	mulHeader   [][]byte
+	trailer     [][]byte
 
-	h       []argsKV
-	trailer []argsKV
+	h []argsKV
 
 	cookies []argsKV
 
@@ -252,15 +252,13 @@ func (h *ResponseHeader) SetContentLength(contentLength int) {
 	if contentLength >= 0 {
 		h.contentLengthBytes = AppendUint(h.contentLengthBytes[:0], contentLength)
 		h.h = delAllArgsBytes(h.h, strTransferEncoding)
-	} else {
+		return
+	} else if contentLength == -1 {
 		h.contentLengthBytes = h.contentLengthBytes[:0]
-		value := strChunked
-		if contentLength == -2 {
-			h.SetConnectionClose()
-			value = strIdentity
-		}
-		h.h = setArgBytes(h.h, strTransferEncoding, value, argsHasValue)
+		h.h = setArgBytes(h.h, strTransferEncoding, strChunked, argsHasValue)
+		return
 	}
+	h.SetConnectionClose()
 }
 
 func (h *ResponseHeader) mustSkipContentLength() bool {
@@ -544,7 +542,14 @@ func (h *ResponseHeader) AddTrailerBytes(trailer []byte) error {
 		}
 		h.bufK = append(h.bufK[:0], key...)
 		normalizeHeaderKey(h.bufK, h.disableNormalizing)
-		h.trailer = appendArgBytes(h.trailer, h.bufK, nil, argsNoValue)
+		if cap(h.trailer) > len(h.trailer) {
+			h.trailer = h.trailer[:len(h.trailer)+1]
+			h.trailer[len(h.trailer)-1] = append(h.trailer[len(h.trailer)-1][:0], h.bufK...)
+		} else {
+			key = make([]byte, len(h.bufK))
+			copy(key, h.bufK)
+			h.trailer = append(h.trailer, key)
+		}
 	}
 
 	return err
@@ -892,7 +897,14 @@ func (h *RequestHeader) AddTrailerBytes(trailer []byte) error {
 		}
 		h.bufK = append(h.bufK[:0], key...)
 		normalizeHeaderKey(h.bufK, h.disableNormalizing)
-		h.trailer = appendArgBytes(h.trailer, h.bufK, nil, argsNoValue)
+		if cap(h.trailer) > len(h.trailer) {
+			h.trailer = h.trailer[:len(h.trailer)+1]
+			h.trailer[len(h.trailer)-1] = append(h.trailer[len(h.trailer)-1][:0], h.bufK...)
+		} else {
+			key = make([]byte, len(h.bufK))
+			copy(key, h.bufK)
+			h.trailer = append(h.trailer, key)
+		}
 	}
 
 	return err
@@ -1164,7 +1176,7 @@ func (h *ResponseHeader) CopyTo(dst *ResponseHeader) {
 	dst.server = append(dst.server, h.server...)
 	dst.h = copyArgs(dst.h, h.h)
 	dst.cookies = copyArgs(dst.cookies, h.cookies)
-	dst.trailer = copyArgs(dst.trailer, h.trailer)
+	dst.trailer = copyTrailer(dst.trailer, h.trailer)
 }
 
 // CopyTo copies all the headers to dst.
@@ -1184,7 +1196,7 @@ func (h *RequestHeader) CopyTo(dst *RequestHeader) {
 	dst.host = append(dst.host, h.host...)
 	dst.contentType = append(dst.contentType, h.contentType...)
 	dst.userAgent = append(dst.userAgent, h.userAgent...)
-	dst.trailer = append(dst.trailer, h.trailer...)
+	dst.trailer = copyTrailer(dst.trailer, h.trailer)
 	dst.h = copyArgs(dst.h, h.h)
 	dst.cookies = copyArgs(dst.cookies, h.cookies)
 	dst.cookiesCollected = h.cookiesCollected
@@ -1217,7 +1229,7 @@ func (h *ResponseHeader) VisitAll(f func(key, value []byte)) {
 		})
 	}
 	if len(h.trailer) > 0 {
-		f(strTrailer, appendArgsKeyBytes(nil, h.trailer, strCommaSpace))
+		f(strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace))
 	}
 	visitArgs(h.h, f)
 	if h.ConnectionClose() {
@@ -1229,14 +1241,18 @@ func (h *ResponseHeader) VisitAll(f func(key, value []byte)) {
 //
 // f must not retain references to value after returning.
 func (h *ResponseHeader) VisitAllTrailer(f func(value []byte)) {
-	visitArgsKey(h.trailer, f)
+	for i := range h.trailer {
+		f(h.trailer[i])
+	}
 }
 
 // VisitAllTrailer calls f for each request Trailer.
 //
 // f must not retain references to value after returning.
 func (h *RequestHeader) VisitAllTrailer(f func(value []byte)) {
-	visitArgsKey(h.trailer, f)
+	for i := range h.trailer {
+		f(h.trailer[i])
+	}
 }
 
 // VisitAllCookie calls f for each response cookie.
@@ -1281,7 +1297,7 @@ func (h *RequestHeader) VisitAll(f func(key, value []byte)) {
 		f(strUserAgent, userAgent)
 	}
 	if len(h.trailer) > 0 {
-		f(strTrailer, appendArgsKeyBytes(nil, h.trailer, strCommaSpace))
+		f(strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace))
 	}
 
 	h.collectCookies()
@@ -1927,7 +1943,7 @@ func (h *ResponseHeader) peek(key []byte) []byte {
 	case HeaderSetCookie:
 		return appendResponseCookieBytes(nil, h.cookies)
 	case HeaderTrailer:
-		return appendArgsKeyBytes(nil, h.trailer, strCommaSpace)
+		return appendTrailerBytes(nil, h.trailer, strCommaSpace)
 	default:
 		return peekArgBytes(h.h, key)
 	}
@@ -1954,7 +1970,7 @@ func (h *RequestHeader) peek(key []byte) []byte {
 		}
 		return peekArgBytes(h.h, key)
 	case HeaderTrailer:
-		return appendArgsKeyBytes(nil, h.trailer, strCommaSpace)
+		return appendTrailerBytes(nil, h.trailer, strCommaSpace)
 	default:
 		return peekArgBytes(h.h, key)
 	}
@@ -2001,7 +2017,7 @@ func (h *RequestHeader) peekAll(key []byte) [][]byte {
 			h.mulHeader = peekAllArgBytesToDst(h.mulHeader, h.h, key)
 		}
 	case HeaderTrailer:
-		h.mulHeader = append(h.mulHeader, appendArgsKeyBytes(nil, h.trailer, strCommaSpace))
+		h.mulHeader = append(h.mulHeader, appendTrailerBytes(nil, h.trailer, strCommaSpace))
 	default:
 		h.mulHeader = peekAllArgBytesToDst(h.mulHeader, h.h, key)
 	}
@@ -2045,7 +2061,7 @@ func (h *ResponseHeader) peekAll(key []byte) [][]byte {
 	case HeaderSetCookie:
 		h.mulHeader = append(h.mulHeader, appendResponseCookieBytes(nil, h.cookies))
 	case HeaderTrailer:
-		h.mulHeader = append(h.mulHeader, appendArgsKeyBytes(nil, h.trailer, strCommaSpace))
+		h.mulHeader = append(h.mulHeader, appendTrailerBytes(nil, h.trailer, strCommaSpace))
 	default:
 		h.mulHeader = peekAllArgBytesToDst(h.mulHeader, h.h, key)
 	}
@@ -2071,8 +2087,7 @@ func (h *RequestHeader) PeekKeys() [][]byte {
 // Any future calls to the Peek* will modify the returned value.
 // Do not store references to returned value. Make copies instead.
 func (h *RequestHeader) PeekTrailerKeys() [][]byte {
-	h.mulHeader = h.mulHeader[:0]
-	h.mulHeader = peekArgsKeys(h.mulHeader, h.trailer)
+	h.mulHeader = copyTrailer(h.mulHeader, h.trailer)
 	return h.mulHeader
 }
 
@@ -2096,7 +2111,9 @@ func (h *ResponseHeader) PeekKeys() [][]byte {
 // Do not store references to returned value. Make copies instead.
 func (h *ResponseHeader) PeekTrailerKeys() [][]byte {
 	h.mulHeader = h.mulHeader[:0]
-	h.mulHeader = peekArgsKeys(h.mulHeader, h.trailer)
+	for i, n := 0, len(h.trailer); i < n; i++ {
+		h.mulHeader = append(h.mulHeader, h.trailer[i])
+	}
 	return h.mulHeader
 }
 
@@ -2464,8 +2481,8 @@ func (h *ResponseHeader) writeTrailer(w *bufio.Writer) error {
 func (h *ResponseHeader) TrailerHeader() []byte {
 	h.bufV = h.bufV[:0]
 	for _, t := range h.trailer {
-		value := h.peek(t.key)
-		h.bufV = appendHeaderLine(h.bufV, t.key, value)
+		value := h.peek(t)
+		h.bufV = appendHeaderLine(h.bufV, t, value)
 	}
 	h.bufV = append(h.bufV, strCRLF...)
 	return h.bufV
@@ -2525,7 +2542,7 @@ func (h *ResponseHeader) AppendBytes(dst []byte) []byte {
 		// Exclude trailer from header
 		exclude := false
 		for _, t := range h.trailer {
-			if bytes.Equal(kv.key, t.key) {
+			if bytes.Equal(kv.key, t) {
 				exclude = true
 				break
 			}
@@ -2536,7 +2553,7 @@ func (h *ResponseHeader) AppendBytes(dst []byte) []byte {
 	}
 
 	if len(h.trailer) > 0 {
-		dst = appendHeaderLine(dst, strTrailer, appendArgsKeyBytes(nil, h.trailer, strCommaSpace))
+		dst = appendHeaderLine(dst, strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace))
 	}
 
 	n := len(h.cookies)
@@ -2596,8 +2613,8 @@ func (h *RequestHeader) writeTrailer(w *bufio.Writer) error {
 func (h *RequestHeader) TrailerHeader() []byte {
 	h.bufV = h.bufV[:0]
 	for _, t := range h.trailer {
-		value := h.peek(t.key)
-		h.bufV = appendHeaderLine(h.bufV, t.key, value)
+		value := h.peek(t)
+		h.bufV = appendHeaderLine(h.bufV, t, value)
 	}
 	h.bufV = append(h.bufV, strCRLF...)
 	return h.bufV
@@ -2658,7 +2675,7 @@ func (h *RequestHeader) AppendBytes(dst []byte) []byte {
 		// Exclude trailer from header
 		exclude := false
 		for _, t := range h.trailer {
-			if bytes.Equal(kv.key, t.key) {
+			if bytes.Equal(kv.key, t) {
 				exclude = true
 				break
 			}
@@ -2669,7 +2686,7 @@ func (h *RequestHeader) AppendBytes(dst []byte) []byte {
 	}
 
 	if len(h.trailer) > 0 {
-		dst = appendHeaderLine(dst, strTrailer, appendArgsKeyBytes(nil, h.trailer, strCommaSpace))
+		dst = appendHeaderLine(dst, strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace))
 	}
 
 	// there is no need in h.collectCookies() here, since if cookies aren't collected yet,
@@ -3096,7 +3113,11 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 		h.contentLengthBytes = h.contentLengthBytes[:0]
 	}
 	if h.contentLength == -2 && !h.ConnectionUpgrade() && !h.mustSkipContentLength() {
-		h.h = setArgBytes(h.h, strTransferEncoding, strIdentity, argsHasValue)
+		// According to modern HTTP/1.1 specifications (RFC 7230):
+		// `identity` as a value for `Transfer-Encoding` was removed
+		// in the errata to RFC 2616.
+		// Therefore, we do not include `Transfer-Encoding: identity` in the header.
+		// See: https://github.com/valyala/fasthttp/issues/1909
 		h.connectionClose = true
 	}
 	if h.noHTTP11 && !h.connectionClose {
@@ -3606,13 +3627,26 @@ func AppendNormalizedHeaderKeyBytes(dst, key []byte) []byte {
 	return AppendNormalizedHeaderKey(dst, b2s(key))
 }
 
-func appendArgsKeyBytes(dst []byte, args []argsKV, sep []byte) []byte {
-	for i, n := 0, len(args); i < n; i++ {
-		kv := &args[i]
-		dst = append(dst, kv.key...)
+func appendTrailerBytes(dst []byte, trailer [][]byte, sep []byte) []byte {
+	for i, n := 0, len(trailer); i < n; i++ {
+		dst = append(dst, trailer[i]...)
 		if i+1 < n {
 			dst = append(dst, sep...)
 		}
+	}
+	return dst
+}
+
+func copyTrailer(dst, src [][]byte) [][]byte {
+	if cap(dst) > len(src) {
+		dst = dst[:len(src)]
+	} else {
+		dst = append(dst[:0], src...)
+	}
+
+	for i := range dst {
+		dst[i] = make([]byte, len(src[i]))
+		copy(dst[i], src[i])
 	}
 	return dst
 }
