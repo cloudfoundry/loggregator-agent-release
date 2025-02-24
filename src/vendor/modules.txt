@@ -1,4 +1,4 @@
-# code.cloudfoundry.org/go-batching v0.0.0-20250211080613-4a7cabc0fad6
+# code.cloudfoundry.org/go-batching v0.0.0-20250217142405-e451d572b3eb
 ## explicit; go 1.22.0
 code.cloudfoundry.org/go-batching
 # code.cloudfoundry.org/go-diodes v0.0.0-20250217093403-cd1363c1f46a
@@ -13,7 +13,7 @@ code.cloudfoundry.org/go-loggregator/v9
 code.cloudfoundry.org/go-loggregator/v9/conversion
 code.cloudfoundry.org/go-loggregator/v9/rfc5424
 code.cloudfoundry.org/go-loggregator/v9/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20250211080758-b1d4eddf8bb8
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20250217183042-3b486222274d
 ## explicit; go 1.22.0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
@@ -44,7 +44,7 @@ github.com/cespare/xxhash/v2
 # github.com/cloudfoundry/dropsonde v1.1.0
 ## explicit; go 1.18
 github.com/cloudfoundry/dropsonde/emitter
-# github.com/cloudfoundry/sonde-go v0.0.0-20250211080004-ff2843c4063b
+# github.com/cloudfoundry/sonde-go v0.0.0-20250217093333-7351ffed9384
 ## explicit; go 1.18
 github.com/cloudfoundry/sonde-go/events
 # github.com/go-chi/chi/v5 v5.2.1
@@ -57,8 +57,8 @@ github.com/go-logr/logr/funcr
 # github.com/go-task/slim-sprig/v3 v3.0.0
 ## explicit; go 1.20
 github.com/go-task/slim-sprig/v3
-# github.com/google/go-cmp v0.6.0
-## explicit; go 1.13
+# github.com/google/go-cmp v0.7.0
+## explicit; go 1.21
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/cmpopts
 github.com/google/go-cmp/cmp/internal/diff
@@ -76,14 +76,15 @@ github.com/grpc-ecosystem/grpc-gateway/v2/utilities
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/klauspost/compress v1.17.11
-## explicit; go 1.21
+# github.com/klauspost/compress v1.18.0
+## explicit; go 1.22
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/internal/cpuinfo
+github.com/klauspost/compress/internal/le
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zlib
 github.com/klauspost/compress/zstd
@@ -131,8 +132,8 @@ github.com/onsi/gomega/types
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.20.5
-## explicit; go 1.20
+# github.com/prometheus/client_golang v1.21.0
+## explicit; go 1.21
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
 github.com/prometheus/client_golang/prometheus
@@ -163,7 +164,7 @@ github.com/square/certstrap/pkix
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.58.0
+# github.com/valyala/fasthttp v1.59.0
 ## explicit; go 1.21
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
@@ -178,8 +179,8 @@ go.opentelemetry.io/proto/otlp/logs/v1
 go.opentelemetry.io/proto/otlp/metrics/v1
 go.opentelemetry.io/proto/otlp/resource/v1
 go.opentelemetry.io/proto/otlp/trace/v1
-# go.step.sm/crypto v0.57.1
-## explicit; go 1.22
+# go.step.sm/crypto v0.58.0
+## explicit; go 1.22.12
 go.step.sm/crypto/fingerprint
 go.step.sm/crypto/internal/bcrypt_pbkdf
 go.step.sm/crypto/internal/emoji
@@ -189,8 +190,8 @@ go.step.sm/crypto/keyutil
 go.step.sm/crypto/pemutil
 go.step.sm/crypto/randutil
 go.step.sm/crypto/x25519
-# golang.org/x/crypto v0.33.0
-## explicit; go 1.20
+# golang.org/x/crypto v0.34.0
+## explicit; go 1.23.0
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
@@ -271,11 +272,11 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20250212204824-5a70512c5d8b
-## explicit; go 1.22
+# google.golang.org/genproto/googleapis/api v0.0.0-20250219182151-9fdb1cabc7b2
+## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250212204824-5a70512c5d8b
-## explicit; go 1.22
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250219182151-9fdb1cabc7b2
+## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.70.0
 ## explicit; go 1.22
