@@ -247,8 +247,15 @@ var _ = Describe("HTTPWriter", func() {
 type SpyDrain struct {
 	mu sync.Mutex
 	*httptest.Server
-	messages []*rfc5424.Message
-	headers  []http.Header
+	messages     []*rfc5424.Message
+	headers      []http.Header
+	requestCount int
+}
+
+func (d *SpyDrain) Reset() {
+	d.messages = nil
+	d.headers = nil
+	d.requestCount = 0
 }
 
 func (d *SpyDrain) appendMessage(message *rfc5424.Message) {
@@ -269,6 +276,9 @@ func (d *SpyDrain) getMessagesSize() int {
 	return len(d.messages)
 }
 
+func (d *SpyDrain) getRequestCount() int {
+	return d.requestCount
+}
 func newMockOKDrain() *SpyDrain {
 	return newMockDrain(http.StatusOK)
 }
