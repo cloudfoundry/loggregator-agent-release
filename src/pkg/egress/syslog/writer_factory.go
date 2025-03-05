@@ -96,6 +96,11 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 	}
 	converter := NewConverter(o...)
 
+	retryer := NewBackoffRetryer(
+		ub,
+		ExponentialDuration,
+		maxRetries)
+
 	var w egress.WriteCloser
 	switch ub.URL.Scheme {
 	case "https":
@@ -113,6 +118,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 			tlsCfg,
 			egressMetric,
 			converter,
+			retryer,
 		)
 	case "syslog":
 		w = NewTCPWriter(
