@@ -2,14 +2,14 @@ module code.cloudfoundry.org/loggregator-agent-release/src
 
 go 1.23.0
 
-toolchain go1.23.7
+toolchain go1.24.1
 
 require (
 	code.cloudfoundry.org/go-batching v0.0.0-20250310150613-869590bc8908
 	code.cloudfoundry.org/go-diodes v0.0.0-20250310100414-f7864bba1e4e
 	code.cloudfoundry.org/go-envstruct v1.7.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20250310133323-4cab4f919c81
-	code.cloudfoundry.org/tlsconfig v0.20.0
+	code.cloudfoundry.org/tlsconfig v0.21.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20250217093333-7351ffed9384
 	github.com/onsi/gomega v1.36.2
