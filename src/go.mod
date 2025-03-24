@@ -8,11 +8,11 @@ require (
 	code.cloudfoundry.org/go-batching v0.0.0-20250317153438-425cd9af613c
 	code.cloudfoundry.org/go-diodes v0.0.0-20250317104522-5c806ff4fd8d
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20250317173500-2aa4b42ca9ca
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20250318085922-a92b53f5f52f
 	code.cloudfoundry.org/tlsconfig v0.21.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20250317104451-a50013ad58bc
-	github.com/onsi/gomega v1.36.2
+	github.com/onsi/gomega v1.36.3
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.63.0
 	github.com/valyala/fasthttp v1.59.0
@@ -26,7 +26,7 @@ require (
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/google/go-cmp v0.7.0
-	github.com/onsi/ginkgo/v2 v2.23.0
+	github.com/onsi/ginkgo/v2 v2.23.3
 	go.opentelemetry.io/proto/otlp v1.5.0
 	google.golang.org/protobuf v1.36.5
 )
@@ -45,7 +45,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.21.1 // indirect
-	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
