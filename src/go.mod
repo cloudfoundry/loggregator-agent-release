@@ -12,7 +12,7 @@ require (
 	code.cloudfoundry.org/tlsconfig v0.21.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20250217093333-7351ffed9384
-	github.com/onsi/gomega v1.36.2
+	github.com/onsi/gomega v1.36.3
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.63.0
 	github.com/valyala/fasthttp v1.59.0
@@ -26,7 +26,7 @@ require (
 	git.sr.ht/~nelsam/hel/v3 v3.0.4
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/google/go-cmp v0.7.0
-	github.com/onsi/ginkgo/v2 v2.23.0
+	github.com/onsi/ginkgo/v2 v2.23.3
 	go.opentelemetry.io/proto/otlp v1.5.0
 	google.golang.org/protobuf v1.36.5
 )
