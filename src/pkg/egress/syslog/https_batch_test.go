@@ -17,7 +17,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var string_to_1024_chars = "saljdflajsdssdfsdfljkfkajafjajlköflkjöjaklgljksdjlakljkflkjweljklkwjejlkfekljwlkjefjklwjklsdajkljklwerlkaskldgjksakjekjwrjkljasdjkgfkljwejklrkjlklasdkjlsadjlfjlkadfljkajklsdfjklslkdfjkllkjasdjkflsdlakfjklasldfkjlasdjfkjlsadlfjklaljsafjlslkjawjklerkjljklasjkdfjklwerjljalsdjkflwerjlkwejlkarjklalkklfsdjlfhkjsdfkhsewhkjjasdjfkhwkejrkjahjefkhkasdjhfkashfkjwehfkksadfjaskfkhjdshjfhewkjhasdfjdajskfjwehkfajkankaskjdfasdjhfkkjhjjkasdfjhkjahksdf"
+var stringTo256Chars string
+
+func init() {
+	//With the rest of the syslog, this results in a syslogenvelope of the size 400
+	for i := 0; i < 256; i++ {
+		stringTo256Chars += "a"
+	}
+}
 
 var _ = Describe("HTTPS_batch", func() {
 	var (
@@ -25,15 +32,19 @@ var _ = Describe("HTTPS_batch", func() {
 		skipSSLTLSConfig = &tls.Config{
 			InsecureSkipVerify: true, //nolint:gosec
 		}
-		c      = syslog.NewConverter()
-		drain  *SpyDrain
-		b      *syslog.URLBinding
-		writer egress.WriteCloser
+		c            = syslog.NewConverter()
+		drain        *SpyDrain
+		b            *syslog.URLBinding
+		writer       egress.WriteCloser
+		sendInterval time.Duration
+		waitTime     time.Duration
 	)
-	string_to_1024_chars += string_to_1024_chars
 
 	BeforeEach(func() {
 		drain = newBatchMockDrain(200)
+		drain.Reset()
+		sendInterval = 100 * time.Millisecond
+		waitTime = sendInterval * 10
 		b = buildURLBinding(
 			drain.URL,
 			"test-app-id",
@@ -45,7 +56,13 @@ var _ = Describe("HTTPS_batch", func() {
 			skipSSLTLSConfig,
 			&metricsHelpers.SpyMetric{},
 			c,
+			syslog.WithBatchSize(1000),
+			syslog.WithSendInterval(sendInterval),
 		)
+	})
+
+	AfterEach(func() {
+		writer.Close()
 	})
 
 	It("testing simple appending of one log", func() {
@@ -53,9 +70,8 @@ var _ = Describe("HTTPS_batch", func() {
 		Expect(writer.Write(env1)).To(Succeed())
 		env2 := buildLogEnvelope("APP", "2", "message 2", loggregator_v2.Log_OUT)
 		Expect(writer.Write(env2)).To(Succeed())
-		time.Sleep(1050 * time.Millisecond)
+		Eventually(drain.getMessagesSize, sendInterval+waitTime).Should(Equal(2))
 
-		Expect(drain.getMessagesSize()).Should(Equal(2))
 		expected := &rfc5424.Message{
 			AppName:   "test-app-id",
 			Hostname:  "test-hostname",
@@ -83,36 +99,46 @@ var _ = Describe("HTTPS_batch", func() {
 	})
 
 	It("test batch dispatching with all logs in a given timeframe", func() {
-		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
-		for i := 0; i < 10; i++ {
+		env1 := buildLogEnvelope("APP", "1", "short message", loggregator_v2.Log_OUT)
+		for i := 0; i < 5; i++ {
 			Expect(writer.Write(env1)).To(Succeed())
-			time.Sleep(99 * time.Millisecond)
 		}
-		Expect(drain.getMessagesSize()).Should(Equal(0))
-		time.Sleep(100 * time.Millisecond)
-		Expect(drain.getMessagesSize()).Should(Equal(10))
+		Expect(drain.getMessagesSize()).To(Equal(0))
+		Eventually(drain.getMessagesSize, sendInterval+waitTime).Should(Equal(5))
 	})
 
-	It("probabilistic test for race condition", func() {
-		env1 := buildLogEnvelope("APP", "1", "string to get log to 1024 characters:"+string_to_1024_chars, loggregator_v2.Log_OUT)
-		for i := 0; i < 10; i++ {
-			Expect(writer.Write(env1)).To(Succeed())
-			time.Sleep(99 * time.Millisecond)
+	It("triggers multiple flushes when exceeding the batch", func() {
+		env := buildLogEnvelope("APP", "1", "string to get log to 400 characters:"+stringTo256Chars, loggregator_v2.Log_OUT)
+		for i := 0; i < 15; i++ {
+			Expect(writer.Write(env)).To(Succeed())
 		}
-		time.Sleep(100 * time.Millisecond)
-		Expect(drain.getMessagesSize()).Should(Equal(10))
+		// This is a less flaky approach to test for batch size triggered sends:
+		// with only Time based sends, it either takes
+		Eventually(drain.getMessagesSize, sendInterval+waitTime).Should(Equal(15))
+		Expect(drain.getRequestCount()).Should(BeNumerically(">=", 3))
+		// Batches should contain more than one message -> fewer requests than messages
+		Expect(drain.getRequestCount()).Should(BeNumerically("<=", 10))
+	})
+
+	It("test for hanging after some ticks", func() {
+		// This test will not succeed on the timer based implementation,
+		// it works fine with a ticker based implementation.
+		env1 := buildLogEnvelope("APP", "1", "only a short test message", loggregator_v2.Log_OUT)
+		for i := 0; i < 5; i++ {
+			Expect(writer.Write(env1)).To(Succeed())
+			time.Sleep((sendInterval * 2) + (sendInterval / 5)) // this sleeps at least 2 ticks, to trigger once without events
+		}
+		Eventually(drain.getMessagesSize, sendInterval+waitTime).Should(Equal(5))
 	})
 })
 
 func newBatchMockDrain(status int) *SpyDrain {
 	drain := &SpyDrain{}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
+		drain.requestCount++
 		body, err := io.ReadAll(r.Body)
 		Expect(err).ToNot(HaveOccurred())
 		defer r.Body.Close()
-
-		println(body)
 
 		message := &rfc5424.Message{}
 
