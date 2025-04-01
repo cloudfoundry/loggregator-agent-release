@@ -52,7 +52,7 @@ func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Conf
 	}
 }
 
-func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
+func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.WriteCloser, error) {
 	tlsCfg := f.externalTlsConfig.Clone()
 	if ub.InternalTls {
 		tlsCfg = f.internalTlsConfig.Clone()
@@ -60,7 +60,9 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 	if len(ub.Certificate) > 0 && len(ub.PrivateKey) > 0 {
 		cert, err := tls.X509KeyPair(ub.Certificate, ub.PrivateKey)
 		if err != nil {
-			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", err.Error())
+			errorMessage := err.Error()
+			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", errorMessage)
+			emitter.EmitLog(ub.AppID, fmt.Sprintf("failed to load certificate: %s", errorMessage))
 			return nil, err
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
@@ -69,6 +71,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 		ok := tlsCfg.RootCAs.AppendCertsFromPEM(ub.CA)
 		if !ok {
 			err := NewWriterFactoryErrorf(ub.URL, "failed to load root CA")
+			emitter.EmitLog(ub.AppID, "failed to load root CA")
 			return nil, err
 		}
 	}
@@ -140,5 +143,6 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 		ExponentialDuration,
 		maxRetries,
 		w,
+		emitter,
 	)
 }
