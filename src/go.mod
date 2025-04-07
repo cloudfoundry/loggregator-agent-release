@@ -12,7 +12,7 @@ require (
 	code.cloudfoundry.org/tlsconfig v0.22.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20250324121045-7c2c4152bc7b
-	github.com/onsi/gomega v1.36.3
+	github.com/onsi/gomega v1.37.0
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.63.0
 	github.com/valyala/fasthttp v1.59.0
