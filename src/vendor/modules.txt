@@ -164,8 +164,8 @@ github.com/square/certstrap/pkix
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.59.0
-## explicit; go 1.21
+# github.com/valyala/fasthttp v1.60.0
+## explicit; go 1.23.0
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/stackless
