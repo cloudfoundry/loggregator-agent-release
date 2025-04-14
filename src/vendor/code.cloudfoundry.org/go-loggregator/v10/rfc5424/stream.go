@@ -52,7 +52,7 @@ func (m *Message) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n1 + len(buf)), err
 	}
 	if len(buf) != int(length) {
-		return int64(n1 + len(buf)), fmt.Errorf("Expected to read %d bytes, got %d", length, len(buf))
+		return int64(n1 + len(buf)), fmt.Errorf("expected to read %d bytes, got %d", length, len(buf))
 	}
 	err = m.UnmarshalBinary(buf)
 	if err != nil {
