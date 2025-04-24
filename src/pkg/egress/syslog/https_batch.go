@@ -10,6 +10,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"github.com/valyala/fasthttp"
 )
 
 type HTTPSBatchWriter struct {
@@ -43,7 +44,7 @@ func NewHTTPSBatchWriter(
 	c *Converter,
 	options ...Option,
 ) egress.WriteCloser {
-	client := httpClient(netConf, tlsConf)
+	client := httpBatchClient(netConf, tlsConf)
 	binding.URL.Scheme = "https"
 
 	writer := &HTTPSBatchWriter{
@@ -96,7 +97,10 @@ func (w *HTTPSBatchWriter) startSender() {
 
 	sendBatch := func() {
 		if msgBatch.Len() > 0 {
-			w.sendHttpRequest(msgBatch.Bytes(), msgCount) // nolint:errcheck
+			err := w.sendHttpRequest(msgBatch.Bytes(), msgCount) // nolint:errcheck
+			if err != nil {
+				log.Printf("Failed to send batch, dropping batch of size %d , err: %s", int(msgCount), err)
+			}
 			msgBatch.Reset()
 			msgCount = 0
 		}
@@ -130,4 +134,11 @@ func (w *HTTPSBatchWriter) Close() error {
 	w.wg.Wait() // Ensure sender finishes processing before closing
 	close(w.msgChan)
 	return nil
+}
+
+func httpBatchClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
+	client := httpClient(netConf, tlsConf)
+	client.MaxIdleConnDuration = 30 * time.Second
+	client.MaxConnDuration = 30 * time.Second
+	return client
 }
