@@ -279,10 +279,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20250425173222-7b384671a197
+# google.golang.org/genproto/googleapis/api v0.0.0-20250428153025-10db94c68c34
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250425173222-7b384671a197
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.72.0
