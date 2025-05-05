@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -154,7 +155,9 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 			agentCfg.Cache.PollingInterval = 10 * time.Millisecond
 		}
 
-		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr)
+		factory := syslog.NewAppLogEmitterFactory()
+
+		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &factory)
 		go agent.Run()
 	})
 
@@ -216,6 +219,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 		})
 
 		It("will not be able to connect with those drains", func() {
+			//todo check if pr check runs
 			ctx, cancel := context.WithCancel(context.Background())
 			emitLogs(ctx, appIDs, grpcPort, agentCerts)
 			defer cancel()
