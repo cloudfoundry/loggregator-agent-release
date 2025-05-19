@@ -13,29 +13,142 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// --- Coordinator definition ---
+type RetryCoordinator struct {
+	sem chan struct{}
+}
+
+var (
+	globalRetryCoordinator     *RetryCoordinator
+	globalRetryCoordinatorOnce sync.Once
+	maxParallelRetries         = 4
+)
+
+// testing override for maxParallelRetries
+func WithParallelRetries(n int) {
+	globalRetryCoordinator = &RetryCoordinator{
+		sem: make(chan struct{}, n),
+	}
+}
+
+func GetGlobalRetryCoordinator() *RetryCoordinator {
+	globalRetryCoordinatorOnce.Do(func() {
+		globalRetryCoordinator = &RetryCoordinator{
+			sem: make(chan struct{}, maxParallelRetries),
+		}
+	})
+	return globalRetryCoordinator
+}
+
+func (c *RetryCoordinator) Acquire() {
+	c.sem <- struct{}{} // Block until a slot is available
+}
+
+func (c *RetryCoordinator) Release() {
+	<-c.sem
+}
+
+type InternalRetryWriter interface {
+	ConfigureRetry(retryDuration RetryDuration, maxRetries int)
+}
+
+type Retryer struct {
+	retryDuration RetryDuration
+	maxRetries    int
+	binding       *URLBinding
+	coordinator   *RetryCoordinator
+}
+
+func NewRetryer(
+	binding *URLBinding,
+	retryDuration RetryDuration,
+	maxRetries int,
+) *Retryer {
+	return &Retryer{
+		retryDuration: func(attempt int) time.Duration { return 0 },
+		maxRetries:    maxRetries,
+		binding:       binding,
+		coordinator:   GetGlobalRetryCoordinator(),
+	}
+}
+
+func (r *Retryer) Retry(batch []byte, msgCount float64, funcToRetry func([]byte, float64) error) {
+	var err error
+
+	// First attempt (fast path, not counted as a retry)
+	err = funcToRetry(batch, msgCount)
+	if err == nil {
+		return
+	}
+
+	if egress.ContextDone(r.binding.Context) {
+		log.Printf("Context cancelled for %s, aborting retries", r.binding.URL.Host)
+		return
+	}
+
+	log.Printf("failed to write to %s, retrying in %s, err: %s", r.binding.URL.Host, r.retryDuration(0), err)
+
+	for i := 0; i < r.maxRetries-1; i++ {
+		sleepDuration := r.retryDuration(i)
+		time.Sleep(sleepDuration)
+
+		// Retry attempts need to acquire a concurrent slot
+		r.coordinator.Acquire()
+		if egress.ContextDone(r.binding.Context) {
+			log.Printf("Context cancelled for %s, aborting retries", r.binding.URL.Host)
+			return
+		}
+
+		err = funcToRetry(batch, msgCount)
+		if err == nil {
+			return
+		}
+		log.Printf("failed to write to %s, retrying in %s, err: %s", r.binding.URL.Host, r.retryDuration(i+1), err)
+		r.coordinator.Release()
+	}
+
+	log.Printf("Exhausted retries for %s, dropping batch, err: %s", r.binding.URL.Host, err)
+}
+
 type HTTPSBatchWriter struct {
 	HTTPSWriter
 	batchSize    int
 	sendInterval time.Duration
+	retryer      Retryer
 	msgChan      chan []byte
 	quit         chan struct{}
 	wg           sync.WaitGroup
 }
 
+// Also Marks that HTTPSBatchWriter implements the InternalRetryWriter interface
+func (w *HTTPSBatchWriter) ConfigureRetry(retryDuration RetryDuration, maxRetries int) {
+	w.retryer.retryDuration = retryDuration
+	w.retryer.maxRetries = maxRetries
+}
+
 type Option func(*HTTPSBatchWriter)
 
+// testing override for batch size and send interval
 func WithBatchSize(size int) Option {
 	return func(w *HTTPSBatchWriter) {
 		w.batchSize = size
 	}
 }
-
 func WithSendInterval(interval time.Duration) Option {
 	return func(w *HTTPSBatchWriter) {
 		w.sendInterval = interval
 	}
 }
 
+// --- HTTPSBatchWriter definition ---
+
+// HTTPSBatchWriter is an egress.WriteCloser implementation that batches syslog messages
+// and sends them via HTTPS in configurable batch sizes and intervals. It provides
+// backpressure to upstream callers by using a blocking channel for incoming messages.
+// Failed batch sends are retried according to a configurable retry policy, using a
+// global RetryCoordinator to limit the number of concurrent retries across all drains.
+// This prevents resource exhaustion and noisy neighbor issues, ensuring reliable and
+// efficient delivery of batched syslog messages.
 func NewHTTPSBatchWriter(
 	binding *URLBinding,
 	netConf NetworkTimeoutConfig,
@@ -56,9 +169,10 @@ func NewHTTPSBatchWriter(
 			egressMetric:    egressMetric,
 			syslogConverter: c,
 		},
+		retryer:      *NewRetryer(binding, func(attempt int) time.Duration { return 0 }, 0),
 		batchSize:    256 * 1024,        // Default value
 		sendInterval: 1 * time.Second,   // Default value
-		msgChan:      make(chan []byte), // Buffered channel for messages
+		msgChan:      make(chan []byte), // blocking single message channel for backpressure
 		quit:         make(chan struct{}),
 	}
 
@@ -97,10 +211,7 @@ func (w *HTTPSBatchWriter) startSender() {
 
 	sendBatch := func() {
 		if msgBatch.Len() > 0 {
-			err := w.sendHttpRequest(msgBatch.Bytes(), msgCount) // nolint:errcheck
-			if err != nil {
-				log.Printf("Failed to send batch, dropping batch of size %d , err: %s", int(msgCount), err)
-			}
+			w.retryer.Retry(msgBatch.Bytes(), msgCount, w.sendHttpRequest)
 			msgBatch.Reset()
 			msgCount = 0
 		}
@@ -131,8 +242,7 @@ func (w *HTTPSBatchWriter) startSender() {
 
 func (w *HTTPSBatchWriter) Close() error {
 	close(w.quit)
-	w.wg.Wait() // Ensure sender finishes processing before closing
-	close(w.msgChan)
+	w.wg.Wait()
 	return nil
 }
 
