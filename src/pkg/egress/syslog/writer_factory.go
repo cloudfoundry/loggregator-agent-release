@@ -135,6 +135,13 @@ func (f WriterFactory) NewWriter(ub *URLBinding) (egress.WriteCloser, error) {
 		return nil, NewWriterFactoryErrorf(ub.URL, "unsupported protocol: %q", ub.URL.Scheme)
 	}
 
+	if rw, ok := w.(InternalRetryWriter); ok {
+		rw.ConfigureRetry(
+			ExponentialDuration,
+			maxRetries)
+		return w, nil
+	}
+
 	return NewRetryWriter(
 		ub,
 		ExponentialDuration,
