@@ -1,6 +1,7 @@
 package v1_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1/v1fakes"
 	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v1"
 	"github.com/cloudfoundry/sonde-go/events"
 	"google.golang.org/protobuf/proto"
@@ -11,14 +12,14 @@ import (
 
 var _ = Describe("EventUnmarshaller", func() {
 	var (
-		mockWriter   *mockEnvelopeWriter
+		mockWriter   *v1fakes.FakeEnvelopeWriter
 		unmarshaller *ingress.EventUnmarshaller
 		event        *events.Envelope
 		message      []byte
 	)
 
 	BeforeEach(func() {
-		mockWriter = newMockEnvelopeWriter()
+		mockWriter = &v1fakes.FakeEnvelopeWriter{}
 
 		unmarshaller = ingress.NewUnMarshaller(mockWriter)
 		event = &events.Envelope{
@@ -92,15 +93,15 @@ var _ = Describe("EventUnmarshaller", func() {
 		It("unmarshalls byte arrays and writes to an EnvelopeWriter", func() {
 			unmarshaller.Write(message)
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
-			Expect(proto.Equal(<-mockWriter.WriteInput.Event, event)).To(BeTrue())
+			Expect(mockWriter.WriteCallCount()).To(Equal(1))
+			Expect(proto.Equal(mockWriter.WriteArgsForCall(0), event)).To(BeTrue())
 		})
 
 		It("returns an error when it can't unmarshal", func() {
 			message = []byte("Bad Message")
 			unmarshaller.Write(message)
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(0))
+			Expect(mockWriter.WriteCallCount()).To(Equal(0))
 		})
 	})
 })
