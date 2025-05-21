@@ -18,7 +18,10 @@ type Metrics interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
+//go:generate go tool counterfeiter -generate
+
 // Getter is configured to fetch HTTP responses
+//counterfeiter:generate . Getter
 type Getter interface {
 	Get() ([]binding.Binding, error)
 }

@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1/v1fakes"
 	"github.com/cloudfoundry/sonde-go/events"
 	"google.golang.org/protobuf/proto"
 
@@ -11,12 +12,12 @@ import (
 
 var _ = Describe("EventWriter", func() {
 	var (
-		mockWriter  *mockEnvelopeWriter
+		mockWriter  *v1fakes.FakeEnvelopeWriter
 		eventWriter *egress.EventWriter
 	)
 
 	BeforeEach(func() {
-		mockWriter = newMockEnvelopeWriter()
+		mockWriter = &v1fakes.FakeEnvelopeWriter{}
 		eventWriter = egress.New("Africa")
 	})
 
@@ -32,8 +33,8 @@ var _ = Describe("EventWriter", func() {
 			err := eventWriter.Emit(event)
 			Expect(err).To(BeNil())
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
-			e := <-mockWriter.WriteInput.Event
+			Expect(mockWriter.WriteCallCount()).To(Equal(1))
+			e := mockWriter.WriteArgsForCall(0)
 			Expect(e.GetOrigin()).To(Equal("Africa"))
 			Expect(e.GetEventType()).To(Equal(events.Envelope_ValueMetric))
 			Expect(e.GetValueMetric()).To(Equal(event))
@@ -67,8 +68,8 @@ var _ = Describe("EventWriter", func() {
 			err := eventWriter.EmitEnvelope(event)
 			Expect(err).To(BeNil())
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
-			Expect(<-mockWriter.WriteInput.Event).To(Equal(event))
+			Expect(mockWriter.WriteCallCount()).To(Equal(1))
+			Expect(mockWriter.WriteArgsForCall(0)).To(Equal(event))
 		})
 
 		It("returns an error with a sane message when emitting without a writer", func() {

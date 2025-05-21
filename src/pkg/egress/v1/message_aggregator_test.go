@@ -4,6 +4,7 @@ import (
 	"time"
 
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1/v1fakes"
 	"github.com/cloudfoundry/sonde-go/events"
 	"google.golang.org/protobuf/proto"
 
@@ -13,13 +14,13 @@ import (
 
 var _ = Describe("MessageAggregator", func() {
 	var (
-		mockWriter        *mockEnvelopeWriter
+		mockWriter        *v1fakes.FakeEnvelopeWriter
 		messageAggregator *egress.MessageAggregator
 		originalTTL       time.Duration
 	)
 
 	BeforeEach(func() {
-		mockWriter = newMockEnvelopeWriter()
+		mockWriter = &v1fakes.FakeEnvelopeWriter{}
 		messageAggregator = egress.NewAggregator(
 			mockWriter,
 		)
@@ -34,8 +35,8 @@ var _ = Describe("MessageAggregator", func() {
 		inputMessage := createValueMessage()
 		messageAggregator.Write(inputMessage)
 
-		Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
-		Expect(<-mockWriter.WriteInput.Event).To(Equal(inputMessage))
+		Expect(mockWriter.WriteCallCount()).To(Equal(1))
+		Expect(mockWriter.WriteArgsForCall(0)).To(Equal(inputMessage))
 	})
 
 	It("handles concurrent writes without data race", func() {
@@ -57,8 +58,8 @@ var _ = Describe("MessageAggregator", func() {
 		It("sets the Total field on a CounterEvent ", func() {
 			messageAggregator.Write(createCounterMessage("total", "fake-origin-4", nil))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(1))
-			outputMessage := <-mockWriter.WriteInput.Event
+			Expect(mockWriter.WriteCallCount()).To(Equal(1))
+			outputMessage := mockWriter.WriteArgsForCall(0)
 			Expect(outputMessage.GetEventType()).To(Equal(events.Envelope_CounterEvent))
 			expectCorrectCounterNameDeltaAndTotal(outputMessage, "total", 4, 4)
 		})
@@ -86,12 +87,12 @@ var _ = Describe("MessageAggregator", func() {
 				},
 			))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(3))
-			e := <-mockWriter.WriteInput.Event
+			Expect(mockWriter.WriteCallCount()).To(Equal(3))
+			e := mockWriter.WriteArgsForCall(0)
 			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 4)
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(1)
 			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 8)
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(2)
 			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 12)
 		})
 
@@ -118,12 +119,12 @@ var _ = Describe("MessageAggregator", func() {
 				},
 			))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(3))
-			e := <-mockWriter.WriteInput.Event
+			Expect(mockWriter.WriteCallCount()).To(Equal(3))
+			e := mockWriter.WriteArgsForCall(0)
 			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 4)
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(1)
 			expectCorrectCounterNameDeltaAndTotal(e, "total", 0, 101)
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(2)
 			expectCorrectCounterNameDeltaAndTotal(e, "total", 4, 105)
 		})
 
@@ -131,10 +132,10 @@ var _ = Describe("MessageAggregator", func() {
 			messageAggregator.Write(createCounterMessage("total1", "fake-origin-4", nil))
 			messageAggregator.Write(createCounterMessage("total2", "fake-origin-4", nil))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(2))
-			e := <-mockWriter.WriteInput.Event
+			Expect(mockWriter.WriteCallCount()).To(Equal(2))
+			e := mockWriter.WriteArgsForCall(0)
 			expectCorrectCounterNameDeltaAndTotal(e, "total1", 4, 4)
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(1)
 			expectCorrectCounterNameDeltaAndTotal(e, "total2", 4, 4)
 		})
 
@@ -171,21 +172,21 @@ var _ = Describe("MessageAggregator", func() {
 				},
 			))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(4))
-			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 4)
-			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 8)
-			expectCorrectCounterNameDeltaAndTotal(<-mockWriter.WriteInput.Event, "total", 4, 4)
+			Expect(mockWriter.WriteCallCount()).To(Equal(4))
+			expectCorrectCounterNameDeltaAndTotal(mockWriter.WriteArgsForCall(0), "total", 4, 4)
+			expectCorrectCounterNameDeltaAndTotal(mockWriter.WriteArgsForCall(1), "total", 4, 4)
+			expectCorrectCounterNameDeltaAndTotal(mockWriter.WriteArgsForCall(2), "total", 4, 8)
+			expectCorrectCounterNameDeltaAndTotal(mockWriter.WriteArgsForCall(3), "total", 4, 4)
 		})
 
 		It("does not accumulate for counters when receiving a non-counter event", func() {
 			messageAggregator.Write(createValueMessage())
 			messageAggregator.Write(createCounterMessage("counter1", "fake-origin-4", nil))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(2))
-			e := <-mockWriter.WriteInput.Event
+			Expect(mockWriter.WriteCallCount()).To(Equal(2))
+			e := mockWriter.WriteArgsForCall(0)
 			Expect(e.GetEventType()).To(Equal(events.Envelope_ValueMetric))
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(1)
 			Expect(e.GetEventType()).To(Equal(events.Envelope_CounterEvent))
 			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 4)
 		})
@@ -195,17 +196,17 @@ var _ = Describe("MessageAggregator", func() {
 			messageAggregator.Write(createCounterMessage("counter1", "fake-origin-5", nil))
 			messageAggregator.Write(createCounterMessage("counter1", "fake-origin-4", nil))
 
-			Expect(mockWriter.WriteInput.Event).To(HaveLen(3))
+			Expect(mockWriter.WriteCallCount()).To(Equal(3))
 
-			e := <-mockWriter.WriteInput.Event
+			e := mockWriter.WriteArgsForCall(0)
 			Expect(e.GetOrigin()).To(Equal("fake-origin-4"))
 			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 4)
 
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(1)
 			Expect(e.GetOrigin()).To(Equal("fake-origin-5"))
 			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 4)
 
-			e = <-mockWriter.WriteInput.Event
+			e = mockWriter.WriteArgsForCall(2)
 			Expect(e.GetOrigin()).To(Equal("fake-origin-4"))
 			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 8)
 		})

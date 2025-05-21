@@ -9,10 +9,12 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing/batching"
 )
 
+//counterfeiter:generate . Nexter
 type Nexter interface {
 	TryNext() (*loggregator_v2.Envelope, bool)
 }
 
+//counterfeiter:generate . BatchWriter
 type BatchWriter interface {
 	Write(msgs []*loggregator_v2.Envelope) error
 }

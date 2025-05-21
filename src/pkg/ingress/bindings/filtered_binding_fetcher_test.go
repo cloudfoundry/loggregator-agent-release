@@ -9,6 +9,7 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings/bindingsfakes"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -195,15 +196,14 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when the drain host fails to resolve", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
-		var mockic *mockIPChecker
+		var mockic *bindingsfakes.FakeIPChecker
 
 		BeforeEach(func() {
 			logBuffer = bytes.Buffer{}
 			log.SetOutput(&logBuffer)
 			warn = true
-			mockic = newMockIPChecker()
-			mockic.ResolveAddrOutput.Ret0 <- net.IP{}
-			mockic.ResolveAddrOutput.Ret1 <- errors.New("oof ouch ip not resolved")
+			mockic = &bindingsfakes.FakeIPChecker{}
+			mockic.ResolveAddrReturns(net.IP{}, errors.New("oof ouch ip not resolved"))
 		})
 
 		JustBeforeEach(func() {
@@ -232,7 +232,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			actual, err := filter.FetchBindings()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
-			Eventually(mockic.ResolveAddrCalled).Should(Receive())
+			Eventually(func() int { return mockic.ResolveAddrCallCount() }).Should(BeNumerically(">", 0))
 			Expect(logBuffer.String()).Should(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
 			Expect(logBuffer.String()).ToNot(MatchRegexp("Skipped resolve ip address for syslog drain with url"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
@@ -240,7 +240,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			actual, err = filter.FetchBindings()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(BeEmpty())
-			Consistently(mockic.ResolveAddrCalled).ShouldNot(Receive())
+			Consistently(func() int { return mockic.ResolveAddrCallCount() }).Should(Equal(1))
 			Expect(logBuffer.String()).Should(MatchRegexp("Skipped resolve ip address for syslog drain with url"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
