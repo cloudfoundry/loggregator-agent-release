@@ -2,10 +2,13 @@ package v2
 
 import "code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 
+//go:generate go tool counterfeiter -generate
+//counterfeiter:generate . Writer
 type Writer interface {
 	Write(*loggregator_v2.Envelope) error
 }
 
+//counterfeiter:generate . EnvelopeProcessor
 type EnvelopeProcessor interface {
 	Process(*loggregator_v2.Envelope) error
 }
