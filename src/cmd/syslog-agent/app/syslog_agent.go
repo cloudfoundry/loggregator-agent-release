@@ -56,19 +56,8 @@ func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
+	appLogEmitterFactory syslog.AppLogEmitterFactory,
 ) *SyslogAgent {
-	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
-	writerFactory := syslog.NewWriterFactory(
-		internalTlsConfig,
-		externalTlsConfig,
-		syslog.NetworkTimeoutConfig{
-			Keepalive:    10 * time.Second,
-			DialTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		},
-		m,
-	)
-
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		cfg.GRPC.CAFile,
 		cfg.GRPC.CertFile,
@@ -81,17 +70,25 @@ func NewSyslogAgent(
 	logClient, err := loggregator.NewIngressClient(
 		ingressTLSConfig,
 		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
+		loggregator.WithAddr(fmt.Sprintf("127.0.0.1:%d", cfg.GRPC.Port)),
 	)
 	if err != nil {
 		l.Panicf("failed to create log client for syslog connector: %q", err)
 	}
+
+	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
+	writerFactory := syslog.NewWriterFactory(internalTlsConfig, externalTlsConfig, syslog.NetworkTimeoutConfig{
+		Keepalive:    10 * time.Second,
+		DialTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}, m)
 
 	connector := syslog.NewSyslogConnector(
 		cfg.DrainSkipCertVerify,
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithLogClient(logClient, "syslog_agent"),
+		syslog.WithAppLogEmitter(appLogEmitterFactory.NewAppLogEmitter(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient
@@ -112,6 +109,7 @@ func NewSyslogAgent(
 			m,
 			cfg.WarnOnInvalidDrains,
 			l,
+			appLogEmitterFactory.NewAppLogEmitter(logClient, "syslog_agent"),
 		)
 		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)
 	}
