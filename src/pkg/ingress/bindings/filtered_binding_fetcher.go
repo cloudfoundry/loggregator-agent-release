@@ -14,7 +14,7 @@ import (
 
 var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
 
-//counterfeiter:generate . IPChecker
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . IPChecker
 type IPChecker interface {
 	ResolveAddr(host string) (net.IP, error)
 	CheckBlacklist(ip net.IP) error
