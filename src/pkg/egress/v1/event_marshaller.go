@@ -15,7 +15,7 @@ type MetricClient interface {
 	NewCounter(name, helpText string, opts ...metrics.MetricOption) metrics.Counter
 }
 
-//counterfeiter:generate . BatchChainByteWriter
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . BatchChainByteWriter
 type BatchChainByteWriter interface {
 	Write(message []byte) (err error)
 }
