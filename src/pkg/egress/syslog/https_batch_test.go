@@ -59,6 +59,12 @@ var _ = Describe("HTTPS_batch", func() {
 			syslog.WithBatchSize(1000),
 			syslog.WithSendInterval(sendInterval),
 		)
+		rw := writer.(syslog.InternalRetryWriter)
+		rw.ConfigureRetry(
+			func(i int) time.Duration {
+				return 0
+			},
+			0) // No retries
 	})
 
 	AfterEach(func() {
