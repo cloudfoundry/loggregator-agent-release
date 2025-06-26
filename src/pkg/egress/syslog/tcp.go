@@ -104,6 +104,7 @@ func (w *TCPWriter) connection() (net.Conn, error) {
 func (w *TCPWriter) connect() (net.Conn, error) {
 	conn, err := w.dialFunc(w.url.Host)
 	if err != nil {
+		// todo send logs to app logstream
 		return nil, err
 	}
 	w.conn = conn

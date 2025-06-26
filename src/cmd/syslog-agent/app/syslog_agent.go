@@ -109,7 +109,6 @@ func NewSyslogAgent(
 			m,
 			cfg.WarnOnInvalidDrains,
 			l,
-			appLogEmitterFactory.NewAppLogEmitter(logClient, "syslog_agent"),
 		)
 		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)
 	}

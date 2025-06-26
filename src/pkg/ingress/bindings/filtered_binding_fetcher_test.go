@@ -2,7 +2,6 @@ package bindings_test
 
 import (
 	"bytes"
-	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"errors"
 	"log"
 	"net"
@@ -21,13 +20,10 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		log     = log.New(GinkgoWriter, "", log.LstdFlags)
 		filter  *bindings.FilteredBindingFetcher
 		metrics *metricsHelpers.SpyMetricsRegistry
-		emitter syslog.AppLogEmitter
 	)
 
 	BeforeEach(func() {
 		metrics = metricsHelpers.NewMetricsRegistry()
-		factory := syslog.NewAppLogEmitterFactory()
-		emitter = factory.NewAppLogEmitter(testhelper.NewSpyLogClient(), "test-index")
 	})
 
 	It("returns valid bindings", func() {
@@ -44,7 +40,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			metrics,
 			true,
 			log,
-			emitter,
 		)
 		actual, err := filter.FetchBindings()
 
@@ -61,7 +56,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			metrics,
 			true,
 			log,
-			emitter,
 		)
 		actual, err := filter.FetchBindings()
 
@@ -89,7 +83,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
-				emitter,
 			)
 		})
 
@@ -134,7 +127,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
-				emitter,
 			)
 		})
 
@@ -190,7 +182,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
-				emitter,
 			)
 		})
 
@@ -237,7 +228,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
-				emitter,
 			)
 		})
 
@@ -303,7 +293,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				metrics,
 				warn,
 				log,
-				emitter,
 			)
 		})
 
