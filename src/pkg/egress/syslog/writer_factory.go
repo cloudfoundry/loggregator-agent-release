@@ -62,7 +62,6 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 		if err != nil {
 			errorMessage := err.Error()
 			err = NewWriterFactoryErrorf(ub.URL, "failed to load certificate: %s", errorMessage)
-			emitter.EmitLog(ub.AppID, fmt.Sprintf("failed to load certificate: %s", errorMessage))
 			return nil, err
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
@@ -71,7 +70,6 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 		ok := tlsCfg.RootCAs.AppendCertsFromPEM(ub.CA)
 		if !ok {
 			err := NewWriterFactoryErrorf(ub.URL, "failed to load root CA")
-			emitter.EmitLog(ub.AppID, "failed to load root CA")
 			return nil, err
 		}
 	}
@@ -123,6 +121,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 			f.netConf,
 			egressMetric,
 			converter,
+			emitter,
 		)
 	case "syslog-tls":
 		w = NewTLSWriter(
@@ -131,6 +130,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 			tlsCfg,
 			egressMetric,
 			converter,
+			emitter,
 		)
 	}
 
@@ -143,6 +143,5 @@ func (f WriterFactory) NewWriter(ub *URLBinding, emitter AppLogEmitter) (egress.
 		ExponentialDuration,
 		maxRetries,
 		w,
-		emitter,
 	)
 }

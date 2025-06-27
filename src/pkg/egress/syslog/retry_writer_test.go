@@ -1,7 +1,6 @@
 package syslog_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"errors"
 	"net/url"
 	"sync/atomic"
@@ -176,13 +175,10 @@ func buildRetryWriter(
 	maxRetries int,
 	delayMultiplier time.Duration,
 ) (egress.WriteCloser, error) {
-	factory := syslog.NewAppLogEmitterFactory()
-	emitter := factory.NewAppLogEmitter(testhelper.NewSpyLogClient(), "test-index")
 	return syslog.NewRetryWriter(
 		urlBinding,
 		syslog.RetryDuration(buildDelay(delayMultiplier)),
 		maxRetries,
 		w,
-		emitter,
 	)
 }
