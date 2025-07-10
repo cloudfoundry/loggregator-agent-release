@@ -130,7 +130,7 @@ func (a *AppV2) Start() {
 	)
 	go tx.Start()
 
-	agentAddress := fmt.Sprintf("127.0.0.1:%d", a.config.GRPC.Port)
+	agentAddress := fmt.Sprintf("%s:%d", a.config.GRPC.Host, a.config.GRPC.Port)
 	log.Printf("agent v2 API started on addr %s", agentAddress)
 
 	var es envelopeSetter
