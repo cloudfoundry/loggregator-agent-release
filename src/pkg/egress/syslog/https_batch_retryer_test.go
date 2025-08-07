@@ -104,16 +104,16 @@ var _ = Describe("Retryer", func() {
 		// First two retriers should acquire slots
 		go func() {
 			started.Done()
-			coordinator.Acquire()
+			coordinator.Acquire("test-host")
 			blocked.Wait()
 			coordinator.Release()
 			done.Done()
 		}()
 		go func() {
 			started.Done()
-			coordinator.Acquire()
+			coordinator.Acquire("test-host")
 			blocked.Wait()
-			coordinator.Release()
+			coordinator.Acquire("test-host")
 			done.Done()
 		}()
 
@@ -122,7 +122,7 @@ var _ = Describe("Retryer", func() {
 		// Third retrier should block until a slot is released
 		acquired := make(chan int)
 		go func() {
-			coordinator.Acquire()
+			coordinator.Acquire("test-host")
 			close(acquired)
 			coordinator.Release()
 		}()
