@@ -66,7 +66,7 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg.RouterAddrWithAZ = strings.Replace(cfg.RouterAddrWithAZ, "@", "-", -1)
+	cfg.RouterAddrWithAZ = strings.ReplaceAll(cfg.RouterAddrWithAZ, "@", "-")
 
 	return &cfg, nil
 }

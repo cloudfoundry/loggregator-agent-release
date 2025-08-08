@@ -84,7 +84,7 @@ func (a *AppV1) Start() {
 		a.metricClient,
 	)
 	if err != nil {
-		log.Panic(fmt.Errorf("Failed to listen on %s: %s", agentAddress, err))
+		log.Panic(fmt.Errorf("failed to listen on %s: %s", agentAddress, err))
 	}
 
 	log.Printf("agent v1 API started on addr %s", agentAddress)

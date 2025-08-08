@@ -1,8 +1,8 @@
+version: "2"
 run:
-  # Timeout for analysis, e.g. 30s, 5m.
-  # Default: 1m
+  # Timeout full work, e.g. 30s, 5m.
+  # Default: none
   timeout: 5m
-
 linters:
   enable:
     # Checks for non-ASCII identifiers
@@ -11,15 +11,31 @@ linters:
     - gocyclo
     # Inspects source code for security problems.
     - gosec
-
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Exclude some linters from running on helheim generated file.
+      - linters:
+          - unused
+        path: pkg/egress/v2/helheim_test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   # Disable max issues per linter.
   max-issues-per-linter: 0
   # Disable max same issues.
   max-same-issues: 0
-
-  exclude-rules:
-    # Exclude some linters from running on helheim generated file.
-    - path: pkg/egress/v2/helheim_test\.go
-      linters:
-        - unused
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

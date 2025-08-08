@@ -126,7 +126,7 @@ func (w *TCPWriter) Close() error {
 }
 
 func removeNulls(msg []byte) []byte {
-	return bytes.Replace(msg, []byte{0}, nil, -1)
+	return bytes.ReplaceAll(msg, []byte{0}, nil)
 }
 
 func appendNewline(msg []byte) []byte {
@@ -146,7 +146,7 @@ func generateProcessID(sourceType, sourceInstance string) string {
 		}
 		tmp := make([]byte, 0, 3+len(sourceType)+len(sourceInstance))
 		tmp = append(tmp, '[')
-		tmp = append(tmp, []byte(strings.Replace(sourceType, " ", "-", -1))...)
+		tmp = append(tmp, []byte(strings.ReplaceAll(sourceType, " ", "-"))...)
 		tmp = append(tmp, '/')
 		tmp = append(tmp, []byte(sourceInstance)...)
 		tmp = append(tmp, ']')

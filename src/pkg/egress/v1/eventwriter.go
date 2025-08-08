@@ -50,8 +50,8 @@ func (e *EventWriter) SetWriter(writer EnvelopeWriter) {
 	e.writer = writer
 }
 
-var ErrorMissingOrigin = errors.New("Event not emitted due to missing origin information")
-var ErrorUnknownEventType = errors.New("Cannot create envelope for unknown event type")
+var ErrorMissingOrigin = errors.New("event not emitted due to missing origin information")
+var ErrorUnknownEventType = errors.New("cannot create envelope for unknown event type")
 
 func wrap(event events.Event, origin string) (*events.Envelope, error) {
 	if origin == "" {

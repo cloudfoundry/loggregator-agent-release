@@ -18,7 +18,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v2"
 	ingress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
-	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -137,7 +136,7 @@ func (a *AppV2) Start() {
 	var es envelopeSetter
 	es = envelopeBuffer
 	if a.config.LogsDisabled {
-		es = v2.NewFilteringSetter(envelopeBuffer)
+		es = ingress.NewFilteringSetter(envelopeBuffer)
 	}
 
 	rx := ingress.NewReceiver(es, ingressMetric, originMappings)

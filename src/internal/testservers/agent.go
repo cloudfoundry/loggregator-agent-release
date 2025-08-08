@@ -11,7 +11,10 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/cmd/loggregator-agent/app"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 
+	// . imports are common usage for ginkgo
+	//nolint:staticcheck
 	. "github.com/onsi/ginkgo/v2"
+	//nolint:staticcheck
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 )
