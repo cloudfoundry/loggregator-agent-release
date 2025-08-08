@@ -13,7 +13,7 @@ type EnvelopeWriter interface {
 }
 
 var (
-	errInvalidEnvelope = errors.New("Invalid Envelope")
+	errInvalidEnvelope = errors.New("invalid Envelope")
 )
 
 // An EventUnmarshaller is an self-instrumenting tool for converting Protocol

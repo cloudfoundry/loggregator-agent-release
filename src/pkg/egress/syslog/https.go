@@ -91,11 +91,11 @@ func (*HTTPSWriter) sanitizeError(u *url.URL, err error) error {
 	}
 
 	if user := u.User.Username(); user != "" {
-		err = errors.New(strings.Replace(err.Error(), user, "<REDACTED>", -1))
+		err = errors.New(strings.ReplaceAll(err.Error(), user, "<REDACTED>"))
 	}
 
 	if p, ok := u.User.Password(); ok {
-		err = errors.New(strings.Replace(err.Error(), p, "<REDACTED>", -1))
+		err = errors.New(strings.ReplaceAll(err.Error(), p, "<REDACTED>"))
 	}
 	return err
 }

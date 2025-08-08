@@ -289,8 +289,8 @@ func (f *fakeCC) startTLS(testCerts *testhelper.TestCerts) {
 	Expect(err).ToNot(HaveOccurred())
 
 	f.Server = httptest.NewUnstartedServer(f)
-	f.Server.TLS = tlsConfig
-	f.Server.StartTLS()
+	f.TLS = tlsConfig
+	f.StartTLS()
 }
 
 func (f *fakeCC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
