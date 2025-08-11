@@ -44,7 +44,7 @@ var _ = Describe("Retryer", func() {
 	It("retries the specified number of times on failure", func() {
 		retryer.Retry([]byte("test-batch"), 10, func(batch []byte, msgCount float64) error {
 			retryAttempts++
-			return errors.New("wtf")
+			return errors.New("test error")
 		})
 
 		Expect(retryAttempts).To(Equal(3)) // Retries up to maxRetries

@@ -13,7 +13,15 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// --- Coordinator definition ---
+// --- Retry Coordinator Definition ---
+
+// RetryCoordinator provides global concurrency control for retry operations
+// across all drain writers. It uses a semaphore pattern to enforce a configurable
+// limit on the number of concurrent retries, preventing resource exhaustion
+// and noisy-neighbor problems during periods of high retry load. When all
+// retry slots are in use, additional retries will wait until a slot becomes
+// available, ensuring the system remains stable while still attempting
+// delivery of all messages. This coordinator will be used as a singleton.
 type RetryCoordinator struct {
 	sem chan struct{}
 }
@@ -31,6 +39,8 @@ func WithParallelRetries(n int) {
 	}
 }
 
+// GetGlobalRetryCoordinator returns a singleton instance of RetryCoordinator.
+// It initializes the coordinator with a semaphore that limits the number of concurrent retries.
 func GetGlobalRetryCoordinator() *RetryCoordinator {
 	globalRetryCoordinatorOnce.Do(func() {
 		globalRetryCoordinator = &RetryCoordinator{
@@ -55,6 +65,10 @@ func (c *RetryCoordinator) Release() {
 	<-c.sem
 }
 
+// --- RetryWriter Definition ---
+
+// InternalRetryWriter is an interface that defines methods for configuring retry behavior
+// for syslog writers. It allows setting a retry duration function and the maximum number of retries.
 type InternalRetryWriter interface {
 	ConfigureRetry(retryDuration RetryDuration, maxRetries int)
 }
@@ -66,6 +80,12 @@ type Retryer struct {
 	coordinator   *RetryCoordinator
 }
 
+// Retryer handles retry logic for failed operations with configurable policies.
+// It coordinates with the global RetryCoordinator to limit concurrent retries,
+// implements exponential backoff with configurable intervals, and respects
+// context cancellation for graceful shutdown. The first attempt is always
+// performed without acquiring a retry slot (fast path), while subsequent
+// retries are subject to global concurrency limits.
 func NewRetryer(
 	binding *URLBinding,
 	retryDuration RetryDuration,
@@ -124,6 +144,8 @@ func (r *Retryer) Retry(batch []byte, msgCount float64, funcToRetry func([]byte,
 	return true
 }
 
+// --- HTTPSBatchWriter definition ---
+
 type HTTPSBatchWriter struct {
 	HTTPSWriter
 	batchSize    int
@@ -153,8 +175,6 @@ func WithSendInterval(interval time.Duration) Option {
 		w.sendInterval = interval
 	}
 }
-
-// --- HTTPSBatchWriter definition ---
 
 // HTTPSBatchWriter is an egress.WriteCloser implementation that batches syslog messages
 // and sends them via HTTPS in configurable batch sizes and intervals. It provides
