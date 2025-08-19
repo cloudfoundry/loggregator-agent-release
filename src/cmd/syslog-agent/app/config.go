@@ -48,6 +48,8 @@ type Config struct {
 
 	AggregateConnectionRefreshInterval time.Duration `env:"AGGREGATE_CONNECTION_REFRESH_INTERVAL, report"`
 	AggregateDrainURLs                 []string      `env:"AGGREGATE_DRAIN_URLS,                  report"`
+
+	ForwarderAgentAddress string `env:"FORWARDER_AGENT_ADDR"`
 }
 
 // LoadConfig will load the configuration for the syslog agent from the
@@ -66,6 +68,7 @@ func LoadConfig() Config {
 		},
 		AggregateConnectionRefreshInterval: 1 * time.Minute,
 		DefaultDrainMetadata:               true,
+		ForwarderAgentAddress:              "localhost:3458",
 	}
 	if err := envstruct.Load(&cfg); err != nil {
 		panic(fmt.Sprintf("Failed to load config from environment: %s", err))

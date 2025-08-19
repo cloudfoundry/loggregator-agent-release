@@ -59,7 +59,7 @@ func (s *spyLogClient) SourceType() map[string]struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Copy map so the orig does not escape the mutex and induce a race.
+	// Copy map so the original does not escape the mutex and induce a race.
 	m := make(map[string]struct{})
 	for k := range s._sourceType {
 		m[k] = struct{}{}
@@ -72,7 +72,7 @@ func (s *spyLogClient) SourceInstance() map[string]struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Copy map so the orig does not escape the mutex and induce a race.
+	// Copy map so the original does not escape the mutex and induce a race.
 	m := make(map[string]struct{})
 	for k := range s._sourceInstance {
 		m[k] = struct{}{}

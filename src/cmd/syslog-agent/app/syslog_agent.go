@@ -58,6 +58,7 @@ func NewSyslogAgent(
 	l *log.Logger,
 	appLogEmitterFactory syslog.AppLogEmitterFactory,
 ) *SyslogAgent {
+	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		cfg.GRPC.CAFile,
 		cfg.GRPC.CertFile,
@@ -70,13 +71,12 @@ func NewSyslogAgent(
 	logClient, err := loggregator.NewIngressClient(
 		ingressTLSConfig,
 		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
-		loggregator.WithAddr(fmt.Sprintf("127.0.0.1:%d", cfg.GRPC.Port)),
+		loggregator.WithAddr(cfg.ForwarderAgentAddress),
 	)
 	if err != nil {
 		l.Panicf("failed to create log client for syslog connector: %q", err)
 	}
 
-	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
 	writerFactory := syslog.NewWriterFactory(internalTlsConfig, externalTlsConfig, syslog.NetworkTimeoutConfig{
 		Keepalive:    10 * time.Second,
 		DialTimeout:  10 * time.Second,
