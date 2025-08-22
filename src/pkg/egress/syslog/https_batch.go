@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"log"
+	"net/url"
 	"sync"
 	"time"
 
@@ -12,6 +13,19 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"github.com/valyala/fasthttp"
 )
+
+// --- Common Definitions ---
+
+// redactedURL returns a copy of the provided URL with sensitive information removed.
+func redactedURL(u *url.URL) *url.URL {
+	if u == nil {
+		return nil
+	}
+	redacted := *u
+	redacted.User = nil
+	redacted.RawQuery = ""
+	return &redacted
+}
 
 // --- Retry Coordinator Definition ---
 
@@ -50,13 +64,13 @@ func GetGlobalRetryCoordinator() *RetryCoordinator {
 	return globalRetryCoordinator
 }
 
-func (c *RetryCoordinator) Acquire(URL string) {
+func (c *RetryCoordinator) Acquire(redactedURLString string, appId string) {
 	select {
 	case c.sem <- struct{}{}:
 		return
 	default:
-		log.Printf("All retry slots (%d) are in use. Log delivery for %s may be delayed.",
-			maxParallelRetries, URL)
+		log.Printf("All retry slots (%d) are in use. Log delivery for %s for application %s may be delayed.",
+			maxParallelRetries, redactedURLString, appId)
 		c.sem <- struct{}{}
 	}
 }
@@ -111,23 +125,23 @@ func (r *Retryer) Retry(batch []byte, msgCount float64, funcToRetry func([]byte,
 	}
 
 	if egress.ContextDone(r.binding.Context) {
-		log.Printf("Context cancelled for %s, aborting retries", r.binding.URL.Host)
+		log.Printf("Context cancelled for %s for application %s, aborting retries", redactedURL(r.binding.URL).String(), r.binding.AppID)
 		return true
 	}
 
-	log.Printf("Failed to write to %s, retrying in %s, err: %s", r.binding.URL.Host, r.retryDuration(0), err)
+	log.Printf("Failed to write to %s for application %s, retrying in %s, err: %s", redactedURL(r.binding.URL).String(), r.binding.AppID, r.retryDuration(0), err)
 
 	for i := 0; i < r.maxRetries-1; i++ {
 
 		if egress.ContextDone(r.binding.Context) {
-			log.Printf("Context cancelled for %s, aborting retries", r.binding.URL.Host)
+			log.Printf("Context cancelled for %s for application %s, aborting retries", redactedURL(r.binding.URL).String(), r.binding.AppID)
 			return true
 		}
 
 		sleepDuration := r.retryDuration(i)
 		time.Sleep(sleepDuration)
 
-		r.coordinator.Acquire(r.binding.URL.Host)
+		r.coordinator.Acquire(redactedURL(r.binding.URL).String(), r.binding.AppID)
 		func() {
 			defer r.coordinator.Release()
 			err = funcToRetry(batch, msgCount)
@@ -135,12 +149,12 @@ func (r *Retryer) Retry(batch []byte, msgCount float64, funcToRetry func([]byte,
 		if err == nil {
 			return false
 		}
-		log.Printf("Failed to write to %s, retrying in %s, err: %s", r.binding.URL.Host, r.retryDuration(i+1), err)
+		log.Printf("Failed to write to %s for application %s, retrying in %s, err: %s", redactedURL(r.binding.URL).String(), r.binding.AppID, r.retryDuration(i+1), err)
 
 	}
 
-	log.Printf("Exhausted retries for %s, dropping batch with %.0f messages, err: %s",
-		r.binding.URL.Host, msgCount, err)
+	log.Printf("Exhausted retries for %s for application %s, dropping batch with %.0f messages, err: %s",
+		redactedURL(r.binding.URL).String(), r.binding.AppID, msgCount, err)
 	return true
 }
 
@@ -247,8 +261,8 @@ func (w *HTTPSBatchWriter) startSender() {
 		if msgBatch.Len() > 0 {
 			failed := w.retryer.Retry(msgBatch.Bytes(), msgCount, w.sendHttpRequest)
 			if failed {
-				log.Printf("Failed to deliver %.0f messages to %s after all retries, dropping batch",
-					msgCount, w.url.Host)
+				log.Printf("Failed to deliver %.0f messages to %s for application %s after all retries, dropping batch",
+					msgCount, redactedURL(w.url), w.appID)
 			}
 			msgBatch.Reset()
 			msgCount = 0
