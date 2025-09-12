@@ -2,7 +2,7 @@
 name: syslog-agent
 
 dependencies:
-- golang-1.23-linux
+- golang-1.25-linux
 files:
 - cmd/syslog-agent/**/*.go
 - pkg/**/*.go
