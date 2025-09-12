@@ -2,7 +2,7 @@
 name: prom_scraper_windows
 
 dependencies:
-- golang-1.23-windows
+- golang-1.25-windows
 
 files:
 - exiter.ps1
