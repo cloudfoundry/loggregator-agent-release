@@ -346,6 +346,7 @@ type ReadCloserWithError interface {
 
 type closeReader struct {
 	io.Reader
+
 	closeFunc func(err error) error
 }
 
@@ -378,6 +379,11 @@ func (w *responseBodyWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func (w *responseBodyWriter) WriteString(s string) (int, error) {
+	w.r.AppendBodyString(s)
+	return len(s), nil
+}
+
 type requestBodyWriter struct {
 	r *Request
 }
@@ -385,6 +391,11 @@ type requestBodyWriter struct {
 func (w *requestBodyWriter) Write(p []byte) (int, error) {
 	w.r.AppendBody(p)
 	return len(p), nil
+}
+
+func (w *requestBodyWriter) WriteString(s string) (int, error) {
+	w.r.AppendBodyString(s)
+	return len(s), nil
 }
 
 func (resp *Response) ParseNetConn(conn net.Conn) {
@@ -1281,7 +1292,7 @@ func (req *Request) MayContinue() bool {
 // then ErrBodyTooLarge is returned.
 func (req *Request) ContinueReadBody(r *bufio.Reader, maxBodySize int, preParseMultipartForm ...bool) error {
 	var err error
-	contentLength := req.Header.realContentLength()
+	contentLength := req.Header.ContentLength()
 	if contentLength > 0 {
 		if maxBodySize > 0 && contentLength > maxBodySize {
 			return ErrBodyTooLarge
@@ -1364,7 +1375,7 @@ func (req *Request) ReadBody(r *bufio.Reader, contentLength, maxBodySize int) (e
 // then ErrBodyTooLarge is returned.
 func (req *Request) ContinueReadBodyStream(r *bufio.Reader, maxBodySize int, preParseMultipartForm ...bool) error {
 	var err error
-	contentLength := req.Header.realContentLength()
+	contentLength := req.Header.ContentLength()
 	if contentLength > 0 {
 		if len(preParseMultipartForm) == 0 || preParseMultipartForm[0] {
 			// Pre-read multipart form data of known length.
@@ -1441,7 +1452,7 @@ func (resp *Response) ReadLimitBody(r *bufio.Reader, maxBodySize int) error {
 	if err != nil {
 		return err
 	}
-	if resp.Header.StatusCode() == StatusContinue {
+	if resp.Header.statusCode == StatusContinue {
 		// Read the next response according to http://www.w3.org/Protocols/rfc2616/rfc2616-sec8.html .
 		if err = resp.Header.Read(r); err != nil {
 			return err
@@ -1540,6 +1551,12 @@ type statsWriter struct {
 
 func (w *statsWriter) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
+	w.bytesWritten += int64(n)
+	return n, err
+}
+
+func (w *statsWriter) WriteString(s string) (int, error) {
+	n, err := w.w.Write(s2b(s))
 	w.bytesWritten += int64(n)
 	return n, err
 }
@@ -1967,6 +1984,10 @@ func (w *flushWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 	return n, nil
+}
+
+func (w *flushWriter) WriteString(s string) (int, error) {
+	return w.Write(s2b(s))
 }
 
 // Write writes response to w.

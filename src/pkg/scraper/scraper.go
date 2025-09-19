@@ -12,6 +12,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 
 	"code.cloudfoundry.org/go-loggregator/v10"
 )
@@ -157,7 +158,7 @@ func (s *Scraper) scrape(target Target) (map[string]*io_prometheus_client.Metric
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
 	}
 
-	p := &expfmt.TextParser{}
+	p := expfmt.NewTextParser(model.LegacyValidation)
 	res, err := p.TextToMetricFamilies(resp.Body)
 	if err != nil {
 		return nil, err
