@@ -128,7 +128,7 @@ var _ = Describe("Retryer", func() {
 		}()
 
 		Consistently(acquired, 
-			200time.Millisecond,20time.Millisecond).ShouldNot(BeClosed())
+			200*time.Millisecond,20*time.Millisecond).ShouldNot(BeClosed())
 		
 
 		// Unblock the first two
