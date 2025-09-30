@@ -9,6 +9,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing/plumbingfakes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
@@ -18,8 +19,8 @@ type Server struct {
 	port     int
 	server   *grpc.Server
 	listener net.Listener
-	V1       *mockDopplerIngestorServerV1
-	V2       *mockIngressServerV2
+	V1       *plumbingfakes.FakeDopplerIngestorServerV1
+	V2       *plumbingfakes.FakeIngressServerV2
 }
 
 func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
@@ -37,8 +38,8 @@ func NewServer(testCerts *testhelper.TestCerts) (*Server, error) {
 		return nil, err
 	}
 	transportCreds := credentials.NewTLS(tlsConfig)
-	mockDopplerV1 := newMockDopplerIngestorServerV1()
-	mockDopplerV2 := newMockIngressServerV2()
+	mockDopplerV1 := &plumbingfakes.FakeDopplerIngestorServerV1{}
+	mockDopplerV2 := &plumbingfakes.FakeIngressServerV2{}
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
