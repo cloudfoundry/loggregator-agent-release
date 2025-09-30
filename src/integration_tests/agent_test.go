@@ -30,6 +30,14 @@ var _ = Describe("Agent", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop() // nolint:errcheck
+
+		pusherDone := make(chan struct{})
+		defer close(pusherDone)
+		consumerServer.V1.PusherCalls(func(arg1 plumbing.DopplerIngestor_PusherServer) error {
+			<-pusherDone
+			return nil
+		})
+
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
 		)
@@ -58,8 +66,11 @@ var _ = Describe("Agent", func() {
 		}()
 		defer close(done)
 
-		var rx plumbing.DopplerIngestor_PusherServer
-		Eventually(consumerServer.V1.PusherInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
+		Eventually(func() int {
+			return consumerServer.V1.PusherCallCount()
+		}, eventuallyTimeout).Should(BeNumerically(">=", 1))
+
+		rx := consumerServer.V1.PusherArgsForCall(0)
 
 		e := make(chan *plumbing.EnvelopeData)
 		go func() {
@@ -83,6 +94,14 @@ var _ = Describe("Agent", func() {
 		consumerServer, err := NewServer(testCerts)
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop() // nolint:errcheck
+
+		batchSenderDone := make(chan struct{})
+		defer close(batchSenderDone)
+
+		consumerServer.V2.BatchSenderCalls(func(arg1 loggregator_v2.Ingress_BatchSenderServer) error {
+			<-batchSenderDone
+			return nil
+		})
 
 		agentCleanup, agentPorts := testservers.StartAgent(
 			testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts),
@@ -108,13 +127,12 @@ var _ = Describe("Agent", func() {
 			}
 		}()
 
-		var rx loggregator_v2.Ingress_BatchSenderServer
 		numDopplerConnections := 5
-		for i := 0; i < numDopplerConnections; i++ {
-			Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
-			consumerServer.V2.BatchSenderOutput.Ret0 <- nil
-		}
-		Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
+		Eventually(func() int {
+			return consumerServer.V2.BatchSenderCallCount()
+		}, eventuallyTimeout).Should(BeNumerically(">=", numDopplerConnections))
+
+		rx := consumerServer.V2.BatchSenderArgsForCall(numDopplerConnections - 1)
 
 		var envBatch *loggregator_v2.EnvelopeBatch
 		var idx int
@@ -149,6 +167,14 @@ var _ = Describe("Agent", func() {
 		Expect(err).ToNot(HaveOccurred())
 		defer consumerServer.Stop() // nolint:errcheck
 
+		batchSenderDone := make(chan struct{})
+		defer close(batchSenderDone)
+
+		consumerServer.V2.BatchSenderCalls(func(arg1 loggregator_v2.Ingress_BatchSenderServer) error {
+			<-batchSenderDone
+			return nil
+		})
+
 		config := testservers.BuildAgentConfig("127.0.0.1", consumerServer.Port(), testCerts)
 		config.LogsDisabled = true
 		agentCleanup, agentPorts := testservers.StartAgent(config)
@@ -172,13 +198,12 @@ var _ = Describe("Agent", func() {
 			}
 		}()
 
-		var rx loggregator_v2.Ingress_BatchSenderServer
 		numDopplerConnections := 5
-		for i := 0; i < numDopplerConnections; i++ {
-			Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
-			consumerServer.V2.BatchSenderOutput.Ret0 <- nil
-		}
-		Eventually(consumerServer.V2.BatchSenderInput.Arg0, eventuallyTimeout).Should(Receive(&rx))
+		Eventually(func() int {
+			return consumerServer.V2.BatchSenderCallCount()
+		}, eventuallyTimeout).Should(BeNumerically(">=", numDopplerConnections))
+
+		rx := consumerServer.V2.BatchSenderArgsForCall(numDopplerConnections - 1)
 
 		batch, err := rx.Recv()
 		Expect(err).ToNot(HaveOccurred())
