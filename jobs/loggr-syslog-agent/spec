@@ -32,6 +32,9 @@ properties:
   binding_cache_override_url:
     description: URL to use if required to override the default bosh-dns binding cache address
 
+  host:
+    description: "Host the agent is serving gRPC via mTLS"
+    default: "127.0.0.1"
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458
