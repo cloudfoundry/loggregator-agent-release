@@ -13,6 +13,7 @@
         "LOGGREGATOR_AGENT_CERT_FILE_PATH" => "#{certs_dir}/loggregator_agent.crt",
         "LOGGREGATOR_AGENT_KEY_FILE_PATH" => "#{certs_dir}/loggregator_agent.key",
         "LOGGREGATOR_AGENT_ADDR" => "localhost:#{p('loggregator.ingress_port')}",
+        "AGENT_HOST" => "#{p('host')}",
         "UDP_PORT" => "#{p('udp_port')}",
         "DEPLOYMENT" => "#{deployment}",
         "JOB" => "#{job_name}",
