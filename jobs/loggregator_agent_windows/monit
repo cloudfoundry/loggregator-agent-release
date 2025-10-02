@@ -44,6 +44,7 @@ end
              "__PIPE_SYSLOG_HOST" => p('syslog_daemon_config.address'),
              "__PIPE_SYSLOG_PORT" => p('syslog_daemon_config.port'),
              "__PIPE_SYSLOG_TRANSPORT" => p('syslog_daemon_config.transport'),
+             "AGENT_HOST" => "#{p("host")}",
              "AGENT_PORT" => "#{p("grpc_port")}",
              "AGENT_CA_FILE" => "#{certs_dir}/loggregator_ca.crt",
              "AGENT_CERT_FILE" => "#{certs_dir}/loggregator_agent.crt",
