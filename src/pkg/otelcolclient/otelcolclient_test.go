@@ -440,7 +440,7 @@ var _ = Describe("Client", func() {
 					Expect(returnedErr).NotTo(HaveOccurred())
 				})
 
-				It("emits a non-monotonic sum", func() {
+				It("emits a monotonic sum", func() {
 					var msr *colmetricspb.ExportMetricsServiceRequest
 					Expect(spyMSC.requests).To(Receive(&msr))
 
@@ -455,7 +455,7 @@ var _ = Describe("Client", func() {
 												Data: &metricspb.Metric_Sum{
 													Sum: &metricspb.Sum{
 														AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-														IsMonotonic:            false,
+														IsMonotonic:            true,
 														DataPoints: []*metricspb.NumberDataPoint{
 															{
 																TimeUnixNano: 1257894000000000000,

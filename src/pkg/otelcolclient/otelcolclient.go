@@ -236,7 +236,7 @@ func (c *Client) writeCounter(e *loggregator_v2.Envelope) {
 		Data: &metricspb.Metric_Sum{
 			Sum: &metricspb.Sum{
 				AggregationTemporality: metricspb.AggregationTemporality_AGGREGATION_TEMPORALITY_CUMULATIVE,
-				IsMonotonic:            e.GetCounter().GetDelta() == 0,
+				IsMonotonic:            true,
 				DataPoints: []*metricspb.NumberDataPoint{
 					{
 						TimeUnixNano: uint64(e.GetTimestamp()), // nolint:gosec
