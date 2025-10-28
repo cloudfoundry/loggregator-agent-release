@@ -209,6 +209,8 @@ builds:
     version: 6.3.10
   bc958ae2-c502-4563-47a7-19c08db5cb3a:
     version: 8.0.3
+  bddbfd7d-eb7b-46b7-7736-0575d8b2e91c:
+    version: 8.3.11
   bf7a43f8-9760-4c30-6675-c555e91006bf:
     version: "3.2"
   bfc9c111-2b2a-4ae1-674b-db42cff74163:
