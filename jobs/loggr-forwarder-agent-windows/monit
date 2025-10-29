@@ -17,6 +17,7 @@
     "executable" => "/var/vcap/packages/forwarder-agent-windows/forwarder-agent.exe",
     "args" => [],
     "env" => {
+       "AGENT_HOST" => "#{p("host")}",
        "AGENT_PORT" => "#{p("port")}",
        "AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
        "AGENT_CERT_FILE_PATH" => "#{certs_dir}/forwarder.crt",
