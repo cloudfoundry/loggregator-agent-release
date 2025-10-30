@@ -127,7 +127,9 @@ var _ = Describe("Retryer", func() {
 			coordinator.Release()
 		}()
 
-		Consistently(acquired, 100*time.Millisecond).ShouldNot(BeClosed())
+		Consistently(acquired, 
+			200*time.Millisecond,20*time.Millisecond).ShouldNot(BeClosed())
+		
 
 		// Unblock the first two
 		blocked.Done()
