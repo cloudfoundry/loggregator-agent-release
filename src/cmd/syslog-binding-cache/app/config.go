@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 
 	envstruct "code.cloudfoundry.org/go-envstruct"
 )
@@ -31,6 +32,20 @@ type Config struct {
 	CachePort int `env:"CACHE_PORT, required, report"`
 
 	MetricsServer config.MetricsServer
+
+	ForwarderAgentAddress string `env:"FORWARDER_AGENT_ADDR"`
+	GRPC 			GRPC
+	Blacklist       bindings.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+}
+
+// GRPC stores the configuration for the router as a server using a PORT
+// with mTLS certs and as a client.
+type GRPC struct {
+	Port         int      `env:"AGENT_PORT,                     report"`
+	CAFile       string   `env:"AGENT_CA_FILE_PATH,   required, report"`
+	CertFile     string   `env:"AGENT_CERT_FILE_PATH, required, report"`
+	KeyFile      string   `env:"AGENT_KEY_FILE_PATH,  required, report"`
+	CipherSuites []string `env:"AGENT_CIPHER_SUITES,            report"`
 }
 
 // LoadConfig will load the configuration for the syslog binding cache from the
@@ -38,7 +53,8 @@ type Config struct {
 // panic.
 func LoadConfig() Config {
 	cfg := Config{
-		APIPollingInterval: 15 * time.Second,
+		APIPollingInterval:    15 * time.Second,
+		ForwarderAgentAddress: "localhost:3458",
 	}
 	if err := envstruct.Load(&cfg); err != nil {
 		log.Panicf("Failed to load config from environment: %s", err)

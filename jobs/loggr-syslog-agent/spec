@@ -164,3 +164,8 @@ properties:
   warn_on_invalid_drains:
     description: "Whether to output log warnings on invalid drains"
     default: true
+
+  forwarder_agent_port:
+    description: |
+        The port used to connect to the forwarder agent for forwarding syslog messages.
+    default: 3458

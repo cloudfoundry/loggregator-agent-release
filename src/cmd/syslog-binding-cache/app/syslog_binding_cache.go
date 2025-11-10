@@ -4,11 +4,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec
+	"os"
 	"sync"
 	"time"
 
+	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/tlsconfig"
 
@@ -16,8 +19,14 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/api"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"github.com/go-chi/chi/v5"
 )
+
+type IPChecker interface {
+	ResolveAddr(host string) (net.IP, error)
+	CheckBlacklist(ip net.IP) error
+}
 
 type SyslogBindingCache struct {
 	config      Config
@@ -26,6 +35,7 @@ type SyslogBindingCache struct {
 	log         *log.Logger
 	metrics     Metrics
 	mu          sync.Mutex
+	emitter     syslog.AppLogEmitter
 }
 
 type Metrics interface {
@@ -34,11 +44,33 @@ type Metrics interface {
 	RegisterDebugMetrics()
 }
 
-func NewSyslogBindingCache(config Config, metrics Metrics, log *log.Logger) *SyslogBindingCache {
+func NewSyslogBindingCache(config Config, metrics Metrics, l *log.Logger) *SyslogBindingCache {
+	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
+		config.GRPC.CAFile,
+		config.GRPC.CertFile,
+		config.GRPC.KeyFile,
+	)
+	if err != nil {
+		l.Panicf("failed to configure client TLS: %q", err)
+	}
+
+	logClient, err := loggregator.NewIngressClient(
+		ingressTLSConfig,
+		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
+		loggregator.WithAddr(config.ForwarderAgentAddress),
+	)
+	if err != nil {
+		l.Panicf("failed to create log client for syslog connector: %q", err)
+	}
+	factory := syslog.NewAppLogEmitterFactory()
+	emitter := factory.NewAppLogEmitter(logClient, "syslog_binding_cache")
+	
+	// todo handle IPcheker
 	return &SyslogBindingCache{
 		config:  config,
-		log:     log,
+		log:     l,
 		metrics: metrics,
+		emitter: emitter,
 	}
 }
 
@@ -54,7 +86,7 @@ func (sbc *SyslogBindingCache) Run() {
 	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
-	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log)
+	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log, sbc.emitter)
 
 	go poller.Poll()
 

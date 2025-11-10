@@ -1,12 +1,17 @@
 package binding
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 type Poller struct {
@@ -17,6 +22,7 @@ type Poller struct {
 	logger                     *log.Logger
 	bindingRefreshErrorCounter metrics.Counter
 	lastBindingCount           metrics.Gauge
+	emitter                    syslog.AppLogEmitter
 }
 
 type client interface {
@@ -51,7 +57,7 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger) *Poller {
+func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter syslog.AppLogEmitter) *Poller {
 	p := &Poller{
 		apiClient:       ac,
 		pollingInterval: pi,
@@ -65,6 +71,7 @@ func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Log
 			"last_binding_refresh_count",
 			"Current number of bindings received from binding provider during last refresh.",
 		),
+		emitter: emitter,
 	}
 	p.poll()
 	return p
@@ -106,10 +113,113 @@ func (p *Poller) poll() {
 			break
 		}
 	}
+	
+	checkBindings(bindings, p.emitter)
 
 	bindingCount := CalculateBindingCount(bindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(bindings, bindingCount)
+}
+
+func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter) {
+	for _, b := range bindings {
+		if len(b.Credentials) == 0 {
+			// if the credentials are missing, we can't get 
+			continue
+		}
+
+		u, err := url.Parse(b.Url)
+		if err != nil {
+			sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
+			continue
+		}
+
+		anonymousUrl := u
+		anonymousUrl.User = nil
+		anonymousUrl.RawQuery = ""
+
+		if invalidScheme(u.Scheme) {
+			// todo what about multiple credentials?
+			sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
+			continue
+		}
+
+		if len(u.Host) == 0 {
+			sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
+			continue
+		}
+
+		// use BlacklistRanges as ipChecker
+
+		// todo how to get failed hosts cache?
+		// _, exists := f.failedHostsCache.Get(u.Host)
+		// if exists {
+		// 	invalidDrains += 1
+		// 	f.printWarning("Skipped resolve ip address for syslog drain with url %s for application %s due to prior failure", anonymousUrl.String(), b.AppId)
+		// 	continue
+		// }
+
+		// todo how to resolve addr?
+		// ip, err := f.ipChecker.ResolveAddr(u.Host)
+		// if err != nil {
+		// 	invalidDrains += 1
+		// 	f.failedHostsCache.Set(u.Host, true)
+		// 	f.printWarning("Cannot resolve ip address for syslog drain with url %s for application %s", anonymousUrl.String(), b.AppId)
+		// 	continue
+		// }
+
+		// todo how to get blacklist? -> needs config adjustment
+
+		// err = f.ipChecker.CheckBlacklist(ip)
+		// if err != nil {
+		// 	invalidDrains += 1
+		// 	blacklistedDrains += 1
+		// 	f.printWarning("Resolved ip address for syslog drain with url %s for application %s is blacklisted", anonymousUrl.String(), b.AppId)
+		// 	continue
+		// }
+
+		// todo validate certificates for mtls
+		//PrivateKey: []byte(b.Drain.Credentials.Key),
+		if len(b.Credentials[0].Cert) > 0 && len(b.Credentials[0].Key) > 0 {
+			_, err := tls.X509KeyPair([]byte(b.Credentials[0].Cert), []byte(b.Credentials[0].Key))
+			if err != nil {
+				errorMessage := err.Error()
+				sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), b.Credentials[0].Apps, emitter)
+				continue
+			}
+		}
+		if len(b.Credentials[0].CA) > 0 {
+			certPool := x509.NewCertPool()
+			ok := certPool.AppendCertsFromPEM([]byte(b.Credentials[0].CA))
+			if !ok {
+				sendAppLogMessage("failed to load root CA", b.Credentials[0].Apps, emitter)
+				continue
+			}
+		}
+
+	}
+}
+
+func sendAppLogMessage(msg string, apps []App, emitter syslog.AppLogEmitter) {
+	for _, app := range apps {
+		appId := app.AppID
+		if appId == "" {
+			continue
+		}
+		emitter.EmitLog(appId, msg)
+	}
+}
+
+var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
+
+func invalidScheme(scheme string) bool {
+	for _, s := range allowedSchemes {
+		if s == scheme {
+			return false
+		}
+	}
+
+	return true
 }
 
 func CalculateBindingCount(bindings []Binding) int {
