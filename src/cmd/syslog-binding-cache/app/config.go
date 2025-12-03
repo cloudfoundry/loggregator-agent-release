@@ -34,8 +34,8 @@ type Config struct {
 	MetricsServer config.MetricsServer
 
 	ForwarderAgentAddress string `env:"FORWARDER_AGENT_ADDR"`
-	GRPC 			GRPC
-	Blacklist       bindings.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+	GRPC                  GRPC
+	Blacklist             bindings.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 }
 
 // GRPC stores the configuration for the router as a server using a PORT
@@ -53,7 +53,7 @@ type GRPC struct {
 // panic.
 func LoadConfig() Config {
 	cfg := Config{
-		APIPollingInterval:    15 * time.Second,
+		APIPollingInterval:    60 * time.Second,
 		ForwarderAgentAddress: "localhost:3458",
 	}
 	if err := envstruct.Load(&cfg); err != nil {

@@ -113,23 +113,20 @@ func (p *Poller) poll() {
 			break
 		}
 	}
-	
-	checkBindings(bindings, p.emitter)
+
+	checkBindings(bindings, p.emitter, p.logger)
 
 	bindingCount := CalculateBindingCount(bindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(bindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter) {
+func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, logger *log.Logger) {
+	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	for _, b := range bindings {
-		if len(b.Credentials) == 0 {
-			// if the credentials are missing, we can't get 
-			continue
-		}
-
 		u, err := url.Parse(b.Url)
 		if err != nil {
+			logger.Printf("Cannot parse syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
 			continue
 		}
@@ -140,12 +137,19 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter) {
 
 		if invalidScheme(u.Scheme) {
 			// todo what about multiple credentials?
+			logger.Printf("Invalid Scheme for syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
 			continue
 		}
 
 		if len(u.Host) == 0 {
+			logger.Printf("No hostname found in syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
+			continue
+		}
+
+		if len(b.Credentials) == 0 {
+			logger.Printf("no credentials for %s", b.Url)
 			continue
 		}
 
