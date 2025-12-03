@@ -17,9 +17,9 @@ import (
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/api"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -64,7 +64,7 @@ func NewSyslogBindingCache(config Config, metrics Metrics, l *log.Logger) *Syslo
 	}
 	factory := syslog.NewAppLogEmitterFactory()
 	emitter := factory.NewAppLogEmitter(logClient, "syslog_binding_cache")
-	
+
 	// todo handle IPcheker
 	return &SyslogBindingCache{
 		config:  config,
