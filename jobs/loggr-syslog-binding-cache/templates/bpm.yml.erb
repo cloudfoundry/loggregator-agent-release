@@ -33,10 +33,10 @@
       "PPROF_PORT" => "#{p("metrics.pprof_port")}",
       "USE_RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
 
-      "AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
-      "AGENT_CERT_FILE_PATH" => "#{certs_dir}/syslog_agent.crt",
-      "AGENT_KEY_FILE_PATH" => "#{certs_dir}/syslog_agent.key",
-      "AGENT_CIPHER_SUITES" => "#{p("tls.cipher_suites").split(":").join(",")}",
+      "AGENT_CA_FILE_PATH" => "#{certs_dir}/agent_ca.crt",
+      "AGENT_CERT_FILE_PATH" => "#{certs_dir}/agent.crt",
+      "AGENT_KEY_FILE_PATH" => "#{certs_dir}/agent.key",
+      "AGENT_CIPHER_SUITES" => "#{p("agent.cipher_suites").split(":").join(",")}",
       "AGENT_PORT" => "#{p("agent.port")}",
     }
   }
