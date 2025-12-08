@@ -37,7 +37,7 @@
       "AGENT_CERT_FILE_PATH" => "#{certs_dir}/syslog_agent.crt",
       "AGENT_KEY_FILE_PATH" => "#{certs_dir}/syslog_agent.key",
       "AGENT_CIPHER_SUITES" => "#{p("tls.cipher_suites").split(":").join(",")}",
-      "AGENT_PORT" => "#{p("port")}",
+      "AGENT_PORT" => "#{p("agent.port")}",
     }
   }
   bpm = {"processes" => [process] }
