@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 )
 
 type FakeIPChecker struct {
@@ -188,4 +188,4 @@ func (fake *FakeIPChecker) recordInvocation(key string, args []interface{}) {
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ bindings.IPChecker = new(FakeIPChecker)
+var _ binding.IPChecker = new(FakeIPChecker)

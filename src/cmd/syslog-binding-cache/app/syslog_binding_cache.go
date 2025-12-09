@@ -36,6 +36,7 @@ type SyslogBindingCache struct {
 	metrics     Metrics
 	mu          sync.Mutex
 	emitter     syslog.AppLogEmitter
+	checker     IPChecker
 }
 
 type Metrics interface {
@@ -71,6 +72,7 @@ func NewSyslogBindingCache(config Config, metrics Metrics, l *log.Logger) *Syslo
 		log:     l,
 		metrics: metrics,
 		emitter: emitter,
+		checker: &config.Blacklist,
 	}
 }
 
@@ -86,7 +88,7 @@ func (sbc *SyslogBindingCache) Run() {
 	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
-	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log, sbc.emitter)
+	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log, sbc.emitter, &sbc.config.Blacklist)
 
 	go poller.Poll()
 
