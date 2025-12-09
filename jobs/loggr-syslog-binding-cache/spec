@@ -154,3 +154,10 @@ properties:
          An ordered list of supported SSL cipher suites. Allowed cipher suites are
          TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
     default: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+
+  blacklisted_syslog_ranges:
+    description: |
+      A list of IP address ranges that are not allowed to be specified in
+      syslog drain binding URLs.
+    default: []
+    example: [{start: 10.10.10.1, end: 10.10.10.10}]

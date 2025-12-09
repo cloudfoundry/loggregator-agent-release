@@ -38,6 +38,8 @@
       "AGENT_KEY_FILE_PATH" => "#{certs_dir}/agent.key",
       "AGENT_CIPHER_SUITES" => "#{p("agent.cipher_suites").split(":").join(",")}",
       "AGENT_PORT" => "#{p("agent.port")}",
+
+      "BLACKLISTED_SYSLOG_RANGES" => "#{blacklisted_ips}",
     }
   }
   bpm = {"processes" => [process] }
