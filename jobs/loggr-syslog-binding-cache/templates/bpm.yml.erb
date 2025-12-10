@@ -39,7 +39,7 @@
       "AGENT_CIPHER_SUITES" => "#{p("agent.cipher_suites").split(":").join(",")}",
       "AGENT_PORT" => "#{p("agent.port")}",
 
-      "BLACKLISTED_SYSLOG_RANGES" => "#{p("blacklisted_syslog_ranges").to_json}",
+      "BLACKLISTED_SYSLOG_RANGES" => "#{p("blacklisted_syslog_ranges")}",
     }
   }
   bpm = {"processes" => [process] }
