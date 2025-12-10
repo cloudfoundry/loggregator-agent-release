@@ -1,4 +1,9 @@
 <%
+  blacklisted_ranges = p("blacklisted_syslog_ranges")
+  blacklisted_ips = blacklisted_ranges.map do |range|
+    "#{range['start']}-#{range['end']}"
+  end.join(",")
+
   certs_dir =  "/var/vcap/jobs/loggr-syslog-binding-cache/config/certs"
   api_url = link("cloud_controller").address
   if_p("api.override_url") {
@@ -39,7 +44,7 @@
       "AGENT_CIPHER_SUITES" => "#{p("agent.cipher_suites").split(":").join(",")}",
       "AGENT_PORT" => "#{p("agent.port")}",
 
-      "BLACKLISTED_SYSLOG_RANGES" => "#{p("blacklisted_syslog_ranges")}",
+      "BLACKLISTED_SYSLOG_RANGES" => "#{blacklisted_ips}",
     }
   }
   bpm = {"processes" => [process] }
