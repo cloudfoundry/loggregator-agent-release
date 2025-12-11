@@ -32,7 +32,7 @@ type SyslogBindingCache struct {
 	config      Config
 	pprofServer *http.Server
 	server      *http.Server
-	log         *log.Logger
+	logger      *log.Logger
 	metrics     Metrics
 	mu          sync.Mutex
 	emitter     syslog.AppLogEmitter
@@ -45,14 +45,14 @@ type Metrics interface {
 	RegisterDebugMetrics()
 }
 
-func NewSyslogBindingCache(config Config, metrics Metrics, l *log.Logger) *SyslogBindingCache {
+func NewSyslogBindingCache(config Config, metrics Metrics, logger *log.Logger) *SyslogBindingCache {
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		config.GRPC.CAFile,
 		config.GRPC.CertFile,
 		config.GRPC.KeyFile,
 	)
 	if err != nil {
-		l.Panicf("failed to configure client TLS: %q", err)
+		logger.Panicf("failed to configure client TLS: %q", err)
 	}
 
 	logClient, err := loggregator.NewIngressClient(
@@ -61,15 +61,14 @@ func NewSyslogBindingCache(config Config, metrics Metrics, l *log.Logger) *Syslo
 		loggregator.WithAddr(config.ForwarderAgentAddress),
 	)
 	if err != nil {
-		l.Panicf("failed to create log client for syslog connector: %q", err)
+		logger.Panicf("failed to create logger client for syslog connector: %q", err)
 	}
 	factory := syslog.NewAppLogEmitterFactory()
 	emitter := factory.NewAppLogEmitter(logClient, "syslog_binding_cache")
 
-	// todo handle IPcheker
 	return &SyslogBindingCache{
 		config:  config,
-		log:     l,
+		logger:  logger,
 		metrics: metrics,
 		emitter: emitter,
 		checker: &config.Blacklist,
@@ -84,11 +83,11 @@ func (sbc *SyslogBindingCache) Run() {
 			Handler:           http.DefaultServeMux,
 			ReadHeaderTimeout: 2 * time.Second,
 		}
-		go func() { sbc.log.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error()) }()
+		go func() { sbc.logger.Println("PPROF SERVER STOPPED " + sbc.pprofServer.ListenAndServe().Error()) }()
 	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
-	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log, sbc.emitter, &sbc.config.Blacklist)
+	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.logger, sbc.emitter, &sbc.config.Blacklist)
 
 	go poller.Poll()
 
@@ -137,7 +136,7 @@ func (sbc *SyslogBindingCache) startServer(router chi.Router) {
 	sbc.mu.Unlock()
 	err := sbc.server.ListenAndServeTLS("", "")
 	if err != http.ErrServerClosed {
-		sbc.log.Panicf("error creating listener: %s", err)
+		sbc.logger.Panicf("error creating listener: %s", err)
 	}
 }
 
@@ -149,7 +148,7 @@ func (sbc *SyslogBindingCache) tlsConfig() *tls.Config {
 		tlsconfig.WithClientAuthenticationFromFile(sbc.config.CacheCAFile),
 	)
 	if err != nil {
-		sbc.log.Panicf("failed to load server TLS config: %s", err)
+		sbc.logger.Panicf("failed to load server TLS config: %s", err)
 	}
 
 	if len(sbc.config.CipherSuites) > 0 {
