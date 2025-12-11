@@ -53,7 +53,7 @@ type GRPC struct {
 // panic.
 func LoadConfig() Config {
 	cfg := Config{
-		APIPollingInterval:    60 * time.Second,
+		APIPollingInterval:    15 * time.Second,
 		ForwarderAgentAddress: "localhost:3458",
 	}
 	if err := envstruct.Load(&cfg); err != nil {
