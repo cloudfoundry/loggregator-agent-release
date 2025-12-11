@@ -1,6 +1,8 @@
 package binding
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -131,6 +133,13 @@ func (p *Poller) poll() {
 func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPChecker, logger *log.Logger) {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	for _, b := range bindings {
+		if len(b.Credentials) == 0 {
+			logger.Printf("no credentials for %s", b.Url)
+			continue
+		}
+
+		//todo loop over multiple credentials?
+
 		u, err := url.Parse(b.Url)
 		if err != nil {
 			logger.Printf("Cannot parse syslog drain url %s", b.Url)
@@ -152,11 +161,6 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 		if len(u.Host) == 0 {
 			logger.Printf("No hostname found in syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
-			continue
-		}
-
-		if len(b.Credentials) == 0 {
-			logger.Printf("no credentials for %s", b.Url)
 			continue
 		}
 
@@ -188,23 +192,22 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 		}
 
 		// todo validate certificates for mtls
-		//PrivateKey: []byte(b.Drain.Credentials.Key),
-		//if len(b.Credentials[0].Cert) > 0 && len(b.Credentials[0].Key) > 0 {
-		//	_, err := tls.X509KeyPair([]byte(b.Credentials[0].Cert), []byte(b.Credentials[0].Key))
-		//	if err != nil {
-		//		errorMessage := err.Error()
-		//		sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), b.Credentials[0].Apps, emitter)
-		//		continue
-		//	}
-		//}
-		//if len(b.Credentials[0].CA) > 0 {
-		//	certPool := x509.NewCertPool()
-		//	ok := certPool.AppendCertsFromPEM([]byte(b.Credentials[0].CA))
-		//	if !ok {
-		//		sendAppLogMessage("failed to load root CA", b.Credentials[0].Apps, emitter)
-		//		continue
-		//	}
-		//}
+		if len(b.Credentials[0].Cert) > 0 && len(b.Credentials[0].Key) > 0 {
+			_, err := tls.X509KeyPair([]byte(b.Credentials[0].Cert), []byte(b.Credentials[0].Key))
+			if err != nil {
+				errorMessage := err.Error()
+				sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), b.Credentials[0].Apps, emitter)
+				continue
+			}
+		}
+		if len(b.Credentials[0].CA) > 0 {
+			certPool := x509.NewCertPool()
+			ok := certPool.AppendCertsFromPEM([]byte(b.Credentials[0].CA))
+			if !ok {
+				sendAppLogMessage("failed to load root CA", b.Credentials[0].Apps, emitter)
+				continue
+			}
+		}
 
 	}
 }
