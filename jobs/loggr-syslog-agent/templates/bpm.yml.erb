@@ -19,7 +19,7 @@
     "name" => "loggr-syslog-agent",
     "executable" => "/var/vcap/packages/syslog-agent/syslog-agent",
     "env" => {
-      "FORWARDER_AGENT_ADDR" => "localhost:3458",
+      "FORWARDER_AGENT_ADDR" => "#{p("forwarder_agent_address")}",
       "AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_ca.crt",
       "AGENT_CERT_FILE_PATH" => "#{certs_dir}/syslog_agent.crt",
       "AGENT_KEY_FILE_PATH" => "#{certs_dir}/syslog_agent.key",
