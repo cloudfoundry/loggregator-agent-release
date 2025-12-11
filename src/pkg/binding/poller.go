@@ -141,70 +141,70 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 			continue
 		}
 
-		//todo loop over multiple credentials?
 		//todo provide Prometheus metrics for invalid/blacklisted drains
-
 		u, err := url.Parse(b.Url)
-		if err != nil {
-			sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
-			continue
-		}
 
-		anonymousUrl := u
-		anonymousUrl.User = nil
-		anonymousUrl.RawQuery = ""
-
-		if invalidScheme(u.Scheme) {
-			sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
-			continue
-		}
-
-		if len(u.Host) == 0 {
-			sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
-			continue
-		}
-
-		_, exists := failedHostsCache.Get(u.Host)
-		if exists {
-			//invalidDrains += 1
-			sendAppLogMessage(fmt.Sprintf("kipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), b.Credentials[0].Apps, emitter)
-			continue
-		}
-
-		ip, err := checker.ResolveAddr(u.Host)
-		if err != nil {
-			//invalidDrains += 1
-			failedHostsCache.Set(u.Host, true)
-			sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), b.Credentials[0].Apps, emitter)
-			continue
-		}
-
-		err = checker.CheckBlacklist(ip)
-		if err != nil {
-			//invalidDrains += 1
-			//blacklistedDrains += 1
-			sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), b.Credentials[0].Apps, emitter)
-			continue
-		}
-
-		if len(b.Credentials[0].Cert) > 0 && len(b.Credentials[0].Key) > 0 {
-			_, err := tls.X509KeyPair([]byte(b.Credentials[0].Cert), []byte(b.Credentials[0].Key))
+		for _, cred := range b.Credentials {
 			if err != nil {
-				errorMessage := err.Error()
-				sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), b.Credentials[0].Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), cred.Apps, emitter)
 				continue
 			}
-		}
 
-		if len(b.Credentials[0].CA) > 0 {
-			certPool := x509.NewCertPool()
-			ok := certPool.AppendCertsFromPEM([]byte(b.Credentials[0].CA))
-			if !ok {
-				sendAppLogMessage("failed to load root CA", b.Credentials[0].Apps, emitter)
+			anonymousUrl := u
+			anonymousUrl.User = nil
+			anonymousUrl.RawQuery = ""
+
+			if invalidScheme(u.Scheme) {
+				sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), cred.Apps, emitter)
 				continue
 			}
-		}
 
+			if len(u.Host) == 0 {
+				sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), cred.Apps, emitter)
+				continue
+			}
+
+			_, exists := failedHostsCache.Get(u.Host)
+			if exists {
+				//invalidDrains += 1
+				sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter)
+				continue
+			}
+
+			ip, err := checker.ResolveAddr(u.Host)
+			if err != nil {
+				//invalidDrains += 1
+				failedHostsCache.Set(u.Host, true)
+				sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter)
+				continue
+			}
+
+			err = checker.CheckBlacklist(ip)
+			if err != nil {
+				//invalidDrains += 1
+				//blacklistedDrains += 1
+				sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter)
+				continue
+			}
+
+			if len(cred.Cert) > 0 && len(cred.Key) > 0 {
+				_, err := tls.X509KeyPair([]byte(cred.Cert), []byte(cred.Key))
+				if err != nil {
+					errorMessage := err.Error()
+					sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), cred.Apps, emitter)
+					continue
+				}
+			}
+
+			if len(cred.CA) > 0 {
+				certPool := x509.NewCertPool()
+				ok := certPool.AppendCertsFromPEM([]byte(cred.CA))
+				if !ok {
+					sendAppLogMessage("failed to load root CA", cred.Apps, emitter)
+					continue
+				}
+			}
+		}
 	}
 }
 
