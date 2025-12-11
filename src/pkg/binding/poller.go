@@ -13,6 +13,7 @@ import (
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 )
 
 type Poller struct {
@@ -25,6 +26,7 @@ type Poller struct {
 	lastBindingCount           metrics.Gauge
 	emitter                    syslog.AppLogEmitter
 	checker                    IPChecker
+	failedHostsCache           *simplecache.SimpleCache[string, bool]
 }
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . IPChecker
@@ -79,8 +81,9 @@ func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Log
 			"last_binding_refresh_count",
 			"Current number of bindings received from binding provider during last refresh.",
 		),
-		emitter: emitter,
-		checker: checker,
+		emitter:          emitter,
+		checker:          checker,
+		failedHostsCache: simplecache.New[string, bool](120 * time.Second),
 	}
 	p.poll()
 	return p
@@ -123,14 +126,14 @@ func (p *Poller) poll() {
 		}
 	}
 
-	checkBindings(syslogDrainBindings, p.emitter, p.checker, p.logger)
+	checkBindings(syslogDrainBindings, p.emitter, p.checker, p.logger, p.failedHostsCache)
 
 	bindingCount := CalculateBindingCount(syslogDrainBindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(syslogDrainBindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPChecker, logger *log.Logger) {
+func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	for _, b := range bindings {
 		if len(b.Credentials) == 0 {
@@ -139,10 +142,10 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 		}
 
 		//todo loop over multiple credentials?
+		//todo provide Prometheus metrics for invalid/blacklisted drains
 
 		u, err := url.Parse(b.Url)
 		if err != nil {
-			logger.Printf("Cannot parse syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
 			continue
 		}
@@ -152,31 +155,26 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 		anonymousUrl.RawQuery = ""
 
 		if invalidScheme(u.Scheme) {
-			// todo what about multiple credentials?
-			logger.Printf("Invalid Scheme for syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
 			continue
 		}
 
 		if len(u.Host) == 0 {
-			logger.Printf("No hostname found in syslog drain url %s", b.Url)
 			sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), b.Credentials[0].Apps, emitter)
 			continue
 		}
 
-		// todo how to get failed hosts cache?
-		// _, exists := f.failedHostsCache.Get(u.Host)
-		// if exists {
-		// 	invalidDrains += 1
-		// 	f.printWarning("Skipped resolve ip address for syslog drain with url %s for application %s due to prior failure", anonymousUrl.String(), b.AppId)
-		// 	continue
-		// }
+		_, exists := failedHostsCache.Get(u.Host)
+		if exists {
+			//invalidDrains += 1
+			sendAppLogMessage(fmt.Sprintf("kipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), b.Credentials[0].Apps, emitter)
+			continue
+		}
 
 		ip, err := checker.ResolveAddr(u.Host)
 		if err != nil {
 			//invalidDrains += 1
-			//f.failedHostsCache.Set(u.Host, true)
-			logger.Printf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String())
+			failedHostsCache.Set(u.Host, true)
 			sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), b.Credentials[0].Apps, emitter)
 			continue
 		}
@@ -185,13 +183,10 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 		if err != nil {
 			//invalidDrains += 1
 			//blacklistedDrains += 1
-			//f.printWarning("Resolved ip address for syslog drain with url %s for application %s is blacklisted", anonymousUrl.String(), b.AppId)
-			logger.Printf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String())
 			sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), b.Credentials[0].Apps, emitter)
 			continue
 		}
 
-		// todo validate certificates for mtls
 		if len(b.Credentials[0].Cert) > 0 && len(b.Credentials[0].Key) > 0 {
 			_, err := tls.X509KeyPair([]byte(b.Credentials[0].Cert), []byte(b.Credentials[0].Key))
 			if err != nil {
@@ -200,6 +195,7 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 				continue
 			}
 		}
+
 		if len(b.Credentials[0].CA) > 0 {
 			certPool := x509.NewCertPool()
 			ok := certPool.AppendCertsFromPEM([]byte(b.Credentials[0].CA))
