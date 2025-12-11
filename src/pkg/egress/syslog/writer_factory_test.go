@@ -13,8 +13,9 @@ import (
 
 var _ = Describe("EgressFactory", func() {
 	var (
-		f  syslog.WriterFactory
-		sm *metricsHelpers.SpyMetricsRegistry
+		f       syslog.WriterFactory
+		sm      *metricsHelpers.SpyMetricsRegistry
+		emitter syslog.AppLogEmitter
 	)
 
 	BeforeEach(func() {
@@ -30,7 +31,7 @@ var _ = Describe("EgressFactory", func() {
 				URL: url,
 			}
 
-			writer, err := f.NewWriter(urlBinding)
+			writer, err := f.NewWriter(urlBinding, emitter)
 			Expect(err).ToNot(HaveOccurred())
 
 			retryWriter, ok := writer.(*syslog.RetryWriter)
@@ -49,7 +50,7 @@ var _ = Describe("EgressFactory", func() {
 				URL: url,
 			}
 
-			writer, err := f.NewWriter(urlBinding)
+			writer, err := f.NewWriter(urlBinding, emitter)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, ok := writer.(*syslog.HTTPSBatchWriter)
@@ -65,7 +66,7 @@ var _ = Describe("EgressFactory", func() {
 				URL: url,
 			}
 
-			writer, err := f.NewWriter(urlBinding)
+			writer, err := f.NewWriter(urlBinding, emitter)
 			Expect(err).ToNot(HaveOccurred())
 
 			retryWriter, ok := writer.(*syslog.RetryWriter)
@@ -84,7 +85,7 @@ var _ = Describe("EgressFactory", func() {
 				URL: url,
 			}
 
-			writer, err := f.NewWriter(urlBinding)
+			writer, err := f.NewWriter(urlBinding, emitter)
 			Expect(err).ToNot(HaveOccurred())
 
 			retryWriter, ok := writer.(*syslog.RetryWriter)
@@ -103,7 +104,7 @@ var _ = Describe("EgressFactory", func() {
 					Certificate: []byte("invalid-certificate"),
 				}
 
-				_, err = f.NewWriter(urlBinding)
+				_, err = f.NewWriter(urlBinding, emitter)
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
@@ -117,7 +118,7 @@ var _ = Describe("EgressFactory", func() {
 					PrivateKey: []byte("invalid-private-key"),
 				}
 
-				_, err = f.NewWriter(urlBinding)
+				_, err = f.NewWriter(urlBinding, emitter)
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
@@ -140,7 +141,7 @@ var _ = Describe("EgressFactory", func() {
 				urlBinding.CA = []byte("invalid-ca")
 			}
 
-			_, err = f.NewWriter(urlBinding)
+			_, err = f.NewWriter(urlBinding, emitter)
 
 			Expect(err).To(MatchError(expectedErr))
 		},
@@ -166,7 +167,7 @@ var _ = Describe("EgressFactory", func() {
 				AppID: appID,
 			}
 
-			_, err = f.NewWriter(urlBinding)
+			_, err = f.NewWriter(urlBinding, emitter)
 			Expect(err).ToNot(HaveOccurred())
 
 			metric := sm.GetMetric("egress", tags)
