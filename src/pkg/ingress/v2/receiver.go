@@ -6,7 +6,7 @@ import (
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
-	"golang.org/x/net/context"
+	"context"
 )
 
 type DataSetter interface {

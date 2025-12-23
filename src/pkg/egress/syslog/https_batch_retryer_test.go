@@ -6,10 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"golang.org/x/net/context"
 )
 
 var _ = Describe("Retryer", func() {

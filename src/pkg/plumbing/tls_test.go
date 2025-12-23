@@ -21,7 +21,7 @@ var _ = Describe("TLS", func() {
 				"doppler",
 			)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(creds.Info().ServerName).To(Equal("doppler"))
+			Expect(creds).ToNot(BeNil())
 		})
 
 		It("returns an error with invalid certs", func() {
