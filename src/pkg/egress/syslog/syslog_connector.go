@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"golang.org/x/net/context"
+	"context"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 

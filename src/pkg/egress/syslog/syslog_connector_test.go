@@ -3,11 +3,10 @@ package syslog_test
 import (
 	"errors"
 	"fmt"
-	"io"
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
@@ -21,6 +20,7 @@ import (
 var _ = Describe("SyslogConnector", func() {
 	var (
 		ctx           context.Context
+		cancel        context.CancelFunc
 		spyWaitGroup  *SpyWaitGroup
 		writerFactory *stubWriterFactory
 		sm            *metricsHelpers.SpyMetricsRegistry
@@ -28,9 +28,13 @@ var _ = Describe("SyslogConnector", func() {
 
 	BeforeEach(func() {
 		sm = metricsHelpers.NewMetricsRegistry()
-		ctx, _ = context.WithCancel(context.Background())
+		ctx, cancel = context.WithCancel(context.Background())
 		spyWaitGroup = &SpyWaitGroup{}
 		writerFactory = &stubWriterFactory{}
+	})
+
+	AfterEach(func() {
+		cancel()
 	})
 
 	It("connects to the passed syslog protocol", func() {
@@ -283,13 +287,16 @@ func (f *stubWriterFactory) NewWriter(
 
 type SleepWriterCloser struct {
 	duration time.Duration
-	io.Closer
-	metric func(uint64)
+	metric   func(uint64)
 }
 
 func (c *SleepWriterCloser) Write(*loggregator_v2.Envelope) error {
 	c.metric(1)
 	time.Sleep(c.duration)
+	return nil
+}
+
+func (c *SleepWriterCloser) Close() error {
 	return nil
 }
 

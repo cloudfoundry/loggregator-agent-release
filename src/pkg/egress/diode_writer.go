@@ -3,7 +3,7 @@ package egress
 import (
 	"io"
 
-	"golang.org/x/net/context"
+	"context"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"

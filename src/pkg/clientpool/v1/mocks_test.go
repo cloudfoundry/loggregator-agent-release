@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
-	"golang.org/x/net/context"
+	"context"
 	"google.golang.org/grpc/metadata"
 )
 
