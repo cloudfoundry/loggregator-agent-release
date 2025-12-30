@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"fmt"
+	"github.com/prometheus/common/model"
 	"io"
 	"log"
 	"net/http"
@@ -9,11 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-
-	"code.cloudfoundry.org/go-loggregator/v10"
 )
 
 type Scraper struct {
@@ -157,7 +157,7 @@ func (s *Scraper) scrape(target Target) (map[string]*io_prometheus_client.Metric
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
 	}
 
-	p := &expfmt.TextParser{}
+	p := expfmt.NewTextParser(model.LegacyValidation)
 	res, err := p.TextToMetricFamilies(resp.Body)
 	if err != nil {
 		return nil, err
