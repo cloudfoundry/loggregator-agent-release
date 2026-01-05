@@ -18,7 +18,6 @@ var _ = Describe("Retryer", func() {
 		retryer       *syslog.Retryer
 		retryAttempts int
 		binding       *syslog.URLBinding
-		coordinator   *syslog.RetryCoordinator
 		retryInterval time.Duration
 		waitTime      time.Duration
 	)
@@ -27,8 +26,6 @@ var _ = Describe("Retryer", func() {
 		retryAttempts = 0
 		retryInterval = 10 * time.Millisecond
 		waitTime = retryInterval * 5
-		syslog.WithParallelRetries(2)
-		coordinator = syslog.GetGlobalRetryCoordinator()
 		binding = &syslog.URLBinding{
 			URL: &url.URL{
 				Host: "test-host",
@@ -91,6 +88,7 @@ var _ = Describe("Retryer", func() {
 
 	It("respects the global parallel retry limit (locking behaviour)", func() {
 		syslog.WithParallelRetries(2)
+		coordinator := syslog.GetGlobalRetryCoordinator()
 
 		var (
 			started sync.WaitGroup
@@ -114,7 +112,7 @@ var _ = Describe("Retryer", func() {
 			started.Done()
 			coordinator.Acquire("test-host", "test-app")
 			blocked.Wait()
-			coordinator.Acquire("test-host", "test-app")
+			coordinator.Release()
 			done.Done()
 		}()
 
