@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"iter"
 	"sort"
 	"sync"
 )
@@ -64,12 +65,34 @@ func (a *Args) CopyTo(dst *Args) {
 	dst.args = copyArgs(dst.args, a.args)
 }
 
+// All returns an iterator over key-value pairs from args.
+//
+// The key and value may invalid outside the iteration loop.
+// Make copies if you need to use them after the loop ends.
+//
+// Making modifications to the Args during the iteration loop leads to undefined
+// behavior and can cause panics.
+func (a *Args) All() iter.Seq2[[]byte, []byte] {
+	return func(yield func([]byte, []byte) bool) {
+		for i := range a.args {
+			if !yield(a.args[i].key, a.args[i].value) {
+				break
+			}
+		}
+	}
+}
+
 // VisitAll calls f for each existing arg.
 //
 // f must not retain references to key and value after returning.
 // Make key and/or value copies if you need storing them after returning.
+//
+// Deprecated: Use All instead.
 func (a *Args) VisitAll(f func(key, value []byte)) {
-	visitArgs(a.args, f)
+	a.All()(func(key, value []byte) bool {
+		f(key, value)
+		return true
+	})
 }
 
 // Len returns the number of query args.
@@ -124,6 +147,15 @@ func (a *Args) Sort(f func(x, y []byte) int) {
 			return f(a.args[i].value, a.args[j].value) == -1
 		}
 		return n == -1
+	})
+}
+
+// SortKeys sorts Args by key only using 'f' as comparison function.
+//
+// For example args.SortKeys(bytes.Compare).
+func (a *Args) SortKeys(f func(x, y []byte) int) {
+	sort.SliceStable(a.args, func(i, j int) bool {
+		return f(a.args[i].key, a.args[j].key) == -1
 	})
 }
 
@@ -256,11 +288,11 @@ func (a *Args) PeekBytes(key []byte) []byte {
 // PeekMulti returns all the arg values for the given key.
 func (a *Args) PeekMulti(key string) [][]byte {
 	var values [][]byte
-	a.VisitAll(func(k, v []byte) {
+	for k, v := range a.All() {
 		if string(k) == key {
 			values = append(values, v)
 		}
-	})
+	}
 	return values
 }
 
@@ -346,13 +378,6 @@ func (a *Args) GetBool(key string) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-func visitArgs(args []argsKV, f func(k, v []byte)) {
-	for i, n := 0, len(args); i < n; i++ {
-		kv := &args[i]
-		f(kv.key, kv.value)
 	}
 }
 
@@ -628,14 +653,6 @@ func peekAllArgBytesToDst(dst [][]byte, h []argsKV, k []byte) [][]byte {
 		if bytes.Equal(kv.key, k) {
 			dst = append(dst, kv.value)
 		}
-	}
-	return dst
-}
-
-func peekArgsKeys(dst [][]byte, h []argsKV) [][]byte {
-	for i, n := 0, len(h); i < n; i++ {
-		kv := &h[i]
-		dst = append(dst, kv.key)
 	}
 	return dst
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,6 +17,28 @@ const (
 	nChar = byte('\n')
 )
 
+type header struct {
+	h       []argsKV
+	cookies []argsKV
+
+	bufK               []byte
+	bufV               []byte
+	contentLengthBytes []byte
+	contentType        []byte
+	protocol           []byte
+
+	mulHeader [][]byte
+	trailer   [][]byte
+
+	contentLength int
+
+	disableNormalizing    bool
+	secureErrorLogMessage bool
+	noHTTP11              bool
+	connectionClose       bool
+	noDefaultContentType  bool
+}
+
 // ResponseHeader represents HTTP response header.
 //
 // It is forbidden copying ResponseHeader instances.
@@ -24,33 +47,17 @@ const (
 // ResponseHeader instance MUST NOT be used from concurrently running
 // goroutines.
 type ResponseHeader struct {
+	header
+
 	noCopy noCopy
 
-	statusMessage      []byte
-	protocol           []byte
-	contentLengthBytes []byte
-
-	contentType     []byte
+	statusMessage   []byte
 	contentEncoding []byte
 	server          []byte
-	mulHeader       [][]byte
-	trailer         [][]byte
 
-	h []argsKV
+	statusCode int
 
-	cookies []argsKV
-	bufK    []byte
-	bufV    []byte
-
-	statusCode    int
-	contentLength int
-
-	disableNormalizing    bool
-	noHTTP11              bool
-	connectionClose       bool
-	noDefaultContentType  bool
-	noDefaultDate         bool
-	secureErrorLogMessage bool
+	noDefaultDate bool
 }
 
 // RequestHeader represents HTTP request header.
@@ -61,42 +68,21 @@ type ResponseHeader struct {
 // RequestHeader instance MUST NOT be used from concurrently running
 // goroutines.
 type RequestHeader struct {
+	header
+
 	noCopy noCopy
 
-	contentLengthBytes []byte
-
-	method      []byte
-	requestURI  []byte
-	proto       []byte
-	host        []byte
-	contentType []byte
-	userAgent   []byte
-	mulHeader   [][]byte
-	trailer     [][]byte
-
-	h []argsKV
-
-	cookies []argsKV
+	method     []byte
+	requestURI []byte
+	host       []byte
+	userAgent  []byte
 
 	// stores an immutable copy of headers as they were received from the
 	// wire.
 	rawHeaders []byte
-	bufK       []byte
-	bufV       []byte
 
-	contentLength int
-
-	disableNormalizing   bool
-	noHTTP11             bool
-	connectionClose      bool
-	noDefaultContentType bool
 	disableSpecialHeader bool
-
-	// These two fields have been moved close to other bool fields
-	// for reducing RequestHeader object size.
-	cookiesCollected bool
-
-	secureErrorLogMessage bool
+	cookiesCollected     bool
 }
 
 // SetContentRange sets 'Content-Range: bytes startPos-endPos/contentLength'
@@ -160,14 +146,6 @@ func (h *ResponseHeader) SetStatusMessage(statusMessage []byte) {
 	h.statusMessage = append(h.statusMessage[:0], statusMessage...)
 }
 
-// Protocol returns response protocol bytes.
-func (h *ResponseHeader) Protocol() []byte {
-	if len(h.protocol) > 0 {
-		return h.protocol
-	}
-	return strHTTP11
-}
-
 // SetProtocol sets response protocol bytes.
 func (h *ResponseHeader) SetProtocol(protocol []byte) {
 	h.protocol = append(h.protocol[:0], protocol...)
@@ -180,35 +158,17 @@ func (h *ResponseHeader) SetLastModified(t time.Time) {
 }
 
 // ConnectionClose returns true if 'Connection: close' header is set.
-func (h *ResponseHeader) ConnectionClose() bool {
+func (h *header) ConnectionClose() bool {
 	return h.connectionClose
 }
 
 // SetConnectionClose sets 'Connection: close' header.
-func (h *ResponseHeader) SetConnectionClose() {
+func (h *header) SetConnectionClose() {
 	h.connectionClose = true
 }
 
 // ResetConnectionClose clears 'Connection: close' header if it exists.
-func (h *ResponseHeader) ResetConnectionClose() {
-	if h.connectionClose {
-		h.connectionClose = false
-		h.h = delAllArgs(h.h, HeaderConnection)
-	}
-}
-
-// ConnectionClose returns true if 'Connection: close' header is set.
-func (h *RequestHeader) ConnectionClose() bool {
-	return h.connectionClose
-}
-
-// SetConnectionClose sets 'Connection: close' header.
-func (h *RequestHeader) SetConnectionClose() {
-	h.connectionClose = true
-}
-
-// ResetConnectionClose clears 'Connection: close' header if it exists.
-func (h *RequestHeader) ResetConnectionClose() {
+func (h *header) ResetConnectionClose() {
 	if h.connectionClose {
 		h.connectionClose = false
 		h.h = delAllArgs(h.h, HeaderConnection)
@@ -236,6 +196,32 @@ func (h *ResponseHeader) PeekCookie(key string) []byte {
 // -1 means Transfer-Encoding: chunked.
 // -2 means Transfer-Encoding: identity.
 func (h *ResponseHeader) ContentLength() int {
+	return h.contentLength
+}
+
+// ContentLength returns Content-Length header value.
+//
+// It may be negative:
+// -1 means Transfer-Encoding: chunked.
+// -2 means Transfer-Encoding: identity.
+func (h *RequestHeader) ContentLength() int {
+	if h.disableSpecialHeader {
+		// Parse Content-Length from raw headers when special headers are disabled
+		v := peekArgBytes(h.h, strContentLength)
+		if len(v) == 0 {
+			// Check for Transfer-Encoding: chunked
+			te := peekArgBytes(h.h, strTransferEncoding)
+			if bytes.Equal(te, strChunked) {
+				return -1 // chunked
+			}
+			return -2 // identity
+		}
+		n, err := parseContentLength(v)
+		if err != nil {
+			return -2 // identity on parse error
+		}
+		return n
+	}
 	return h.contentLength
 }
 
@@ -275,20 +261,6 @@ func (h *ResponseHeader) mustSkipContentLength() bool {
 	return statusCode == StatusNotModified || statusCode == StatusNoContent || statusCode < 200
 }
 
-// ContentLength returns Content-Length header value.
-//
-// It may be negative:
-// -1 means Transfer-Encoding: chunked.
-func (h *RequestHeader) ContentLength() int {
-	return h.realContentLength()
-}
-
-// realContentLength returns the actual Content-Length set in the request,
-// including positive lengths for GET/HEAD requests.
-func (h *RequestHeader) realContentLength() int {
-	return h.contentLength
-}
-
 // SetContentLength sets Content-Length header value.
 //
 // Negative content-length sets 'Transfer-Encoding: chunked' header.
@@ -323,12 +295,12 @@ func (h *ResponseHeader) ContentType() []byte {
 }
 
 // SetContentType sets Content-Type header value.
-func (h *ResponseHeader) SetContentType(contentType string) {
+func (h *header) SetContentType(contentType string) {
 	h.contentType = append(h.contentType[:0], contentType...)
 }
 
 // SetContentTypeBytes sets Content-Type header value.
-func (h *ResponseHeader) SetContentTypeBytes(contentType []byte) {
+func (h *header) SetContentTypeBytes(contentType []byte) {
 	h.contentType = append(h.contentType[:0], contentType...)
 }
 
@@ -380,16 +352,6 @@ func (h *RequestHeader) ContentType() []byte {
 		return peekArgBytes(h.h, []byte(HeaderContentType))
 	}
 	return h.contentType
-}
-
-// SetContentType sets Content-Type header value.
-func (h *RequestHeader) SetContentType(contentType string) {
-	h.contentType = append(h.contentType[:0], contentType...)
-}
-
-// SetContentTypeBytes sets Content-Type header value.
-func (h *RequestHeader) SetContentTypeBytes(contentType []byte) {
-	h.contentType = append(h.contentType[:0], contentType...)
 }
 
 // ContentEncoding returns Content-Encoding header value.
@@ -454,7 +416,7 @@ func (h *RequestHeader) SetMultipartFormBoundaryBytes(boundary []byte) {
 // 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
 //
 // Return ErrBadTrailer if contain any forbidden trailers.
-func (h *ResponseHeader) SetTrailer(trailer string) error {
+func (h *header) SetTrailer(trailer string) error {
 	return h.SetTrailerBytes(s2b(trailer))
 }
 
@@ -475,7 +437,7 @@ func (h *ResponseHeader) SetTrailer(trailer string) error {
 // 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
 //
 // Return ErrBadTrailer if contain any forbidden trailers.
-func (h *ResponseHeader) SetTrailerBytes(trailer []byte) error {
+func (h *header) SetTrailerBytes(trailer []byte) error {
 	h.trailer = h.trailer[:0]
 	return h.AddTrailerBytes(trailer)
 }
@@ -497,11 +459,26 @@ func (h *ResponseHeader) SetTrailerBytes(trailer []byte) error {
 // 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
 //
 // Return ErrBadTrailer if contain any forbidden trailers.
-func (h *ResponseHeader) AddTrailer(trailer string) error {
+func (h *header) AddTrailer(trailer string) error {
 	return h.AddTrailerBytes(s2b(trailer))
 }
 
-var ErrBadTrailer = errors.New("contain forbidden trailer")
+var (
+	ErrBadTrailer                    = errors.New("contain forbidden trailer")
+	ErrReadingResponseHeaders        = errors.New("error when reading response headers")
+	ErrReadingResponseTrailer        = errors.New("error when reading response trailer")
+	ErrResponseFirstLineMissingSpace = errors.New("cannot find whitespace in the first line of response")
+	ErrUnexpectedStatusCodeChar      = errors.New("unexpected char at the end of status code")
+	ErrMissingRequestMethod          = errors.New("cannot find http request method")
+	ErrUnsupportedRequestMethod      = errors.New("unsupported http request method")
+	ErrExtraWhitespaceInRequestLine  = errors.New("extra whitespace in request line")
+	ErrEmptyRequestURI               = errors.New("requestURI cannot be empty")
+	ErrDuplicateContentLength        = errors.New("duplicate Content-Length header")
+	ErrUnsupportedTransferEncoding   = errors.New("unsupported Transfer-Encoding")
+	ErrNonNumericChars               = errors.New("non-numeric chars found")
+	ErrNeedMore                      = errors.New("need more data: cannot find trailing lf")
+	ErrSmallReadBuffer               = errors.New("small read buffer. Increase ReadBufferSize")
+)
 
 // AddTrailerBytes add Trailer header value for chunked response
 // to indicate which headers will be sent after the body.
@@ -520,8 +497,37 @@ var ErrBadTrailer = errors.New("contain forbidden trailer")
 // 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
 //
 // Return ErrBadTrailer if contain any forbidden trailers.
-func (h *ResponseHeader) AddTrailerBytes(trailer []byte) (err error) {
-	h.bufK, h.trailer, err = addTrailerBytes(trailer, h.bufK, h.trailer, h.disableNormalizing)
+func (h *header) AddTrailerBytes(trailer []byte) (err error) {
+	for i := -1; i+1 < len(trailer); {
+		trailer = trailer[i+1:]
+		i = bytes.IndexByte(trailer, ',')
+		if i < 0 {
+			i = len(trailer)
+		}
+		key := trailer[:i]
+		for len(key) > 0 && key[0] == ' ' {
+			key = key[1:]
+		}
+		for len(key) > 0 && key[len(key)-1] == ' ' {
+			key = key[:len(key)-1]
+		}
+		// Forbidden by RFC 7230, section 4.1.2
+		if isBadTrailer(key) {
+			err = ErrBadTrailer
+			continue
+		}
+		h.bufK = append(h.bufK[:0], key...)
+		normalizeHeaderKey(h.bufK, h.disableNormalizing || bytes.IndexByte(h.bufK, ' ') != -1)
+		if cap(h.trailer) > len(h.trailer) {
+			h.trailer = h.trailer[:len(h.trailer)+1]
+			h.trailer[len(h.trailer)-1] = append(h.trailer[len(h.trailer)-1][:0], h.bufK...)
+		} else {
+			key = make([]byte, len(h.bufK))
+			copy(key, h.bufK)
+			h.trailer = append(h.trailer, key)
+		}
+	}
+
 	return err
 }
 
@@ -535,6 +541,35 @@ func validHeaderFieldByte(c byte) bool {
 // as defined by RFC 7230.
 func validHeaderValueByte(c byte) bool {
 	return validHeaderValueByteTable[c] == 1
+}
+
+// isValidHeaderKey returns true if a is a valid header key.
+func isValidHeaderKey(a []byte) bool {
+	if len(a) == 0 {
+		return false
+	}
+
+	// See if a looks like a header key. If not, return it unchanged.
+	noCanon := false
+	for _, c := range a {
+		if validHeaderFieldByte(c) {
+			continue
+		}
+		// Don't canonicalize.
+		if c == ' ' {
+			// We accept invalid headers with a space before the
+			// colon, but must not canonicalize them.
+			// See https://go.dev/issue/34540.
+			noCanon = true
+			continue
+		}
+		return false
+	}
+	if noCanon {
+		return true
+	}
+
+	return true
 }
 
 // VisitHeaderParams calls f for each parameter in the given header bytes.
@@ -722,23 +757,23 @@ func (h *RequestHeader) SetMethodBytes(method []byte) {
 }
 
 // Protocol returns HTTP protocol.
-func (h *RequestHeader) Protocol() []byte {
-	if len(h.proto) == 0 {
+func (h *header) Protocol() []byte {
+	if len(h.protocol) == 0 {
 		return strHTTP11
 	}
-	return h.proto
+	return h.protocol
 }
 
 // SetProtocol sets HTTP request protocol.
-func (h *RequestHeader) SetProtocol(method string) {
-	h.proto = append(h.proto[:0], method...)
-	h.noHTTP11 = !bytes.Equal(h.proto, strHTTP11)
+func (h *RequestHeader) SetProtocol(protocol string) {
+	h.protocol = append(h.protocol[:0], protocol...)
+	h.noHTTP11 = !bytes.Equal(h.protocol, strHTTP11)
 }
 
 // SetProtocolBytes sets HTTP request protocol.
-func (h *RequestHeader) SetProtocolBytes(method []byte) {
-	h.proto = append(h.proto[:0], method...)
-	h.noHTTP11 = !bytes.Equal(h.proto, strHTTP11)
+func (h *RequestHeader) SetProtocolBytes(protocol []byte) {
+	h.protocol = append(h.protocol[:0], protocol...)
+	h.noHTTP11 = !bytes.Equal(h.protocol, strHTTP11)
 }
 
 // RequestURI returns RequestURI from the first HTTP request line.
@@ -762,92 +797,6 @@ func (h *RequestHeader) SetRequestURI(requestURI string) {
 // Use URI.RequestURI for constructing proper RequestURI if unsure.
 func (h *RequestHeader) SetRequestURIBytes(requestURI []byte) {
 	h.requestURI = append(h.requestURI[:0], requestURI...)
-}
-
-// SetTrailer sets Trailer header value for chunked request
-// to indicate which headers will be sent after the body.
-//
-// Use Set to set the trailer header later.
-//
-// Trailers are only supported with chunked transfer.
-// Trailers allow the sender to include additional headers at the end of chunked messages.
-//
-// The following trailers are forbidden:
-// 1. necessary for message framing (e.g., Transfer-Encoding and Content-Length),
-// 2. routing (e.g., Host),
-// 3. request modifiers (e.g., controls and conditionals in Section 5 of [RFC7231]),
-// 4. authentication (e.g., see [RFC7235] and [RFC6265]),
-// 5. response control data (e.g., see Section 7.1 of [RFC7231]),
-// 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
-//
-// Return ErrBadTrailer if contain any forbidden trailers.
-func (h *RequestHeader) SetTrailer(trailer string) error {
-	return h.SetTrailerBytes(s2b(trailer))
-}
-
-// SetTrailerBytes sets Trailer header value for chunked request
-// to indicate which headers will be sent after the body.
-//
-// Use Set to set the trailer header later.
-//
-// Trailers are only supported with chunked transfer.
-// Trailers allow the sender to include additional headers at the end of chunked messages.
-//
-// The following trailers are forbidden:
-// 1. necessary for message framing (e.g., Transfer-Encoding and Content-Length),
-// 2. routing (e.g., Host),
-// 3. request modifiers (e.g., controls and conditionals in Section 5 of [RFC7231]),
-// 4. authentication (e.g., see [RFC7235] and [RFC6265]),
-// 5. response control data (e.g., see Section 7.1 of [RFC7231]),
-// 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
-//
-// Return ErrBadTrailer if contain any forbidden trailers.
-func (h *RequestHeader) SetTrailerBytes(trailer []byte) error {
-	h.trailer = h.trailer[:0]
-	return h.AddTrailerBytes(trailer)
-}
-
-// AddTrailer add Trailer header value for chunked request
-// to indicate which headers will be sent after the body.
-//
-// Use Set to set the trailer header later.
-//
-// Trailers are only supported with chunked transfer.
-// Trailers allow the sender to include additional headers at the end of chunked messages.
-//
-// The following trailers are forbidden:
-// 1. necessary for message framing (e.g., Transfer-Encoding and Content-Length),
-// 2. routing (e.g., Host),
-// 3. request modifiers (e.g., controls and conditionals in Section 5 of [RFC7231]),
-// 4. authentication (e.g., see [RFC7235] and [RFC6265]),
-// 5. response control data (e.g., see Section 7.1 of [RFC7231]),
-// 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
-//
-// Return ErrBadTrailer if contain any forbidden trailers.
-func (h *RequestHeader) AddTrailer(trailer string) error {
-	return h.AddTrailerBytes(s2b(trailer))
-}
-
-// AddTrailerBytes add Trailer header value for chunked request
-// to indicate which headers will be sent after the body.
-//
-// Use Set to set the trailer header later.
-//
-// Trailers are only supported with chunked transfer.
-// Trailers allow the sender to include additional headers at the end of chunked messages.
-//
-// The following trailers are forbidden:
-// 1. necessary for message framing (e.g., Transfer-Encoding and Content-Length),
-// 2. routing (e.g., Host),
-// 3. request modifiers (e.g., controls and conditionals in Section 5 of [RFC7231]),
-// 4. authentication (e.g., see [RFC7235] and [RFC6265]),
-// 5. response control data (e.g., see Section 7.1 of [RFC7231]),
-// 6. determining how to process the payload (e.g., Content-Encoding, Content-Type, Content-Range, and Trailer)
-//
-// Return ErrBadTrailer if contain any forbidden trailers.
-func (h *RequestHeader) AddTrailerBytes(trailer []byte) (err error) {
-	h.bufK, h.trailer, err = addTrailerBytes(trailer, h.bufK, h.trailer, h.disableNormalizing)
-	return err
 }
 
 // IsGet returns true if request method is GET.
@@ -895,13 +844,8 @@ func (h *RequestHeader) IsPatch() bool {
 	return string(h.Method()) == MethodPatch
 }
 
-// IsHTTP11 returns true if the request is HTTP/1.1.
-func (h *RequestHeader) IsHTTP11() bool {
-	return !h.noHTTP11
-}
-
-// IsHTTP11 returns true if the response is HTTP/1.1.
-func (h *ResponseHeader) IsHTTP11() bool {
+// IsHTTP11 returns true if the header is HTTP/1.1.
+func (h *header) IsHTTP11() bool {
 	return !h.noHTTP11
 }
 
@@ -934,7 +878,9 @@ func (h *RequestHeader) HasAcceptEncodingBytes(acceptEncoding []byte) bool {
 // i.e. the number of times f is called in VisitAll.
 func (h *ResponseHeader) Len() int {
 	n := 0
-	h.VisitAll(func(_, _ []byte) { n++ })
+	for range h.All() {
+		n++
+	}
 	return n
 }
 
@@ -942,7 +888,9 @@ func (h *ResponseHeader) Len() int {
 // i.e. the number of times f is called in VisitAll.
 func (h *RequestHeader) Len() int {
 	n := 0
-	h.VisitAll(func(_, _ []byte) { n++ })
+	for range h.All() {
+		n++
+	}
 	return n
 }
 
@@ -975,7 +923,7 @@ func (h *RequestHeader) EnableSpecialHeader() {
 //   - foo-bar-baz -> Foo-Bar-Baz
 //
 // Disable header names' normalization only if know what are you doing.
-func (h *RequestHeader) DisableNormalizing() {
+func (h *header) DisableNormalizing() {
 	h.disableNormalizing = true
 }
 
@@ -991,44 +939,12 @@ func (h *RequestHeader) DisableNormalizing() {
 //   - foo-bar-baz -> Foo-Bar-Baz
 //
 // This is enabled by default unless disabled using DisableNormalizing().
-func (h *RequestHeader) EnableNormalizing() {
-	h.disableNormalizing = false
-}
-
-// DisableNormalizing disables header names' normalization.
-//
-// By default all the header names are normalized by uppercasing
-// the first letter and all the first letters following dashes,
-// while lowercasing all the other letters.
-// Examples:
-//
-//   - CONNECTION -> Connection
-//   - conteNT-tYPE -> Content-Type
-//   - foo-bar-baz -> Foo-Bar-Baz
-//
-// Disable header names' normalization only if know what are you doing.
-func (h *ResponseHeader) DisableNormalizing() {
-	h.disableNormalizing = true
-}
-
-// EnableNormalizing enables header names' normalization.
-//
-// Header names are normalized by uppercasing the first letter and
-// all the first letters following dashes, while lowercasing all
-// the other letters.
-// Examples:
-//
-//   - CONNECTION -> Connection
-//   - conteNT-tYPE -> Content-Type
-//   - foo-bar-baz -> Foo-Bar-Baz
-//
-// This is enabled by default unless disabled using DisableNormalizing().
-func (h *ResponseHeader) EnableNormalizing() {
+func (h *header) EnableNormalizing() {
 	h.disableNormalizing = false
 }
 
 // SetNoDefaultContentType allows you to control if a default Content-Type header will be set (false) or not (true).
-func (h *ResponseHeader) SetNoDefaultContentType(noDefaultContentType bool) {
+func (h *header) SetNoDefaultContentType(noDefaultContentType bool) {
 	h.noDefaultContentType = noDefaultContentType
 }
 
@@ -1060,11 +976,6 @@ func (h *ResponseHeader) resetSkipNormalize() {
 	h.mulHeader = h.mulHeader[:0]
 }
 
-// SetNoDefaultContentType allows you to control if a default Content-Type header will be set (false) or not (true).
-func (h *RequestHeader) SetNoDefaultContentType(noDefaultContentType bool) {
-	h.noDefaultContentType = noDefaultContentType
-}
-
 // Reset clears request header.
 func (h *RequestHeader) Reset() {
 	h.disableSpecialHeader = false
@@ -1081,7 +992,7 @@ func (h *RequestHeader) resetSkipNormalize() {
 	h.contentLengthBytes = h.contentLengthBytes[:0]
 
 	h.method = h.method[:0]
-	h.proto = h.proto[:0]
+	h.protocol = h.protocol[:0]
 	h.requestURI = h.requestURI[:0]
 	h.host = h.host[:0]
 	h.contentType = h.contentType[:0]
@@ -1096,102 +1007,152 @@ func (h *RequestHeader) resetSkipNormalize() {
 	h.rawHeaders = h.rawHeaders[:0]
 }
 
-// CopyTo copies all the headers to dst.
-func (h *ResponseHeader) CopyTo(dst *ResponseHeader) {
-	dst.Reset()
-
+func (h *header) copyTo(dst *header) {
 	dst.disableNormalizing = h.disableNormalizing
 	dst.noHTTP11 = h.noHTTP11
 	dst.connectionClose = h.connectionClose
 	dst.noDefaultContentType = h.noDefaultContentType
-	dst.noDefaultDate = h.noDefaultDate
-
-	dst.statusCode = h.statusCode
-	dst.statusMessage = append(dst.statusMessage, h.statusMessage...)
-	dst.protocol = append(dst.protocol, h.protocol...)
 	dst.contentLength = h.contentLength
 	dst.contentLengthBytes = append(dst.contentLengthBytes, h.contentLengthBytes...)
+
+	dst.protocol = append(dst.protocol, h.protocol...)
 	dst.contentType = append(dst.contentType, h.contentType...)
+	dst.trailer = copyTrailer(dst.trailer, h.trailer)
+	dst.cookies = copyArgs(dst.cookies, h.cookies)
+	dst.h = copyArgs(dst.h, h.h)
+}
+
+// CopyTo copies all the headers to dst.
+func (h *ResponseHeader) CopyTo(dst *ResponseHeader) {
+	dst.Reset()
+
+	h.copyTo(&dst.header)
+
+	dst.noDefaultDate = h.noDefaultDate
+	dst.statusCode = h.statusCode
+	dst.statusMessage = append(dst.statusMessage, h.statusMessage...)
 	dst.contentEncoding = append(dst.contentEncoding, h.contentEncoding...)
 	dst.server = append(dst.server, h.server...)
-	dst.h = copyArgs(dst.h, h.h)
-	dst.cookies = copyArgs(dst.cookies, h.cookies)
-	dst.trailer = copyTrailer(dst.trailer, h.trailer)
 }
 
 // CopyTo copies all the headers to dst.
 func (h *RequestHeader) CopyTo(dst *RequestHeader) {
 	dst.Reset()
 
-	dst.disableNormalizing = h.disableNormalizing
-	dst.noHTTP11 = h.noHTTP11
-	dst.connectionClose = h.connectionClose
-	dst.noDefaultContentType = h.noDefaultContentType
+	h.copyTo(&dst.header)
 
-	dst.contentLength = h.contentLength
-	dst.contentLengthBytes = append(dst.contentLengthBytes, h.contentLengthBytes...)
 	dst.method = append(dst.method, h.method...)
-	dst.proto = append(dst.proto, h.proto...)
 	dst.requestURI = append(dst.requestURI, h.requestURI...)
 	dst.host = append(dst.host, h.host...)
-	dst.contentType = append(dst.contentType, h.contentType...)
 	dst.userAgent = append(dst.userAgent, h.userAgent...)
-	dst.trailer = copyTrailer(dst.trailer, h.trailer)
-	dst.h = copyArgs(dst.h, h.h)
-	dst.cookies = copyArgs(dst.cookies, h.cookies)
 	dst.cookiesCollected = h.cookiesCollected
 	dst.rawHeaders = append(dst.rawHeaders, h.rawHeaders...)
+}
+
+// All returns an iterator over key-value pairs in h.
+//
+// The key and value may invalid outside the iteration loop.
+// Copy key and/or value contents for each iteration if you need retaining
+// them.
+//
+// Making modifications to the ResponseHeader during the iteration loop leads to undefined
+// behavior and can cause panics.
+func (h *ResponseHeader) All() iter.Seq2[[]byte, []byte] {
+	return func(yield func([]byte, []byte) bool) {
+		if len(h.contentLengthBytes) > 0 && !yield(strContentLength, h.contentLengthBytes) {
+			return
+		}
+		if contentType := h.ContentType(); len(contentType) > 0 && !yield(strContentType, contentType) {
+			return
+		}
+
+		if contentEncoding := h.ContentEncoding(); len(contentEncoding) > 0 && !yield(strContentEncoding, contentEncoding) {
+			return
+		}
+
+		if server := h.Server(); len(server) > 0 && !yield(strServer, server) {
+			return
+		}
+
+		for i := range h.cookies {
+			if !yield(strSetCookie, h.cookies[i].value) {
+				return
+			}
+		}
+
+		if len(h.trailer) > 0 && !yield(strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace)) {
+			return
+		}
+
+		for i := range h.h {
+			if !yield(h.h[i].key, h.h[i].value) {
+				return
+			}
+		}
+
+		if h.ConnectionClose() && !yield(strConnection, strClose) {
+			return
+		}
+	}
 }
 
 // VisitAll calls f for each header.
 //
 // f must not retain references to key and/or value after returning.
 // Copy key and/or value contents before returning if you need retaining them.
+//
+// Deprecated: Use All instead.
 func (h *ResponseHeader) VisitAll(f func(key, value []byte)) {
-	if len(h.contentLengthBytes) > 0 {
-		f(strContentLength, h.contentLengthBytes)
-	}
-	contentType := h.ContentType()
-	if len(contentType) > 0 {
-		f(strContentType, contentType)
-	}
-	contentEncoding := h.ContentEncoding()
-	if len(contentEncoding) > 0 {
-		f(strContentEncoding, contentEncoding)
-	}
-	server := h.Server()
-	if len(server) > 0 {
-		f(strServer, server)
-	}
-	if len(h.cookies) > 0 {
-		visitArgs(h.cookies, func(_, v []byte) {
-			f(strSetCookie, v)
-		})
-	}
-	if len(h.trailer) > 0 {
-		f(strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace))
-	}
-	visitArgs(h.h, f)
-	if h.ConnectionClose() {
-		f(strConnection, strClose)
+	h.All()(func(key, value []byte) bool {
+		f(key, value)
+		return true
+	})
+}
+
+// Trailers returns an iterator over trailers in h.
+//
+// The value of trailer may invalid outside the iteration loop.
+func (h *header) Trailers() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for i := range h.trailer {
+			if !yield(h.trailer[i]) {
+				break
+			}
+		}
 	}
 }
 
 // VisitAllTrailer calls f for each response Trailer.
 //
 // f must not retain references to value after returning.
-func (h *ResponseHeader) VisitAllTrailer(f func(value []byte)) {
-	for i := range h.trailer {
-		f(h.trailer[i])
-	}
+//
+// Deprecated: Use Trailers instead.
+func (h *header) VisitAllTrailer(f func(value []byte)) {
+	h.Trailers()(func(v []byte) bool {
+		f(v)
+		return true
+	})
 }
 
-// VisitAllTrailer calls f for each request Trailer.
+// Cookies returns an iterator over key-value paired response cookie in h.
 //
-// f must not retain references to value after returning.
-func (h *RequestHeader) VisitAllTrailer(f func(value []byte)) {
-	for i := range h.trailer {
-		f(h.trailer[i])
+// Cookie name is passed in key and the whole Set-Cookie header value
+// is passed in value for each iteration. Value may be parsed with
+// Cookie.ParseBytes().
+//
+// The key and value may invalid outside the iteration loop.
+// Copy key and/or value contents for each iteration if you need retaining
+// them.
+//
+// Making modifications to the ResponseHeader during the iteration loop leads to undefined
+// behavior and can cause panics.
+func (h *ResponseHeader) Cookies() iter.Seq2[[]byte, []byte] {
+	return func(yield func([]byte, []byte) bool) {
+		for i := range h.cookies {
+			if !yield(h.cookies[i].key, h.cookies[i].value) {
+				break
+			}
+		}
 	}
 }
 
@@ -1202,16 +1163,95 @@ func (h *RequestHeader) VisitAllTrailer(f func(value []byte)) {
 // with Cookie.ParseBytes().
 //
 // f must not retain references to key and/or value after returning.
+//
+// Deprecated: Use Cookies instead.
 func (h *ResponseHeader) VisitAllCookie(f func(key, value []byte)) {
-	visitArgs(h.cookies, f)
+	h.Cookies()(func(key, value []byte) bool {
+		f(key, value)
+		return true
+	})
+}
+
+// Cookies returns an iterator over key-value pairs request cookie in h.
+//
+// The key and value may invalid outside the iteration loop.
+// Copy key and/or value contents for each iteration if you need retaining
+// them.
+//
+// Making modifications to the RequestHeader during the iteration loop leads to undefined
+// behavior and can cause panics.
+func (h *RequestHeader) Cookies() iter.Seq2[[]byte, []byte] {
+	return func(yield func([]byte, []byte) bool) {
+		h.collectCookies()
+		for i := range h.cookies {
+			if !yield(h.cookies[i].key, h.cookies[i].value) {
+				break
+			}
+		}
+	}
 }
 
 // VisitAllCookie calls f for each request cookie.
 //
 // f must not retain references to key and/or value after returning.
+//
+// Deprecated: Use Cookies instead.
 func (h *RequestHeader) VisitAllCookie(f func(key, value []byte)) {
-	h.collectCookies()
-	visitArgs(h.cookies, f)
+	h.Cookies()(func(key, value []byte) bool {
+		f(key, value)
+		return true
+	})
+}
+
+// All returns an iterator over key-value pairs in h.
+//
+// The key and value may invalid outside the iteration loop.
+// Copy key and/or value contents for each iteration if you need retaining
+// them.
+//
+// To get the headers in order they were received use AllInOrder.
+//
+// Making modifications to the RequestHeader during the iteration loop leads to undefined
+// behavior and can cause panics.
+func (h *RequestHeader) All() iter.Seq2[[]byte, []byte] {
+	return func(yield func([]byte, []byte) bool) {
+		if host := h.Host(); len(host) > 0 && !yield(strHost, host) {
+			return
+		}
+		if len(h.contentLengthBytes) > 0 && !yield(strContentLength, h.contentLengthBytes) {
+			return
+		}
+
+		if contentType := h.ContentType(); len(contentType) > 0 && !yield(strContentType, contentType) {
+			return
+		}
+
+		if userAgent := h.UserAgent(); len(userAgent) > 0 && !yield(strUserAgent, userAgent) {
+			return
+		}
+
+		if len(h.trailer) > 0 && !yield(strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace)) {
+			return
+		}
+
+		h.collectCookies()
+
+		if len(h.cookies) > 0 {
+			h.bufV = appendRequestCookieBytes(h.bufV[:0], h.cookies)
+			if !yield(strCookie, h.bufV) {
+				return
+			}
+		}
+
+		for i := range h.h {
+			if !yield(h.h[i].key, h.h[i].value) {
+				return
+			}
+		}
+		if h.ConnectionClose() && !yield(strConnection, strClose) {
+			return
+		}
+	}
 }
 
 // VisitAll calls f for each header.
@@ -1220,34 +1260,39 @@ func (h *RequestHeader) VisitAllCookie(f func(key, value []byte)) {
 // Copy key and/or value contents before returning if you need retaining them.
 //
 // To get the headers in order they were received use VisitAllInOrder.
+//
+// Deprecated: Use All instead.
 func (h *RequestHeader) VisitAll(f func(key, value []byte)) {
-	host := h.Host()
-	if len(host) > 0 {
-		f(strHost, host)
-	}
-	if len(h.contentLengthBytes) > 0 {
-		f(strContentLength, h.contentLengthBytes)
-	}
-	contentType := h.ContentType()
-	if len(contentType) > 0 {
-		f(strContentType, contentType)
-	}
-	userAgent := h.UserAgent()
-	if len(userAgent) > 0 {
-		f(strUserAgent, userAgent)
-	}
-	if len(h.trailer) > 0 {
-		f(strTrailer, appendTrailerBytes(nil, h.trailer, strCommaSpace))
-	}
+	h.All()(func(key, value []byte) bool {
+		f(key, value)
+		return true
+	})
+}
 
-	h.collectCookies()
-	if len(h.cookies) > 0 {
-		h.bufV = appendRequestCookieBytes(h.bufV[:0], h.cookies)
-		f(strCookie, h.bufV)
-	}
-	visitArgs(h.h, f)
-	if h.ConnectionClose() {
-		f(strConnection, strClose)
+// AllInOrder returns an iterator over key-value pairs in h in the order they
+// were received.
+//
+// The key and value may invalid outside the iteration loop.
+// Copy key and/or value contents for each iteration if you need retaining
+// them.
+//
+// The returned iterator is slightly slower than All because it has to reparse
+// the raw headers to get the order.
+//
+// Making modifications to the RequestHeader during the iteration loop leads to undefined
+// behavior and can cause panics.
+func (h *RequestHeader) AllInOrder() iter.Seq2[[]byte, []byte] {
+	return func(yield func([]byte, []byte) bool) {
+		var s headerScanner
+		s.b = h.rawHeaders
+		for s.next() {
+			normalizeHeaderKey(s.key, h.disableNormalizing || bytes.IndexByte(s.key, ' ') != -1)
+			if len(s.key) > 0 {
+				if !yield(s.key, s.value) {
+					break
+				}
+			}
+		}
 	}
 }
 
@@ -1258,15 +1303,13 @@ func (h *RequestHeader) VisitAll(f func(key, value []byte)) {
 //
 // This function is slightly slower than VisitAll because it has to reparse the
 // raw headers to get the order.
+//
+// Deprecated: Use AllInOrder instead.
 func (h *RequestHeader) VisitAllInOrder(f func(key, value []byte)) {
-	var s headerScanner
-	s.b = h.rawHeaders
-	for s.next() {
-		normalizeHeaderKey(s.key, h.disableNormalizing || bytes.IndexByte(s.key, ' ') != -1)
-		if len(s.key) > 0 {
-			f(s.key, s.value)
-		}
-	}
+	h.AllInOrder()(func(key, value []byte) bool {
+		f(key, value)
+		return true
+	})
 }
 
 // Del deletes header with the given key.
@@ -1397,7 +1440,7 @@ func (h *ResponseHeader) setSpecialHeader(key, value []byte) bool {
 }
 
 // setNonSpecial directly put into map i.e. not a basic header.
-func (h *ResponseHeader) setNonSpecial(key, value []byte) {
+func (h *header) setNonSpecial(key, value []byte) {
 	h.h = setArgBytes(h.h, key, value, argsHasValue)
 }
 
@@ -1453,11 +1496,6 @@ func (h *RequestHeader) setSpecialHeader(key, value []byte) bool {
 	}
 
 	return false
-}
-
-// setNonSpecial directly put into map i.e. not a basic header.
-func (h *RequestHeader) setNonSpecial(key, value []byte) {
-	h.h = setArgBytes(h.h, key, value, argsHasValue)
 }
 
 // Add adds the given 'key: value' header.
@@ -2016,30 +2054,23 @@ func (h *ResponseHeader) peekAll(key []byte) [][]byte {
 // Do not store references to returned value. Make copies instead.
 func (h *RequestHeader) PeekKeys() [][]byte {
 	h.mulHeader = h.mulHeader[:0]
-	h.mulHeader = peekArgsKeys(h.mulHeader, h.h)
-	return h.mulHeader
-}
-
-// PeekTrailerKeys return all trailer keys.
-//
-// The returned value is valid until the request is released,
-// either though ReleaseRequest or your request handler returning.
-// Any future calls to the Peek* will modify the returned value.
-// Do not store references to returned value. Make copies instead.
-func (h *RequestHeader) PeekTrailerKeys() [][]byte {
-	h.mulHeader = copyTrailer(h.mulHeader, h.trailer)
+	for key := range h.All() {
+		h.mulHeader = append(h.mulHeader, key)
+	}
 	return h.mulHeader
 }
 
 // PeekKeys return all header keys.
 //
 // The returned value is valid until the request is released,
-// either though ReleaseResponse or your request handler returning.
+// either though ReleaseRequest or your request handler returning.
 // Any future calls to the Peek* will modify the returned value.
 // Do not store references to returned value. Make copies instead.
 func (h *ResponseHeader) PeekKeys() [][]byte {
 	h.mulHeader = h.mulHeader[:0]
-	h.mulHeader = peekArgsKeys(h.mulHeader, h.h)
+	for key := range h.All() {
+		h.mulHeader = append(h.mulHeader, key)
+	}
 	return h.mulHeader
 }
 
@@ -2049,12 +2080,8 @@ func (h *ResponseHeader) PeekKeys() [][]byte {
 // either though ReleaseResponse or your request handler returning.
 // Any future calls to the Peek* will modify the returned value.
 // Do not store references to returned value. Make copies instead.
-func (h *ResponseHeader) PeekTrailerKeys() [][]byte {
-	h.mulHeader = h.mulHeader[:0]
-	for i, n := 0, len(h.trailer); i < n; i++ {
-		h.mulHeader = append(h.mulHeader, h.trailer[i])
-	}
-	return h.mulHeader
+func (h *header) PeekTrailerKeys() [][]byte {
+	return h.trailer
 }
 
 // Cookie returns cookie for the given key.
@@ -2091,7 +2118,7 @@ func (h *ResponseHeader) Read(r *bufio.Reader) error {
 		if err == nil {
 			return nil
 		}
-		if err != errNeedMore {
+		if err != ErrNeedMore {
 			h.resetSkipNormalize()
 			return err
 		}
@@ -2116,11 +2143,11 @@ func (h *ResponseHeader) tryRead(r *bufio.Reader, n int) error {
 		if err == bufio.ErrBufferFull {
 			if h.secureErrorLogMessage {
 				return &ErrSmallBuffer{
-					error: errors.New("error when reading response headers"),
+					error: ErrReadingResponseHeaders,
 				}
 			}
 			return &ErrSmallBuffer{
-				error: fmt.Errorf("error when reading response headers: %w", errSmallBuffer),
+				error: fmt.Errorf("error when reading response headers: %w", ErrSmallReadBuffer),
 			}
 		}
 
@@ -2138,21 +2165,21 @@ func (h *ResponseHeader) tryRead(r *bufio.Reader, n int) error {
 // ReadTrailer reads response trailer header from r.
 //
 // io.EOF is returned if r is closed before reading the first byte.
-func (h *ResponseHeader) ReadTrailer(r *bufio.Reader) error {
+func (h *header) ReadTrailer(r *bufio.Reader) error {
 	n := 1
 	for {
 		err := h.tryReadTrailer(r, n)
 		if err == nil {
 			return nil
 		}
-		if err != errNeedMore {
+		if err != ErrNeedMore {
 			return err
 		}
 		n = r.Buffered() + 1
 	}
 }
 
-func (h *ResponseHeader) tryReadTrailer(r *bufio.Reader, n int) error {
+func (h *header) tryReadTrailer(r *bufio.Reader, n int) error {
 	b, err := r.Peek(n)
 	if len(b) == 0 {
 		// Return ErrTimeout on any timeout.
@@ -2168,19 +2195,19 @@ func (h *ResponseHeader) tryReadTrailer(r *bufio.Reader, n int) error {
 		if err == bufio.ErrBufferFull {
 			if h.secureErrorLogMessage {
 				return &ErrSmallBuffer{
-					error: errors.New("error when reading response trailer"),
+					error: ErrReadingResponseTrailer,
 				}
 			}
 			return &ErrSmallBuffer{
-				error: fmt.Errorf("error when reading response trailer: %w", errSmallBuffer),
+				error: fmt.Errorf("error when reading response trailer: %w", ErrSmallReadBuffer),
 			}
 		}
 
 		return fmt.Errorf("error when reading response trailer: %w", err)
 	}
 	b = mustPeekBuffered(r)
-	trailers, headersLen, errParse := parseTrailer(b, h.h, h.disableNormalizing)
-	h.h = trailers
+	hh, headersLen, errParse := parseTrailer(b, h.h, h.disableNormalizing)
+	h.h = hh
 	if errParse != nil {
 		if err == io.EOF {
 			return err
@@ -2192,11 +2219,11 @@ func (h *ResponseHeader) tryReadTrailer(r *bufio.Reader, n int) error {
 }
 
 func headerError(typ string, err, errParse error, b []byte, secureErrorLogMessage bool) error {
-	if errParse != errNeedMore {
+	if errParse != ErrNeedMore {
 		return headerErrorMsg(typ, errParse, b, secureErrorLogMessage)
 	}
 	if err == nil {
-		return errNeedMore
+		return ErrNeedMore
 	}
 
 	// Buggy servers may leave trailing CRLFs after http body.
@@ -2209,7 +2236,7 @@ func headerError(typ string, err, errParse error, b []byte, secureErrorLogMessag
 		return headerErrorMsg(typ, err, b, secureErrorLogMessage)
 	}
 	return &ErrSmallBuffer{
-		error: headerErrorMsg(typ, errSmallBuffer, b, secureErrorLogMessage),
+		error: headerErrorMsg(typ, ErrSmallReadBuffer, b, secureErrorLogMessage),
 	}
 }
 
@@ -2237,68 +2264,12 @@ func (h *RequestHeader) readLoop(r *bufio.Reader, waitForMore bool) error {
 		if err == nil {
 			return nil
 		}
-		if !waitForMore || err != errNeedMore {
+		if !waitForMore || err != ErrNeedMore {
 			h.resetSkipNormalize()
 			return err
 		}
 		n = r.Buffered() + 1
 	}
-}
-
-// ReadTrailer reads request trailer header from r.
-//
-// io.EOF is returned if r is closed before reading the first byte.
-func (h *RequestHeader) ReadTrailer(r *bufio.Reader) error {
-	n := 1
-	for {
-		err := h.tryReadTrailer(r, n)
-		if err == nil {
-			return nil
-		}
-		if err != errNeedMore {
-			return err
-		}
-		n = r.Buffered() + 1
-	}
-}
-
-func (h *RequestHeader) tryReadTrailer(r *bufio.Reader, n int) error {
-	b, err := r.Peek(n)
-	if len(b) == 0 {
-		// Return ErrTimeout on any timeout.
-		if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
-			return ErrTimeout
-		}
-
-		if n == 1 || err == io.EOF {
-			return io.EOF
-		}
-
-		// This is for go 1.6 bug. See https://github.com/golang/go/issues/14121 .
-		if err == bufio.ErrBufferFull {
-			if h.secureErrorLogMessage {
-				return &ErrSmallBuffer{
-					error: errors.New("error when reading request trailer"),
-				}
-			}
-			return &ErrSmallBuffer{
-				error: fmt.Errorf("error when reading request trailer: %w", errSmallBuffer),
-			}
-		}
-
-		return fmt.Errorf("error when reading request trailer: %w", err)
-	}
-	b = mustPeekBuffered(r)
-	trailers, headersLen, errParse := parseTrailer(b, h.h, h.disableNormalizing)
-	h.h = trailers
-	if errParse != nil {
-		if err == io.EOF {
-			return err
-		}
-		return headerError("request", err, errParse, b, h.secureErrorLogMessage)
-	}
-	mustDiscard(r, headersLen)
-	return nil
 }
 
 func (h *RequestHeader) tryRead(r *bufio.Reader, n int) error {
@@ -2316,7 +2287,7 @@ func (h *RequestHeader) tryRead(r *bufio.Reader, n int) error {
 		// This is for go 1.6 bug. See https://github.com/golang/go/issues/14121 .
 		if err == bufio.ErrBufferFull {
 			return &ErrSmallBuffer{
-				error: fmt.Errorf("error when reading request headers: %w (n=%d, r.Buffered()=%d)", errSmallBuffer, n, r.Buffered()),
+				error: fmt.Errorf("error when reading request headers: %w (n=%d, r.Buffered()=%d)", ErrSmallReadBuffer, n, r.Buffered()),
 			}
 		}
 
@@ -2689,41 +2660,6 @@ func (h *RequestHeader) parse(buf []byte) (int, error) {
 	return m + n, nil
 }
 
-func addTrailerBytes(src, buf []byte, trailers [][]byte, disableNormalizing bool) ([]byte, [][]byte, error) {
-	var err error
-	for i := -1; i+1 < len(src); {
-		src = src[i+1:]
-		i = bytes.IndexByte(src, ',')
-		if i < 0 {
-			i = len(src)
-		}
-		key := src[:i]
-		for len(key) > 0 && key[0] == ' ' {
-			key = key[1:]
-		}
-		for len(key) > 0 && key[len(key)-1] == ' ' {
-			key = key[:len(key)-1]
-		}
-		// Forbidden by RFC 7230, section 4.1.2
-		if isBadTrailer(key) {
-			err = ErrBadTrailer
-			continue
-		}
-		buf = append(buf[:0], key...)
-		normalizeHeaderKey(buf, disableNormalizing || bytes.IndexByte(buf, ' ') != -1)
-		if cap(trailers) > len(trailers) {
-			trailers = trailers[:len(trailers)+1]
-			trailers[len(trailers)-1] = append(trailers[len(trailers)-1][:0], buf...)
-		} else {
-			key = make([]byte, len(buf))
-			copy(key, buf)
-			trailers = append(trailers, key)
-		}
-	}
-
-	return buf, trailers, err
-}
-
 func parseTrailer(src []byte, dest []argsKV, disableNormalizing bool) ([]argsKV, int, error) {
 	// Skip any 0 length chunk.
 	if src[0] == '0' {
@@ -2764,7 +2700,7 @@ func parseTrailer(src []byte, dest []argsKV, disableNormalizing bool) ([]argsKV,
 	if s.err != nil {
 		return dest, 0, s.err
 	}
-	return dest, s.hLen, nil
+	return dest, s.r, nil
 }
 
 func isBadTrailer(key []byte) bool {
@@ -2776,24 +2712,30 @@ func isBadTrailer(key []byte) bool {
 	case 'a':
 		return caseInsensitiveCompare(key, strAuthorization)
 	case 'c':
-		if len(key) > len(HeaderContentType) && caseInsensitiveCompare(key[:8], strContentType[:8]) {
+		// Security fix: Changed > to >= to properly block Content-Type header in trailers
+		if len(key) >= len(HeaderContentType) && caseInsensitiveCompare(key[:8], strContentType[:8]) {
 			// skip compare prefix 'Content-'
 			return caseInsensitiveCompare(key[8:], strContentEncoding[8:]) ||
 				caseInsensitiveCompare(key[8:], strContentLength[8:]) ||
 				caseInsensitiveCompare(key[8:], strContentType[8:]) ||
 				caseInsensitiveCompare(key[8:], strContentRange[8:])
 		}
-		return caseInsensitiveCompare(key, strConnection)
+		return caseInsensitiveCompare(key, strConnection) ||
+			// Security: Block Cookie header in trailers to prevent session hijacking
+			caseInsensitiveCompare(key, strCookie)
 	case 'e':
 		return caseInsensitiveCompare(key, strExpect)
 	case 'h':
 		return caseInsensitiveCompare(key, strHost)
 	case 'k':
 		return caseInsensitiveCompare(key, strKeepAlive)
+	case 'l':
+		// Security: Block Location header in trailers to prevent redirect attacks
+		return caseInsensitiveCompare(key, strLocation)
 	case 'm':
 		return caseInsensitiveCompare(key, strMaxForwards)
 	case 'p':
-		if len(key) > len(HeaderProxyConnection) && caseInsensitiveCompare(key[:6], strProxyConnection[:6]) {
+		if len(key) >= len(HeaderProxyConnection) && caseInsensitiveCompare(key[:6], strProxyConnection[:6]) {
 			// skip compare prefix 'Proxy-'
 			return caseInsensitiveCompare(key[6:], strProxyConnection[6:]) ||
 				caseInsensitiveCompare(key[6:], strProxyAuthenticate[6:]) ||
@@ -2801,12 +2743,19 @@ func isBadTrailer(key []byte) bool {
 		}
 	case 'r':
 		return caseInsensitiveCompare(key, strRange)
+	case 's':
+		// Security: Block Set-Cookie header in trailers
+		return caseInsensitiveCompare(key, strSetCookie)
 	case 't':
 		return caseInsensitiveCompare(key, strTE) ||
 			caseInsensitiveCompare(key, strTrailer) ||
 			caseInsensitiveCompare(key, strTransferEncoding)
 	case 'w':
 		return caseInsensitiveCompare(key, strWWWAuthenticate)
+	case 'x':
+		// Security: Block X-Forwarded-* and X-Real-IP headers to prevent IP spoofing
+		return (len(key) >= 11 && caseInsensitiveCompare(key[:11], []byte("x-forwarded"))) ||
+			(len(key) >= 9 && caseInsensitiveCompare(key[:9], []byte("x-real-ip")))
 	}
 	return false
 }
@@ -2825,7 +2774,7 @@ func (h *ResponseHeader) parseFirstLine(buf []byte) (int, error) {
 	n := bytes.IndexByte(b, ' ')
 	if n < 0 {
 		if h.secureErrorLogMessage {
-			return 0, errors.New("cannot find whitespace in the first line of response")
+			return 0, ErrResponseFirstLineMissingSpace
 		}
 		return 0, fmt.Errorf("cannot find whitespace in the first line of response %q", buf)
 	}
@@ -2842,7 +2791,7 @@ func (h *ResponseHeader) parseFirstLine(buf []byte) (int, error) {
 	}
 	if len(b) > n && b[n] != ' ' {
 		if h.secureErrorLogMessage {
-			return 0, errors.New("unexpected char at the end of status code")
+			return 0, ErrUnexpectedStatusCodeChar
 		}
 		return 0, fmt.Errorf("unexpected char at the end of status code. Response %q", buf)
 	}
@@ -2876,7 +2825,7 @@ func (h *RequestHeader) parseFirstLine(buf []byte) (int, error) {
 	n := bytes.IndexByte(b, ' ')
 	if n <= 0 {
 		if h.secureErrorLogMessage {
-			return 0, errors.New("cannot find http request method")
+			return 0, ErrMissingRequestMethod
 		}
 		return 0, fmt.Errorf("cannot find http request method in %q", buf)
 	}
@@ -2884,22 +2833,38 @@ func (h *RequestHeader) parseFirstLine(buf []byte) (int, error) {
 
 	if !isValidMethod(h.method) {
 		if h.secureErrorLogMessage {
-			return 0, errors.New("unsupported http request method")
+			return 0, ErrUnsupportedRequestMethod
 		}
 		return 0, fmt.Errorf("unsupported http request method %q in %q", h.method, buf)
 	}
 
 	b = b[n+1:]
 
-	// parse requestURI
-	n = bytes.LastIndexByte(b, ' ')
+	// Check for extra whitespace after method - only one space should separate method from URI
+	if len(b) > 0 && b[0] == ' ' {
+		if h.secureErrorLogMessage {
+			return 0, ErrExtraWhitespaceInRequestLine
+		}
+		return 0, fmt.Errorf("extra whitespace in request line %q", buf)
+	}
+
+	// parse requestURI - RFC 9112 requires exactly one space between components
+	n = bytes.IndexByte(b, ' ')
 	if n < 0 {
 		return 0, fmt.Errorf("cannot find whitespace in the first line of request %q", buf)
 	} else if n == 0 {
 		if h.secureErrorLogMessage {
-			return 0, errors.New("requestURI cannot be empty")
+			return 0, ErrEmptyRequestURI
 		}
 		return 0, fmt.Errorf("requestURI cannot be empty in %q", buf)
+	}
+
+	// Check for extra whitespace - only one space should separate URI from HTTP version
+	if n+1 < len(b) && b[n+1] == ' ' {
+		if h.secureErrorLogMessage {
+			return 0, ErrExtraWhitespaceInRequestLine
+		}
+		return 0, fmt.Errorf("extra whitespace in request line %q", buf)
 	}
 
 	protoStr := b[n+1:]
@@ -2925,7 +2890,7 @@ func (h *RequestHeader) parseFirstLine(buf []byte) (int, error) {
 	}
 
 	h.noHTTP11 = !bytes.Equal(protoStr, strHTTP11)
-	h.proto = append(h.proto[:0], protoStr...)
+	h.protocol = append(h.protocol[:0], protoStr...)
 	h.requestURI = append(h.requestURI[:0], b[:n]...)
 
 	return len(buf) - len(bNext), nil
@@ -2934,7 +2899,7 @@ func (h *RequestHeader) parseFirstLine(buf []byte) (int, error) {
 func readRawHeaders(dst, buf []byte) ([]byte, int, error) {
 	n := bytes.IndexByte(buf, nChar)
 	if n < 0 {
-		return dst[:0], 0, errNeedMore
+		return dst[:0], 0, ErrNeedMore
 	}
 	if (n == 1 && buf[0] == rChar) || n == 0 {
 		// empty headers
@@ -2948,7 +2913,7 @@ func readRawHeaders(dst, buf []byte) ([]byte, int, error) {
 		b = b[m:]
 		m = bytes.IndexByte(b, nChar)
 		if m < 0 {
-			return dst, 0, errNeedMore
+			return dst, 0, ErrNeedMore
 		}
 		m++
 		n += m
@@ -3081,7 +3046,7 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 		h.connectionClose = !hasHeaderValue(v, strKeepAlive)
 	}
 
-	return len(buf) - len(s.b), nil
+	return s.r, nil
 }
 
 func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
@@ -3142,7 +3107,7 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 			if caseInsensitiveCompare(s.key, strContentLength) {
 				if contentLengthSeen {
 					h.connectionClose = true
-					return 0, errors.New("duplicate Content-Length header")
+					return 0, ErrDuplicateContentLength
 				}
 				contentLengthSeen = true
 
@@ -3175,7 +3140,7 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 				if !isIdentity && !isChunked {
 					h.connectionClose = true
 					if h.secureErrorLogMessage {
-						return 0, errors.New("unsupported Transfer-Encoding")
+						return 0, ErrUnsupportedTransferEncoding
 					}
 					return 0, fmt.Errorf("unsupported Transfer-Encoding: %q", s.value)
 				}
@@ -3211,7 +3176,7 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 		v := peekArgBytes(h.h, strConnection)
 		h.connectionClose = !hasHeaderValue(v, strKeepAlive)
 	}
-	return s.hLen, nil
+	return s.r, nil
 }
 
 func (h *RequestHeader) collectCookies() {
@@ -3234,141 +3199,15 @@ func (h *RequestHeader) collectCookies() {
 	h.cookiesCollected = true
 }
 
-var errNonNumericChars = errors.New("non-numeric chars found")
-
 func parseContentLength(b []byte) (int, error) {
 	v, n, err := parseUintBuf(b)
 	if err != nil {
 		return -1, fmt.Errorf("cannot parse Content-Length: %w", err)
 	}
 	if n != len(b) {
-		return -1, fmt.Errorf("cannot parse Content-Length: %w", errNonNumericChars)
+		return -1, fmt.Errorf("cannot parse Content-Length: %w", ErrNonNumericChars)
 	}
 	return v, nil
-}
-
-type headerScanner struct {
-	err error
-
-	b     []byte
-	key   []byte
-	value []byte
-
-	// hLen stores header subslice len
-	hLen int
-
-	// by checking whether the next line contains a colon or not to tell
-	// it's a header entry or a multi line value of current header entry.
-	// the side effect of this operation is that we know the index of the
-	// next colon and new line, so this can be used during next iteration,
-	// instead of find them again.
-	nextColon   int
-	nextNewLine int
-
-	initialized bool
-}
-
-func (s *headerScanner) next() bool {
-	if !s.initialized {
-		s.nextColon = -1
-		s.nextNewLine = -1
-		s.initialized = true
-	}
-	bLen := len(s.b)
-	if bLen >= 2 && s.b[0] == rChar && s.b[1] == nChar {
-		s.b = s.b[2:]
-		s.hLen += 2
-		return false
-	}
-	if bLen >= 1 && s.b[0] == nChar {
-		s.b = s.b[1:]
-		s.hLen++
-		return false
-	}
-	var n int
-	if s.nextColon >= 0 {
-		n = s.nextColon
-		s.nextColon = -1
-	} else {
-		n = bytes.IndexByte(s.b, ':')
-
-		// There can't be a \n inside the header name, check for this.
-		x := bytes.IndexByte(s.b, nChar)
-		if x < 0 {
-			// A header name should always at some point be followed by a \n
-			// even if it's the one that terminates the header block.
-			s.err = errNeedMore
-			return false
-		}
-		if x < n {
-			// There was a \n before the :
-			s.err = errInvalidName
-			return false
-		}
-	}
-	if n < 0 {
-		s.err = errNeedMore
-		return false
-	}
-	s.key = s.b[:n]
-	n++
-	for len(s.b) > n && (s.b[n] == ' ' || s.b[n] == '\t') {
-		n++
-		// the newline index is a relative index, and lines below trimmed `s.b` by `n`,
-		// so the relative newline index also shifted forward. it's safe to decrease
-		// to a minus value, it means it's invalid, and will find the newline again.
-		s.nextNewLine--
-	}
-	s.hLen += n
-	s.b = s.b[n:]
-	if s.nextNewLine >= 0 {
-		n = s.nextNewLine
-		s.nextNewLine = -1
-	} else {
-		n = bytes.IndexByte(s.b, nChar)
-	}
-	if n < 0 {
-		s.err = errNeedMore
-		return false
-	}
-	for n+1 < len(s.b) {
-		if s.b[n+1] != ' ' && s.b[n+1] != '\t' {
-			break
-		}
-		d := bytes.IndexByte(s.b[n+1:], nChar)
-		if d <= 0 {
-			break
-		} else if d == 1 && s.b[n+1] == rChar {
-			break
-		}
-		e := n + d + 1
-		if c := bytes.IndexByte(s.b[n+1:e], ':'); c >= 0 {
-			s.nextColon = c
-			s.nextNewLine = d - c - 1
-			break
-		}
-		n = e
-	}
-	if n >= len(s.b) {
-		s.err = errNeedMore
-		return false
-	}
-	s.value = s.b[:n]
-	s.hLen += n + 1
-	s.b = s.b[n+1:]
-
-	if n > 0 && s.value[n-1] == rChar {
-		n--
-	}
-	for n > 0 && (s.value[n-1] == ' ' || s.value[n-1] == '\t') {
-		n--
-	}
-	s.value = s.value[:n]
-	if bytes.Contains(s.b, strCRLF) {
-		s.value = normalizeHeaderValue(s.value)
-	}
-
-	return true
 }
 
 type headerValueScanner struct {
@@ -3416,7 +3255,7 @@ func hasHeaderValue(s, value []byte) bool {
 func nextLine(b []byte) ([]byte, []byte, error) {
 	nNext := bytes.IndexByte(b, nChar)
 	if nNext < 0 {
-		return nil, nil, errNeedMore
+		return nil, nil, ErrNeedMore
 	}
 	n := nNext
 	if n > 0 && b[n-1] == rChar {
@@ -3439,46 +3278,6 @@ func getHeaderKeyBytes(bufK []byte, key string, disableNormalizing bool) []byte 
 	return bufK
 }
 
-func normalizeHeaderValue(ov []byte) (nv []byte) {
-	nv = ov
-	length := len(ov)
-	if length <= 0 {
-		return
-	}
-	write := 0
-	shrunk := 0
-	once := false
-	lineStart := false
-	for read := 0; read < length; read++ {
-		c := ov[read]
-		switch {
-		case c == rChar || c == nChar:
-			shrunk++
-			if c == nChar {
-				lineStart = true
-				once = false
-			}
-			continue
-		case lineStart && (c == '\t' || c == ' '):
-			if !once {
-				c = ' '
-				once = true
-			} else {
-				shrunk++
-				continue
-			}
-		default:
-			lineStart = false
-		}
-		nv[write] = c
-		write++
-	}
-
-	nv = nv[:length-shrunk]
-
-	return
-}
-
 func normalizeHeaderKey(b []byte, disableNormalizing bool) {
 	if disableNormalizing {
 		return
@@ -3489,17 +3288,22 @@ func normalizeHeaderKey(b []byte, disableNormalizing bool) {
 		return
 	}
 
-	b[0] = toUpperTable[b[0]]
-	for i := 1; i < n; i++ {
-		p := &b[i]
-		if *p == '-' {
-			i++
-			if i < n {
-				b[i] = toUpperTable[b[i]]
-			}
-			continue
+	// If the header isn't valid, we don't normalize it.
+	for _, c := range b {
+		if !validHeaderFieldByte(c) {
+			return
 		}
-		*p = toLowerTable[*p]
+	}
+
+	upper := true
+	for i, c := range b {
+		if upper {
+			c = toUpperTable[c]
+		} else {
+			c = toLowerTable[c]
+		}
+		upper = c == '-'
+		b[i] = c
 	}
 }
 
@@ -3576,24 +3380,23 @@ func appendTrailerBytes(dst []byte, trailer [][]byte, sep []byte) []byte {
 }
 
 func copyTrailer(dst, src [][]byte) [][]byte {
-	if cap(dst) > len(src) {
+	if cap(dst) >= len(src) {
 		dst = dst[:len(src)]
 	} else {
 		dst = append(dst[:0], src...)
 	}
 
 	for i := range dst {
-		dst[i] = make([]byte, len(src[i]))
+		l := len(src[i])
+		if cap(dst[i]) >= l {
+			dst[i] = dst[i][:l]
+		} else {
+			dst[i] = make([]byte, l)
+		}
 		copy(dst[i], src[i])
 	}
 	return dst
 }
-
-var (
-	errNeedMore    = errors.New("need more data: cannot find trailing lf")
-	errInvalidName = errors.New("invalid header name")
-	errSmallBuffer = errors.New("small read buffer. Increase ReadBufferSize")
-)
 
 // ErrNothingRead is returned when a keep-alive connection is closed,
 // either because the remote closed it or because of a read timeout.

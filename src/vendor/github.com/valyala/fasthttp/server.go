@@ -315,11 +315,11 @@ type Server struct {
 
 	mu sync.Mutex
 
-	concurrency uint32
-	open        int32
-	stop        int32
+	concurrency atomic.Uint32
+	open        atomic.Int32
+	stop        atomic.Int32
 
-	rejectedRequestsCount uint32
+	rejectedRequestsCount atomic.Uint32
 
 	// Whether to disable keep-alive connections.
 	//
@@ -1123,14 +1123,14 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 	)
 	f, err = fh.Open()
 	if err != nil {
-		return
+		return err
 	}
 
 	var ok bool
 	if ff, ok = f.(*os.File); ok {
 		// Windows can't rename files that are opened.
 		if err = f.Close(); err != nil {
-			return
+			return err
 		}
 
 		// If renaming fails we try the normal copying method.
@@ -1141,7 +1141,7 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 
 		// Reopen f for the code below.
 		if f, err = fh.Open(); err != nil {
-			return
+			return err
 		}
 	}
 
@@ -1153,7 +1153,7 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 	}()
 
 	if ff, err = os.Create(path); err != nil {
-		return
+		return err
 	}
 	defer func() {
 		e := ff.Close()
@@ -1162,7 +1162,7 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 		}
 	}()
 	_, err = copyZeroAlloc(ff, f)
-	return
+	return err
 }
 
 // FormValue returns form value associated with the given key.
@@ -1649,26 +1649,26 @@ func (s *Server) NextProto(key string, nph ServeHandler) {
 	s.nextProtos[key] = nph
 }
 
-func (s *Server) getNextProto(c net.Conn) (proto string, err error) {
+func (s *Server) getNextProto(c net.Conn) (string, error) {
 	if tlsConn, ok := c.(connTLSer); ok {
 		if s.ReadTimeout > 0 {
-			if err = c.SetReadDeadline(time.Now().Add(s.ReadTimeout)); err != nil {
-				return
+			if err := c.SetReadDeadline(time.Now().Add(s.ReadTimeout)); err != nil {
+				return "", err
 			}
 		}
 
 		if s.WriteTimeout > 0 {
-			if err = c.SetWriteDeadline(time.Now().Add(s.WriteTimeout)); err != nil {
-				return
+			if err := c.SetWriteDeadline(time.Now().Add(s.WriteTimeout)); err != nil {
+				return "", err
 			}
 		}
 
-		err = tlsConn.Handshake()
+		err := tlsConn.Handshake()
 		if err == nil {
-			proto = tlsConn.ConnectionState().NegotiatedProtocol
+			return tlsConn.ConnectionState().NegotiatedProtocol, nil
 		}
 	}
-	return
+	return "", nil
 }
 
 // ListenAndServe serves HTTP requests from the given TCP4 addr.
@@ -1871,8 +1871,8 @@ func (s *Server) Serve(ln net.Listener) error {
 	// This way we can't get into any weird state where just after accepting
 	// a connection Shutdown is called which reads open as 0 because it isn't
 	// incremented yet.
-	atomic.AddInt32(&s.open, 1)
-	defer atomic.AddInt32(&s.open, -1)
+	s.open.Add(1)
+	defer s.open.Add(-1)
 
 	for {
 		c, err := acceptConn(s, ln, &lastPerIPErrorTime)
@@ -1884,10 +1884,10 @@ func (s *Server) Serve(ln net.Listener) error {
 			return err
 		}
 		s.setState(c, StateNew)
-		atomic.AddInt32(&s.open, 1)
+		s.open.Add(1)
 		if !wp.Serve(c) {
-			atomic.AddInt32(&s.open, -1)
-			atomic.AddUint32(&s.rejectedRequestsCount, 1)
+			s.open.Add(-1)
+			s.rejectedRequestsCount.Add(1)
 			s.writeFastError(c, StatusServiceUnavailable,
 				"The connection cannot be served because Server.Concurrency limit exceeded")
 			c.Close()
@@ -1940,8 +1940,8 @@ func (s *Server) ShutdownWithContext(ctx context.Context) (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	atomic.StoreInt32(&s.stop, 1)
-	defer atomic.StoreInt32(&s.stop, 0)
+	s.stop.Store(1)
+	defer s.stop.Store(0)
 
 	if s.ln == nil {
 		return nil
@@ -1962,7 +1962,7 @@ func (s *Server) ShutdownWithContext(ctx context.Context) (err error) {
 	for {
 		s.closeIdleConns()
 
-		if open := atomic.LoadInt32(&s.open); open == 0 {
+		if open := s.open.Load(); open == 0 {
 			// There may be a pending request to call ctx.Done(). Therefore, we only set it to nil when open == 0.
 			s.done = nil
 			return lnerr
@@ -2082,19 +2082,19 @@ func (s *Server) ServeConn(c net.Conn) error {
 		c = pic
 	}
 
-	n := int(atomic.AddUint32(&s.concurrency, 1)) // #nosec G115
+	n := int(s.concurrency.Add(1)) // #nosec G115
 	if n > s.getConcurrency() {
-		atomic.AddUint32(&s.concurrency, ^uint32(0))
+		s.concurrency.Add(^uint32(0))
 		s.writeFastError(c, StatusServiceUnavailable, "The connection cannot be served because Server.Concurrency limit exceeded")
 		c.Close()
 		return ErrConcurrencyLimit
 	}
 
-	atomic.AddInt32(&s.open, 1)
+	s.open.Add(1)
 
 	err := s.serveConn(c)
 
-	atomic.AddUint32(&s.concurrency, ^uint32(0))
+	s.concurrency.Add(^uint32(0))
 
 	if err != errHijacked {
 		errc := c.Close()
@@ -2116,29 +2116,29 @@ var errHijacked = errors.New("connection has been hijacked")
 //
 // This function is intended be used by monitoring systems.
 func (s *Server) GetCurrentConcurrency() uint32 {
-	return atomic.LoadUint32(&s.concurrency)
+	return s.concurrency.Load()
 }
 
 // GetOpenConnectionsCount returns a number of opened connections.
 //
 // This function is intended be used by monitoring systems.
 func (s *Server) GetOpenConnectionsCount() int32 {
-	if atomic.LoadInt32(&s.stop) == 0 {
+	if s.stop.Load() == 0 {
 		// Decrement by one to avoid reporting the extra open value that gets
 		// counted while the server is listening.
-		return atomic.LoadInt32(&s.open) - 1
+		return s.open.Load() - 1
 	}
 	// This is not perfect, because s.stop could have changed to zero
 	// before we load the value of s.open. However, in the common case
 	// this avoids underreporting open connections by 1 during server shutdown.
-	return atomic.LoadInt32(&s.open)
+	return s.open.Load()
 }
 
 // GetRejectedConnectionsCount returns a number of rejected connections.
 //
 // This function is intended be used by monitoring systems.
 func (s *Server) GetRejectedConnectionsCount() uint32 {
-	return atomic.LoadUint32(&s.rejectedRequestsCount)
+	return s.rejectedRequestsCount.Load()
 }
 
 func (s *Server) getConcurrency() int {
@@ -2169,24 +2169,24 @@ func (s *Server) idleTimeout() time.Duration {
 }
 
 func (s *Server) serveConnCleanup() {
-	atomic.AddInt32(&s.open, -1)
-	atomic.AddUint32(&s.concurrency, ^uint32(0))
+	s.open.Add(-1)
+	s.concurrency.Add(^uint32(0))
 }
 
-func (s *Server) serveConn(c net.Conn) (err error) {
+func (s *Server) serveConn(c net.Conn) error {
 	defer s.serveConnCleanup()
-	atomic.AddUint32(&s.concurrency, 1)
+	s.concurrency.Add(1)
 
-	var proto string
-	if proto, err = s.getNextProto(c); err != nil {
-		return
+	proto, err := s.getNextProto(c)
+	if err != nil {
+		return err
 	}
 	if handler, ok := s.nextProtos[proto]; ok {
 		// Remove read or write deadlines that might have previously been set.
 		// The next handler is responsible for setting its own deadlines.
 		if s.ReadTimeout > 0 || s.WriteTimeout > 0 {
-			if err = c.SetDeadline(zeroTime); err != nil {
-				return
+			if err := c.SetDeadline(zeroTime); err != nil {
+				return err
 			}
 		}
 
@@ -2314,7 +2314,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 			// outgoing buffer first so it doesn't have to wait.
 			if bw != nil && bw.Buffered() > 0 {
 				err = ctx.Request.Header.readLoop(br, false)
-				if err == errNeedMore {
+				if err == ErrNeedMore {
 					err = bw.Flush()
 					if err != nil {
 						break
@@ -2349,11 +2349,21 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 						writeTimeout = s.WriteTimeout
 					}
 				}
-				// read body
-				if s.StreamRequestBody {
-					err = ctx.Request.readBodyStream(br, maxRequestBodySize, s.GetOnly, !s.DisablePreParseMultipartForm)
-				} else {
-					err = ctx.Request.readLimitBody(br, maxRequestBodySize, s.GetOnly, !s.DisablePreParseMultipartForm)
+
+				if err == nil {
+					if err = ctx.Request.parseURI(); err != nil {
+						bw = s.writeErrorResponse(bw, ctx, serverName, err)
+						break
+					}
+				}
+
+				if err == nil {
+					// read body
+					if s.StreamRequestBody {
+						err = ctx.Request.readBodyStream(br, maxRequestBodySize, s.GetOnly, !s.DisablePreParseMultipartForm)
+					} else {
+						err = ctx.Request.readLimitBody(br, maxRequestBodySize, s.GetOnly, !s.DisablePreParseMultipartForm)
+					}
 				}
 			}
 			// When StreamRequestBody is set to true, we cannot safely release br.
@@ -2487,7 +2497,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 		connectionClose = connectionClose ||
 			(s.MaxRequestsPerConn > 0 && connRequestNum >= uint64(s.MaxRequestsPerConn)) || // #nosec G115
 			ctx.Response.Header.ConnectionClose() ||
-			(s.CloseOnShutdown && atomic.LoadInt32(&s.stop) == 1)
+			(s.CloseOnShutdown && s.stop.Load() == 1)
 		if connectionClose {
 			ctx.Response.Header.SetConnectionClose()
 		} else if !ctx.Request.Header.IsHTTP11() {
@@ -2563,7 +2573,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 		ctx.Request.Reset()
 		ctx.Response.Reset()
 
-		if atomic.LoadInt32(&s.stop) == 1 {
+		if s.stop.Load() == 1 {
 			err = nil
 			break
 		}
@@ -2589,7 +2599,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 	}
 	s.idleConnsMu.Unlock()
 
-	return
+	return err
 }
 
 func (s *Server) setState(nc net.Conn, state ConnState) {
@@ -2636,6 +2646,7 @@ func (s *Server) releaseHijackConn(hjc *hijackConn) {
 
 type hijackConn struct {
 	net.Conn
+
 	r io.Reader
 	s *Server
 }
@@ -2707,7 +2718,7 @@ func acquireByteReader(ctxP **RequestCtx) (*bufio.Reader, error) {
 	}
 
 	ctx.fbr.c = c
-	ctx.fbr.ch = b[0]
+	ctx.fbr.ch = b[0] // #nosec G602
 	ctx.fbr.byteRead = false
 	r := acquireReader(ctx)
 	r.Reset(&ctx.fbr)
@@ -2817,7 +2828,7 @@ func (ctx *RequestCtx) Init(req *Request, remoteAddr net.Addr, logger Logger) {
 // This method always returns 0, false and is only present to make
 // RequestCtx implement the context interface.
 func (ctx *RequestCtx) Deadline() (deadline time.Time, ok bool) {
-	return
+	return time.Time{}, false
 }
 
 // Done returns a channel that's closed when work done on behalf of this
@@ -2866,6 +2877,7 @@ var fakeServer = &Server{
 
 type fakeAddrer struct {
 	net.Conn
+
 	laddr net.Addr
 	raddr net.Addr
 }

@@ -3,58 +3,58 @@ module code.cloudfoundry.org/loggregator-agent-release/src
 go 1.25.0
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20250505163757-782705ba2997
-	code.cloudfoundry.org/go-diodes v0.0.0-20250505082646-e4c2d772c2ec
+	code.cloudfoundry.org/go-batching v0.0.0-20251217150453-c35f80b431fc
+	code.cloudfoundry.org/go-diodes v0.0.0-20251217145408-467f62baff7d
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20250611124144-ca953cadd16e
-	code.cloudfoundry.org/tlsconfig v0.29.0
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20251217144704-dc6bced22a33
+	code.cloudfoundry.org/tlsconfig v0.42.0
 	github.com/cloudfoundry/dropsonde v1.1.0
-	github.com/cloudfoundry/sonde-go v0.0.0-20250505082611-517434ece96d
-	github.com/onsi/gomega v1.37.0
+	github.com/cloudfoundry/sonde-go v0.0.0-20251217143644-d1670a435f2a
+	github.com/onsi/gomega v1.38.3
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.67.4
-	github.com/valyala/fasthttp v1.62.0
-	golang.org/x/net v0.46.0
-	google.golang.org/grpc v1.73.0
+	github.com/prometheus/common v0.67.5
+	github.com/valyala/fasthttp v1.69.0
+	golang.org/x/net v0.48.0
+	google.golang.org/grpc v1.78.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
 	code.cloudfoundry.org/go-loggregator/v10 v10.2.0
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/google/go-cmp v0.7.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.11.2
-	github.com/onsi/ginkgo/v2 v2.23.4
-	go.opentelemetry.io/proto/otlp v1.7.0
-	google.golang.org/protobuf v1.36.10
+	github.com/onsi/ginkgo/v2 v2.27.3
+	go.opentelemetry.io/proto/otlp v1.9.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/google/pprof v0.0.0-20250607225305-033d6d78b36a // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/google/pprof v0.0.0-20251213031049-b05bdaca462f // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.4 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.22.0 // indirect
-	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/prometheus/client_golang v1.23.2 // indirect
+	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	go.step.sm/crypto v0.66.0 // indirect
-	go.uber.org/automaxprocs v1.6.0 // indirect
+	go.step.sm/crypto v0.75.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/mod v0.28.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
-	golang.org/x/tools v0.37.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/tools v0.40.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 )
