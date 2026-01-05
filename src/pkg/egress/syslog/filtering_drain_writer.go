@@ -2,6 +2,7 @@ package syslog
 
 import (
 	"errors"
+	"strings"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
@@ -17,6 +18,32 @@ const (
 	LOGS_NO_EVENTS
 	LOGS_AND_METRICS
 )
+
+type LogType int
+
+// Ordered as in https://docs.cloudfoundry.org/devguide/deploy-apps/streaming-logs.html#format
+const (
+	API LogType = iota
+	STG
+	RTR
+	LGR
+	APP
+	SSH
+	CELL
+)
+
+var logTypePrefixes = map[string]LogType{
+	"API":  API,
+	"STG":  STG,
+	"RTR":  RTR,
+	"LGR":  LGR,
+	"APP":  APP,
+	"SSH":  SSH,
+	"CELL": CELL,
+}
+
+// A set of LogTypes for efficient membership checking
+type LogTypeSet map[LogType]struct{}
 
 type FilteringDrainWriter struct {
 	binding Binding
@@ -50,7 +77,13 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 		}
 	}
 	if env.GetLog() != nil {
-		if sendsLogs(w.binding.DrainData) {
+		// Default to sending logs if no source_type tag is present
+		value, ok := env.GetTags()["source_type"]
+		if !ok {
+			// TODO Log
+			value = ""
+		}
+		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, value) {
 			return w.writer.Write(env)
 		}
 	}
@@ -63,17 +96,42 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 	return nil
 }
 
-func sendsLogs(drainData DrainData) bool {
-	switch drainData {
-	case LOGS:
+func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
+	// Empty filter or missing source type means no filtering
+	if logFilter == nil || sourceTypeTag == "" {
 		return true
-	case LOGS_AND_METRICS:
+	}
+
+	// Find the first "/" to extract prefix
+	idx := strings.IndexByte(sourceTypeTag, '/')
+	prefix := sourceTypeTag
+	if idx != -1 {
+		prefix = sourceTypeTag[:idx]
+	}
+
+	// Prefer map lookup over switch for performance
+	logType, known := logTypePrefixes[prefix]
+	if !known {
+		// Unknown log type, default to not filtering
+		// TODO log
 		return true
-	case LOGS_NO_EVENTS:
-		return true
-	default:
+	}
+
+	_, exists := (*logFilter)[logType]
+	return exists
+}
+
+func sendsLogs(drainData DrainData, logFilter *LogTypeSet, sourceTypeTag string) bool {
+	// TODO ALL appears to be special?
+	if drainData != LOGS && drainData != LOGS_AND_METRICS && drainData != LOGS_NO_EVENTS {
 		return false
 	}
+
+	if shouldIncludeLog(logFilter, sourceTypeTag) {
+		return true
+	}
+
+	return false
 }
 
 func sendsMetrics(drainData DrainData) bool {
