@@ -87,7 +87,7 @@ func getBindingType(u *url.URL) syslog.DrainData {
 }
 
 // Parse HTML query parameter into a Set of LogTypes
-func NewLogTypeSet(logTypeList string) *syslog.LogTypeSet {
+func NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 	if logTypeList == "" {
 		set := make(syslog.LogTypeSet)
 		return &set
@@ -116,15 +116,40 @@ func NewLogTypeSet(logTypeList string) *syslog.LogTypeSet {
 			t = syslog.CELL
 		default:
 			// TODO Log unknown log type
+			continue
 		}
 		set[t] = struct{}{}
+	}
+
+	if isExclude {
+		// Invert the set
+		fullSet := make(syslog.LogTypeSet)
+		allLogTypes := []syslog.LogType{syslog.API, syslog.STG, syslog.RTR, syslog.LGR, syslog.APP, syslog.SSH, syslog.CELL}
+		for _, t := range allLogTypes {
+			fullSet[t] = struct{}{}
+		}
+
+		for t := range set {
+			delete(fullSet, t)
+		}
+		return &fullSet
 	}
 
 	return &set
 }
 
 func getLogFilter(u *url.URL) *syslog.LogTypeSet {
-	return NewLogTypeSet(u.Query().Get("include-log-types"))
+	includeLogTypes := u.Query().Get("include-log-types")
+	excludeLogTypes := u.Query().Get("exclude-log-types")
+
+	if excludeLogTypes != "" && includeLogTypes != "" {
+		// TODO return errors.New("include-log-types and exclude-log-types can not be used at the same time")
+	} else if excludeLogTypes != "" {
+		return NewLogTypeSet(excludeLogTypes, true)
+	} else if includeLogTypes != "" {
+		return NewLogTypeSet(includeLogTypes, false)
+	}
+	return NewLogTypeSet("", false)
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {
