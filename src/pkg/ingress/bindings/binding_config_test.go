@@ -107,6 +107,18 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings[4].LogFilter).To(Equal(NewLogTypeSet(syslog.API, syslog.STG, syslog.LGR, syslog.APP, syslog.SSH, syslog.CELL)))
 	})
 
+	It("returns an error when both include-log-types and exclude-log-types are specified", func() {
+		bs := []syslog.Binding{
+			{Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app&exclude-log-types=rtr"}},
+		}
+		f := newStubFetcher(bs, nil)
+		wf := bindings.NewDrainParamParser(f, true)
+
+		configedBindings, err := wf.FetchBindings()
+		Expect(err).To(HaveOccurred())
+		Expect(configedBindings).To(HaveLen(0))
+	})
+
 	It("sets drain data for old parameter appropriately'", func() {
 		bs := []syslog.Binding{
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=metrics"}},
