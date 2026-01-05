@@ -1,6 +1,7 @@
 package bindings
 
 import (
+	"errors"
 	"net/url"
 	"strings"
 
@@ -36,7 +37,10 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 		b.OmitMetadata = getOmitMetadata(urlParsed, d.defaultDrainMetadata)
 		b.InternalTls = getInternalTLS(urlParsed)
 		b.DrainData = getBindingType(urlParsed)
-		b.LogFilter = getLogFilter(urlParsed)
+		b.LogFilter, err = getLogFilter(urlParsed)
+		if err != nil {
+			return nil, err
+		}
 
 		processed = append(processed, b)
 	}
@@ -138,18 +142,18 @@ func NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 	return &set
 }
 
-func getLogFilter(u *url.URL) *syslog.LogTypeSet {
+func getLogFilter(u *url.URL) (*syslog.LogTypeSet, error) {
 	includeLogTypes := u.Query().Get("include-log-types")
 	excludeLogTypes := u.Query().Get("exclude-log-types")
 
 	if excludeLogTypes != "" && includeLogTypes != "" {
-		// TODO return errors.New("include-log-types and exclude-log-types can not be used at the same time")
+		return nil, errors.New("include-log-types and exclude-log-types can not be used at the same time")
 	} else if excludeLogTypes != "" {
-		return NewLogTypeSet(excludeLogTypes, true)
+		return NewLogTypeSet(excludeLogTypes, true), nil
 	} else if includeLogTypes != "" {
-		return NewLogTypeSet(includeLogTypes, false)
+		return NewLogTypeSet(includeLogTypes, false), nil
 	}
-	return NewLogTypeSet("", false)
+	return NewLogTypeSet("", false), nil
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {
