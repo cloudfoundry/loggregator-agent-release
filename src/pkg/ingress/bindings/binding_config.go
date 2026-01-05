@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"net/url"
+	"strings"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -35,6 +36,7 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 		b.OmitMetadata = getOmitMetadata(urlParsed, d.defaultDrainMetadata)
 		b.InternalTls = getInternalTLS(urlParsed)
 		b.DrainData = getBindingType(urlParsed)
+		b.LogFilter = getLogFilter(urlParsed)
 
 		processed = append(processed, b)
 	}
@@ -82,6 +84,47 @@ func getBindingType(u *url.URL) syslog.DrainData {
 		drainData = syslog.ALL
 	}
 	return drainData
+}
+
+// Parse HTML query parameter into a Set of LogTypes
+func NewLogTypeSet(logTypeList string) *syslog.LogTypeSet {
+	if logTypeList == "" {
+		set := make(syslog.LogTypeSet)
+		return &set
+	}
+
+	logTypes := strings.Split(logTypeList, ",")
+	set := make(syslog.LogTypeSet, len(logTypes))
+
+	for _, logType := range logTypes {
+		logType = strings.ToLower(strings.TrimSpace(logType))
+		var t syslog.LogType
+		switch logType {
+		case "app":
+			t = syslog.APP
+		case "stg":
+			t = syslog.STG
+		case "rtr":
+			t = syslog.RTR
+		case "api":
+			t = syslog.API
+		case "lgr":
+			t = syslog.LGR
+		case "ssh":
+			t = syslog.SSH
+		case "cell":
+			t = syslog.CELL
+		default:
+			// TODO Log unknown log type
+		}
+		set[t] = struct{}{}
+	}
+
+	return &set
+}
+
+func getLogFilter(u *url.URL) *syslog.LogTypeSet {
+	return NewLogTypeSet(u.Query().Get("include-log-types"))
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {

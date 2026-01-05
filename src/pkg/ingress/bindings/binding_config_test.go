@@ -88,6 +88,25 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings[4].DrainData).To(Equal(syslog.ALL))
 	})
 
+	It("sets drain filter appropriately'", func() {
+		bs := []syslog.Binding{
+			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app"}},
+			{Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app,stg,cell"}},
+			//			{Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-types=rtr,cell,stg"}},
+			//			{Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-types=rtr"}},
+		}
+		f := newStubFetcher(bs, nil)
+		wf := bindings.NewDrainParamParser(f, true)
+
+		configedBindings, _ := wf.FetchBindings()
+		Expect(configedBindings[0].LogFilter).To(Equal(bindings.NewLogTypeSet(""))) // Empty map defaults to all types
+		Expect(configedBindings[1].LogFilter).To(Equal(bindings.NewLogTypeSet("app")))
+		Expect(configedBindings[2].LogFilter).To(Equal(bindings.NewLogTypeSet("app,stg,cell")))
+		//		Expect(configedBindings[3].LogFilter).To(Equal(bindings.NewLogTypeSet("api,lgr,app,ssh")))
+		//		Expect(configedBindings[4].LogFilter).To(Equal(bindings.NewLogTypeSet("api,stg,lgr,app,ssh,cell")))
+	})
+
 	It("sets drain data for old parameter appropriately'", func() {
 		bs := []syslog.Binding{
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=metrics"}},
