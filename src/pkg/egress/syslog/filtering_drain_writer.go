@@ -79,11 +79,9 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 		}
 	}
 	if env.GetLog() != nil {
-		// Default to sending logs if no source_type tag is present
 		value, ok := env.GetTags()["source_type"]
 		if !ok {
-			// TODO add unit test for case where source_type tag is missing
-			// source_type tag is missing, default to sending logs
+			// Default to sending logs if no source_type tag is present
 			value = ""
 		}
 		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, value) {
@@ -117,7 +115,6 @@ func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
 	logType, known := logTypePrefixes[prefix]
 	if !known {
 		// Unknown log type, default to not filtering
-		// TODO unit test
 		return true
 	}
 
@@ -126,7 +123,6 @@ func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
 }
 
 func sendsLogs(drainData DrainData, logFilter *LogTypeSet, sourceTypeTag string) bool {
-	// TODO ALL appears to be special?
 	if drainData != LOGS && drainData != LOGS_AND_METRICS && drainData != LOGS_NO_EVENTS {
 		return false
 	}
