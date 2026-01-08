@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"errors"
+	"log"
 	"net/url"
 	"strings"
 
@@ -12,12 +13,14 @@ import (
 type DrainParamParser struct {
 	fetcher              binding.Fetcher
 	defaultDrainMetadata bool
+	log                  *log.Logger
 }
 
-func NewDrainParamParser(f binding.Fetcher, defaultDrainMetadata bool) *DrainParamParser {
+func NewDrainParamParser(f binding.Fetcher, defaultDrainMetadata bool, l *log.Logger) *DrainParamParser {
 	return &DrainParamParser{
 		fetcher:              f,
 		defaultDrainMetadata: defaultDrainMetadata,
+		log:                  l,
 	}
 }
 
@@ -37,7 +40,7 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 		b.OmitMetadata = getOmitMetadata(urlParsed, d.defaultDrainMetadata)
 		b.InternalTls = getInternalTLS(urlParsed)
 		b.DrainData = getBindingType(urlParsed)
-		b.LogFilter, err = getLogFilter(urlParsed)
+		b.LogFilter, err = d.getLogFilter(urlParsed)
 		if err != nil {
 			return nil, err
 		}
@@ -90,8 +93,8 @@ func getBindingType(u *url.URL) syslog.DrainData {
 	return drainData
 }
 
-// Parse HTML query parameter into a Set of LogTypes
-func NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
+// NewLogTypeSet parses an HTML query parameter into a Set of LogTypes
+func (d *DrainParamParser) NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 	if logTypeList == "" {
 		set := make(syslog.LogTypeSet)
 		return &set
@@ -119,7 +122,9 @@ func NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 		case "cell":
 			t = syslog.CELL
 		default:
-			// TODO Log unknown log type
+			// Unknown log type, skip it
+			// TODO add unit test for unknown log type
+			d.log.Printf("Unknown log type '%s' in log type filter, ignoring", logType)
 			continue
 		}
 		set[t] = struct{}{}
@@ -142,18 +147,18 @@ func NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 	return &set
 }
 
-func getLogFilter(u *url.URL) (*syslog.LogTypeSet, error) {
+func (d *DrainParamParser) getLogFilter(u *url.URL) (*syslog.LogTypeSet, error) {
 	includeLogTypes := u.Query().Get("include-log-types")
 	excludeLogTypes := u.Query().Get("exclude-log-types")
 
 	if excludeLogTypes != "" && includeLogTypes != "" {
 		return nil, errors.New("include-log-types and exclude-log-types can not be used at the same time")
 	} else if excludeLogTypes != "" {
-		return NewLogTypeSet(excludeLogTypes, true), nil
+		return d.NewLogTypeSet(excludeLogTypes, true), nil
 	} else if includeLogTypes != "" {
-		return NewLogTypeSet(includeLogTypes, false), nil
+		return d.NewLogTypeSet(includeLogTypes, false), nil
 	}
-	return NewLogTypeSet("", false), nil
+	return d.NewLogTypeSet("", false), nil
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {
