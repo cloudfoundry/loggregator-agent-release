@@ -19,9 +19,10 @@ const (
 	LOGS_AND_METRICS
 )
 
+// LogType defines the log types used within Cloud Foundry
+// Their order in the code is as documented in https://docs.cloudfoundry.org/devguide/deploy-apps/streaming-logs.html#format
 type LogType int
 
-// Ordered as in https://docs.cloudfoundry.org/devguide/deploy-apps/streaming-logs.html#format
 const (
 	API LogType = iota
 	STG
@@ -32,6 +33,7 @@ const (
 	CELL
 )
 
+// logTypePrefixes maps string prefixes to LogType values for efficient lookup
 var logTypePrefixes = map[string]LogType{
 	"API":  API,
 	"STG":  STG,
@@ -42,7 +44,7 @@ var logTypePrefixes = map[string]LogType{
 	"CELL": CELL,
 }
 
-// A set of LogTypes for efficient membership checking
+// LogTypeSet is a set of LogTypes for efficient membership checking
 type LogTypeSet map[LogType]struct{}
 
 type FilteringDrainWriter struct {
@@ -80,7 +82,8 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 		// Default to sending logs if no source_type tag is present
 		value, ok := env.GetTags()["source_type"]
 		if !ok {
-			// TODO Log
+			// TODO add unit test for case where source_type tag is missing
+			// source_type tag is missing, default to sending logs
 			value = ""
 		}
 		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, value) {
@@ -96,6 +99,7 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 	return nil
 }
 
+// shouldIncludeLog determines if a log with the given sourceTypeTag should be forwarded
 func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
 	// Empty filter or missing source type means no filtering
 	if logFilter == nil || sourceTypeTag == "" {
@@ -113,7 +117,7 @@ func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
 	logType, known := logTypePrefixes[prefix]
 	if !known {
 		// Unknown log type, default to not filtering
-		// TODO log
+		// TODO unit test
 		return true
 	}
 
