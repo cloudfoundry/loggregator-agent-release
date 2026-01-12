@@ -5,24 +5,24 @@ package syslog
 type LogType string
 
 const (
-	API  LogType = "API"
-	STG  LogType = "STG"
-	RTR  LogType = "RTR"
-	LGR  LogType = "LGR"
-	APP  LogType = "APP"
-	SSH  LogType = "SSH"
-	CELL LogType = "CELL"
+	LOG_API  LogType = "API"
+	LOG_STG  LogType = "STG"
+	LOG_RTR  LogType = "RTR"
+	LOG_LGR  LogType = "LGR"
+	LOG_APP  LogType = "APP"
+	LOG_SSH  LogType = "SSH"
+	LOG_CELL LogType = "CELL"
 )
 
 // validLogTypes contains LogType prefixes for efficient lookup
 var validLogTypes = map[LogType]struct{}{
-	API:  {},
-	STG:  {},
-	RTR:  {},
-	LGR:  {},
-	APP:  {},
-	SSH:  {},
-	CELL: {},
+	LOG_API:  {},
+	LOG_STG:  {},
+	LOG_RTR:  {},
+	LOG_LGR:  {},
+	LOG_APP:  {},
+	LOG_SSH:  {},
+	LOG_CELL: {},
 }
 
 // IsValid checks if the provided LogType is valid
