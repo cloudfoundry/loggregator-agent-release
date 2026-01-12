@@ -106,10 +106,10 @@ var _ = Describe("Drain Param Config", func() {
 
 		configedBindings, _ := wf.FetchBindings()
 		Expect(configedBindings[0].LogFilter).To(Equal(NewLogTypeSet())) // Empty map defaults to all types
-		Expect(configedBindings[1].LogFilter).To(Equal(NewLogTypeSet(syslog.APP)))
-		Expect(configedBindings[2].LogFilter).To(Equal(NewLogTypeSet(syslog.APP, syslog.STG, syslog.CELL)))
-		Expect(configedBindings[3].LogFilter).To(Equal(NewLogTypeSet(syslog.API, syslog.LGR, syslog.APP, syslog.SSH)))
-		Expect(configedBindings[4].LogFilter).To(Equal(NewLogTypeSet(syslog.API, syslog.STG, syslog.LGR, syslog.APP, syslog.SSH, syslog.CELL)))
+		Expect(configedBindings[1].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_APP)))
+		Expect(configedBindings[2].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_APP, syslog.LOG_STG, syslog.LOG_CELL)))
+		Expect(configedBindings[3].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_API, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH)))
+		Expect(configedBindings[4].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_API, syslog.LOG_STG, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH, syslog.LOG_CELL)))
 	})
 
 	It("returns an error when both include-log-types and exclude-log-types are specified", func() {
@@ -132,7 +132,7 @@ var _ = Describe("Drain Param Config", func() {
 		result := parser.NewLogTypeSet("app,unknown,rtr", false)
 
 		// Should only contain APP and RTR, not the unknown type
-		Expect(result).To(Equal(NewLogTypeSet(syslog.APP, syslog.RTR)))
+		Expect(result).To(Equal(NewLogTypeSet(syslog.LOG_APP, syslog.LOG_RTR)))
 
 		// Should have logged a warning
 		Expect(logOutput.String()).To(ContainSubstring("ignoring"))
@@ -146,7 +146,7 @@ var _ = Describe("Drain Param Config", func() {
 		result := parser.NewLogTypeSet("rtr,unknown", true)
 
 		// Should exclude only RTR (unknown type is ignored)
-		expectedSet := NewLogTypeSet(syslog.API, syslog.STG, syslog.LGR, syslog.APP, syslog.SSH, syslog.CELL)
+		expectedSet := NewLogTypeSet(syslog.LOG_API, syslog.LOG_STG, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH, syslog.LOG_CELL)
 		Expect(result).To(Equal(expectedSet))
 
 		// Should have logged a warning

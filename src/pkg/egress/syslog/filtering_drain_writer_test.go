@@ -81,7 +81,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("sends logs with unknown source_type prefix when filter is set", func() {
-		appFilter := syslog.LogTypeSet{syslog.APP: struct{}{}}
+		appFilter := syslog.LogTypeSet{syslog.LOG_APP: struct{}{}}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
 			LogFilter: &appFilter,
