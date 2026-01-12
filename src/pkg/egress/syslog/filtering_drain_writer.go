@@ -19,34 +19,6 @@ const (
 	LOGS_AND_METRICS
 )
 
-// LogType defines the log types used within Cloud Foundry
-// Their order in the code is as documented in https://docs.cloudfoundry.org/devguide/deploy-apps/streaming-logs.html#format
-type LogType int
-
-const (
-	API LogType = iota
-	STG
-	RTR
-	LGR
-	APP
-	SSH
-	CELL
-)
-
-// logTypePrefixes maps string prefixes to LogType values for efficient lookup
-var logTypePrefixes = map[string]LogType{
-	"API":  API,
-	"STG":  STG,
-	"RTR":  RTR,
-	"LGR":  LGR,
-	"APP":  APP,
-	"SSH":  SSH,
-	"CELL": CELL,
-}
-
-// LogTypeSet is a set of LogTypes for efficient membership checking
-type LogTypeSet map[LogType]struct{}
-
 type FilteringDrainWriter struct {
 	binding Binding
 	writer  egress.Writer
@@ -112,14 +84,13 @@ func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
 	}
 
 	// Prefer map lookup over switch for performance
-	logType, known := logTypePrefixes[prefix]
-	if !known {
+	logType := LogType(prefix)
+	if !logType.IsValid() {
 		// Unknown log type, default to not filtering
 		return true
 	}
 
-	_, exists := (*logFilter)[logType]
-	return exists
+	return logFilter.Contains(logType)
 }
 
 func sendsLogs(drainData DrainData, logFilter *LogTypeSet, sourceTypeTag string) bool {

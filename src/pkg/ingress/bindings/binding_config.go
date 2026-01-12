@@ -93,6 +93,12 @@ func getBindingType(u *url.URL) syslog.DrainData {
 	return drainData
 }
 
+// parseLogType parses a string into a LogType value
+func parseLogType(s string) (syslog.LogType, bool) {
+	lt := syslog.LogType(strings.ToUpper(s))
+	return lt, lt.IsValid()
+}
+
 // NewLogTypeSet parses a URL query parameter into a Set of LogTypes
 func (d *DrainParamParser) NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 	if logTypeList == "" {
@@ -104,38 +110,21 @@ func (d *DrainParamParser) NewLogTypeSet(logTypeList string, isExclude bool) *sy
 	set := make(syslog.LogTypeSet, len(logTypes))
 
 	for _, logType := range logTypes {
-		logType = strings.ToLower(strings.TrimSpace(logType))
-		var t syslog.LogType
-		switch logType {
-		case "app":
-			t = syslog.APP
-		case "stg":
-			t = syslog.STG
-		case "rtr":
-			t = syslog.RTR
-		case "api":
-			t = syslog.API
-		case "lgr":
-			t = syslog.LGR
-		case "ssh":
-			t = syslog.SSH
-		case "cell":
-			t = syslog.CELL
-		default:
-			// Unknown log type, skip it
-			// TODO add unit test for unknown log type
+		logType = strings.TrimSpace(logType)
+		t, ok := parseLogType(logType)
+		if !ok {
 			d.log.Printf("Unknown log type '%s' in log type filter, ignoring", logType)
 			continue
 		}
-		set[t] = struct{}{}
+		set.Add(t)
 	}
 
 	if isExclude {
-		// Invert the set
+		// Invert the set - include all types except those in the set
 		fullSet := make(syslog.LogTypeSet)
-		allLogTypes := []syslog.LogType{syslog.API, syslog.STG, syslog.RTR, syslog.LGR, syslog.APP, syslog.SSH, syslog.CELL}
-		for _, t := range allLogTypes {
-			fullSet[t] = struct{}{}
+
+		for _, t := range syslog.AllLogTypes() {
+			fullSet.Add(t)
 		}
 
 		for t := range set {
