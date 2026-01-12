@@ -93,7 +93,7 @@ func getBindingType(u *url.URL) syslog.DrainData {
 	return drainData
 }
 
-// NewLogTypeSet parses an HTML query parameter into a Set of LogTypes
+// NewLogTypeSet parses a URL query parameter into a Set of LogTypes
 func (d *DrainParamParser) NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
 	if logTypeList == "" {
 		set := make(syslog.LogTypeSet)
