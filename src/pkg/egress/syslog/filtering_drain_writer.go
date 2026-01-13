@@ -51,12 +51,12 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 		}
 	}
 	if env.GetLog() != nil {
-		value, ok := env.GetTags()["source_type"]
+		sourceType, ok := env.GetTags()["source_type"]
 		if !ok {
 			// Default to sending logs if no source_type tag is present
-			value = ""
+			sourceType = ""
 		}
-		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, value) {
+		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, sourceType) {
 			return w.writer.Write(env)
 		}
 	}
