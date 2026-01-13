@@ -57,7 +57,6 @@ var _ = Describe("Filtering Drain Writer", func() {
 	It("sends logs when source_type tag is missing", func() {
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
-			LogFilter: nil,
 		}
 		fakeWriter := &fakeWriter{}
 		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
@@ -78,6 +77,90 @@ var _ = Describe("Filtering Drain Writer", func() {
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(fakeWriter.received).To(Equal(1))
+	})
+
+	It("filters logs based on include filter - includes only APP logs", func() {
+		appFilter := syslog.LogTypeSet{syslog.LOG_APP: struct{}{}}
+		binding := syslog.Binding{
+			DrainData: syslog.LOGS,
+			LogFilter: &appFilter,
+		}
+		fakeWriter := &fakeWriter{}
+		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+		Expect(err).NotTo(HaveOccurred())
+
+		envelopes := []*loggregator_v2.Envelope{
+			{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("app log")},
+				},
+				Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+			},
+			{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+				},
+				Tags: map[string]string{"source_type": "RTR/1"},
+			},
+			{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("stg log")},
+				},
+				Tags: map[string]string{"source_type": "STG/0"},
+			},
+		}
+
+		for _, envelope := range envelopes {
+			err = drainWriter.Write(envelope)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		// Only APP log should be sent
+		Expect(fakeWriter.received).To(Equal(1))
+	})
+
+	It("filters logs based on exclude filter - excludes RTR logs", func() {
+		// Include APP and STG, effectively excluding RTR
+		includeFilter := syslog.LogTypeSet{
+			syslog.LOG_APP: struct{}{},
+			syslog.LOG_STG: struct{}{},
+		}
+		binding := syslog.Binding{
+			DrainData: syslog.LOGS,
+			LogFilter: &includeFilter,
+		}
+		fakeWriter := &fakeWriter{}
+		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+		Expect(err).NotTo(HaveOccurred())
+
+		envelopes := []*loggregator_v2.Envelope{
+			{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("app log")},
+				},
+				Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+			},
+			{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+				},
+				Tags: map[string]string{"source_type": "RTR/1"},
+			},
+			{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("stg log")},
+				},
+				Tags: map[string]string{"source_type": "STG/0"},
+			},
+		}
+
+		for _, envelope := range envelopes {
+			err = drainWriter.Write(envelope)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		// APP and STG logs should be sent, RTR should be filtered out
+		Expect(fakeWriter.received).To(Equal(2))
 	})
 
 	It("sends logs with unknown source_type prefix when filter is set", func() {
