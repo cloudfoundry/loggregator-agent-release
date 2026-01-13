@@ -20,9 +20,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].OmitMetadata).To(BeFalse())
 	})
 
@@ -32,9 +32,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?omit-metadata=true"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].OmitMetadata).To(BeTrue())
 		Expect(configedBindings[1].OmitMetadata).To(BeTrue())
 	})
@@ -44,9 +44,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, false, logger)
+		dp := bindings.NewDrainParamParser(f, false, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].OmitMetadata).To(BeTrue())
 	})
 
@@ -56,9 +56,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?omit-metadata=false"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, false, logger)
+		dp := bindings.NewDrainParamParser(f, false, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].OmitMetadata).To(BeFalse())
 		Expect(configedBindings[1].OmitMetadata).To(BeFalse())
 	})
@@ -68,9 +68,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?ssl-strict-internal=true"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].InternalTls).To(BeTrue())
 	})
 
@@ -83,9 +83,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=all"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].DrainData).To(Equal(syslog.LOGS))
 		Expect(configedBindings[1].DrainData).To(Equal(syslog.LOGS))
 		Expect(configedBindings[2].DrainData).To(Equal(syslog.METRICS))
@@ -102,9 +102,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-types=rtr"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].LogFilter).To(Equal(NewLogTypeSet())) // Empty map defaults to all types
 		Expect(configedBindings[1].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_APP)))
 		Expect(configedBindings[2].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_APP, syslog.LOG_STG, syslog.LOG_CELL)))
@@ -117,9 +117,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app&exclude-log-types=rtr"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, err := wf.FetchBindings()
+		configedBindings, err := dp.FetchBindings()
 		Expect(err).To(HaveOccurred())
 		Expect(configedBindings).To(HaveLen(0))
 	})
@@ -168,9 +168,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?include-metrics-deprecated=true"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := wf.FetchBindings()
+		configedBindings, _ := dp.FetchBindings()
 		Expect(configedBindings[0].DrainData).To(Equal(syslog.METRICS))
 		Expect(configedBindings[1].DrainData).To(Equal(syslog.LOGS_NO_EVENTS))
 		Expect(configedBindings[2].DrainData).To(Equal(syslog.LOGS))
@@ -185,9 +185,9 @@ var _ = Describe("Drain Param Config", func() {
 			{Drain: syslog.Drain{Url: "https://test.org/drain?omit-metadata=true"}},
 		}
 		f := newStubFetcher(bs, nil)
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, err := wf.FetchBindings()
+		configedBindings, err := dp.FetchBindings()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(configedBindings).To(HaveLen(2))
 		Expect(configedBindings[0].Drain).To(Equal(syslog.Drain{Url: "https://test.org/drain?disable-metadata=true"}))
@@ -196,9 +196,9 @@ var _ = Describe("Drain Param Config", func() {
 
 	It("Returns a error when fetching fails", func() {
 		f := newStubFetcher(nil, errors.New("Ahhh an error"))
-		wf := bindings.NewDrainParamParser(f, true, logger)
+		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		_, err := wf.FetchBindings()
+		_, err := dp.FetchBindings()
 		Expect(err).To(MatchError("Ahhh an error"))
 	})
 })
