@@ -124,18 +124,24 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings).To(HaveLen(0))
 	})
 
-	It("logs a warning when an unknown log type is provided", func() {
+	It("logs a single warning when multiple unknown log types are provided", func() {
 		var logOutput strings.Builder
 		testLogger := log.New(&logOutput, "", log.LstdFlags)
 		parser := bindings.NewDrainParamParser(newStubFetcher(nil, nil), false, testLogger)
 
-		result := parser.NewLogTypeSet("app,unknown,rtr", false)
+		result := parser.NewLogTypeSet("app,unknown,invalid,rtr", false)
 
 		// Should only contain APP and RTR, not the unknown type
 		Expect(result).To(Equal(NewLogTypeSet(syslog.LOG_APP, syslog.LOG_RTR)))
 
-		// Should have logged a warning
-		Expect(logOutput.String()).To(ContainSubstring("ignoring"))
+		// Should have logged exactly one warning containing all unknown types
+		output := logOutput.String()
+		Expect(output).To(ContainSubstring("unknown"))
+		Expect(output).To(ContainSubstring("invalid"))
+		Expect(output).To(ContainSubstring("ignoring"))
+
+		// Verify it's a single log line (only one newline)
+		Expect(strings.Count(output, "\n")).To(Equal(1))
 	})
 
 	It("handles unknown log types in exclude mode", func() {

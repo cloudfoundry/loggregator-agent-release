@@ -108,15 +108,20 @@ func (d *DrainParamParser) NewLogTypeSet(logTypeList string, isExclude bool) *sy
 
 	logTypes := strings.Split(logTypeList, ",")
 	set := make(syslog.LogTypeSet, len(logTypes))
+	var unknownTypes []string
 
 	for _, logType := range logTypes {
 		logType = strings.TrimSpace(logType)
 		t, ok := parseLogType(logType)
 		if !ok {
-			d.log.Printf("Unknown log type '%s' in log type filter, ignoring", logType)
+			unknownTypes = append(unknownTypes, logType)
 			continue
 		}
 		set.Add(t)
+	}
+
+	if len(unknownTypes) > 0 {
+		d.log.Printf("Unknown log types '%s' in log type filter, ignoring", strings.Join(unknownTypes, ", "))
 	}
 
 	if isExclude {
