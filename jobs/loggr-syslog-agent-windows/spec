@@ -35,9 +35,6 @@ properties:
     description: Whether metadata is included in structured data by default
     default: true
 
-  host:
-    description: "Host the agent is serving gRPC via mTLS"
-    default: "127.0.0.1"
   port:
     description: "Port the agent is serving gRPC via mTLS"
     default: 3458

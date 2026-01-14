@@ -19,9 +19,8 @@ type GRPC struct {
 
 // Config holds the configuration for the UDP agent
 type Config struct {
-	UseRFC3339           bool   `env:"USE_RFC3339"`
-	Host                 string `env:"AGENT_HOST, report"`
-	UDPPort              int    `env:"UDP_PORT, report"`
+	UseRFC3339           bool `env:"USE_RFC3339"`
+	UDPPort              int  `env:"UDP_PORT, report"`
 	LoggregatorAgentGRPC GRPC
 	Deployment           string `env:"DEPLOYMENT, report"`
 	Job                  string `env:"JOB, report"`
@@ -34,7 +33,6 @@ type Config struct {
 // LoadConfig reads from the environment to create a Config.
 func LoadConfig(log *log.Logger) Config {
 	cfg := Config{
-		Host:    "127.0.0.1",
 		UDPPort: 3457,
 		LoggregatorAgentGRPC: GRPC{
 			Addr: "127.0.0.1:3458",

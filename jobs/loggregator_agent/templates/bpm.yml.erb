@@ -44,7 +44,6 @@ has_doppler = false
       "name" => "loggregator_agent",
       "executable" => "/var/vcap/packages/loggregator_agent/loggregator-agent",
       "env" => {
-        "AGENT_HOST" => "#{p("host")}",
         "AGENT_PORT" => "#{p("grpc_port")}",
         "AGENT_CA_FILE" => "#{certs_dir}/loggregator_ca.crt",
         "AGENT_CERT_FILE" => "#{certs_dir}/loggregator_agent.crt",
