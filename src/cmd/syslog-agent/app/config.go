@@ -14,7 +14,6 @@ import (
 // GRPC stores the configuration for the router as a server using a PORT
 // with mTLS certs and as a client.
 type GRPC struct {
-	Host         string   `env:"AGENT_HOST,                     report"`
 	Port         int      `env:"AGENT_PORT,                     report"`
 	CAFile       string   `env:"AGENT_CA_FILE_PATH,   required, report"`
 	CertFile     string   `env:"AGENT_CERT_FILE_PATH, required, report"`
@@ -64,7 +63,6 @@ func LoadConfig() Config {
 		},
 		GRPC: GRPC{
 			Port: 3458,
-			Host: "127.0.0.1",
 		},
 		AggregateConnectionRefreshInterval: 1 * time.Minute,
 		DefaultDrainMetadata:               true,

@@ -66,9 +66,6 @@ properties:
   grpc_port:
     description: "Port the agent is listening on to receive gRPC log envelopes"
     default: 3458
-  host:
-    description: "Host the agent is listening on to receive gRPC log envelopes"
-    default: "127.0.0.1"
   zone:
     description: "Availability zone where this agent is running"
     default: ""

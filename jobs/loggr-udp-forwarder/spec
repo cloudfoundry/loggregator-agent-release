@@ -33,9 +33,6 @@ properties:
     description: |
       The gRPC port to forward the converted v2 envelopes to.
     default: 3458
-  host:
-    description: "Host the agent uses to listen for incoming v1 (dropsonde) envelopes via UDP"
-    default: "127.0.0.1"
   udp_port:
     description: |
       The port to listen for incoming v1 (dropsonde) envelopes via UDP.

@@ -263,7 +263,7 @@ func (s *SyslogAgent) Run() {
 
 	rx := v2.NewReceiver(diode, im, omm)
 	s.v2Srv = v2.NewServer(
-		fmt.Sprintf("%s:%d", s.grpc.Host, s.grpc.Port),
+		fmt.Sprintf("127.0.0.1:%d", s.grpc.Port),
 		rx,
 		grpc.Creds(serverCreds),
 		grpc.MaxRecvMsgSize(10*1024*1024),

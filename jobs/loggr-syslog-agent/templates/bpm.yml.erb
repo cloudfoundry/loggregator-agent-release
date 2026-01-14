@@ -23,7 +23,6 @@
       "AGENT_CERT_FILE_PATH" => "#{certs_dir}/syslog_agent.crt",
       "AGENT_KEY_FILE_PATH" => "#{certs_dir}/syslog_agent.key",
       "AGENT_CIPHER_SUITES" => "#{p("tls.cipher_suites").split(":").join(",")}",
-      "AGENT_HOST" => "#{p("host")}",
       "AGENT_PORT" => "#{p("port")}",
       "DRAIN_SKIP_CERT_VERIFY" => "#{p("drain_skip_cert_verify")}",
       "DEFAULT_DRAIN_METADATA" => "#{p("default_drain_metadata")}",

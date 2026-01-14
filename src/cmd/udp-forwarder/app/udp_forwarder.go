@@ -25,7 +25,6 @@ type Metrics interface {
 
 type UDPForwarder struct {
 	grpc         GRPC
-	host         string
 	udpPort      int
 	pprofServer  *http.Server
 	pprofPort    uint16
@@ -45,7 +44,6 @@ type UDPForwarder struct {
 func NewUDPForwarder(cfg Config, l *log.Logger, m Metrics) *UDPForwarder {
 	return &UDPForwarder{
 		grpc:         cfg.LoggregatorAgentGRPC,
-		host:         cfg.Host,
 		udpPort:      cfg.UDPPort,
 		pprofPort:    cfg.MetricsServer.PprofPort,
 		debugMetrics: cfg.MetricsServer.DebugMetrics,
@@ -99,13 +97,13 @@ func (u *UDPForwarder) Run() {
 	dropsondeUnmarshaller := ingress.NewUnMarshaller(w)
 	u.mu.Lock()
 	u.nr, err = ingress.NewNetworkReader(
-		fmt.Sprintf("%s:%d", u.host, u.udpPort),
+		fmt.Sprintf("127.0.0.1:%d", u.udpPort),
 		dropsondeUnmarshaller,
 		u.metrics,
 	)
 	u.mu.Unlock()
 	if err != nil {
-		u.log.Fatalf("Failed to listen on %s:%d: %s", u.host, u.udpPort, err)
+		u.log.Fatalf("Failed to listen on 127.0.0.1:%d: %s", u.udpPort, err)
 	}
 
 	go u.nr.StartReading()
