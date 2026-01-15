@@ -1,4 +1,4 @@
-# code.cloudfoundry.org/go-batching v0.0.0-20251217150453-c35f80b431fc
+# code.cloudfoundry.org/go-batching v0.0.0-20260113113559-e6106487ed98
 ## explicit; go 1.24.0
 code.cloudfoundry.org/go-batching
 # code.cloudfoundry.org/go-diodes v0.0.0-20260112063157-4b000d565325
@@ -13,11 +13,11 @@ code.cloudfoundry.org/go-loggregator/v10
 code.cloudfoundry.org/go-loggregator/v10/conversion
 code.cloudfoundry.org/go-loggregator/v10/rfc5424
 code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20251217144704-dc6bced22a33
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20260113113534-1f0399660faf
 ## explicit; go 1.24.0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.42.0
+# code.cloudfoundry.org/tlsconfig v0.43.0
 ## explicit; go 1.24.0
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -44,8 +44,8 @@ github.com/cloudfoundry/dropsonde/emitter
 # github.com/cloudfoundry/sonde-go v0.0.0-20251217143644-d1670a435f2a
 ## explicit; go 1.23
 github.com/cloudfoundry/sonde-go/events
-# github.com/go-chi/chi/v5 v5.2.3
-## explicit; go 1.20
+# github.com/go-chi/chi/v5 v5.2.4
+## explicit; go 1.22
 github.com/go-chi/chi/v5
 # github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
@@ -62,7 +62,7 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/pprof v0.0.0-20260111202518-71be6bfdd440
+# github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83
 ## explicit; go 1.24.0
 github.com/google/pprof/profile
 # github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.4
@@ -92,7 +92,7 @@ github.com/maxbrunsfeld/counterfeiter/v6/generator
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/onsi/ginkgo/v2 v2.27.4
+# github.com/onsi/ginkgo/v2 v2.27.5
 ## explicit; go 1.23.0
 github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
@@ -193,7 +193,7 @@ go.yaml.in/yaml/v2
 # go.yaml.in/yaml/v3 v3.0.4
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.46.0
+# golang.org/x/crypto v0.47.0
 ## explicit; go 1.24.0
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -211,7 +211,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.48.0
+# golang.org/x/net v0.49.0
 ## explicit; go 1.24.0
 golang.org/x/net/context
 golang.org/x/net/html
@@ -256,7 +256,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.40.0
+# golang.org/x/tools v0.41.0
 ## explicit; go 1.24.0
 golang.org/x/tools/cover
 golang.org/x/tools/go/ast/astutil
@@ -283,10 +283,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b
+# google.golang.org/genproto/googleapis/api v0.0.0-20260114163908-3f89685c29c3
 ## explicit; go 1.24.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260114163908-3f89685c29c3
 ## explicit; go 1.24.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.78.0
