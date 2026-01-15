@@ -243,6 +243,8 @@ builds:
     version: "3.22"
   e16269d8-294c-4039-6cfc-8ffa89b1d89b:
     version: 5.2.0
+  e6b99eda-97c6-4eb5-68b2-dca84792c284:
+    version: 8.3.13
   ea3f8b87-cb2c-4773-475e-899599a11257:
     version: 8.1.6
   f3649356-2e94-4ac7-7bcf-bd56c89d020f:
