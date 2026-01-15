@@ -113,13 +113,13 @@ func NewSyslogAgent(
 			cfg.WarnOnInvalidDrains,
 			l,
 		)
-		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata)
+		cupsFetcher = bindings.NewDrainParamParser(cupsFetcher, cfg.DefaultDrainMetadata, l)
 	}
 
 	aggregateFetcher := bindings.NewAggregateDrainFetcher(cfg.AggregateDrainURLs, cacheClient)
 	bindingManager := binding.NewManager(
 		cupsFetcher,
-		bindings.NewDrainParamParser(aggregateFetcher, cfg.DefaultDrainMetadata),
+		bindings.NewDrainParamParser(aggregateFetcher, cfg.DefaultDrainMetadata, l),
 		connector,
 		m,
 		cfg.Cache.PollingInterval,

@@ -2,6 +2,7 @@ package syslog
 
 import (
 	"errors"
+	"strings"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
@@ -50,7 +51,12 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 		}
 	}
 	if env.GetLog() != nil {
-		if sendsLogs(w.binding.DrainData) {
+		sourceType, ok := env.GetTags()["source_type"]
+		if !ok {
+			// Default to sending logs if no source_type tag is present
+			sourceType = ""
+		}
+		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, sourceType) {
 			return w.writer.Write(env)
 		}
 	}
@@ -63,17 +69,40 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 	return nil
 }
 
-func sendsLogs(drainData DrainData) bool {
-	switch drainData {
-	case LOGS:
+// shouldIncludeLog determines if a log with the given sourceTypeTag should be forwarded
+func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
+	// Empty filter or missing source type means no filtering
+	if logFilter == nil || sourceTypeTag == "" {
 		return true
-	case LOGS_AND_METRICS:
+	}
+
+	// Find the first "/" to extract prefix
+	idx := strings.IndexByte(sourceTypeTag, '/')
+	prefix := sourceTypeTag
+	if idx != -1 {
+		prefix = sourceTypeTag[:idx]
+	}
+
+	// Prefer map lookup over switch for performance
+	logType := LogType(prefix)
+	if !logType.IsValid() {
+		// Unknown log type, default to not filtering
 		return true
-	case LOGS_NO_EVENTS:
-		return true
-	default:
+	}
+
+	return logFilter.Contains(logType)
+}
+
+func sendsLogs(drainData DrainData, logFilter *LogTypeSet, sourceTypeTag string) bool {
+	if drainData != LOGS && drainData != LOGS_AND_METRICS && drainData != LOGS_NO_EVENTS {
 		return false
 	}
+
+	if shouldIncludeLog(logFilter, sourceTypeTag) {
+		return true
+	}
+
+	return false
 }
 
 func sendsMetrics(drainData DrainData) bool {
