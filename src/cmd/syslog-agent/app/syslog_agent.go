@@ -13,6 +13,7 @@ import (
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -56,7 +57,7 @@ func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
-	appLogEmitterFactory syslog.AppLogEmitterFactory,
+	appLogEmitterFactory applog.AppLogEmitterFactory,
 ) *SyslogAgent {
 	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(

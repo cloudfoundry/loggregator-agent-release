@@ -1,4 +1,4 @@
-package syslog
+package applog
 
 import (
 	"code.cloudfoundry.org/go-loggregator/v10"

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 	"golang.org/x/net/context"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
@@ -33,7 +34,7 @@ type Credentials struct {
 }
 
 type writerFactory interface {
-	NewWriter(*URLBinding, AppLogEmitter) (egress.WriteCloser, error)
+	NewWriter(*URLBinding, applog.AppLogEmitter) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
@@ -45,7 +46,7 @@ type SyslogConnector struct {
 
 	droppedMetric metrics.Counter
 
-	appLogEmitter AppLogEmitter
+	appLogEmitter applog.AppLogEmitter
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -81,7 +82,7 @@ type ConnectorOption func(*SyslogConnector)
 
 // WithAppLogEmitter returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithAppLogEmitter(emitter AppLogEmitter) ConnectorOption {
+func WithAppLogEmitter(emitter applog.AppLogEmitter) ConnectorOption {
 	return func(sc *SyslogConnector) {
 		sc.appLogEmitter = emitter
 	}

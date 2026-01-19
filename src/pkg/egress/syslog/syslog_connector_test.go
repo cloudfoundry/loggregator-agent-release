@@ -2,6 +2,8 @@ package syslog_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+
 	"errors"
 	"fmt"
 	"io"
@@ -174,7 +176,7 @@ var _ = Describe("SyslogConnector", func() {
 
 		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
@@ -217,7 +219,7 @@ var _ = Describe("SyslogConnector", func() {
 
 		It("doesn't emit LGR and SYS log to the log client about aggregate drains drops", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
@@ -279,7 +281,7 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
-	emitter syslog.AppLogEmitter,
+	emitter applog.AppLogEmitter,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

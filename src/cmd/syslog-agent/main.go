@@ -1,10 +1,11 @@
 package main
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"log"
 	_ "net/http/pprof" //nolint:gosec
 	"os"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
@@ -34,7 +35,7 @@ func main() {
 		),
 	)
 
-	factory := syslog.NewAppLogEmitterFactory()
+	factory := applog.NewAppLogEmitterFactory()
 
 	app.NewSyslogAgent(cfg, m, logger, &factory).Run()
 }

@@ -1,13 +1,15 @@
 package testhelper
 
-import "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+)
 
 type SpyAppLogEmitterFactory struct {
-	logClient   syslog.LogClient
+	logClient   applog.LogClient
 	sourceIndex string
 }
 
-func (factory *SpyAppLogEmitterFactory) LogClient() syslog.LogClient {
+func (factory *SpyAppLogEmitterFactory) LogClient() applog.LogClient {
 	return factory.logClient
 }
 
@@ -15,9 +17,9 @@ func (factory *SpyAppLogEmitterFactory) SourceIndex() string {
 	return factory.sourceIndex
 }
 
-func (factory *SpyAppLogEmitterFactory) NewAppLogEmitter(logClient syslog.LogClient, sourceIndex string) syslog.AppLogEmitter {
+func (factory *SpyAppLogEmitterFactory) NewAppLogEmitter(logClient applog.LogClient, sourceIndex string) applog.AppLogEmitter {
 	factory.logClient = logClient
 	factory.sourceIndex = sourceIndex
-	emitterFactory := syslog.NewAppLogEmitterFactory()
+	emitterFactory := applog.NewAppLogEmitterFactory()
 	return emitterFactory.NewAppLogEmitter(logClient, sourceIndex)
 }

@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -13,6 +12,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -50,7 +51,7 @@ var _ = Describe("SyslogAgent", func() {
 		agentLogr    *log.Logger
 		agent        *app.SyslogAgent
 
-		factory syslog.AppLogEmitterFactory
+		factory applog.AppLogEmitterFactory
 	)
 
 	BeforeEach(func() {
@@ -137,7 +138,7 @@ var _ = Describe("SyslogAgent", func() {
 			agentCfg.Cache.PollingInterval = 10 * time.Millisecond
 		}
 
-		factory := syslog.NewAppLogEmitterFactory()
+		factory := applog.NewAppLogEmitterFactory()
 
 		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &factory)
 		go agent.Run()

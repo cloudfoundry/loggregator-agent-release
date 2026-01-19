@@ -12,7 +12,7 @@ import (
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 )
 
@@ -24,7 +24,7 @@ type Poller struct {
 	logger                     *log.Logger
 	bindingRefreshErrorCounter metrics.Counter
 	lastBindingCount           metrics.Gauge
-	emitter                    syslog.AppLogEmitter
+	emitter                    applog.AppLogEmitter
 	checker                    IPChecker
 	failedHostsCache           *simplecache.SimpleCache[string, bool]
 }
@@ -67,7 +67,7 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter syslog.AppLogEmitter, checker IPChecker) *Poller {
+func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter applog.AppLogEmitter, checker IPChecker) *Poller {
 	p := &Poller{
 		apiClient:       ac,
 		pollingInterval: pi,
@@ -133,7 +133,7 @@ func (p *Poller) poll() {
 	p.store.Set(bindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
+func checkBindings(bindings []Binding, emitter applog.AppLogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	for _, b := range bindings {
 		if len(b.Credentials) == 0 {
@@ -208,7 +208,7 @@ func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPC
 	}
 }
 
-func sendAppLogMessage(msg string, apps []App, emitter syslog.AppLogEmitter) {
+func sendAppLogMessage(msg string, apps []App, emitter applog.AppLogEmitter) {
 	for _, app := range apps {
 		appId := app.AppID
 		if appId == "" {

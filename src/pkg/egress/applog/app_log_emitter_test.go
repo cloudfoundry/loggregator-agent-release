@@ -1,8 +1,8 @@
-package syslog_test
+package applog_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -11,7 +11,7 @@ var _ = Describe("Loggregator Emitter", func() {
 	Describe("DefaultAppLogEmitter", func() {
 		It("emits a log message", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			emitter := factory.NewAppLogEmitter(logClient, "0")
 
 			emitter.EmitLog("app-id", "some-message")
@@ -30,7 +30,7 @@ var _ = Describe("Loggregator Emitter", func() {
 
 		It("does not emit a log message if the appID is empty", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			emitter := factory.NewAppLogEmitter(logClient, "0")
 
 			emitter.EmitLog("", "some-message")
@@ -47,7 +47,7 @@ var _ = Describe("Loggregator Emitter", func() {
 
 	Describe("DefaultAppLogEmitterFactory", func() {
 		It("produces a AppLogEmitter", func() {
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			logClient := testhelper.NewSpyLogClient()
 			sourceIndex := "test-index"
 

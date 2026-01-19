@@ -13,6 +13,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
 )
 
 // DialFunc represents a method for creating a connection, either TCP or TLS.
@@ -33,7 +34,7 @@ type TCPWriter struct {
 
 	egressMetric metrics.Counter
 
-	emitter AppLogEmitter
+	emitter applog.AppLogEmitter
 }
 
 // NewTCPWriter creates a new TCP syslog writer.
@@ -42,7 +43,7 @@ func NewTCPWriter(
 	netConf NetworkTimeoutConfig,
 	egressMetric metrics.Counter,
 	c *Converter,
-	emitter AppLogEmitter,
+	emitter applog.AppLogEmitter,
 ) egress.WriteCloser {
 	dialer := &net.Dialer{
 		Timeout:   netConf.DialTimeout,

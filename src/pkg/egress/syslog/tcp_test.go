@@ -2,7 +2,10 @@ package syslog_test
 
 import (
 	"bufio"
+
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+
 	"fmt"
 	"io"
 	"net"
@@ -52,7 +55,7 @@ var _ = Describe("TCPWriter", func() {
 		BeforeEach(func() {
 			var err error
 			egressCounter = &metricsHelpers.SpyMetric{}
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			logClient := testhelper.NewSpyLogClient()
 			emitter := factory.NewAppLogEmitter(logClient, "3")
 
@@ -188,7 +191,7 @@ var _ = Describe("TCPWriter", func() {
 		It("write returns an error", func() {
 			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
 			binding.URL, _ = url.Parse("syslog://localhost-garbage:9999")
-			factory := syslog.NewAppLogEmitterFactory()
+			factory := applog.NewAppLogEmitterFactory()
 			logClient := testhelper.NewSpyLogClient()
 			emitter := factory.NewAppLogEmitter(logClient, "3")
 
@@ -217,7 +220,7 @@ var _ = Describe("TCPWriter", func() {
 		Context("with a happy dialer", func() {
 			BeforeEach(func() {
 				var err error
-				factory := syslog.NewAppLogEmitterFactory()
+				factory := applog.NewAppLogEmitterFactory()
 				logClient := testhelper.NewSpyLogClient()
 				emitter := factory.NewAppLogEmitter(logClient, "3")
 				writer = syslog.NewTCPWriter(
