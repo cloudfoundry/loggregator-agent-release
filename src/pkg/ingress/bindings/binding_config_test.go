@@ -93,23 +93,50 @@ var _ = Describe("Drain Param Config", func() {
 		Expect(configedBindings[4].DrainData).To(Equal(syslog.ALL))
 	})
 
-	It("sets drain filter appropriately'", func() {
-		bs := []syslog.Binding{
-			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app,stg,cell"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-types=rtr,cell,stg"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-types=rtr"}},
+	It("sets drain filter appropriately", func() {
+		testCases := []struct {
+			name     string
+			url      string
+			expected *syslog.LogTypeSet
+		}{
+			{
+				name:     "empty drain URL defaults to all types",
+				url:      "https://test.org/drain",
+				expected: NewLogTypeSet(),
+			},
+			{
+				name:     "include-log-types=app",
+				url:      "https://test.org/drain?include-log-types=app",
+				expected: NewLogTypeSet(syslog.LOG_APP),
+			},
+			{
+				name:     "include-log-types=app,stg,cell",
+				url:      "https://test.org/drain?include-log-types=app,stg,cell",
+				expected: NewLogTypeSet(syslog.LOG_APP, syslog.LOG_STG, syslog.LOG_CELL),
+			},
+			{
+				name:     "exclude-log-types=rtr,cell,stg",
+				url:      "https://test.org/drain?exclude-log-types=rtr,cell,stg",
+				expected: NewLogTypeSet(syslog.LOG_API, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH),
+			},
+			{
+				name:     "exclude-log-types=rtr",
+				url:      "https://test.org/drain?exclude-log-types=rtr",
+				expected: NewLogTypeSet(syslog.LOG_API, syslog.LOG_STG, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH, syslog.LOG_CELL),
+			},
 		}
-		f := newStubFetcher(bs, nil)
-		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := dp.FetchBindings()
-		Expect(configedBindings[0].LogFilter).To(Equal(NewLogTypeSet())) // Empty map defaults to all types
-		Expect(configedBindings[1].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_APP)))
-		Expect(configedBindings[2].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_APP, syslog.LOG_STG, syslog.LOG_CELL)))
-		Expect(configedBindings[3].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_API, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH)))
-		Expect(configedBindings[4].LogFilter).To(Equal(NewLogTypeSet(syslog.LOG_API, syslog.LOG_STG, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH, syslog.LOG_CELL)))
+		for _, tc := range testCases {
+			By(tc.name)
+			bs := []syslog.Binding{
+				{Drain: syslog.Drain{Url: tc.url}},
+			}
+			f := newStubFetcher(bs, nil)
+			dp := bindings.NewDrainParamParser(f, true, logger)
+
+			configedBindings, _ := dp.FetchBindings()
+			Expect(configedBindings[0].LogFilter).To(Equal(tc.expected), "failed for case: %s", tc.name)
+		}
 	})
 
 	It("returns an error when both include-log-types and exclude-log-types are specified", func() {
