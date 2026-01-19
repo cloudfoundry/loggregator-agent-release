@@ -12,9 +12,9 @@ var _ = Describe("Loggregator Emitter", func() {
 		It("emits a log message", func() {
 			logClient := testhelper.NewSpyLogClient()
 			factory := applog.NewAppLogEmitterFactory()
-			emitter := factory.NewAppLogEmitter(logClient, "0")
+			emitter := factory.NewLogEmitter(logClient, "0")
 
-			emitter.EmitLog("app-id", "some-message")
+			emitter.EmitAppLog("app-id", "some-message")
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()
@@ -31,9 +31,9 @@ var _ = Describe("Loggregator Emitter", func() {
 		It("does not emit a log message if the appID is empty", func() {
 			logClient := testhelper.NewSpyLogClient()
 			factory := applog.NewAppLogEmitterFactory()
-			emitter := factory.NewAppLogEmitter(logClient, "0")
+			emitter := factory.NewLogEmitter(logClient, "0")
 
-			emitter.EmitLog("", "some-message")
+			emitter.EmitAppLog("", "some-message")
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()
@@ -45,14 +45,14 @@ var _ = Describe("Loggregator Emitter", func() {
 		})
 	})
 
-	Describe("DefaultAppLogEmitterFactory", func() {
-		It("produces a AppLogEmitter", func() {
+	Describe("DefaultLogEmitterFactory", func() {
+		It("produces a LogEmitter", func() {
 			factory := applog.NewAppLogEmitterFactory()
 			logClient := testhelper.NewSpyLogClient()
 			sourceIndex := "test-index"
 
-			emitter := factory.NewAppLogEmitter(logClient, sourceIndex)
-			emitter.EmitLog("app-id", "some-message")
+			emitter := factory.NewLogEmitter(logClient, sourceIndex)
+			emitter.EmitAppLog("app-id", "some-message")
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()

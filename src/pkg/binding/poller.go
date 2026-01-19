@@ -24,7 +24,7 @@ type Poller struct {
 	logger                     *log.Logger
 	bindingRefreshErrorCounter metrics.Counter
 	lastBindingCount           metrics.Gauge
-	emitter                    applog.AppLogEmitter
+	emitter                    applog.LogEmitter
 	checker                    IPChecker
 	failedHostsCache           *simplecache.SimpleCache[string, bool]
 }
@@ -67,7 +67,7 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter applog.AppLogEmitter, checker IPChecker) *Poller {
+func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter applog.LogEmitter, checker IPChecker) *Poller {
 	p := &Poller{
 		apiClient:       ac,
 		pollingInterval: pi,
@@ -133,7 +133,7 @@ func (p *Poller) poll() {
 	p.store.Set(bindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter applog.AppLogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
+func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	for _, b := range bindings {
 		if len(b.Credentials) == 0 {
@@ -208,13 +208,13 @@ func checkBindings(bindings []Binding, emitter applog.AppLogEmitter, checker IPC
 	}
 }
 
-func sendAppLogMessage(msg string, apps []App, emitter applog.AppLogEmitter) {
+func sendAppLogMessage(msg string, apps []App, emitter applog.LogEmitter) {
 	for _, app := range apps {
 		appId := app.AppID
 		if appId == "" {
 			continue
 		}
-		emitter.EmitLog(appId, msg)
+		emitter.EmitAppLog(appId, msg)
 	}
 }
 

@@ -17,9 +17,9 @@ func (factory *SpyAppLogEmitterFactory) SourceIndex() string {
 	return factory.sourceIndex
 }
 
-func (factory *SpyAppLogEmitterFactory) NewAppLogEmitter(logClient applog.LogClient, sourceIndex string) applog.AppLogEmitter {
+func (factory *SpyAppLogEmitterFactory) NewLogEmitter(logClient applog.LogClient, sourceIndex string) applog.LogEmitter {
 	factory.logClient = logClient
 	factory.sourceIndex = sourceIndex
 	emitterFactory := applog.NewAppLogEmitterFactory()
-	return emitterFactory.NewAppLogEmitter(logClient, sourceIndex)
+	return emitterFactory.NewLogEmitter(logClient, sourceIndex)
 }

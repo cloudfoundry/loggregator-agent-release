@@ -16,7 +16,7 @@ var _ = Describe("EgressFactory", func() {
 	var (
 		f       syslog.WriterFactory
 		sm      *metricsHelpers.SpyMetricsRegistry
-		emitter applog.AppLogEmitter
+		emitter applog.LogEmitter
 	)
 
 	BeforeEach(func() {

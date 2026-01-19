@@ -34,7 +34,7 @@ type Credentials struct {
 }
 
 type writerFactory interface {
-	NewWriter(*URLBinding, applog.AppLogEmitter) (egress.WriteCloser, error)
+	NewWriter(*URLBinding, applog.LogEmitter) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
@@ -46,7 +46,7 @@ type SyslogConnector struct {
 
 	droppedMetric metrics.Counter
 
-	appLogEmitter applog.AppLogEmitter
+	appLogEmitter applog.LogEmitter
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -82,7 +82,7 @@ type ConnectorOption func(*SyslogConnector)
 
 // WithAppLogEmitter returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithAppLogEmitter(emitter applog.AppLogEmitter) ConnectorOption {
+func WithAppLogEmitter(emitter applog.LogEmitter) ConnectorOption {
 	return func(sc *SyslogConnector) {
 		sc.appLogEmitter = emitter
 	}
@@ -125,7 +125,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		drainDroppedMetric.Add(float64(missed))
 
 		w.emitStandardOutErrorLog(b.AppId, urlBinding.Scheme(), anonymousUrl.String(), missed)
-		w.appLogEmitter.EmitLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
+		w.appLogEmitter.EmitAppLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
 	}), w.wg)
 
 	filteredWriter, err := NewFilteringDrainWriter(b, dw)

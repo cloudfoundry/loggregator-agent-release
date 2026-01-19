@@ -28,7 +28,7 @@ func NewTLSWriter(
 	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
 	syslogConverter *Converter,
-	emitter applog.AppLogEmitter,
+	emitter applog.LogEmitter,
 ) egress.WriteCloser {
 
 	dialer := &net.Dialer{

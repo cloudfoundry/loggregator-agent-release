@@ -51,7 +51,7 @@ var _ = Describe("SyslogAgent", func() {
 		agentLogr    *log.Logger
 		agent        *app.SyslogAgent
 
-		factory applog.AppLogEmitterFactory
+		factory applog.LogEmitterFactory
 	)
 
 	BeforeEach(func() {

@@ -53,7 +53,7 @@ func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Conf
 	}
 }
 
-func (f WriterFactory) NewWriter(ub *URLBinding, emitter applog.AppLogEmitter) (egress.WriteCloser, error) {
+func (f WriterFactory) NewWriter(ub *URLBinding, emitter applog.LogEmitter) (egress.WriteCloser, error) {
 	tlsCfg := f.externalTlsConfig.Clone()
 	if ub.InternalTls {
 		tlsCfg = f.internalTlsConfig.Clone()

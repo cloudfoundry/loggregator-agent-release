@@ -182,7 +182,7 @@ var _ = Describe("SyslogConnector", func() {
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogEmitter(factory.NewAppLogEmitter(logClient, "3")),
+				syslog.WithAppLogEmitter(factory.NewLogEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{AppId: "app-id",
@@ -225,7 +225,7 @@ var _ = Describe("SyslogConnector", func() {
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogEmitter(factory.NewAppLogEmitter(logClient, "3")),
+				syslog.WithAppLogEmitter(factory.NewLogEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}
@@ -281,7 +281,7 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
-	emitter applog.AppLogEmitter,
+	emitter applog.LogEmitter,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

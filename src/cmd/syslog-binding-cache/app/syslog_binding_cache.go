@@ -35,7 +35,7 @@ type SyslogBindingCache struct {
 	logger      *log.Logger
 	metrics     Metrics
 	mu          sync.Mutex
-	emitter     applog.AppLogEmitter
+	emitter     applog.LogEmitter
 	checker     IPChecker
 }
 
@@ -64,7 +64,7 @@ func NewSyslogBindingCache(config Config, metrics Metrics, logger *log.Logger) *
 		logger.Panicf("failed to create logger client for syslog connector: %q", err)
 	}
 	factory := applog.NewAppLogEmitterFactory()
-	emitter := factory.NewAppLogEmitter(logClient, "syslog_binding_cache")
+	emitter := factory.NewLogEmitter(logClient, "syslog_binding_cache")
 
 	return &SyslogBindingCache{
 		config:  config,

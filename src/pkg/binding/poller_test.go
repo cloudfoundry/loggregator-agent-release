@@ -27,7 +27,7 @@ var _ = Describe("Poller", func() {
 		store     *fakeStore
 		metrics   *metricsHelpers.SpyMetricsRegistry
 		logger    = log.New(GinkgoWriter, "", 0)
-		emitter   applog.AppLogEmitter
+		emitter   applog.LogEmitter
 	)
 
 	BeforeEach(func() {
@@ -36,7 +36,7 @@ var _ = Describe("Poller", func() {
 		metrics = metricsHelpers.NewMetricsRegistry()
 		factory := applog.NewAppLogEmitterFactory()
 		logClient := testhelper.NewSpyLogClient()
-		emitter = factory.NewAppLogEmitter(logClient, "test")
+		emitter = factory.NewLogEmitter(logClient, "test")
 	})
 
 	It("polls for bindings on an interval", func() {

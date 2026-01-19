@@ -34,7 +34,7 @@ type TCPWriter struct {
 
 	egressMetric metrics.Counter
 
-	emitter applog.AppLogEmitter
+	emitter applog.LogEmitter
 }
 
 // NewTCPWriter creates a new TCP syslog writer.
@@ -43,7 +43,7 @@ func NewTCPWriter(
 	netConf NetworkTimeoutConfig,
 	egressMetric metrics.Counter,
 	c *Converter,
-	emitter applog.AppLogEmitter,
+	emitter applog.LogEmitter,
 ) egress.WriteCloser {
 	dialer := &net.Dialer{
 		Timeout:   netConf.DialTimeout,
@@ -110,7 +110,7 @@ func (w *TCPWriter) connect() (net.Conn, error) {
 	conn, err := w.dialFunc(w.url.Host)
 	if err != nil {
 		logMessage := fmt.Sprintf("Failed to connect to %s", w.url.String())
-		w.emitter.EmitLog(w.appID, logMessage)
+		w.emitter.EmitAppLog(w.appID, logMessage)
 		return nil, err
 	}
 	w.conn = conn

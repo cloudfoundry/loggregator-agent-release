@@ -57,7 +57,7 @@ func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
-	appLogEmitterFactory applog.AppLogEmitterFactory,
+	appLogEmitterFactory applog.LogEmitterFactory,
 ) *SyslogAgent {
 	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
@@ -89,7 +89,7 @@ func NewSyslogAgent(
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithAppLogEmitter(appLogEmitterFactory.NewAppLogEmitter(logClient, "syslog_agent")),
+		syslog.WithAppLogEmitter(appLogEmitterFactory.NewLogEmitter(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient
