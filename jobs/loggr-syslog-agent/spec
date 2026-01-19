@@ -164,7 +164,3 @@ properties:
   warn_on_invalid_drains:
     description: "Whether to output log warnings on invalid drains"
     default: true
-
-  forwarder_agent_address:
-    description: "Address of the forwarder agent to connect to."
-    default: "localhost:3458"

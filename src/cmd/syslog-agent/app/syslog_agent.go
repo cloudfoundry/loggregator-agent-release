@@ -71,7 +71,7 @@ func NewSyslogAgent(
 	logClient, err := loggregator.NewIngressClient(
 		ingressTLSConfig,
 		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
-		loggregator.WithAddr(cfg.ForwarderAgentAddress),
+		loggregator.WithAddr(fmt.Sprintf("localhost:%d", cfg.GRPC.Port)),
 	)
 	if err != nil {
 		l.Panicf("failed to create log client for syslog connector: %q", err)
