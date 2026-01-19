@@ -6,16 +6,19 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 )
 
 var _ = Describe("Poller", func() {
@@ -24,16 +27,20 @@ var _ = Describe("Poller", func() {
 		store     *fakeStore
 		metrics   *metricsHelpers.SpyMetricsRegistry
 		logger    = log.New(GinkgoWriter, "", 0)
+		emitter   syslog.AppLogEmitter
 	)
 
 	BeforeEach(func() {
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
 		metrics = metricsHelpers.NewMetricsRegistry()
+		factory := syslog.NewAppLogEmitterFactory()
+		logClient := testhelper.NewSpyLogClient()
+		emitter = factory.NewAppLogEmitter(logClient, "test")
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -67,7 +74,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
 		go p.Poll()
 
 		var expectedBindings []binding.Binding
@@ -142,7 +149,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
 		go p.Poll()
 
 		var expectedBindings []binding.Binding
@@ -188,7 +195,7 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("tracks the number of API errors", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
@@ -201,7 +208,7 @@ var _ = Describe("Poller", func() {
 	It("does not update the stores if the response code is bad", func() {
 		apiClient.statusCode <- 404
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger)
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
@@ -228,7 +235,7 @@ var _ = Describe("Poller", func() {
 				},
 			},
 		}
-		binding.NewPoller(apiClient, time.Hour, store, metrics, logger)
+		binding.NewPoller(apiClient, time.Hour, store, metrics, logger, emitter, &dummyIPChecker{})
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 2))
@@ -345,4 +352,14 @@ func (c *fakeStore) Set(b []binding.Binding, bindingCount int) {
 type response struct {
 	Results []binding.Binding
 	NextID  int `json:"next_id"`
+}
+
+type dummyIPChecker struct{}
+
+func (d *dummyIPChecker) ResolveAddr(host string) (net.IP, error) {
+	return net.IPv4(127, 0, 0, 1), nil
+}
+
+func (*dummyIPChecker) CheckBlacklist(ip net.IP) error {
+	return nil
 }

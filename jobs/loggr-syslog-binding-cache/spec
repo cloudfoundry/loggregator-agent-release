@@ -14,6 +14,9 @@ templates:
   metrics.key.erb: config/certs/metrics.key
   aggregate_drains.yml.erb: config/aggregate_drains.yml
   prom_scraper_config.yml.erb: config/prom_scraper_config.yml
+  agent.crt.erb: config/certs/agent.crt
+  agent.key.erb: config/certs/agent.key
+  agent_ca.crt.erb: config/certs/agent_ca.crt
 
 packages:
 - binding-cache
@@ -134,3 +137,27 @@ properties:
   logging.format.timestamp:
     description: "Format for timestamp in component logs. Valid values are 'deprecated' and 'rfc3339'."
     default: "deprecated"
+
+  agent.port:
+    description: "Port the agent is serving gRPC via mTLS"
+    default: 3458
+  agent.ca_cert:
+    description: |
+        TLS loggregator root CA certificate. It is required for key/cert
+         verification.
+  agent.cert:
+    description: "TLS certificate for syslog signed by the loggregator CA"
+  agent.key:
+    description: "TLS private key for syslog signed by the loggregator CA"
+  agent.cipher_suites:
+    description: |
+         An ordered list of supported SSL cipher suites. Allowed cipher suites are
+         TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
+    default: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+
+  blacklisted_syslog_ranges:
+    description: |
+      A list of IP address ranges that are not allowed to be specified in
+      syslog drain binding URLs.
+    default: []
+    example: [{start: 10.10.10.1, end: 10.10.10.10}]

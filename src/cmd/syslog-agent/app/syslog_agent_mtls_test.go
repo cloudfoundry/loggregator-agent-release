@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -154,7 +155,9 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 			agentCfg.Cache.PollingInterval = 10 * time.Millisecond
 		}
 
-		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr)
+		factory := syslog.NewAppLogEmitterFactory()
+
+		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &factory)
 		go agent.Run()
 	})
 

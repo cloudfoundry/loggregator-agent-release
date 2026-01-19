@@ -107,6 +107,7 @@ var _ = Describe("App", func() {
 		err = aggDrainFile.Close()
 		Expect(err).ToNot(HaveOccurred())
 		sbcCerts = testhelper.GenerateCerts("binding-cache-ca")
+		grpcPort := 30000 + GinkgoParallelProcess()
 		sbcCfg = app.Config{
 			APIURL:              capi.URL,
 			APIPollingInterval:  10 * time.Millisecond,
@@ -127,6 +128,12 @@ var _ = Describe("App", func() {
 				CertFile:  sbcCerts.Cert("metron"),
 				KeyFile:   sbcCerts.Key("metron"),
 				PprofPort: uint16(pprofPort),
+			},
+			GRPC: app.GRPC{
+				Port:     grpcPort,
+				CAFile:   sbcCerts.CA(),
+				CertFile: sbcCerts.Cert("metron"),
+				KeyFile:  sbcCerts.Key("metron"),
 			},
 		}
 		sbcMetrics = metricsHelpers.NewMetricsRegistry()
