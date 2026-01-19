@@ -75,22 +75,49 @@ var _ = Describe("Drain Param Config", func() {
 	})
 
 	It("sets drain data appropriately'", func() {
-		bs := []syslog.Binding{
-			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=logs"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=metrics"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=traces"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-data=all"}},
+		testCases := []struct {
+			name     string
+			url      string
+			expected syslog.DrainData
+		}{
+			{
+				name:     "no drain-data parameter defaults to logs",
+				url:      "https://test.org/drain",
+				expected: syslog.LOGS,
+			},
+			{
+				name:     "drain-data=logs",
+				url:      "https://test.org/drain?drain-data=logs",
+				expected: syslog.LOGS,
+			},
+			{
+				name:     "drain-data=metrics",
+				url:      "https://test.org/drain?drain-data=metrics",
+				expected: syslog.METRICS,
+			},
+			{
+				name:     "drain-data=traces",
+				url:      "https://test.org/drain?drain-data=traces",
+				expected: syslog.TRACES,
+			},
+			{
+				name:     "drain-data=all",
+				url:      "https://test.org/drain?drain-data=all",
+				expected: syslog.ALL,
+			},
 		}
-		f := newStubFetcher(bs, nil)
-		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := dp.FetchBindings()
-		Expect(configedBindings[0].DrainData).To(Equal(syslog.LOGS))
-		Expect(configedBindings[1].DrainData).To(Equal(syslog.LOGS))
-		Expect(configedBindings[2].DrainData).To(Equal(syslog.METRICS))
-		Expect(configedBindings[3].DrainData).To(Equal(syslog.TRACES))
-		Expect(configedBindings[4].DrainData).To(Equal(syslog.ALL))
+		for _, tc := range testCases {
+			By(tc.name)
+			bs := []syslog.Binding{
+				{Drain: syslog.Drain{Url: tc.url}},
+			}
+			f := newStubFetcher(bs, nil)
+			dp := bindings.NewDrainParamParser(f, true, logger)
+
+			configedBindings, _ := dp.FetchBindings()
+			Expect(configedBindings[0].DrainData).To(Equal(tc.expected))
+		}
 	})
 
 	It("sets drain filter appropriately", func() {
