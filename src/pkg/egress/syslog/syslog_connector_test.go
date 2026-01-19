@@ -182,7 +182,7 @@ var _ = Describe("SyslogConnector", func() {
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogEmitter(factory.NewLogEmitter(logClient, "3")),
+				syslog.WithLogEmitter(factory.NewLogEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{AppId: "app-id",
@@ -225,7 +225,7 @@ var _ = Describe("SyslogConnector", func() {
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogEmitter(factory.NewLogEmitter(logClient, "3")),
+				syslog.WithLogEmitter(factory.NewLogEmitter(logClient, "3")),
 			)
 
 			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}

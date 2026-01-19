@@ -80,9 +80,9 @@ func NewSyslogConnector(
 // ConnectorOption allows a syslog connector to be customized.
 type ConnectorOption func(*SyslogConnector)
 
-// WithAppLogEmitter returns a ConnectorOption that will set up logging for any
+// WithLogEmitter returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithAppLogEmitter(emitter applog.LogEmitter) ConnectorOption {
+func WithLogEmitter(emitter applog.LogEmitter) ConnectorOption {
 	return func(sc *SyslogConnector) {
 		sc.appLogEmitter = emitter
 	}

@@ -89,7 +89,7 @@ func NewSyslogAgent(
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithAppLogEmitter(appLogEmitterFactory.NewLogEmitter(logClient, "syslog_agent")),
+		syslog.WithLogEmitter(appLogEmitterFactory.NewLogEmitter(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient
