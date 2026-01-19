@@ -214,22 +214,49 @@ var _ = Describe("Drain Param Config", func() {
 	})
 
 	It("sets drain data for old parameter appropriately'", func() {
-		bs := []syslog.Binding{
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=metrics"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=logs"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?drain-type=all"}},
-			{Drain: syslog.Drain{Url: "https://test.org/drain?include-metrics-deprecated=true"}},
+		testCases := []struct {
+			name     string
+			url      string
+			expected syslog.DrainData
+		}{
+			{
+				name:     "drain-type=metrics",
+				url:      "https://test.org/drain?drain-type=metrics",
+				expected: syslog.METRICS,
+			},
+			{
+				name:     "drain-type=logs",
+				url:      "https://test.org/drain?drain-type=logs",
+				expected: syslog.LOGS_NO_EVENTS,
+			},
+			{
+				name:     "no drain-type parameter",
+				url:      "https://test.org/drain",
+				expected: syslog.LOGS,
+			},
+			{
+				name:     "drain-type=all",
+				url:      "https://test.org/drain?drain-type=all",
+				expected: syslog.LOGS_AND_METRICS,
+			},
+			{
+				name:     "include-metrics-deprecated=true",
+				url:      "https://test.org/drain?include-metrics-deprecated=true",
+				expected: syslog.ALL,
+			},
 		}
-		f := newStubFetcher(bs, nil)
-		dp := bindings.NewDrainParamParser(f, true, logger)
 
-		configedBindings, _ := dp.FetchBindings()
-		Expect(configedBindings[0].DrainData).To(Equal(syslog.METRICS))
-		Expect(configedBindings[1].DrainData).To(Equal(syslog.LOGS_NO_EVENTS))
-		Expect(configedBindings[2].DrainData).To(Equal(syslog.LOGS))
-		Expect(configedBindings[3].DrainData).To(Equal(syslog.LOGS_AND_METRICS))
-		Expect(configedBindings[4].DrainData).To(Equal(syslog.ALL))
+		for _, tc := range testCases {
+			By(tc.name)
+			bs := []syslog.Binding{
+				{Drain: syslog.Drain{Url: tc.url}},
+			}
+			f := newStubFetcher(bs, nil)
+			dp := bindings.NewDrainParamParser(f, true, logger)
+
+			configedBindings, _ := dp.FetchBindings()
+			Expect(configedBindings[0].DrainData).To(Equal(tc.expected))
+		}
 	})
 
 	It("omits bindings with bad Drain URLs", func() {
