@@ -146,7 +146,7 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 
 		for _, cred := range b.Credentials {
 			if err != nil {
-				sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), cred.Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), cred.Apps, emitter, logger)
 				continue
 			}
 
@@ -155,19 +155,19 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 			anonymousUrl.RawQuery = ""
 
 			if invalidScheme(u.Scheme) {
-				sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), cred.Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), cred.Apps, emitter, logger)
 				continue
 			}
 
 			if len(u.Host) == 0 {
-				sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), cred.Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), cred.Apps, emitter, logger)
 				continue
 			}
 
 			_, exists := failedHostsCache.Get(u.Host)
 			if exists {
 				//invalidDrains += 1
-				sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter, logger)
 				continue
 			}
 
@@ -175,7 +175,7 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 			if err != nil {
 				//invalidDrains += 1
 				failedHostsCache.Set(u.Host, true)
-				sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter, logger)
 				continue
 			}
 
@@ -183,7 +183,7 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 			if err != nil {
 				//invalidDrains += 1
 				//blacklistedDrains += 1
-				sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter)
+				sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter, logger)
 				continue
 			}
 
@@ -191,7 +191,7 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 				_, err := tls.X509KeyPair([]byte(cred.Cert), []byte(cred.Key))
 				if err != nil {
 					errorMessage := err.Error()
-					sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), cred.Apps, emitter)
+					sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), cred.Apps, emitter, logger)
 					continue
 				}
 			}
@@ -200,7 +200,7 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 				certPool := x509.NewCertPool()
 				ok := certPool.AppendCertsFromPEM([]byte(cred.CA))
 				if !ok {
-					sendAppLogMessage("failed to load root CA", cred.Apps, emitter)
+					sendAppLogMessage("failed to load root CA", cred.Apps, emitter, logger)
 					continue
 				}
 			}
@@ -208,13 +208,15 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 	}
 }
 
-func sendAppLogMessage(msg string, apps []App, emitter applog.LogEmitter) {
+func sendAppLogMessage(msg string, apps []App, emitter applog.LogEmitter, logger *log.Logger) {
 	for _, app := range apps {
 		appId := app.AppID
 		if appId == "" {
 			continue
 		}
 		emitter.EmitAppLog(appId, msg)
+		emitter.EmitPlatformLog(fmt.Sprintf("%s for app %s", msg, appId))
+		logger.Printf("%s for app %s", msg, appId)
 	}
 }
 
