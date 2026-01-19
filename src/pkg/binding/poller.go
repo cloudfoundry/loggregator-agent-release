@@ -98,16 +98,16 @@ func (p *Poller) Poll() {
 
 func (p *Poller) poll() {
 	nextID := 0
-	var syslogDrainBindings []Binding
+	var bindings []Binding
 	for {
 		resp, err := p.apiClient.Get(nextID)
 		if err != nil {
 			p.bindingRefreshErrorCounter.Add(1)
-			p.logger.Printf("failed to get page %d from internal syslogDrainBindings endpoint: %s", nextID, err)
+			p.logger.Printf("failed to get page %d from internal bindings endpoint: %s", nextID, err)
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			p.logger.Printf("unexpected response from internal syslogDrainBindings endpoint. status code: %d", resp.StatusCode)
+			p.logger.Printf("unexpected response from internal bindings endpoint. status code: %d", resp.StatusCode)
 			return
 		}
 
@@ -118,7 +118,7 @@ func (p *Poller) poll() {
 			return
 		}
 
-		syslogDrainBindings = append(syslogDrainBindings, aResp.Results...)
+		bindings = append(bindings, aResp.Results...)
 		nextID = aResp.NextID
 
 		if nextID == 0 {
@@ -126,11 +126,11 @@ func (p *Poller) poll() {
 		}
 	}
 
-	checkBindings(syslogDrainBindings, p.emitter, p.checker, p.logger, p.failedHostsCache)
+	checkBindings(bindings, p.emitter, p.checker, p.logger, p.failedHostsCache)
 
-	bindingCount := CalculateBindingCount(syslogDrainBindings)
+	bindingCount := CalculateBindingCount(bindings)
 	p.lastBindingCount.Set(float64(bindingCount))
-	p.store.Set(syslogDrainBindings, bindingCount)
+	p.store.Set(bindings, bindingCount)
 }
 
 func checkBindings(bindings []Binding, emitter syslog.AppLogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
