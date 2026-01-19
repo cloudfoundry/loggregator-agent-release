@@ -111,6 +111,7 @@ func (w *TCPWriter) connect() (net.Conn, error) {
 	if err != nil {
 		logMessage := fmt.Sprintf("Failed to connect to %s", w.url.String())
 		w.emitter.EmitAppLog(w.appID, logMessage)
+		w.emitter.EmitPlatformLog(fmt.Sprintf("%s for app %s", logMessage, w.appID))
 		return nil, err
 	}
 	w.conn = conn
