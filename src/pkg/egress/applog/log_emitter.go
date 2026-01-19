@@ -32,6 +32,18 @@ func (logEmitter *LogEmitter) EmitAppLog(appID string, message string) {
 	logEmitter.logClient.EmitLog(message, option)
 }
 
+func (logEmitter *LogEmitter) EmitPlatformLog(message string) {
+	option := loggregator.WithAppInfo("", "LGR", "")
+	logEmitter.logClient.EmitLog(message, option)
+
+	option = loggregator.WithAppInfo(
+		"",
+		"SYS",
+		logEmitter.sourceIndex,
+	)
+	logEmitter.logClient.EmitLog(message, option)
+}
+
 // LogEmitterFactory is used to create new instances of LogEmitter
 type LogEmitterFactory interface {
 	NewLogEmitter(logClient LogClient, sourceIndex string) LogEmitter
