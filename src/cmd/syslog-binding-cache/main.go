@@ -31,5 +31,7 @@ func main() {
 			cfg.MetricsServer.CAFile,
 		),
 	)
+
+	
 	app.NewSyslogBindingCache(cfg, m, logger).Run()
 }
