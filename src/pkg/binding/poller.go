@@ -24,6 +24,8 @@ type Poller struct {
 	logger                     *log.Logger
 	bindingRefreshErrorCounter metrics.Counter
 	lastBindingCount           metrics.Gauge
+	invalidDrains              metrics.Gauge
+	blacklistedDrains          metrics.Gauge
 	emitter                    applog.LogEmitter
 	checker                    IPChecker
 	failedHostsCache           *simplecache.SimpleCache[string, bool]
@@ -68,6 +70,8 @@ type Setter interface {
 }
 
 func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter applog.LogEmitter, checker IPChecker) *Poller {
+	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
+
 	p := &Poller{
 		apiClient:       ac,
 		pollingInterval: pi,
@@ -80,6 +84,16 @@ func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Log
 		lastBindingCount: m.NewGauge(
 			"last_binding_refresh_count",
 			"Current number of bindings received from binding provider during last refresh.",
+		),
+		invalidDrains: m.NewGauge(
+			"invalid_drains",
+			"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
+			opt,
+		),
+		blacklistedDrains: m.NewGauge(
+			"blacklisted_drains",
+			"Count of blacklisted drains encountered in last binding fetch.",
+			opt,
 		),
 		emitter:          emitter,
 		checker:          checker,
@@ -126,14 +140,14 @@ func (p *Poller) poll() {
 		}
 	}
 
-	checkBindings(bindings, p.emitter, p.checker, p.logger, p.failedHostsCache)
+	checkBindings(bindings, p.emitter, p.checker, p.logger, p.failedHostsCache, p.blacklistedDrains, p.invalidDrains)
 
 	bindingCount := CalculateBindingCount(bindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(bindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool]) {
+func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool], blacklistedDrainsGauge metrics.Gauge, invalidDrainsGauge metrics.Gauge) {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	for _, b := range bindings {
 		if len(b.Credentials) == 0 {
@@ -141,7 +155,8 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 			continue
 		}
 
-		//todo provide Prometheus metrics for invalid/blacklisted drains
+		var invalidDrains float64
+		var blacklistedDrains float64
 		u, err := url.Parse(b.Url)
 
 		for _, cred := range b.Credentials {
@@ -166,14 +181,14 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 
 			_, exists := failedHostsCache.Get(u.Host)
 			if exists {
-				//invalidDrains += 1
+				invalidDrains += 1
 				sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter, logger)
 				continue
 			}
 
 			ip, err := checker.ResolveAddr(u.Host)
 			if err != nil {
-				//invalidDrains += 1
+				invalidDrains += 1
 				failedHostsCache.Set(u.Host, true)
 				sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter, logger)
 				continue
@@ -181,8 +196,8 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 
 			err = checker.CheckBlacklist(ip)
 			if err != nil {
-				//invalidDrains += 1
-				//blacklistedDrains += 1
+				invalidDrains += 1
+				blacklistedDrains += 1
 				sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter, logger)
 				continue
 			}
@@ -205,6 +220,9 @@ func checkBindings(bindings []Binding, emitter applog.LogEmitter, checker IPChec
 				}
 			}
 		}
+
+		blacklistedDrainsGauge.Set(blacklistedDrains)
+		invalidDrainsGauge.Set(invalidDrains)
 	}
 }
 
