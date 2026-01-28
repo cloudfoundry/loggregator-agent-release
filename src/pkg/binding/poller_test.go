@@ -13,7 +13,7 @@ import (
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,14 +27,14 @@ var _ = Describe("Poller", func() {
 		store     *fakeStore
 		metrics   *metricsHelpers.SpyMetricsRegistry
 		logger    = log.New(GinkgoWriter, "", 0)
-		emitter   applog.LogEmitter
+		emitter   loggregator.LogStream
 	)
 
 	BeforeEach(func() {
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
 		metrics = metricsHelpers.NewMetricsRegistry()
-		factory := applog.NewAppLogEmitterFactory()
+		factory := loggregator.NewAppLogStreamFactory()
 		logClient := testhelper.NewSpyLogClient()
 		emitter = factory.NewLogEmitter(logClient, "test")
 	})

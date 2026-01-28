@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"net/url"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -16,7 +16,7 @@ var _ = Describe("EgressFactory", func() {
 	var (
 		f       syslog.WriterFactory
 		sm      *metricsHelpers.SpyMetricsRegistry
-		emitter applog.LogEmitter
+		emitter loggregator.LogStream
 	)
 
 	BeforeEach(func() {

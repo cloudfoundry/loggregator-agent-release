@@ -1,8 +1,8 @@
-package applog_test
+package loggregator_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -11,10 +11,10 @@ var _ = Describe("Loggregator Emitter", func() {
 	Describe("DefaultAppLogEmitter", func() {
 		It("emits a log message", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := applog.NewAppLogEmitterFactory()
+			factory := loggregator.NewAppLogStreamFactory()
 			emitter := factory.NewLogEmitter(logClient, "0")
 
-			emitter.EmitAppLog("app-id", "some-message")
+			emitter.Emit("some-message", loggregator.ForApp("app-id"))
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()
@@ -28,12 +28,12 @@ var _ = Describe("Loggregator Emitter", func() {
 			Expect(sourceTypes).To(HaveKey("SYS"))
 		})
 
-		It("does not emit a log message if the appID is empty", func() {
+		It("does not emit a log message if the appIdentifier is empty", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := applog.NewAppLogEmitterFactory()
+			factory := loggregator.NewAppLogStreamFactory()
 			emitter := factory.NewLogEmitter(logClient, "0")
 
-			emitter.EmitAppLog("", "some-message")
+			emitter.Emit("some-message", loggregator.ForPlatform())
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()
@@ -46,13 +46,13 @@ var _ = Describe("Loggregator Emitter", func() {
 	})
 
 	Describe("DefaultLogEmitterFactory", func() {
-		It("produces a LogEmitter", func() {
-			factory := applog.NewAppLogEmitterFactory()
+		It("produces a LogStream", func() {
+			factory := loggregator.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
 			sourceIndex := "test-index"
 
 			emitter := factory.NewLogEmitter(logClient, sourceIndex)
-			emitter.EmitAppLog("app-id", "some-message")
+			emitter.Emit("some-message", loggregator.ForApp("app-id"))
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()

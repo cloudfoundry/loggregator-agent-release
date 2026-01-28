@@ -7,7 +7,7 @@ import (
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 )
 
 type metricClient interface {
@@ -53,7 +53,7 @@ func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Conf
 	}
 }
 
-func (f WriterFactory) NewWriter(ub *URLBinding, emitter applog.LogEmitter) (egress.WriteCloser, error) {
+func (f WriterFactory) NewWriter(ub *URLBinding, emitter loggregator.LogStream) (egress.WriteCloser, error) {
 	tlsCfg := f.externalTlsConfig.Clone()
 	if ub.InternalTls {
 		tlsCfg = f.internalTlsConfig.Clone()

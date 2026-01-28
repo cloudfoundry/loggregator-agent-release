@@ -5,7 +5,7 @@ import (
 	_ "net/http/pprof" //nolint:gosec
 	"os"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
@@ -35,7 +35,7 @@ func main() {
 		),
 	)
 
-	factory := applog.NewAppLogEmitterFactory()
+	factory := loggregator.NewAppLogStreamFactory()
 
 	app.NewSyslogAgent(cfg, m, logger, &factory).Run()
 }

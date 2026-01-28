@@ -13,7 +13,7 @@ import (
 
 	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	egressLoggregator "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -35,7 +35,7 @@ type SyslogBindingCache struct {
 	log         *log.Logger
 	metrics     Metrics
 	mu          sync.Mutex
-	emitter     applog.LogEmitter
+	emitter     egressLoggregator.LogStream
 	checker     IPChecker
 }
 
@@ -63,7 +63,7 @@ func NewSyslogBindingCache(config Config, metrics Metrics, logger *log.Logger) *
 	if err != nil {
 		logger.Panicf("failed to create logger client for syslog binding cache: %q", err)
 	}
-	factory := applog.NewAppLogEmitterFactory()
+	factory := egressLoggregator.NewAppLogStreamFactory()
 	emitter := factory.NewLogEmitter(logClient, "syslog_binding_cache")
 
 	return &SyslogBindingCache{

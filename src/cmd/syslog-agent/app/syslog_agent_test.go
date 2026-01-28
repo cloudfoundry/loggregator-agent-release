@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/applog"
+	egressLoggregator "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -51,7 +51,7 @@ var _ = Describe("SyslogAgent", func() {
 		agentLogr    *log.Logger
 		agent        *app.SyslogAgent
 
-		factory applog.LogEmitterFactory
+		factory egressLoggregator.LogStreamFactory
 	)
 
 	BeforeEach(func() {
@@ -138,7 +138,7 @@ var _ = Describe("SyslogAgent", func() {
 			agentCfg.Cache.PollingInterval = 10 * time.Millisecond
 		}
 
-		factory := applog.NewAppLogEmitterFactory()
+		factory := egressLoggregator.NewAppLogStreamFactory()
 
 		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &factory)
 		go agent.Run()
