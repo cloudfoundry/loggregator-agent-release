@@ -56,7 +56,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
-		anonymousUrl := u
+		anonymousUrl := *u
 		anonymousUrl.User = nil
 		anonymousUrl.RawQuery = ""
 
