@@ -1,5 +1,7 @@
 package syslog
 
+import "strings"
+
 // LogType defines the log types used within Cloud Foundry
 // Their order in the code is as documented in https://docs.cloudfoundry.org/devguide/deploy-apps/streaming-logs.html#format
 type LogType string
@@ -52,4 +54,10 @@ func (s LogTypeSet) Add(lt LogType) {
 func (s LogTypeSet) Contains(lt LogType) bool {
 	_, exists := s[lt]
 	return exists
+}
+
+// ParseLogType parses a string into a LogType value
+func ParseLogType(s string) (LogType, bool) {
+	lt := LogType(strings.ToUpper(s))
+	return lt, lt.IsValid()
 }
