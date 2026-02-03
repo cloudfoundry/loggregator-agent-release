@@ -3,6 +3,7 @@ package bindings
 import (
 	"log"
 	"net/url"
+	"strings"
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -69,6 +70,19 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
+		if invalidLogFilter(u) {
+			invalidDrains += 1
+			f.printWarning("include-log-types and exclude-log-types cannot be used at the same time in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
+			continue
+		}
+
+		logTypes := getUnknownLogTypes(u.Query())
+		if logTypes != nil {
+			invalidDrains += 1
+			f.printWarning("Unknown log types '%s' in log type filter in syslog drain url %s for application %s", strings.Join(logTypes, ", "), anonymousUrl.String(), b.AppId)
+			continue
+		}
+
 		_, exists := f.failedHostsCache.Get(u.Host)
 		if exists {
 			invalidDrains += 1
@@ -97,6 +111,45 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 
 	return newBindings, nil
 
+}
+
+// invalidLogFilter checks if both include-log-types and exclude-log-types
+func invalidLogFilter(u *url.URL) bool {
+	includeLogTypes := u.Query().Get("include-log-types")
+	excludeLogTypes := u.Query().Get("exclude-log-types")
+	if excludeLogTypes != "" && includeLogTypes != "" {
+		return true
+	}
+	return false
+}
+
+// assumes only one of include-log-types or exclude-log-types is set
+func getUnknownLogTypes(u url.Values) []string {
+	var logTypeList string
+	includeLogTypes := u.Get("include-log-types")
+	excludeLogTypes := u.Get("exclude-log-types")
+
+	if includeLogTypes != "" {
+		logTypeList = includeLogTypes
+	} else if excludeLogTypes != "" {
+		logTypeList = excludeLogTypes
+	} else {
+		return nil
+	}
+
+	logTypes := strings.Split(logTypeList, ",")
+	var unknownTypes []string
+
+	for _, logType := range logTypes {
+		logType = strings.TrimSpace(logType)
+		_, ok := syslog.ParseLogType(logType)
+		if !ok {
+			unknownTypes = append(unknownTypes, logType)
+			continue
+		}
+	}
+
+	return unknownTypes
 }
 
 func (f FilteredBindingFetcher) printWarning(format string, v ...any) {
