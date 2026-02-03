@@ -20,6 +20,7 @@ type Binding struct {
 	DrainData    DrainData `json:"type,omitempty"`
 	OmitMetadata bool
 	InternalTls  bool
+	LogFilter    *LogTypeSet
 }
 
 type Drain struct {
