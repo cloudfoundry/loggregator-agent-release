@@ -257,6 +257,135 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		})
 	})
 
+	Context("when both include-log-types and exclude-log-types are specified", func() {
+		var logBuffer bytes.Buffer
+		var warn bool
+		var mockic *bindingsfakes.FakeIPChecker
+
+		BeforeEach(func() {
+			logBuffer = bytes.Buffer{}
+			log.SetOutput(&logBuffer)
+			warn = true
+			mockic = &bindingsfakes.FakeIPChecker{}
+			mockic.ResolveAddrReturns(net.ParseIP("10.10.10.10"), nil)
+			mockic.CheckBlacklistReturns(nil)
+		})
+
+		JustBeforeEach(func() {
+			input := []syslog.Binding{
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app&exclude-log-types=rtr"}},
+			}
+			filter = bindings.NewFilteredBindingFetcher(
+				mockic,
+				&SpyBindingReader{bindings: input},
+				metrics,
+				warn,
+				log,
+			)
+		})
+
+		It("ignores the drain", func() {
+			actual, err := filter.FetchBindings()
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(HaveLen(0))
+			Expect(logBuffer.String()).Should(MatchRegexp("include-log-types and exclude-log-types cannot be used at the same time"))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+
+		})
+
+		Context("when configured not to warn", func() {
+			BeforeEach(func() {
+				warn = false
+			})
+			It("doesn't log the conflicting filters warning", func() {
+				_, err := filter.FetchBindings()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(logBuffer.String()).ToNot(MatchRegexp("include-log-types and exclude-log-types cannot be used at the same time"))
+			})
+		})
+	})
+
+	Context("when unknown log types are provided", func() {
+		var logBuffer bytes.Buffer
+		var warn bool
+		var mockic *bindingsfakes.FakeIPChecker
+
+		BeforeEach(func() {
+			logBuffer = bytes.Buffer{}
+			log.SetOutput(&logBuffer)
+			warn = true
+			mockic = &bindingsfakes.FakeIPChecker{}
+			mockic.ResolveAddrReturns(net.ParseIP("10.10.10.10"), nil)
+			mockic.CheckBlacklistReturns(nil)
+		})
+
+		It("logs a warning and ignores the drain in include mode", func() {
+			input := []syslog.Binding{
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app,unknown,invalid,rtr"}},
+			}
+			filter = bindings.NewFilteredBindingFetcher(
+				mockic,
+				&SpyBindingReader{bindings: input},
+				metrics,
+				warn,
+				log,
+			)
+
+			actual, err := filter.FetchBindings()
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(HaveLen(0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Unknown log types"))
+			Expect(logBuffer.String()).Should(MatchRegexp("unknown"))
+			Expect(logBuffer.String()).Should(MatchRegexp("invalid"))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+		})
+
+		It("logs a warning and ignores the drain in exclude mode", func() {
+			input := []syslog.Binding{
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-types=rtr,unknown"}},
+			}
+			filter = bindings.NewFilteredBindingFetcher(
+				mockic,
+				&SpyBindingReader{bindings: input},
+				metrics,
+				warn,
+				log,
+			)
+
+			actual, err := filter.FetchBindings()
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(HaveLen(0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Unknown log types"))
+			Expect(logBuffer.String()).Should(MatchRegexp("unknown"))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+		})
+
+		Context("when configured not to warn", func() {
+			BeforeEach(func() {
+				warn = false
+			})
+			It("doesn't log the warning", func() {
+				input := []syslog.Binding{
+					{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-types=app,unknown,rtr"}},
+				}
+				filter = bindings.NewFilteredBindingFetcher(
+					mockic,
+					&SpyBindingReader{bindings: input},
+					metrics,
+					warn,
+					log,
+				)
+
+				_, err := filter.FetchBindings()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(logBuffer.String()).ToNot(MatchRegexp("Unknown log types"))
+			})
+		})
+	})
+
 	Context("when the syslog drain has been blacklisted", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
