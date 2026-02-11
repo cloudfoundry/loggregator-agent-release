@@ -7,14 +7,17 @@ import "strings"
 type SourceType string
 
 const (
-	SOURCE_API  SourceType = "API"
-	SOURCE_STG  SourceType = "STG"
-	SOURCE_RTR  SourceType = "RTR"
-	SOURCE_LGR  SourceType = "LGR"
-	SOURCE_APP  SourceType = "APP"
-	SOURCE_SSH  SourceType = "SSH"
-	SOURCE_CELL SourceType = "CELL"
-	// TODO PROXY missing. Anything else as well? Also I guess there will be new ones in the future?
+	SOURCE_API    SourceType = "API"
+	SOURCE_STG    SourceType = "STG"
+	SOURCE_RTR    SourceType = "RTR"
+	SOURCE_LGR    SourceType = "LGR"
+	SOURCE_APP    SourceType = "APP"
+	SOURCE_SSH    SourceType = "SSH"
+	SOURCE_CELL   SourceType = "CELL"
+	SOURCE_PROXY  SourceType = "PROXY"
+	SOURCE_HEALTH SourceType = "HEALTH"
+	SOURCE_SYS    SourceType = "SYS"
+	SOURCE_STATS  SourceType = "STATS"
 )
 
 // validSourceTypes contains SourceType prefixes for efficient lookup
