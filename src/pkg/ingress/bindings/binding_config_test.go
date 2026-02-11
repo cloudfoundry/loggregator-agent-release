@@ -119,32 +119,32 @@ var _ = Describe("Drain Param Config", func() {
 		testCases := []struct {
 			name     string
 			url      string
-			expected *syslog.SourceTypeSet
+			expected *syslog.LogFilter
 		}{
 			{
 				name:     "empty drain URL defaults to all types",
 				url:      "https://test.org/drain",
-				expected: NewSourceTypeSet(),
+				expected: nil,
 			},
 			{
 				name:     "include-source-types=app",
 				url:      "https://test.org/drain?include-source-types=app",
-				expected: NewSourceTypeSet(syslog.SOURCE_APP),
+				expected: NewLogFilter(syslog.LogFilterModeInclude, syslog.SOURCE_APP),
 			},
 			{
 				name:     "include-source-types=app,stg,cell",
 				url:      "https://test.org/drain?include-source-types=app,stg,cell",
-				expected: NewSourceTypeSet(syslog.SOURCE_APP, syslog.SOURCE_STG, syslog.SOURCE_CELL),
+				expected: NewLogFilter(syslog.LogFilterModeInclude, syslog.SOURCE_APP, syslog.SOURCE_STG, syslog.SOURCE_CELL),
 			},
 			{
 				name:     "exclude-source-types=rtr,cell,stg",
 				url:      "https://test.org/drain?exclude-source-types=rtr,cell,stg",
-				expected: NewSourceTypeSet(syslog.SOURCE_API, syslog.SOURCE_LGR, syslog.SOURCE_APP, syslog.SOURCE_SSH),
+				expected: NewLogFilter(syslog.LogFilterModeExclude, syslog.SOURCE_RTR, syslog.SOURCE_CELL, syslog.SOURCE_STG),
 			},
 			{
 				name:     "exclude-source-types=rtr",
 				url:      "https://test.org/drain?exclude-source-types=rtr",
-				expected: NewSourceTypeSet(syslog.SOURCE_API, syslog.SOURCE_STG, syslog.SOURCE_LGR, syslog.SOURCE_APP, syslog.SOURCE_SSH, syslog.SOURCE_CELL),
+				expected: NewLogFilter(syslog.LogFilterModeExclude, syslog.SOURCE_RTR),
 			},
 		}
 
@@ -252,13 +252,10 @@ func (f *stubFetcher) DrainLimit() int {
 	return -1
 }
 
-func NewSourceTypeSet(logTypes ...syslog.SourceType) *syslog.SourceTypeSet {
-	if len(logTypes) == 0 {
-		return nil
-	}
-	set := make(syslog.SourceTypeSet, len(logTypes))
-	for _, t := range logTypes {
+func NewLogFilter(mode syslog.LogFilterMode, sourceTypes ...syslog.SourceType) *syslog.LogFilter {
+	set := make(syslog.SourceTypeSet, len(sourceTypes))
+	for _, t := range sourceTypes {
 		set[t] = struct{}{}
 	}
-	return &set
+	return syslog.NewLogFilter(set, mode)
 }

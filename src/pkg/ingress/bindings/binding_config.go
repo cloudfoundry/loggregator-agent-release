@@ -86,49 +86,35 @@ func getBindingType(u *url.URL) syslog.DrainData {
 	return drainData
 }
 
-func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.SourceTypeSet {
+func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.LogFilter {
 	includeSourceTypes := u.Query().Get("include-source-types")
 	excludeSourceTypes := u.Query().Get("exclude-source-types")
 
 	if excludeSourceTypes != "" {
-		return d.NewSourceTypeSet(excludeSourceTypes, true)
+		return d.newLogFilter(excludeSourceTypes, syslog.LogFilterModeExclude)
 	} else if includeSourceTypes != "" {
-		return d.NewSourceTypeSet(includeSourceTypes, false)
+		return d.newLogFilter(includeSourceTypes, syslog.LogFilterModeInclude)
 	}
 	return nil
 }
 
-// NewSourceTypeSet parses a URL query parameter into a Set of SourceTypes.
-// logTypeList is assumed to be a comma-separated list of valid source types.
-func (d *DrainParamParser) NewSourceTypeSet(logTypeList string, isExclude bool) *syslog.SourceTypeSet {
-	if logTypeList == "" {
+// newLogFilter parses a URL query parameter into a LogFilter.
+// sourceTypeList is assumed to be a comma-separated list of valid source types.
+func (d *DrainParamParser) newLogFilter(sourceTypeList string, mode syslog.LogFilterMode) *syslog.LogFilter {
+	if sourceTypeList == "" {
 		return nil
 	}
 
-	logTypes := strings.Split(logTypeList, ",")
-	set := make(syslog.SourceTypeSet, len(logTypes))
+	sourceTypes := strings.Split(sourceTypeList, ",")
+	set := make(syslog.SourceTypeSet, len(sourceTypes))
 
-	for _, logType := range logTypes {
-		logType = strings.TrimSpace(logType)
-		t, _ := syslog.ParseSourceType(logType)
+	for _, sourceType := range sourceTypes {
+		sourceType = strings.TrimSpace(sourceType)
+		t, _ := syslog.ParseSourceType(sourceType)
 		set.Add(t)
 	}
 
-	if isExclude {
-		// Invert the set - include all types except those in the set
-		fullSet := make(syslog.SourceTypeSet)
-
-		for _, t := range syslog.AllSourceTypes() {
-			fullSet.Add(t)
-		}
-
-		for t := range set {
-			delete(fullSet, t)
-		}
-		return &fullSet
-	}
-
-	return &set
+	return syslog.NewLogFilter(set, mode)
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {
