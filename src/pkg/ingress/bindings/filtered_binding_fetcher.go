@@ -98,14 +98,14 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 
 		if invalidLogFilter(u) {
 			invalidDrains += 1
-			f.printWarning("include-log-types and exclude-log-types cannot be used at the same time in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
+			f.printWarning("include-source-types and exclude-source-types cannot be used at the same time in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
 			continue
 		}
 
-		logTypes := getUnknownLogTypes(u.Query())
+		logTypes := getUnknownSourceTypes(u.Query())
 		if logTypes != nil {
 			invalidDrains += 1
-			f.printWarning("Unknown log types '%s' in log type filter in syslog drain url %s for application %s", strings.Join(logTypes, ", "), anonymousUrl.String(), b.AppId)
+			f.printWarning("Unknown source types '%s' in source type filter in syslog drain url %s for application %s", strings.Join(logTypes, ", "), anonymousUrl.String(), b.AppId)
 			continue
 		}
 
@@ -140,26 +140,26 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	return newBindings, nil
 }
 
-// invalidLogFilter checks if both include-log-types and exclude-log-types
+// invalidLogFilter checks if both include-source-types and exclude-source-types
 func invalidLogFilter(u *url.URL) bool {
-	includeLogTypes := u.Query().Get("include-log-types")
-	excludeLogTypes := u.Query().Get("exclude-log-types")
-	if excludeLogTypes != "" && includeLogTypes != "" {
+	includeSourceTypes := u.Query().Get("include-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-source-types")
+	if excludeSourceTypes != "" && includeSourceTypes != "" {
 		return true
 	}
 	return false
 }
 
-// assumes only one of include-log-types or exclude-log-types is set
-func getUnknownLogTypes(u url.Values) []string {
+// assumes only one of include-source-types or exclude-source-types is set
+func getUnknownSourceTypes(u url.Values) []string {
 	var logTypeList string
-	includeLogTypes := u.Get("include-log-types")
-	excludeLogTypes := u.Get("exclude-log-types")
+	includeSourceTypes := u.Get("include-source-types")
+	excludeSourceTypes := u.Get("exclude-source-types")
 
-	if includeLogTypes != "" {
-		logTypeList = includeLogTypes
-	} else if excludeLogTypes != "" {
-		logTypeList = excludeLogTypes
+	if includeSourceTypes != "" {
+		logTypeList = includeSourceTypes
+	} else if excludeSourceTypes != "" {
+		logTypeList = excludeSourceTypes
 	} else {
 		return nil
 	}
@@ -169,7 +169,7 @@ func getUnknownLogTypes(u url.Values) []string {
 
 	for _, logType := range logTypes {
 		logType = strings.TrimSpace(logType)
-		_, ok := syslog.ParseLogType(logType)
+		_, ok := syslog.ParseSourceType(logType)
 		if !ok {
 			unknownTypes = append(unknownTypes, logType)
 			continue

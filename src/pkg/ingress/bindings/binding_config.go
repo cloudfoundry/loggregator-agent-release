@@ -86,39 +86,39 @@ func getBindingType(u *url.URL) syslog.DrainData {
 	return drainData
 }
 
-func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.LogTypeSet {
-	includeLogTypes := u.Query().Get("include-log-types")
-	excludeLogTypes := u.Query().Get("exclude-log-types")
+func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.SourceTypeSet {
+	includeSourceTypes := u.Query().Get("include-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-source-types")
 
-	if excludeLogTypes != "" {
-		return d.NewLogTypeSet(excludeLogTypes, true)
-	} else if includeLogTypes != "" {
-		return d.NewLogTypeSet(includeLogTypes, false)
+	if excludeSourceTypes != "" {
+		return d.NewSourceTypeSet(excludeSourceTypes, true)
+	} else if includeSourceTypes != "" {
+		return d.NewSourceTypeSet(includeSourceTypes, false)
 	}
 	return nil
 }
 
-// NewLogTypeSet parses a URL query parameter into a Set of LogTypes.
-// logTypeList is assumed to be a comma-separated list of valid log types.
-func (d *DrainParamParser) NewLogTypeSet(logTypeList string, isExclude bool) *syslog.LogTypeSet {
+// NewSourceTypeSet parses a URL query parameter into a Set of SourceTypes.
+// logTypeList is assumed to be a comma-separated list of valid source types.
+func (d *DrainParamParser) NewSourceTypeSet(logTypeList string, isExclude bool) *syslog.SourceTypeSet {
 	if logTypeList == "" {
 		return nil
 	}
 
 	logTypes := strings.Split(logTypeList, ",")
-	set := make(syslog.LogTypeSet, len(logTypes))
+	set := make(syslog.SourceTypeSet, len(logTypes))
 
 	for _, logType := range logTypes {
 		logType = strings.TrimSpace(logType)
-		t, _ := syslog.ParseLogType(logType)
+		t, _ := syslog.ParseSourceType(logType)
 		set.Add(t)
 	}
 
 	if isExclude {
 		// Invert the set - include all types except those in the set
-		fullSet := make(syslog.LogTypeSet)
+		fullSet := make(syslog.SourceTypeSet)
 
-		for _, t := range syslog.AllLogTypes() {
+		for _, t := range syslog.AllSourceTypes() {
 			fullSet.Add(t)
 		}
 

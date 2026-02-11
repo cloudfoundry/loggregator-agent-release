@@ -80,7 +80,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("filters logs based on include filter - includes only APP logs", func() {
-		appFilter := syslog.LogTypeSet{syslog.LOG_APP: struct{}{}}
+		appFilter := syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
 			LogFilter: &appFilter,
@@ -121,9 +121,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 
 	It("filters logs based on exclude filter - excludes RTR logs", func() {
 		// Include APP and STG, effectively excluding RTR
-		includeFilter := syslog.LogTypeSet{
-			syslog.LOG_APP: struct{}{},
-			syslog.LOG_STG: struct{}{},
+		includeFilter := syslog.SourceTypeSet{
+			syslog.SOURCE_APP: struct{}{},
+			syslog.SOURCE_STG: struct{}{},
 		}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
@@ -164,7 +164,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("sends logs with unknown source_type prefix when filter is set", func() {
-		appFilter := syslog.LogTypeSet{syslog.LOG_APP: struct{}{}}
+		appFilter := syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
 			LogFilter: &appFilter,
