@@ -119,32 +119,32 @@ var _ = Describe("Drain Param Config", func() {
 		testCases := []struct {
 			name     string
 			url      string
-			expected *syslog.LogTypeSet
+			expected *syslog.SourceTypeSet
 		}{
 			{
 				name:     "empty drain URL defaults to all types",
 				url:      "https://test.org/drain",
-				expected: NewLogTypeSet(),
+				expected: NewSourceTypeSet(),
 			},
 			{
-				name:     "include-log-types=app",
-				url:      "https://test.org/drain?include-log-types=app",
-				expected: NewLogTypeSet(syslog.LOG_APP),
+				name:     "include-source-types=app",
+				url:      "https://test.org/drain?include-source-types=app",
+				expected: NewSourceTypeSet(syslog.SOURCE_APP),
 			},
 			{
-				name:     "include-log-types=app,stg,cell",
-				url:      "https://test.org/drain?include-log-types=app,stg,cell",
-				expected: NewLogTypeSet(syslog.LOG_APP, syslog.LOG_STG, syslog.LOG_CELL),
+				name:     "include-source-types=app,stg,cell",
+				url:      "https://test.org/drain?include-source-types=app,stg,cell",
+				expected: NewSourceTypeSet(syslog.SOURCE_APP, syslog.SOURCE_STG, syslog.SOURCE_CELL),
 			},
 			{
-				name:     "exclude-log-types=rtr,cell,stg",
-				url:      "https://test.org/drain?exclude-log-types=rtr,cell,stg",
-				expected: NewLogTypeSet(syslog.LOG_API, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH),
+				name:     "exclude-source-types=rtr,cell,stg",
+				url:      "https://test.org/drain?exclude-source-types=rtr,cell,stg",
+				expected: NewSourceTypeSet(syslog.SOURCE_API, syslog.SOURCE_LGR, syslog.SOURCE_APP, syslog.SOURCE_SSH),
 			},
 			{
-				name:     "exclude-log-types=rtr",
-				url:      "https://test.org/drain?exclude-log-types=rtr",
-				expected: NewLogTypeSet(syslog.LOG_API, syslog.LOG_STG, syslog.LOG_LGR, syslog.LOG_APP, syslog.LOG_SSH, syslog.LOG_CELL),
+				name:     "exclude-source-types=rtr",
+				url:      "https://test.org/drain?exclude-source-types=rtr",
+				expected: NewSourceTypeSet(syslog.SOURCE_API, syslog.SOURCE_STG, syslog.SOURCE_LGR, syslog.SOURCE_APP, syslog.SOURCE_SSH, syslog.SOURCE_CELL),
 			},
 		}
 
@@ -252,11 +252,11 @@ func (f *stubFetcher) DrainLimit() int {
 	return -1
 }
 
-func NewLogTypeSet(logTypes ...syslog.LogType) *syslog.LogTypeSet {
+func NewSourceTypeSet(logTypes ...syslog.SourceType) *syslog.SourceTypeSet {
 	if len(logTypes) == 0 {
 		return nil
 	}
-	set := make(syslog.LogTypeSet, len(logTypes))
+	set := make(syslog.SourceTypeSet, len(logTypes))
 	for _, t := range logTypes {
 		set[t] = struct{}{}
 	}

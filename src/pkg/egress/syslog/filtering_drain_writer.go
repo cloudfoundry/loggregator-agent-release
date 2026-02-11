@@ -70,7 +70,7 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 }
 
 // shouldIncludeLog determines if a log with the given sourceTypeTag should be forwarded
-func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
+func shouldIncludeLog(logFilter *SourceTypeSet, sourceTypeTag string) bool {
 	// Empty filter or missing source type means no filtering
 	if logFilter == nil || sourceTypeTag == "" {
 		return true
@@ -84,16 +84,16 @@ func shouldIncludeLog(logFilter *LogTypeSet, sourceTypeTag string) bool {
 	}
 
 	// Prefer map lookup over switch for performance
-	logType := LogType(prefix)
+	logType := SourceType(prefix)
 	if !logType.IsValid() {
-		// Unknown log type, default to not filtering
+		// Unknown source type, default to not filtering
 		return true
 	}
 
 	return logFilter.Contains(logType)
 }
 
-func sendsLogs(drainData DrainData, logFilter *LogTypeSet, sourceTypeTag string) bool {
+func sendsLogs(drainData DrainData, logFilter *SourceTypeSet, sourceTypeTag string) bool {
 	if drainData != LOGS && drainData != LOGS_AND_METRICS && drainData != LOGS_NO_EVENTS {
 		return false
 	}
