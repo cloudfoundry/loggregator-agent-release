@@ -54,36 +54,57 @@ var _ = Describe("Filtering Drain Writer", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("sends logs when source_type tag is missing", func() {
-		binding := syslog.Binding{
-			DrainData: syslog.LOGS,
-		}
-		fakeWriter := &fakeWriter{}
-		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
-		Expect(err).NotTo(HaveOccurred())
+	Context("when source_type tag is missing", func() {
+		var envelope *loggregator_v2.Envelope
 
-		envelope := &loggregator_v2.Envelope{
-			Message: &loggregator_v2.Envelope_Log{
-				Log: &loggregator_v2.Log{
-					Payload: []byte("test log"),
+		BeforeEach(func() {
+			envelope = &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{
+						Payload: []byte("test log"),
+					},
 				},
-			},
-			Tags: map[string]string{
-				// source_type tag is intentionally missing
-			},
-		}
+				Tags: map[string]string{
+					// source_type tag is intentionally missing
+				},
+			}
+		})
 
-		err = drainWriter.Write(envelope)
+		It("omits logs when source type include filter is configured with LOGS", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
 
-		Expect(err).NotTo(HaveOccurred())
-		Expect(fakeWriter.received).To(Equal(1))
+			err = drainWriter.Write(envelope)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(0))
+		})
+
+		It("sends logs when source type exclude filter is configured with LOGS", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_RTR: struct{}{}}, syslog.LogFilterModeExclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = drainWriter.Write(envelope)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
+		})
 	})
 
 	It("filters logs based on include filter - includes only APP logs", func() {
-		appFilter := syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
-			LogFilter: &appFilter,
+			LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
 		}
 		fakeWriter := &fakeWriter{}
 		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
@@ -120,14 +141,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("filters logs based on exclude filter - excludes RTR logs", func() {
-		// Include APP and STG, effectively excluding RTR
-		includeFilter := syslog.SourceTypeSet{
-			syslog.SOURCE_APP: struct{}{},
-			syslog.SOURCE_STG: struct{}{},
-		}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
-			LogFilter: &includeFilter,
+			LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_RTR: struct{}{}}, syslog.LogFilterModeExclude),
 		}
 		fakeWriter := &fakeWriter{}
 		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
@@ -164,10 +180,9 @@ var _ = Describe("Filtering Drain Writer", func() {
 	})
 
 	It("sends logs with unknown source_type prefix when filter is set", func() {
-		appFilter := syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}
 		binding := syslog.Binding{
 			DrainData: syslog.LOGS,
-			LogFilter: &appFilter,
+			LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}, syslog.LogFilterModeExclude),
 		}
 		fakeWriter := &fakeWriter{}
 		drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
@@ -186,7 +201,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 
 		err = drainWriter.Write(envelope)
 
-		// Should send the log because unknown types default to being included
+		// Should send the log because unknown types default to being included for exclude filter
 		Expect(err).NotTo(HaveOccurred())
 		Expect(fakeWriter.received).To(Equal(1))
 	})
