@@ -36,6 +36,8 @@ type Config struct {
 	ForwarderAgentAddress string `env:"FORWARDER_AGENT_ADDR"`
 	GRPC                  GRPC
 	Blacklist             bindings.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+
+	WarnOnInvalidDrains bool `env:"WARN_ON_INVALID_DRAINS,    report"`
 }
 
 // GRPC stores the configuration for the router as a server using a PORT

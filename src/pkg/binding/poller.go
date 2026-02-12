@@ -29,6 +29,7 @@ type Poller struct {
 	emitter                    loggregator.LogStream
 	checker                    IPChecker
 	failedHostsCache           *simplecache.SimpleCache[string, bool]
+	warn                       bool
 }
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . IPChecker
@@ -69,7 +70,7 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter loggregator.LogStream, checker IPChecker) *Poller {
+func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter loggregator.LogStream, checker IPChecker, warn bool) *Poller {
 	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
 
 	p := &Poller{
@@ -98,6 +99,7 @@ func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Log
 		emitter:          emitter,
 		checker:          checker,
 		failedHostsCache: simplecache.New[string, bool](120 * time.Second),
+		warn:             warn,
 	}
 	p.poll()
 	return p
@@ -140,28 +142,30 @@ func (p *Poller) poll() {
 		}
 	}
 
-	checkBindings(bindings, p.emitter, p.checker, p.logger, p.failedHostsCache, p.blacklistedDrains, p.invalidDrains)
+	filteredBindings := checkBindings(bindings, p.emitter, p.checker, p.logger, p.failedHostsCache, p.blacklistedDrains, p.invalidDrains, p.warn)
 
-	bindingCount := CalculateBindingCount(bindings)
+	bindingCount := CalculateBindingCount(filteredBindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(bindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool], blacklistedDrainsGauge metrics.Gauge, invalidDrainsGauge metrics.Gauge) {
+func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool], blacklistedDrainsGauge metrics.Gauge, invalidDrainsGauge metrics.Gauge, warn bool) []Binding {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
+	var invalidDrains float64 = 0
+	var blacklistedDrains float64 = 0
+	var filteredBindings []Binding
 	for _, b := range bindings {
 		if len(b.Credentials) == 0 {
 			logger.Printf("no credentials for %s", b.Url)
 			continue
 		}
-
-		var invalidDrains float64
-		var blacklistedDrains float64
 		u, err := url.Parse(b.Url)
 
 		for _, cred := range b.Credentials {
 			if err != nil {
-				sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+				if warn {
+					sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+				}
 				continue
 			}
 
@@ -170,19 +174,25 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 			anonymousUrl.RawQuery = ""
 
 			if invalidScheme(u.Scheme) {
-				sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+				if warn {
+					sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+				}
 				continue
 			}
 
 			if len(u.Host) == 0 {
-				sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+				if warn {
+					sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+				}
 				continue
 			}
 
 			_, exists := failedHostsCache.Get(u.Host)
 			if exists {
 				invalidDrains += 1
-				sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter, logger)
+				if warn {
+					sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter, logger)
+				}
 				continue
 			}
 
@@ -190,7 +200,9 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 			if err != nil {
 				invalidDrains += 1
 				failedHostsCache.Set(u.Host, true)
-				sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter, logger)
+				if warn {
+					sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter, logger)
+				}
 				continue
 			}
 
@@ -198,7 +210,9 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 			if err != nil {
 				invalidDrains += 1
 				blacklistedDrains += 1
-				sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter, logger)
+				if warn {
+					sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter, logger)
+				}
 				continue
 			}
 
@@ -206,7 +220,9 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 				_, err := tls.X509KeyPair([]byte(cred.Cert), []byte(cred.Key))
 				if err != nil {
 					errorMessage := err.Error()
-					sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), cred.Apps, emitter, logger)
+					if warn {
+						sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), cred.Apps, emitter, logger)
+					}
 					continue
 				}
 			}
@@ -215,15 +231,19 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 				certPool := x509.NewCertPool()
 				ok := certPool.AppendCertsFromPEM([]byte(cred.CA))
 				if !ok {
-					sendAppLogMessage("failed to load root CA", cred.Apps, emitter, logger)
+					if warn {
+						sendAppLogMessage("failed to load root CA", cred.Apps, emitter, logger)
+					}
 					continue
 				}
 			}
-		}
 
-		blacklistedDrainsGauge.Set(blacklistedDrains)
-		invalidDrainsGauge.Set(invalidDrains)
+			filteredBindings = append(filteredBindings, b)
+		}
 	}
+	blacklistedDrainsGauge.Set(blacklistedDrains)
+	invalidDrainsGauge.Set(invalidDrains)
+	return filteredBindings
 }
 
 func sendAppLogMessage(msg string, apps []App, emitter loggregator.LogStream, logger *log.Logger) {

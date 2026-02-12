@@ -161,3 +161,7 @@ properties:
       syslog drain binding URLs.
     default: []
     example: [{start: 10.10.10.1, end: 10.10.10.10}]
+
+  warn_on_invalid_drains:
+    description: "Whether to output log warnings on invalid drains"
+    default: true

@@ -40,7 +40,7 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -57,9 +57,9 @@ var _ = Describe("Poller", func() {
 						},
 						{
 							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{
-								{Hostname: "app-hostname1", AppID: "app-id-1"},
-								{Hostname: "app-hostname2", AppID: "app-id-2"},
-							},
+							{Hostname: "app-hostname1", AppID: "app-id-1"},
+							{Hostname: "app-hostname2", AppID: "app-id-2"},
+						},
 						},
 					},
 				},
@@ -74,7 +74,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		var expectedBindings []binding.Binding
@@ -88,9 +88,9 @@ var _ = Describe("Poller", func() {
 					},
 					{
 						Cert: "cert1", Key: "key1", CA: "ca1", Apps: []binding.App{
-							{Hostname: "app-hostname1", AppID: "app-id-1"},
-							{Hostname: "app-hostname2", AppID: "app-id-2"},
-						},
+						{Hostname: "app-hostname1", AppID: "app-id-1"},
+						{Hostname: "app-hostname2", AppID: "app-id-2"},
+					},
 					},
 				},
 			},
@@ -149,7 +149,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		var expectedBindings []binding.Binding
@@ -195,7 +195,7 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("tracks the number of API errors", func() {
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
@@ -208,13 +208,40 @@ var _ = Describe("Poller", func() {
 	It("does not update the stores if the response code is bad", func() {
 		apiClient.statusCode <- 404
 
-		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{})
+		p := binding.NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
 	})
 
 	It("tracks the number of bindings returned from CAPI", func() {
+		apiClient.bindings <- response{
+			Results: []binding.Binding{
+				{
+					Url: "syslog://drain-0.example.com",
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+				{
+					Url: "syslog://drain-1.example.com",
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+						},
+					},
+				},
+			},
+		}
+		binding.NewPoller(apiClient, time.Hour, store, metrics, logger, emitter, &dummyIPChecker{}, true)
+
+		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
+			To(BeNumerically("==", 2))
+	})
+
+	It("filters invalid bindings", func() {
 		apiClient.bindings <- response{
 			Results: []binding.Binding{
 				{
@@ -233,12 +260,20 @@ var _ = Describe("Poller", func() {
 						},
 					},
 				},
+				{
+					Url: "syslog://drain-2.example.com",
+					Credentials: []binding.Credentials{
+						{
+							Apps: []binding.App{{Hostname: "app-hostname2", AppID: "app-id-2"}},
+						},
+					},
+				},
 			},
 		}
-		binding.NewPoller(apiClient, time.Hour, store, metrics, logger, emitter, &dummyIPChecker{})
+		binding.NewPoller(apiClient, time.Hour, store, metrics, logger, emitter, &dummyIPChecker{}, false)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
-			To(BeNumerically("==", 2))
+			To(BeNumerically("==", 1))
 	})
 
 	It("tracks the isolated CalculateBindingsCount call", func() {
