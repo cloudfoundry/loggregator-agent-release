@@ -131,6 +131,8 @@ builds:
     version: 6.3.4
   71b8ce60-df54-4feb-7ddf-0b7056e0aa45:
     version: 7.6.1
+  73bb2571-50bb-4ff4-4ea6-b2948bc31da5:
+    version: 8.3.14
   74b65605-d5d7-47d3-489b-5e6c034e114a:
     version: "3.21"
   74b84bd4-0132-4ce6-60f9-75e1fc34fc37:
