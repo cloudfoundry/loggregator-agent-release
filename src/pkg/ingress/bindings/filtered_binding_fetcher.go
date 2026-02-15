@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
@@ -80,7 +81,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
-		anonymousUrl := u
+		anonymousUrl := *u
 		anonymousUrl.User = nil
 		anonymousUrl.RawQuery = ""
 
@@ -92,6 +93,19 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 		if len(u.Host) == 0 {
 			invalidDrains += 1
 			f.printWarning("No hostname found in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
+			continue
+		}
+
+		if invalidLogFilter(u) {
+			invalidDrains += 1
+			f.printWarning("include-source-types and exclude-source-types cannot be used at the same time in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
+			continue
+		}
+
+		sourceTypes := getUnknownSourceTypes(u.Query())
+		if sourceTypes != nil {
+			invalidDrains += 1
+			f.printWarning("Unknown source types '%s' in source type filter in syslog drain url %s for application %s", strings.Join(sourceTypes, ", "), anonymousUrl.String(), b.AppId)
 			continue
 		}
 
@@ -124,6 +138,45 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 	f.blacklistedDrains.Set(blacklistedDrains)
 	f.invalidDrains.Set(invalidDrains)
 	return newBindings, nil
+}
+
+// invalidLogFilter checks if both include-source-types and exclude-source-types
+func invalidLogFilter(u *url.URL) bool {
+	includeSourceTypes := u.Query().Get("include-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-source-types")
+	if excludeSourceTypes != "" && includeSourceTypes != "" {
+		return true
+	}
+	return false
+}
+
+// assumes only one of include-source-types or exclude-source-types is set
+func getUnknownSourceTypes(u url.Values) []string {
+	var sourceTypeList string
+	includeSourceTypes := u.Get("include-source-types")
+	excludeSourceTypes := u.Get("exclude-source-types")
+
+	if includeSourceTypes != "" {
+		sourceTypeList = includeSourceTypes
+	} else if excludeSourceTypes != "" {
+		sourceTypeList = excludeSourceTypes
+	} else {
+		return nil
+	}
+
+	sourceTypes := strings.Split(sourceTypeList, ",")
+	var unknownTypes []string
+
+	for _, sourceType := range sourceTypes {
+		sourceType = strings.TrimSpace(sourceType)
+		_, ok := syslog.ParseSourceType(sourceType)
+		if !ok {
+			unknownTypes = append(unknownTypes, sourceType)
+			continue
+		}
+	}
+
+	return unknownTypes
 }
 
 func (f FilteredBindingFetcher) printWarning(format string, v ...any) {
