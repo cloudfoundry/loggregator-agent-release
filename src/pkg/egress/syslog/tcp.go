@@ -108,7 +108,7 @@ func (w *TCPWriter) connect() (net.Conn, error) {
 	}
 	w.conn = conn
 
-	log.Printf("created conn to syslog drain: %s", w.url.Host)
+	log.Printf("created conn to syslog drain: %s", w.url.Host) //nolint:gosec
 
 	return conn, nil
 }

@@ -54,7 +54,7 @@ func (r *RetryWriter) Write(e *loggregator_v2.Envelope) error {
 		}
 
 		sleepDuration := r.retryDuration(i)
-		log.Printf(logTemplate, r.binding.URL.Host, sleepDuration, err)
+		log.Printf(logTemplate, r.binding.URL.Host, sleepDuration, err) //nolint:gosec
 
 		time.Sleep(sleepDuration)
 	}

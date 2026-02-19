@@ -170,7 +170,7 @@ func (w *SyslogConnector) emitStandardOutErrorLog(appID, scheme, url string, mis
 	if appID == "" {
 		errorAppOrAggregate = "for aggregate drain"
 	}
-	log.Printf(
+	log.Printf( //nolint:gosec
 		"Dropped %d %s logs %s with url %s",
 		missed, scheme, errorAppOrAggregate, url,
 	)

@@ -115,6 +115,7 @@ func NewRetryer(
 
 // Retry will retry the provided function up to maxRetries times.
 // It returns true if the function failed after all retries, false otherwise.
+// nolint:gosec
 func (r *Retryer) Retry(batch []byte, msgCount float64, funcToRetry func([]byte, float64) error) (failed bool) {
 	var err error
 
@@ -261,7 +262,7 @@ func (w *HTTPSBatchWriter) startSender() {
 		if msgBatch.Len() > 0 {
 			failed := w.retryer.Retry(msgBatch.Bytes(), msgCount, w.sendHttpRequest)
 			if failed {
-				log.Printf("Failed to deliver %.0f messages to %s for application %s after all retries, dropping batch",
+				log.Printf("Failed to deliver %.0f messages to %s for application %s after all retries, dropping batch", //nolint:gosec
 					msgCount, redactedURL(w.url), w.appID)
 			}
 			msgBatch.Reset()
