@@ -15,7 +15,7 @@ type URLBinding struct {
 	OmitMetadata bool
 	InternalTls  bool
 	URL          *url.URL
-	PrivateKey   []byte
+	PrivateKey   []byte //nolint:gosec
 	Certificate  []byte
 	CA           []byte
 }

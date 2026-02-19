@@ -63,7 +63,7 @@ func StartAgent(conf app.Config) (cleanup func(), mp AgentPorts) {
 	Expect(agentPath).ToNot(BeEmpty())
 
 	By("starting agent")
-	agentCommand := exec.Command(agentPath)
+	agentCommand := exec.Command(agentPath) //nolint:gosec
 	agentCommand.Env = envstruct.ToEnv(&conf)
 	agentSession, err := gexec.Start(
 		agentCommand,

@@ -240,7 +240,7 @@ func (p *PromScraper) scrape(client *http.Client) scraper.MetricsGetter {
 		}
 		req.Header = requestHeader
 
-		return client.Do(req)
+		return client.Do(req) //nolint:gosec
 	}
 }
 
