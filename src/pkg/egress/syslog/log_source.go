@@ -43,15 +43,6 @@ func ParseSourceType(s string) (LogSourceType, bool) {
 	return lt, lt.IsValid()
 }
 
-// AllSourceTypes returns all valid source types
-func AllSourceTypes() []LogSourceType {
-	types := make([]LogSourceType, 0, len(validSourceTypes))
-	for t := range validSourceTypes {
-		types = append(types, t)
-	}
-	return types
-}
-
 // ExtractPrefix extracts the prefix from a source_type tag (e.g., "APP/PROC/WEB/0" -> "APP")
 func ExtractPrefix(sourceTypeTag string) string {
 	if idx := strings.IndexByte(sourceTypeTag, '/'); idx != -1 {
