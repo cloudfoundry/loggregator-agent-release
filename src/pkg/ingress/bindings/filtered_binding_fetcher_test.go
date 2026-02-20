@@ -363,6 +363,26 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 
+		It("logs a warning and ignores the drain when source types have spaces", func() {
+			input := []syslog.Binding{
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-source-types=app, rtr"}},
+			}
+			filter = bindings.NewFilteredBindingFetcher(
+				mockic,
+				&SpyBindingReader{bindings: input},
+				metrics,
+				warn,
+				log,
+			)
+
+			actual, err := filter.FetchBindings()
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(HaveLen(0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Unknown source types"))
+			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+		})
+
 		Context("when configured not to warn", func() {
 			BeforeEach(func() {
 				warn = false
