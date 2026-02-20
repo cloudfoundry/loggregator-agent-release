@@ -122,8 +122,18 @@ var _ = Describe("Drain Param Config", func() {
 			expected *syslog.LogFilter
 		}{
 			{
-				name:     "empty drain URL defaults to all types",
+				name:     "empty drain URL defaults to no filtering",
 				url:      "https://test.org/drain",
+				expected: nil,
+			},
+			{
+				name:     "include-source-types= defaults to no filtering",
+				url:      "https://test.org/drain?include-source-types=",
+				expected: nil,
+			},
+			{
+				name:     "exclude-source-types= defaults to no filtering",
+				url:      "https://test.org/drain?exclude-source-types=",
 				expected: nil,
 			},
 			{
