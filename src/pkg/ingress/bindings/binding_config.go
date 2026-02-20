@@ -2,7 +2,6 @@ package bindings
 
 import (
 	"net/url"
-	"strings"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
@@ -105,14 +104,7 @@ func (d *DrainParamParser) newLogFilter(sourceTypeList string, mode syslog.LogFi
 		return nil
 	}
 
-	sourceTypes := strings.Split(sourceTypeList, ",")
-	set := make(syslog.LogSourceTypeSet, len(sourceTypes))
-
-	for _, sourceType := range sourceTypes {
-		t, _ := syslog.ParseSourceType(sourceType)
-		set.Add(t)
-	}
-
+	set, _ := syslog.ParseSourceTypeList(sourceTypeList)
 	return syslog.NewLogFilter(set, mode)
 }
 

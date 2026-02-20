@@ -164,17 +164,7 @@ func getUnknownSourceTypes(u url.Values) []string {
 		return nil
 	}
 
-	sourceTypes := strings.Split(sourceTypeList, ",")
-	var unknownTypes []string
-
-	for _, sourceType := range sourceTypes {
-		_, ok := syslog.ParseSourceType(sourceType)
-		if !ok {
-			unknownTypes = append(unknownTypes, sourceType)
-			continue
-		}
-	}
-
+	_, unknownTypes := syslog.ParseSourceTypeList(sourceTypeList)
 	return unknownTypes
 }
 

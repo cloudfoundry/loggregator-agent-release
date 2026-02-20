@@ -43,6 +43,25 @@ func ParseSourceType(s string) (LogSourceType, bool) {
 	return lt, lt.IsValid()
 }
 
+// ParseSourceTypeList parses a comma-separated list of source types and returns
+// the valid types as a set and any unknown types as a slice.
+func ParseSourceTypeList(sourceTypeList string) (LogSourceTypeSet, []string) {
+	sourceTypes := strings.Split(sourceTypeList, ",")
+	set := make(LogSourceTypeSet, len(sourceTypes))
+	var unknownTypes []string
+
+	for _, sourceType := range sourceTypes {
+		t, ok := ParseSourceType(sourceType)
+		if !ok {
+			unknownTypes = append(unknownTypes, sourceType)
+			continue
+		}
+		set.Add(t)
+	}
+
+	return set, unknownTypes
+}
+
 // ExtractPrefix extracts the prefix from a source_type tag (e.g., "APP/PROC/WEB/0" -> "APP")
 func ExtractPrefix(sourceTypeTag string) string {
 	if idx := strings.IndexByte(sourceTypeTag, '/'); idx != -1 {
