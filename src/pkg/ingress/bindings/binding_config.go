@@ -106,7 +106,7 @@ func (d *DrainParamParser) newLogFilter(sourceTypeList string, mode syslog.LogFi
 	}
 
 	sourceTypes := strings.Split(sourceTypeList, ",")
-	set := make(syslog.SourceTypeSet, len(sourceTypes))
+	set := make(syslog.LogSourceTypeSet, len(sourceTypes))
 
 	for _, sourceType := range sourceTypes {
 		sourceType = strings.TrimSpace(sourceType)

@@ -139,22 +139,22 @@ var _ = Describe("Drain Param Config", func() {
 			{
 				name:     "include-source-types=app",
 				url:      "https://test.org/drain?include-source-types=app",
-				expected: NewLogFilter(syslog.LogFilterModeInclude, syslog.SOURCE_APP),
+				expected: NewLogFilter(syslog.LogFilterModeInclude, syslog.LOG_SOURCE_APP),
 			},
 			{
 				name:     "include-source-types=app,stg,cell",
 				url:      "https://test.org/drain?include-source-types=app,stg,cell",
-				expected: NewLogFilter(syslog.LogFilterModeInclude, syslog.SOURCE_APP, syslog.SOURCE_STG, syslog.SOURCE_CELL),
+				expected: NewLogFilter(syslog.LogFilterModeInclude, syslog.LOG_SOURCE_APP, syslog.LOG_SOURCE_STG, syslog.LOG_SOURCE_CELL),
 			},
 			{
 				name:     "exclude-source-types=rtr,cell,stg",
 				url:      "https://test.org/drain?exclude-source-types=rtr,cell,stg",
-				expected: NewLogFilter(syslog.LogFilterModeExclude, syslog.SOURCE_RTR, syslog.SOURCE_CELL, syslog.SOURCE_STG),
+				expected: NewLogFilter(syslog.LogFilterModeExclude, syslog.LOG_SOURCE_RTR, syslog.LOG_SOURCE_CELL, syslog.LOG_SOURCE_STG),
 			},
 			{
 				name:     "exclude-source-types=rtr",
 				url:      "https://test.org/drain?exclude-source-types=rtr",
-				expected: NewLogFilter(syslog.LogFilterModeExclude, syslog.SOURCE_RTR),
+				expected: NewLogFilter(syslog.LogFilterModeExclude, syslog.LOG_SOURCE_RTR),
 			},
 		}
 
@@ -262,8 +262,8 @@ func (f *stubFetcher) DrainLimit() int {
 	return -1
 }
 
-func NewLogFilter(mode syslog.LogFilterMode, sourceTypes ...syslog.SourceType) *syslog.LogFilter {
-	set := make(syslog.SourceTypeSet, len(sourceTypes))
+func NewLogFilter(mode syslog.LogFilterMode, sourceTypes ...syslog.LogSourceType) *syslog.LogFilter {
+	set := make(syslog.LogSourceTypeSet, len(sourceTypes))
 	for _, t := range sourceTypes {
 		set[t] = struct{}{}
 	}
