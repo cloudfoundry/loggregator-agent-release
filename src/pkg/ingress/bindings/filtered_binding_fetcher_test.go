@@ -239,7 +239,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		})
 	})
 
-	Context("when both include-source-types and exclude-source-types are specified", func() {
+	Context("when both include-log-source-types and exclude-log-source-types are specified", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
 		var mockic *bindingsfakes.FakeIPChecker
@@ -255,7 +255,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 		JustBeforeEach(func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-source-types=app&exclude-source-types=rtr"}},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-source-types=app&exclude-log-source-types=rtr"}},
 			}
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
@@ -271,7 +271,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(HaveLen(0))
-			Expect(logBuffer.String()).Should(MatchRegexp("include-source-types and exclude-source-types cannot be used at the same time"))
+			Expect(logBuffer.String()).Should(MatchRegexp("include-log-source-types and exclude-log-source-types cannot be used at the same time"))
 			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 
 		})
@@ -283,7 +283,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			It("doesn't log the conflicting filters warning", func() {
 				_, err := filter.FetchBindings()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(logBuffer.String()).ToNot(MatchRegexp("include-source-types and exclude-source-types cannot be used at the same time"))
+				Expect(logBuffer.String()).ToNot(MatchRegexp("include-log-source-types and exclude-log-source-types cannot be used at the same time"))
 			})
 		})
 	})
@@ -304,7 +304,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 		It("logs a warning and ignores the drain in include mode", func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-source-types=app,unknown,invalid,rtr"}},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-source-types=app,unknown,invalid,rtr"}},
 			}
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
@@ -326,7 +326,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 		It("logs a warning and ignores the drain in exclude mode", func() {
 			input := []syslog.Binding{
-				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?exclude-source-types=rtr,unknown"}},
+				{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?exclude-log-source-types=rtr,unknown"}},
 			}
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
@@ -351,7 +351,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			})
 			It("doesn't log the warning", func() {
 				input := []syslog.Binding{
-					{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-source-types=app,unknown,rtr"}},
+					{AppId: "app-id", Hostname: "we.dont.care", Drain: syslog.Drain{Url: "https://test.org/drain?include-log-source-types=app,unknown,rtr"}},
 				}
 				filter = bindings.NewFilteredBindingFetcher(
 					mockic,
