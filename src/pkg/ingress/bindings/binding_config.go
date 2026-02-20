@@ -87,8 +87,8 @@ func getBindingType(u *url.URL) syslog.DrainData {
 }
 
 func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.LogFilter {
-	includeSourceTypes := u.Query().Get("include-source-types")
-	excludeSourceTypes := u.Query().Get("exclude-source-types")
+	includeSourceTypes := u.Query().Get("include-log-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-log-source-types")
 
 	if excludeSourceTypes != "" {
 		return d.newLogFilter(excludeSourceTypes, syslog.LogFilterModeExclude)
