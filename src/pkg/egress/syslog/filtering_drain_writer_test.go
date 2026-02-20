@@ -70,7 +70,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 			}
 		})
 
-		It("omits logs when source type include filter is configured with LOGS", func() {
+		It("filters out the log with missing source_type when include filter is configured", func() {
 			binding := syslog.Binding{
 				DrainData: syslog.LOGS,
 				LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
@@ -80,12 +80,21 @@ var _ = Describe("Filtering Drain Writer", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			err = drainWriter.Write(envelope)
-
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fakeWriter.received).To(Equal(0))
+
+			appEnvelope := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("app log")},
+				},
+				Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+			}
+			err = drainWriter.Write(appEnvelope)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
 		})
 
-		It("sends logs when source type exclude filter is configured with LOGS", func() {
+		It("sends the log with missing source_type when exclude filter is configured", func() {
 			binding := syslog.Binding{
 				DrainData: syslog.LOGS,
 				LogFilter: syslog.NewLogFilter(syslog.SourceTypeSet{syslog.SOURCE_RTR: struct{}{}}, syslog.LogFilterModeExclude),
@@ -95,7 +104,16 @@ var _ = Describe("Filtering Drain Writer", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			err = drainWriter.Write(envelope)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
 
+			rtrEnvelope := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+				},
+				Tags: map[string]string{"source_type": "RTR/1"},
+			}
+			err = drainWriter.Write(rtrEnvelope)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fakeWriter.received).To(Equal(1))
 		})
