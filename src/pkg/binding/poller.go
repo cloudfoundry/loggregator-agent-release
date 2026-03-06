@@ -70,7 +70,16 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-func NewPoller(ac client, pi time.Duration, s Setter, m Metrics, logger *log.Logger, emitter loggregator.LogStream, checker IPChecker, warn bool) *Poller {
+func NewPoller(
+	ac client,
+	pi time.Duration,
+	s Setter,
+	m Metrics,
+	logger *log.Logger,
+	emitter loggregator.LogStream,
+	checker IPChecker,
+	warn bool,
+) *Poller {
 	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
 
 	p := &Poller{
@@ -123,7 +132,10 @@ func (p *Poller) poll() {
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			p.logger.Printf("unexpected response from internal bindings endpoint. status code: %d", resp.StatusCode)
+			p.logger.Printf(
+				"unexpected response from internal bindings endpoint. status code: %d",
+				resp.StatusCode,
+			)
 			return
 		}
 
@@ -142,14 +154,32 @@ func (p *Poller) poll() {
 		}
 	}
 
-	filteredBindings := checkBindings(bindings, p.emitter, p.checker, p.logger, p.failedHostsCache, p.blacklistedDrains, p.invalidDrains, p.warn)
+	filteredBindings := checkBindings(
+		bindings,
+		p.emitter,
+		p.checker,
+		p.logger,
+		p.failedHostsCache,
+		p.blacklistedDrains,
+		p.invalidDrains,
+		p.warn,
+	)
 
 	bindingCount := CalculateBindingCount(filteredBindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(bindings, bindingCount)
 }
 
-func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IPChecker, logger *log.Logger, failedHostsCache *simplecache.SimpleCache[string, bool], blacklistedDrainsGauge metrics.Gauge, invalidDrainsGauge metrics.Gauge, warn bool) []Binding {
+func checkBindings(
+	bindings []Binding,
+	emitter loggregator.LogStream,
+	checker IPChecker,
+	logger *log.Logger,
+	failedHostsCache *simplecache.SimpleCache[string, bool],
+	blacklistedDrainsGauge metrics.Gauge,
+	invalidDrainsGauge metrics.Gauge,
+	warn bool,
+) []Binding {
 	logger.Printf("checking bindings - found %d bindings", len(bindings))
 	var invalidDrains float64 = 0
 	var blacklistedDrains float64 = 0
@@ -164,7 +194,12 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 		for _, cred := range b.Credentials {
 			if err != nil {
 				if warn {
-					sendAppLogMessage(fmt.Sprintf("Cannot parse syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+					sendAppLogMessage(
+						fmt.Sprintf("Cannot parse syslog drain url %s", b.Url),
+						cred.Apps,
+						emitter,
+						logger,
+					)
 				}
 				continue
 			}
@@ -175,14 +210,24 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 
 			if invalidScheme(u.Scheme) {
 				if warn {
-					sendAppLogMessage(fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+					sendAppLogMessage(
+						fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url),
+						cred.Apps,
+						emitter,
+						logger,
+					)
 				}
 				continue
 			}
 
 			if len(u.Host) == 0 {
 				if warn {
-					sendAppLogMessage(fmt.Sprintf("No hostname found in syslog drain url %s", b.Url), cred.Apps, emitter, logger)
+					sendAppLogMessage(
+						fmt.Sprintf("No hostname found in syslog drain url %s", b.Url),
+						cred.Apps,
+						emitter,
+						logger,
+					)
 				}
 				continue
 			}
@@ -191,7 +236,15 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 			if exists {
 				invalidDrains += 1
 				if warn {
-					sendAppLogMessage(fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), cred.Apps, emitter, logger)
+					sendAppLogMessage(
+						fmt.Sprintf(
+							"Skipped resolve ip address for syslog drain with url %s due to prior failure",
+							anonymousUrl.String(),
+						),
+						cred.Apps,
+						emitter,
+						logger,
+					)
 				}
 				continue
 			}
@@ -201,7 +254,15 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 				invalidDrains += 1
 				failedHostsCache.Set(u.Host, true)
 				if warn {
-					sendAppLogMessage(fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), cred.Apps, emitter, logger)
+					sendAppLogMessage(
+						fmt.Sprintf(
+							"Cannot resolve ip address for syslog drain with url %s",
+							anonymousUrl.String(),
+						),
+						cred.Apps,
+						emitter,
+						logger,
+					)
 				}
 				continue
 			}
@@ -211,7 +272,15 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 				invalidDrains += 1
 				blacklistedDrains += 1
 				if warn {
-					sendAppLogMessage(fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), cred.Apps, emitter, logger)
+					sendAppLogMessage(
+						fmt.Sprintf(
+							"Resolved ip address for syslog drain with url %s is blacklisted",
+							anonymousUrl.String(),
+						),
+						cred.Apps,
+						emitter,
+						logger,
+					)
 				}
 				continue
 			}
@@ -221,7 +290,12 @@ func checkBindings(bindings []Binding, emitter loggregator.LogStream, checker IP
 				if err != nil {
 					errorMessage := err.Error()
 					if warn {
-						sendAppLogMessage(fmt.Sprintf("failed to load certificate: %s", errorMessage), cred.Apps, emitter, logger)
+						sendAppLogMessage(
+							fmt.Sprintf("failed to load certificate: %s", errorMessage),
+							cred.Apps,
+							emitter,
+							logger,
+						)
 					}
 					continue
 				}

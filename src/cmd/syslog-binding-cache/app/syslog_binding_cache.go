@@ -87,7 +87,16 @@ func (sbc *SyslogBindingCache) Run() {
 	}
 	store := binding.NewStore(sbc.metrics)
 	aggregateStore := binding.NewAggregateStore(sbc.config.AggregateDrainsFile)
-	poller := binding.NewPoller(sbc.apiClient(), sbc.config.APIPollingInterval, store, sbc.metrics, sbc.log, sbc.emitter, &sbc.config.Blacklist, sbc.config.WarnOnInvalidDrains)
+	poller := binding.NewPoller(
+		sbc.apiClient(),
+		sbc.config.APIPollingInterval,
+		store,
+		sbc.metrics,
+		sbc.log,
+		sbc.emitter,
+		&sbc.config.Blacklist,
+		sbc.config.WarnOnInvalidDrains,
+	)
 
 	go poller.Poll()
 
