@@ -109,9 +109,11 @@ func (w *TCPWriter) connection() (net.Conn, error) {
 func (w *TCPWriter) connect() (net.Conn, error) {
 	conn, err := w.dialFunc(w.url.Host)
 	if err != nil {
-		logMessage := fmt.Sprintf("Failed to connect to %s", w.url.String())
-		w.emitter.Emit(logMessage, loggregator.ForApp(w.appID))
-		w.emitter.Emit(fmt.Sprintf("%s for app %s", logMessage, w.appID), loggregator.ForPlatform())
+		appLogMessage := fmt.Sprintf("Failed to connect to %s", w.url.String())
+		w.emitter.Emit(appLogMessage, loggregator.ForApp(w.appID))
+		platformLogMessage := fmt.Sprintf("%s for app %s", appLogMessage, w.appID)
+		w.emitter.Emit(platformLogMessage, loggregator.ForPlatform())
+		log.Print(platformLogMessage)
 		return nil, err
 	}
 	w.conn = conn
