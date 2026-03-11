@@ -27,7 +27,7 @@ var _ = Describe("Poller", func() {
 		store     *fakeStore
 		metrics   *metricsHelpers.SpyMetricsRegistry
 		logger    = log.New(GinkgoWriter, "", 0)
-		emitter   loggregator.LogStream
+		logStream loggregator.LogStream
 		logClient = testhelper.NewSpyLogClient()
 	)
 
@@ -37,11 +37,11 @@ var _ = Describe("Poller", func() {
 		metrics = metricsHelpers.NewMetricsRegistry()
 		factory := loggregator.NewAppLogStreamFactory()
 		logClient = testhelper.NewSpyLogClient()
-		emitter = factory.NewLogStream(logClient, "test")
+		logStream = factory.NewLogStream(logClient, "test")
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -75,7 +75,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		var expectedBindings []Binding
@@ -150,7 +150,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		var expectedBindings []Binding
@@ -196,7 +196,7 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("tracks the number of API errors", func() {
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
@@ -209,7 +209,7 @@ var _ = Describe("Poller", func() {
 	It("does not update the stores if the response code is bad", func() {
 		apiClient.statusCode <- 404
 
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, emitter, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logStream, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
@@ -236,7 +236,7 @@ var _ = Describe("Poller", func() {
 				},
 			},
 		}
-		NewPoller(apiClient, time.Hour, store, metrics, logger, emitter, &dummyIPChecker{}, true)
+		NewPoller(apiClient, time.Hour, store, metrics, logger, logStream, &dummyIPChecker{}, true)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 2))
@@ -271,7 +271,7 @@ var _ = Describe("Poller", func() {
 				},
 			},
 		}
-		NewPoller(apiClient, time.Hour, store, metrics, logger, emitter, &dummyIPChecker{}, false)
+		NewPoller(apiClient, time.Hour, store, metrics, logger, logStream, &dummyIPChecker{}, false)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 1))
@@ -347,7 +347,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				&dummyIPChecker{},
 				logger,
 				cache,
@@ -385,7 +385,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				&dummyIPChecker{},
 				logger,
 				cache,
@@ -426,7 +426,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				blacklistRanges,
 				logger,
 				cache,
@@ -467,7 +467,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				blacklistRanges,
 				logger,
 				cache,
@@ -516,7 +516,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				blacklistRanges,
 				logger,
 				cache,
@@ -554,7 +554,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				&dummyIPChecker{},
 				logger,
 				cache,
@@ -592,7 +592,7 @@ var _ = Describe("Poller", func() {
 
 			filteredBindings := checkBindings(
 				bindings,
-				&emitter,
+				&logStream,
 				&dummyIPChecker{},
 				logger,
 				cache,

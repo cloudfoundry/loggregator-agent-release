@@ -4,22 +4,22 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 )
 
-type SpyAppLogEmitterFactory struct {
+type SpyLogStreamFactory struct {
 	logClient   loggregator.LogClient
 	sourceIndex string
 }
 
-func (factory *SpyAppLogEmitterFactory) LogClient() loggregator.LogClient {
+func (factory *SpyLogStreamFactory) LogClient() loggregator.LogClient {
 	return factory.logClient
 }
 
-func (factory *SpyAppLogEmitterFactory) SourceIndex() string {
+func (factory *SpyLogStreamFactory) SourceIndex() string {
 	return factory.sourceIndex
 }
 
-func (factory *SpyAppLogEmitterFactory) NewLogStream(logClient loggregator.LogClient, sourceIndex string) loggregator.LogStream {
+func (factory *SpyLogStreamFactory) NewLogStream(logClient loggregator.LogClient, sourceIndex string) loggregator.LogStream {
 	factory.logClient = logClient
 	factory.sourceIndex = sourceIndex
-	emitterFactory := loggregator.NewAppLogStreamFactory()
-	return emitterFactory.NewLogStream(logClient, sourceIndex)
+	logStreamFactory := loggregator.NewAppLogStreamFactory()
+	return logStreamFactory.NewLogStream(logClient, sourceIndex)
 }

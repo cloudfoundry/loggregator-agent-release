@@ -57,14 +57,14 @@ var _ = Describe("TCPWriter", func() {
 			egressCounter = &metricsHelpers.SpyMetric{}
 			factory := loggregator.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
-			emitter := factory.NewLogStream(logClient, "3")
+			logStream := factory.NewLogStream(logClient, "3")
 
 			writer = syslog.NewTCPWriter(
 				binding,
 				netConf,
 				egressCounter,
 				syslog.NewConverter(),
-				emitter,
+				logStream,
 			)
 			Expect(err).ToNot(HaveOccurred())
 		})
@@ -193,14 +193,14 @@ var _ = Describe("TCPWriter", func() {
 			binding.URL, _ = url.Parse("syslog://localhost-garbage:9999")
 			factory := loggregator.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
-			emitter := factory.NewLogStream(logClient, "3")
+			logStream := factory.NewLogStream(logClient, "3")
 
 			writer := syslog.NewTCPWriter(
 				binding,
 				netConf,
 				&metricsHelpers.SpyMetric{},
 				syslog.NewConverter(),
-				emitter,
+				logStream,
 			)
 
 			errs := make(chan error, 1)
@@ -222,13 +222,13 @@ var _ = Describe("TCPWriter", func() {
 				var err error
 				factory := loggregator.NewAppLogStreamFactory()
 				logClient := testhelper.NewSpyLogClient()
-				emitter := factory.NewLogStream(logClient, "3")
+				logStream := factory.NewLogStream(logClient, "3")
 				writer = syslog.NewTCPWriter(
 					binding,
 					netConf,
 					&metricsHelpers.SpyMetric{},
 					syslog.NewConverter(),
-					emitter,
+					logStream,
 				)
 				Expect(err).ToNot(HaveOccurred())
 

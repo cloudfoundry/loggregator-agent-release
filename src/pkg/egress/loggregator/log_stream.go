@@ -68,18 +68,18 @@ type LogStreamFactory interface {
 	NewLogStream(logClient LogClient, sourceIndex string) LogStream
 }
 
-// DefaultLogEmitterFactory implementation of LogStreamFactory to produce DefaultAppLogEmitter.
-type DefaultLogEmitterFactory struct {
+// DefaultLogStreamFactory implementation of LogStreamFactory to produce DefaultAppLogEmitter.
+type DefaultLogStreamFactory struct {
 }
 
 // NewAppLogEmitter creates a new LogStream.
-func (factory *DefaultLogEmitterFactory) NewLogStream(logClient LogClient, sourceIndex string) LogStream {
+func (factory *DefaultLogStreamFactory) NewLogStream(logClient LogClient, sourceIndex string) LogStream {
 	return LogStream{
 		logClient:   logClient,
 		sourceIndex: sourceIndex,
 	}
 }
 
-func NewAppLogStreamFactory() DefaultLogEmitterFactory {
-	return DefaultLogEmitterFactory{}
+func NewAppLogStreamFactory() DefaultLogStreamFactory {
+	return DefaultLogStreamFactory{}
 }

@@ -26,7 +26,7 @@ type Poller struct {
 	lastBindingCount           metrics.Gauge
 	invalidDrains              metrics.Gauge
 	blacklistedDrains          metrics.Gauge
-	emitter                    loggregator.LogStream
+	logStream                  loggregator.LogStream
 	checker                    IPChecker
 	failedHostsCache           *simplecache.SimpleCache[string, bool]
 	warn                       bool
@@ -76,7 +76,7 @@ func NewPoller(
 	s Setter,
 	m Metrics,
 	logger *log.Logger,
-	emitter loggregator.LogStream,
+	logStream loggregator.LogStream,
 	checker IPChecker,
 	warn bool,
 ) *Poller {
@@ -105,7 +105,7 @@ func NewPoller(
 			"Count of blacklisted drains encountered in last binding fetch.",
 			opt,
 		),
-		emitter:          emitter,
+		logStream:        logStream,
 		checker:          checker,
 		failedHostsCache: simplecache.New[string, bool](120 * time.Second),
 		warn:             warn,
@@ -156,7 +156,7 @@ func (p *Poller) poll() {
 
 	filteredBindings := checkBindings(
 		bindings,
-		&p.emitter,
+		&p.logStream,
 		p.checker,
 		p.logger,
 		p.failedHostsCache,
@@ -172,7 +172,7 @@ func (p *Poller) poll() {
 
 func checkBindings(
 	bindings []Binding,
-	emitter *loggregator.LogStream,
+	logStream *loggregator.LogStream,
 	checker IPChecker,
 	logger *log.Logger,
 	failedHostsCache *simplecache.SimpleCache[string, bool],
@@ -197,7 +197,7 @@ func checkBindings(
 					sendAppLogMessage(
 						fmt.Sprintf("Cannot parse syslog drain url %s", b.Url),
 						cred.Apps,
-						emitter,
+						logStream,
 						logger,
 					)
 				}
@@ -213,7 +213,7 @@ func checkBindings(
 					sendAppLogMessage(
 						fmt.Sprintf("Invalid Scheme for syslog drain url %s", b.Url),
 						cred.Apps,
-						emitter,
+						logStream,
 						logger,
 					)
 				}
@@ -225,7 +225,7 @@ func checkBindings(
 					sendAppLogMessage(
 						fmt.Sprintf("No hostname found in syslog drain url %s", b.Url),
 						cred.Apps,
-						emitter,
+						logStream,
 						logger,
 					)
 				}
@@ -242,7 +242,7 @@ func checkBindings(
 							anonymousUrl.String(),
 						),
 						cred.Apps,
-						emitter,
+						logStream,
 						logger,
 					)
 				}
@@ -260,7 +260,7 @@ func checkBindings(
 							anonymousUrl.String(),
 						),
 						cred.Apps,
-						emitter,
+						logStream,
 						logger,
 					)
 				}
@@ -278,7 +278,7 @@ func checkBindings(
 							anonymousUrl.String(),
 						),
 						cred.Apps,
-						emitter,
+						logStream,
 						logger,
 					)
 				}
@@ -292,7 +292,7 @@ func checkBindings(
 						sendAppLogMessage(
 							fmt.Sprintf("failed to load certificate for %s", anonymousUrl.String()),
 							cred.Apps,
-							emitter,
+							logStream,
 							logger,
 						)
 					}
@@ -308,7 +308,7 @@ func checkBindings(
 						sendAppLogMessage(
 							fmt.Sprintf("failed to load root CA for %s", anonymousUrl.String()),
 							cred.Apps,
-							emitter,
+							logStream,
 							logger,
 						)
 					}
@@ -324,14 +324,14 @@ func checkBindings(
 	return filteredBindings
 }
 
-func sendAppLogMessage(msg string, apps []App, emitter *loggregator.LogStream, logger *log.Logger) {
+func sendAppLogMessage(msg string, apps []App, logStream *loggregator.LogStream, logger *log.Logger) {
 	for _, app := range apps {
 		appId := app.AppID
 		if appId == "" {
 			continue
 		}
-		emitter.Emit(msg, loggregator.ForApp(appId))
-		emitter.Emit(fmt.Sprintf("%s for app %s", msg, appId), loggregator.ForPlatform())
+		logStream.Emit(msg, loggregator.ForApp(appId))
+		logStream.Emit(fmt.Sprintf("%s for app %s", msg, appId), loggregator.ForPlatform())
 		logger.Printf("%s for app %s", msg, appId)
 	}
 }

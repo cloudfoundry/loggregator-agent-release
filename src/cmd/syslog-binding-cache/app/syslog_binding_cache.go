@@ -35,7 +35,7 @@ type SyslogBindingCache struct {
 	log         *log.Logger
 	metrics     Metrics
 	mu          sync.Mutex
-	emitter     egressLoggregator.LogStream
+	logStream   egressLoggregator.LogStream
 	checker     IPChecker
 }
 
@@ -64,14 +64,14 @@ func NewSyslogBindingCache(config Config, metrics Metrics, logger *log.Logger) *
 		logger.Panicf("failed to create logger client for syslog binding cache: %q", err)
 	}
 	factory := egressLoggregator.NewAppLogStreamFactory()
-	emitter := factory.NewLogStream(logClient, "syslog_binding_cache")
+	logStream := factory.NewLogStream(logClient, "syslog_binding_cache")
 
 	return &SyslogBindingCache{
-		config:  config,
-		log:     logger,
-		metrics: metrics,
-		emitter: emitter,
-		checker: &config.Blacklist,
+		config:    config,
+		log:       logger,
+		metrics:   metrics,
+		logStream: logStream,
+		checker:   &config.Blacklist,
 	}
 }
 
@@ -93,7 +93,7 @@ func (sbc *SyslogBindingCache) Run() {
 		store,
 		sbc.metrics,
 		sbc.log,
-		sbc.emitter,
+		sbc.logStream,
 		&sbc.config.Blacklist,
 		sbc.config.WarnOnInvalidDrains,
 	)

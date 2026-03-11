@@ -244,8 +244,8 @@ var _ = Describe("SyslogAgent", func() {
 		Eventually(agentMetrics.GetDebugMetricsEnabled).Should(BeFalse())
 	})
 
-	It("configures appLogEmitter", func() {
-		spyFactory := testhelper.SpyAppLogEmitterFactory{}
+	It("configures logStream", func() {
+		spyFactory := testhelper.SpyLogStreamFactory{}
 		app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &spyFactory)
 
 		Expect(spyFactory.SourceIndex()).Should(Equal("syslog_agent"))

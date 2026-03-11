@@ -48,7 +48,7 @@ var _ = Describe("Loggregator Egress", func() {
 		})
 	})
 
-	Describe("DefaultLogEmitterFactory", func() {
+	Describe("DefaultLogStreamFactory", func() {
 		It("should produce a LogStream which emits to the provided LogClient", func() {
 			factory := loggregator.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
