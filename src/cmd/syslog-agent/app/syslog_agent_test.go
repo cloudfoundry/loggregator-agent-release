@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/blacklist"
 	egressLoggregator "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/loggregator"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,7 +27,6 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
 	"code.cloudfoundry.org/tlsconfig"
 )
 
@@ -286,8 +286,8 @@ var _ = Describe("SyslogAgent", func() {
 		BeforeEach(func() {
 			url, err := url.Parse(appHTTPSDrain.server.URL)
 			Expect(err).NotTo(HaveOccurred())
-			agentCfg.Cache.Blacklist = bindings.BlacklistRanges{
-				Ranges: []bindings.BlacklistRange{
+			agentCfg.Cache.Blacklist = blacklist.BlacklistRanges{
+				Ranges: []blacklist.BlacklistRange{
 					{
 						Start: url.Hostname(),
 						End:   url.Hostname(),

@@ -4,10 +4,9 @@ import (
 	"log"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
-
 	envstruct "code.cloudfoundry.org/go-envstruct"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/blacklist"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 )
 
 // Config holds the configuration for the syslog binding cache
@@ -35,7 +34,7 @@ type Config struct {
 
 	ForwarderAgentAddress string `env:"FORWARDER_AGENT_ADDR"`
 	GRPC                  GRPC
-	Blacklist             bindings.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+	Blacklist             blacklist.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 
 	WarnOnInvalidDrains bool `env:"WARN_ON_INVALID_DRAINS,    report"`
 }
