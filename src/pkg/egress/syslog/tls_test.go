@@ -58,7 +58,7 @@ var _ = Describe("TLSWriter", func() {
 		}
 		factory := loggregator.NewAppLogStreamFactory()
 		logClient := testhelper.NewSpyLogClient()
-		emitter := factory.NewLogEmitter(logClient, "3")
+		emitter := factory.NewLogStream(logClient, "3")
 		writer := syslog.NewTLSWriter(
 			binding,
 			netConf,

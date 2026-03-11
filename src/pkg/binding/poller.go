@@ -156,7 +156,7 @@ func (p *Poller) poll() {
 
 	filteredBindings := checkBindings(
 		bindings,
-		p.emitter,
+		&p.emitter,
 		p.checker,
 		p.logger,
 		p.failedHostsCache,
@@ -172,7 +172,7 @@ func (p *Poller) poll() {
 
 func checkBindings(
 	bindings []Binding,
-	emitter loggregator.LogStream,
+	emitter *loggregator.LogStream,
 	checker IPChecker,
 	logger *log.Logger,
 	failedHostsCache *simplecache.SimpleCache[string, bool],
@@ -288,10 +288,9 @@ func checkBindings(
 			if len(cred.Cert) > 0 && len(cred.Key) > 0 {
 				_, err := tls.X509KeyPair([]byte(cred.Cert), []byte(cred.Key))
 				if err != nil {
-					errorMessage := err.Error()
 					if warn {
 						sendAppLogMessage(
-							fmt.Sprintf("failed to load certificate: %s", errorMessage),
+							fmt.Sprintf("failed to load certificate for %s", anonymousUrl.String()),
 							cred.Apps,
 							emitter,
 							logger,
@@ -306,7 +305,12 @@ func checkBindings(
 				ok := certPool.AppendCertsFromPEM([]byte(cred.CA))
 				if !ok {
 					if warn {
-						sendAppLogMessage("failed to load root CA", cred.Apps, emitter, logger)
+						sendAppLogMessage(
+							fmt.Sprintf("failed to load root CA for %s", anonymousUrl.String()),
+							cred.Apps,
+							emitter,
+							logger,
+						)
 					}
 					continue
 				}
@@ -320,7 +324,7 @@ func checkBindings(
 	return filteredBindings
 }
 
-func sendAppLogMessage(msg string, apps []App, emitter loggregator.LogStream, logger *log.Logger) {
+func sendAppLogMessage(msg string, apps []App, emitter *loggregator.LogStream, logger *log.Logger) {
 	for _, app := range apps {
 		appId := app.AppID
 		if appId == "" {

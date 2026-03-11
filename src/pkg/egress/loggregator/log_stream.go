@@ -4,7 +4,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v10"
 )
 
-// LogClient is used to emit logs.
+// LogClient is used to emit logs - i.e. Ingress Client.
 type LogClient interface {
 	EmitLog(message string, opts ...loggregator.EmitLogOption)
 }
@@ -13,6 +13,8 @@ type LogType interface {
 	appID() string
 }
 
+// appLog is used to emit logs that are associated with an app, such as logs from the application itself.
+// It returns the appIdentifier for the appID.
 type appLog struct {
 	appIdentifier string
 }
@@ -21,6 +23,8 @@ func (a *appLog) appID() string {
 	return a.appIdentifier
 }
 
+// platformLog is used to emit logs that are not associated with an app, such as logs from the platform itself.
+// It returns an empty string for the appID.
 type platformLog struct {
 }
 
@@ -61,7 +65,7 @@ func (logStream *LogStream) Emit(message string, option LogType) {
 
 // LogStreamFactory is used to create new instances of LogStream
 type LogStreamFactory interface {
-	NewLogEmitter(logClient LogClient, sourceIndex string) LogStream
+	NewLogStream(logClient LogClient, sourceIndex string) LogStream
 }
 
 // DefaultLogEmitterFactory implementation of LogStreamFactory to produce DefaultAppLogEmitter.
@@ -69,7 +73,7 @@ type DefaultLogEmitterFactory struct {
 }
 
 // NewAppLogEmitter creates a new LogStream.
-func (factory *DefaultLogEmitterFactory) NewLogEmitter(logClient LogClient, sourceIndex string) LogStream {
+func (factory *DefaultLogEmitterFactory) NewLogStream(logClient LogClient, sourceIndex string) LogStream {
 	return LogStream{
 		logClient:   logClient,
 		sourceIndex: sourceIndex,

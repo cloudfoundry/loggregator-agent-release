@@ -7,12 +7,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Loggregator Emitter", func() {
-	Describe("DefaultAppLogEmitter", func() {
-		It("emits a log message", func() {
+var _ = Describe("Loggregator Egress", func() {
+	Describe("Log Stream", func() {
+		It("should emit a log message for an application with LGR and SYS source type with the provided app-ID", func() {
 			logClient := testhelper.NewSpyLogClient()
 			factory := loggregator.NewAppLogStreamFactory()
-			emitter := factory.NewLogEmitter(logClient, "0")
+			emitter := factory.NewLogStream(logClient, "0")
 
 			emitter.Emit("some-message", loggregator.ForApp("app-id"))
 
@@ -28,30 +28,33 @@ var _ = Describe("Loggregator Emitter", func() {
 			Expect(sourceTypes).To(HaveKey("SYS"))
 		})
 
-		It("does not emit a log message if the appIdentifier is empty", func() {
+		It("should emit a log message for the platform with LGR and SYS source type without an app-ID", func() {
 			logClient := testhelper.NewSpyLogClient()
 			factory := loggregator.NewAppLogStreamFactory()
-			emitter := factory.NewLogEmitter(logClient, "0")
+			emitter := factory.NewLogStream(logClient, "0")
 
 			emitter.Emit("some-message", loggregator.ForPlatform())
 
 			messages := logClient.Message()
 			appIDs := logClient.AppID()
 			sourceTypes := logClient.SourceType()
-			Expect(messages).To(HaveLen(0))
-			Expect(appIDs).To(HaveLen(0))
-			Expect(sourceTypes).ToNot(HaveKey("LGR"))
-			Expect(sourceTypes).ToNot(HaveKey("SYS"))
+			Expect(messages).To(HaveLen(2))
+			Expect(messages[0]).To(Equal("some-message"))
+			Expect(messages[1]).To(Equal("some-message"))
+			Expect(appIDs[0]).To(Equal(""))
+			Expect(appIDs[1]).To(Equal(""))
+			Expect(sourceTypes).To(HaveKey("LGR"))
+			Expect(sourceTypes).To(HaveKey("SYS"))
 		})
 	})
 
 	Describe("DefaultLogEmitterFactory", func() {
-		It("produces a LogStream", func() {
+		It("should produce a LogStream which emits to the provided LogClient", func() {
 			factory := loggregator.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
 			sourceIndex := "test-index"
 
-			emitter := factory.NewLogEmitter(logClient, sourceIndex)
+			emitter := factory.NewLogStream(logClient, sourceIndex)
 			emitter.Emit("some-message", loggregator.ForApp("app-id"))
 
 			messages := logClient.Message()

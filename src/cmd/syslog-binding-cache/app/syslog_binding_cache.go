@@ -64,7 +64,7 @@ func NewSyslogBindingCache(config Config, metrics Metrics, logger *log.Logger) *
 		logger.Panicf("failed to create logger client for syslog binding cache: %q", err)
 	}
 	factory := egressLoggregator.NewAppLogStreamFactory()
-	emitter := factory.NewLogEmitter(logClient, "syslog_binding_cache")
+	emitter := factory.NewLogStream(logClient, "syslog_binding_cache")
 
 	return &SyslogBindingCache{
 		config:  config,
