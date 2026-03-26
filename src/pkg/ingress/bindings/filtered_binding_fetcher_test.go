@@ -242,13 +242,13 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when both include-log-source-types and exclude-log-source-types are specified", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
-		var mockic *bindingsfakes.FakeIPChecker
+		var mockic *bindingfakes.FakeIPChecker
 
 		BeforeEach(func() {
 			logBuffer = bytes.Buffer{}
 			log.SetOutput(&logBuffer)
 			warn = true
-			mockic = &bindingsfakes.FakeIPChecker{}
+			mockic = &bindingfakes.FakeIPChecker{}
 			mockic.ResolveAddrReturns(net.ParseIP("10.10.10.10"), nil)
 			mockic.CheckBlacklistReturns(nil)
 		})
@@ -291,13 +291,13 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when unknown source types are provided", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
-		var mockic *bindingsfakes.FakeIPChecker
+		var mockic *bindingfakes.FakeIPChecker
 
 		BeforeEach(func() {
 			logBuffer = bytes.Buffer{}
 			log.SetOutput(&logBuffer)
 			warn = true
-			mockic = &bindingsfakes.FakeIPChecker{}
+			mockic = &bindingfakes.FakeIPChecker{}
 			mockic.ResolveAddrReturns(net.ParseIP("10.10.10.10"), nil)
 			mockic.CheckBlacklistReturns(nil)
 		})
