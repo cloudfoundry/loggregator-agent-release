@@ -9,9 +9,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 )
@@ -236,9 +238,32 @@ func (bc *bindingChecker) checkBindings(bindings []Binding) []Binding {
 			continue
 		}
 
-		_, exists := bc.failedHostsCache.Get(u.Host)
-		if exists {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), false)
+		if invalidLogFilter(u) {
+			bc.invalidDrains += 1
+			if bc.warn {
+				for _, cred := range b.Credentials {
+					sendAppLogMessage(
+						fmt.Sprintf("include-log-source-types and exclude-log-source-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()),
+						cred.Apps,
+						bc.appLogClient,
+						bc.logger,
+					)
+				}
+			}
+			continue
+		}
+
+		sourceTypes := getUnknownSourceTypes(u.Query())
+		if sourceTypes != nil {
+			bc.invalidDrains += 1
+			for _, cred := range b.Credentials {
+				sendAppLogMessage(
+					fmt.Sprintf("Unknown source types '%s' in source type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()),
+					cred.Apps,
+					bc.appLogClient,
+					bc.logger,
+				)
+			}
 			continue
 		}
 
@@ -306,6 +331,34 @@ func invalidScheme(scheme string) bool {
 	}
 
 	return true
+}
+
+// invalidLogFilter checks if both include-log-source-types and exclude-log-source-types
+func invalidLogFilter(u *url.URL) bool {
+	includeSourceTypes := u.Query().Get("include-log-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-log-source-types")
+	if excludeSourceTypes != "" && includeSourceTypes != "" {
+		return true
+	}
+	return false
+}
+
+// assumes only one of include-log-source-types or exclude-log-source-types is set
+func getUnknownSourceTypes(u url.Values) []string {
+	var sourceTypeList string
+	includeSourceTypes := u.Get("include-log-source-types")
+	excludeSourceTypes := u.Get("exclude-log-source-types")
+
+	if includeSourceTypes != "" {
+		sourceTypeList = includeSourceTypes
+	} else if excludeSourceTypes != "" {
+		sourceTypeList = excludeSourceTypes
+	} else {
+		return nil
+	}
+
+	_, unknownTypes := syslog.ParseSourceTypeList(sourceTypeList)
+	return unknownTypes
 }
 
 func CalculateBindingCount(bindings []Binding) int {
