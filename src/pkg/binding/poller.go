@@ -239,31 +239,19 @@ func (bc *bindingChecker) checkBindings(bindings []Binding) []Binding {
 		}
 
 		if invalidLogFilter(u) {
-			bc.invalidDrains += 1
-			if bc.warn {
-				for _, cred := range b.Credentials {
-					sendAppLogMessage(
-						fmt.Sprintf("include-log-source-types and exclude-log-source-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()),
-						cred.Apps,
-						bc.appLogClient,
-						bc.logger,
-					)
-				}
-			}
+			bc.rejectBinding(b.Credentials, fmt.Sprintf("include-log-source-types and exclude-log-source-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()), true)
 			continue
 		}
 
 		sourceTypes := getUnknownSourceTypes(u.Query())
 		if sourceTypes != nil {
-			bc.invalidDrains += 1
-			for _, cred := range b.Credentials {
-				sendAppLogMessage(
-					fmt.Sprintf("Unknown source types '%s' in source type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()),
-					cred.Apps,
-					bc.appLogClient,
-					bc.logger,
-				)
-			}
+			bc.rejectBinding(b.Credentials, fmt.Sprintf("Unknown source types '%s' in source type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()), true)
+			continue
+		}
+
+		_, exists := bc.failedHostsCache.Get(u.Host)
+		if exists {
+			bc.rejectBinding(b.Credentials, fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), false)
 			continue
 		}
 
