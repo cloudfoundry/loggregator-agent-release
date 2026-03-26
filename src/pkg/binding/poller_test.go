@@ -425,7 +425,6 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-<<<<<<< HEAD
 
 			filteredBindings := bndChecker.checkBindings(bindings)
 
@@ -437,54 +436,6 @@ var _ = Describe("Poller", func() {
 		})
 
 		It("returns no binding when there is a prior IP checking failure for a URL", func() {
-=======
-			cache := simplecache.New[string, bool](120 * time.Second)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          &dummyIPChecker{},
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("No hostname found in syslog drain url syslog:/drain-0")))
-			Expect(bc.invalidDrains).To(BeNumerically("==", 0))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 0))
-		})
-
-		It("returns no binding which contains an invalid scheme in URL", func() {
-			bindings := []Binding{
-				{
-					Url: "syslog-ssl://drain-0",
-					Credentials: []Credentials{
-						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
-						},
-					},
-				},
-			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          &dummyIPChecker{},
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Invalid Scheme for syslog drain url syslog-ssl://drain-0")))
-			Expect(bc.invalidDrains).To(BeNumerically("==", 0))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 0))
-		})
-
-		It("returns no binding with unresolvable URL", func() {
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
 			bindings := []Binding{
 				{
 					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
@@ -496,7 +447,6 @@ var _ = Describe("Poller", func() {
 				},
 			}
 			cache := simplecache.New[string, bool](120 * time.Second)
-<<<<<<< HEAD
 			cache.Set("syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com", true)
 			bndChecker.failedHostsCache = cache
 
@@ -528,25 +478,6 @@ var _ = Describe("Poller", func() {
 			Expect(logClient.Message()).To(ContainElement(Equal("Cannot resolve ip address for syslog drain with url syslog://fail_to_resolve_ip")))
 			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
-=======
-			blacklistRanges, _ := blacklist.NewBlacklistRanges(
-				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
-			)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          blacklistRanges,
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Cannot resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com")))
-			Expect(bc.invalidDrains).To(BeNumerically("==", 1))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 0))
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
 		})
 
 		It("returns no binding which has a blacklisted IP", func() {
@@ -560,7 +491,6 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-<<<<<<< HEAD
 
 			filteredBindings := bndChecker.checkBindings(bindings)
 
@@ -569,65 +499,6 @@ var _ = Describe("Poller", func() {
 			Expect(logClient.Message()).To(ContainElement(Equal("Resolved ip address for syslog drain with url syslog://blacklisted_domain is blacklisted")))
 			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(1)))
-=======
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistRanges, _ := blacklist.NewBlacklistRanges(
-				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
-			)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          blacklistRanges,
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Resolved ip address for syslog drain with url syslog://192.168.188.15 is blacklisted")))
-			Expect(bc.invalidDrains).To(BeNumerically("==", 1))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 1))
-		})
-
-		It("returns no binding when there is a prior IP checking failure for URL", func() {
-			bindings := []Binding{
-				{
-					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
-					Credentials: []Credentials{
-						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
-						},
-					},
-				},
-				{
-					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
-					Credentials: []Credentials{
-						{
-							Cert: "cert1", Key: "key1", CA: "ca1", Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
-						},
-					},
-				},
-			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistRanges, _ := blacklist.NewBlacklistRanges(
-				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
-			)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          blacklistRanges,
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Skipped resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com due to prior failure")))
-			Expect(bc.invalidDrains).To(BeNumerically("==", 2))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 0))
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
 		})
 
 		It("returns no binding when key pair cannot be loaded", func() {
@@ -641,32 +512,14 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-<<<<<<< HEAD
 
 			filteredBindings := bndChecker.checkBindings(bindings)
-=======
-			cache := simplecache.New[string, bool](120 * time.Second)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          &dummyIPChecker{},
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
 
 			Expect(filteredBindings).To(BeEmpty())
 			Expect(logBuffer).Should(gbytes.Say(("failed to load certificate for syslog-tls://drain-0 for app app-id-0")))
 			Expect(logClient.Message()).To(ContainElement(Equal("failed to load certificate for syslog-tls://drain-0")))
-<<<<<<< HEAD
 			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
-=======
-			Expect(bc.invalidDrains).To(BeNumerically("==", 0))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 0))
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
 		})
 
 		It("returns no binding when CA cannot be loaded", func() {
@@ -680,26 +533,12 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-<<<<<<< HEAD
 
 			filteredBindings := bndChecker.checkBindings(bindings)
-=======
-			cache := simplecache.New[string, bool](120 * time.Second)
-
-			bc := &bindingChecker{
-				logStream:        &appLogStream,
-				checker:          &dummyIPChecker{},
-				logger:           logger,
-				failedHostsCache: cache,
-				warn:             true,
-			}
-			filteredBindings := bc.checkBindings(bindings)
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
 
 			Expect(filteredBindings).To(BeEmpty())
 			Expect(logBuffer).Should(gbytes.Say(("failed to load root CA for syslog-tls://drain-0 for app app-id-0")))
 			Expect(logClient.Message()).To(ContainElement(Equal("failed to load root CA for syslog-tls://drain-0")))
-<<<<<<< HEAD
 			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
@@ -723,10 +562,125 @@ var _ = Describe("Poller", func() {
 			Expect(logClient.Message()).To(BeEmpty())
 			Expect(bndChecker.invalidDrains).To(Equal(float64(0)))
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
-=======
-			Expect(bc.invalidDrains).To(BeNumerically("==", 0))
-			Expect(bc.blacklistedDrains).To(BeNumerically("==", 0))
->>>>>>> 7e11944a (Fix cyclomatic complexity by refactoring poller)
+		})
+
+		Context("when both include-log-source-types and exclude-log-source-types are specified", func() {
+			It("ignores the drain and counts as invalid", func() {
+				bindings := []Binding{
+					{
+						Url: "https://test.org/drain?include-log-source-types=app&exclude-log-source-types=rtr",
+						Credentials: []Credentials{
+							{
+								Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							},
+						},
+					},
+				}
+
+				filteredBindings := bndChecker.checkBindings(bindings)
+
+				Expect(filteredBindings).To(BeEmpty())
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("include-log-source-types and exclude-log-source-types cannot be used at the same time")))
+				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
+				Expect(bndChecker.blacklistedDrains).To(BeNumerically("==", 0))
+			})
+
+			It("doesn't log the conflicting filters warning when warn is false", func() {
+				bndChecker.warn = false
+				bindings := []Binding{
+					{
+						Url: "https://test.org/drain?include-log-source-types=app&exclude-log-source-types=rtr",
+						Credentials: []Credentials{
+							{
+								Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							},
+						},
+					},
+				}
+				bndChecker.checkBindings(bindings)
+
+				for _, msg := range logClient.Message() {
+					Expect(msg).ToNot(MatchRegexp("include-log-source-types and exclude-log-source-types cannot be used at the same time"))
+				}
+			})
+		})
+
+		Context("when unknown source types are provided", func() {
+			It("logs a warning and ignores the drain in include mode", func() {
+				bindings := []Binding{
+					{
+						Url: "https://test.org/drain?include-log-source-types=app,unknown,invalid,rtr",
+						Credentials: []Credentials{
+							{
+								Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							},
+						},
+					},
+				}
+				filteredBindings := bndChecker.checkBindings(bindings)
+
+				Expect(filteredBindings).To(BeEmpty())
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown source types")))
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("unknown")))
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("invalid")))
+				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
+			})
+
+			It("logs a warning and ignores the drain in exclude mode", func() {
+				bindings := []Binding{
+					{
+						Url: "https://test.org/drain?exclude-log-source-types=rtr,unknown",
+						Credentials: []Credentials{
+							{
+								Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							},
+						},
+					},
+				}
+				filteredBindings := bndChecker.checkBindings(bindings)
+
+				Expect(filteredBindings).To(BeEmpty())
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown source types")))
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("unknown")))
+				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
+			})
+
+			It("logs a warning and ignores the drain when source types have spaces", func() {
+				bindings := []Binding{
+					{
+						Url: "https://test.org/drain?include-log-source-types=app, rtr",
+						Credentials: []Credentials{
+							{
+								Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							},
+						},
+					},
+				}
+				filteredBindings := bndChecker.checkBindings(bindings)
+
+				Expect(filteredBindings).To(BeEmpty())
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown source types")))
+				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
+			})
+
+			It("doesn't log the warning when warn is false", func() {
+				bndChecker.warn = false
+				bindings := []Binding{
+					{
+						Url: "https://test.org/drain?include-log-source-types=app,unknown,rtr",
+						Credentials: []Credentials{
+							{
+								Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+							},
+						},
+					},
+				}
+				bndChecker.checkBindings(bindings)
+
+				for _, msg := range logClient.Message() {
+					Expect(msg).ToNot(MatchRegexp("Unknown source types"))
+				}
+			})
 		})
 	})
 })
