@@ -2,13 +2,14 @@ package scraper
 
 import (
 	"fmt"
-	"github.com/prometheus/common/model"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/prometheus/common/model"
 
 	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
@@ -221,9 +222,6 @@ func (s *Scraper) emitUntyped(sourceID, instanceID, name string, tags map[string
 
 func (s *Scraper) emitCounter(sourceID, instanceID, name string, tags map[string]string, metric *io_prometheus_client.Metric) {
 	val := metric.GetCounter().GetValue()
-	if val != float64(uint64(val)) {
-		return //the counter contains a fractional value
-	}
 
 	s.metricsEmitter.EmitCounter(
 		name,

@@ -156,7 +156,7 @@ var _ = Describe("Scraper", func() {
 			))
 		})
 
-		It("ignores counter metrics with float values", func() {
+		It("truncates counter metrics with float values to uint64", func() {
 			tc := setup(scraper.Target{
 				ID:         "some-id",
 				InstanceID: "some-instance-id",
@@ -168,6 +168,7 @@ var _ = Describe("Scraper", func() {
 
 			Expect(tc.metricEmitter.envelopes).To(ConsistOf(
 				buildCounter("source-1", "some-instance-id", "counter_int", 1, nil),
+				buildCounter("source-2", "some-instance-id", "counter_float", 2, nil),
 			))
 		})
 	})
