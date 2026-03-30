@@ -6,8 +6,8 @@ require (
 	code.cloudfoundry.org/go-batching v0.0.0-20260210084635-251b58acc355
 	code.cloudfoundry.org/go-diodes v0.0.0-20260209061029-a81ffbc46978
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20260316221732-b5ae994e6b10
-	code.cloudfoundry.org/tlsconfig v0.48.0
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20260325091030-e6272bdc60ad
+	code.cloudfoundry.org/tlsconfig v0.49.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20251217143644-d1670a435f2a
 	github.com/onsi/gomega v1.39.1
