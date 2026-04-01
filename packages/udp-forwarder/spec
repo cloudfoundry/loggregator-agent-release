@@ -2,7 +2,7 @@
 name: udp-forwarder
 
 dependencies:
-- golang-1.25-linux
+- golang-1.26-linux
 files:
 - cmd/udp-forwarder/**/*.go
 - pkg/**/*.go
