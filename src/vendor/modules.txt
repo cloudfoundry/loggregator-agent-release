@@ -17,7 +17,7 @@ code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
 ## explicit; go 1.25.0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.49.0
+# code.cloudfoundry.org/tlsconfig v0.50.0
 ## explicit; go 1.25.0
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -28,9 +28,10 @@ filippo.io/edwards25519/field
 # github.com/Masterminds/semver/v3 v3.4.0
 ## explicit; go 1.21
 github.com/Masterminds/semver/v3
-# github.com/andybalholm/brotli v1.2.0
+# github.com/andybalholm/brotli v1.2.1
 ## explicit; go 1.22
 github.com/andybalholm/brotli
+github.com/andybalholm/brotli/flate
 github.com/andybalholm/brotli/matchfinder
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
@@ -176,7 +177,7 @@ go.opentelemetry.io/proto/otlp/logs/v1
 go.opentelemetry.io/proto/otlp/metrics/v1
 go.opentelemetry.io/proto/otlp/resource/v1
 go.opentelemetry.io/proto/otlp/trace/v1
-# go.step.sm/crypto v0.77.1
+# go.step.sm/crypto v0.77.2
 ## explicit; go 1.25.0
 go.step.sm/crypto/fingerprint
 go.step.sm/crypto/internal/bcrypt_pbkdf
@@ -283,10 +284,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20260319201613-d00831a3d3e7
+# google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.79.3
