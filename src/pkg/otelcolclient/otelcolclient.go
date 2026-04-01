@@ -51,6 +51,12 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
 	w := &GRPCWriter{
 		msc:    colmetricspb.NewMetricsServiceClient(cc),
 		tsc:    coltracepb.NewTraceServiceClient(cc),
@@ -59,6 +65,7 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 		cancel: cancel,
 		l:      l,
 	}
+	cancel = nil
 	return w, nil
 }
 
