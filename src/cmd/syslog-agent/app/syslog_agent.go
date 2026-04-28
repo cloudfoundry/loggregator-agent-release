@@ -13,6 +13,7 @@ import (
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -56,19 +57,14 @@ func NewSyslogAgent(
 	cfg Config,
 	m Metrics,
 	l *log.Logger,
+	appLogStreamFactory applog.AppLogStreamFactory,
 ) *SyslogAgent {
 	internalTlsConfig, externalTlsConfig := drainTLSConfig(cfg)
-	writerFactory := syslog.NewWriterFactory(
-		internalTlsConfig,
-		externalTlsConfig,
-		syslog.NetworkTimeoutConfig{
-			Keepalive:    10 * time.Second,
-			DialTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		},
-		m,
-	)
-
+	writerFactory := syslog.NewWriterFactory(internalTlsConfig, externalTlsConfig, syslog.NetworkTimeoutConfig{
+		Keepalive:    10 * time.Second,
+		DialTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}, m)
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		cfg.GRPC.CAFile,
 		cfg.GRPC.CertFile,
@@ -81,6 +77,7 @@ func NewSyslogAgent(
 	logClient, err := loggregator.NewIngressClient(
 		ingressTLSConfig,
 		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
+		loggregator.WithAddr(cfg.LoggregatorIngressAddr),
 	)
 	if err != nil {
 		l.Panicf("failed to create log client for syslog connector: %q", err)
@@ -91,7 +88,7 @@ func NewSyslogAgent(
 		timeoutwaitgroup.New(time.Minute),
 		writerFactory,
 		m,
-		syslog.WithLogClient(logClient, "syslog_agent"),
+		syslog.WithAppLogStream(appLogStreamFactory.NewAppLogStream(logClient, "syslog_agent")),
 	)
 
 	var cacheClient *cache.CacheClient

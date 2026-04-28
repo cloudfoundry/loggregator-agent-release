@@ -7,10 +7,9 @@ import (
 	"net"
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/bindingfakes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings/bindingsfakes"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -196,13 +195,13 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	Context("when the drain host fails to resolve", func() {
 		var logBuffer bytes.Buffer
 		var warn bool
-		var mockic *bindingsfakes.FakeIPChecker
+		var mockic *bindingfakes.FakeIPChecker
 
 		BeforeEach(func() {
 			logBuffer = bytes.Buffer{}
 			log.SetOutput(&logBuffer)
 			warn = true
-			mockic = &bindingsfakes.FakeIPChecker{}
+			mockic = &bindingfakes.FakeIPChecker{}
 			mockic.ResolveAddrReturns(net.IP{}, errors.New("oof ouch ip not resolved"))
 		})
 

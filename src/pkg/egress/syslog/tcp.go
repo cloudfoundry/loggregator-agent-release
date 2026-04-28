@@ -13,6 +13,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 )
 
 // DialFunc represents a method for creating a connection, either TCP or TLS.
@@ -32,6 +33,8 @@ type TCPWriter struct {
 	syslogConverter *Converter
 
 	egressMetric metrics.Counter
+
+	appLogStream applog.AppLogStream
 }
 
 // NewTCPWriter creates a new TCP syslog writer.
@@ -40,6 +43,7 @@ func NewTCPWriter(
 	netConf NetworkTimeoutConfig,
 	egressMetric metrics.Counter,
 	c *Converter,
+	appLogStream applog.AppLogStream,
 ) egress.WriteCloser {
 	dialer := &net.Dialer{
 		Timeout:   netConf.DialTimeout,
@@ -58,6 +62,7 @@ func NewTCPWriter(
 		scheme:          "syslog",
 		egressMetric:    egressMetric,
 		syslogConverter: c,
+		appLogStream:    appLogStream,
 	}
 
 	return w
@@ -104,6 +109,10 @@ func (w *TCPWriter) connection() (net.Conn, error) {
 func (w *TCPWriter) connect() (net.Conn, error) {
 	conn, err := w.dialFunc(w.url.Host)
 	if err != nil {
+		appLogMessage := fmt.Sprintf("Failed to connect to %s", w.url.String())
+		w.appLogStream.Emit(appLogMessage, w.appID)
+		platformLogMessage := fmt.Sprintf("%s for app %s", appLogMessage, w.appID)
+		log.Print(platformLogMessage)
 		return nil, err
 	}
 	w.conn = conn

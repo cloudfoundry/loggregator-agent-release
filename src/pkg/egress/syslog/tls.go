@@ -7,6 +7,7 @@ import (
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 )
 
 // TLSWriter represents a syslog writer that connects over unencrypted TCP.
@@ -27,6 +28,7 @@ func NewTLSWriter(
 	tlsConf *tls.Config,
 	egressMetric metrics.Counter,
 	syslogConverter *Converter,
+	appLogStream applog.AppLogStream,
 ) egress.WriteCloser {
 
 	dialer := &net.Dialer{
@@ -48,6 +50,7 @@ func NewTLSWriter(
 			scheme:          "syslog-tls",
 			egressMetric:    egressMetric,
 			syslogConverter: syslogConverter,
+			appLogStream:    appLogStream,
 		},
 	}
 
