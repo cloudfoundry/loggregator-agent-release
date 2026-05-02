@@ -177,6 +177,8 @@ builds:
     version: "3.0"
   97159ca0-06b6-4c7a-78f5-e931419a8925:
     version: 6.1.3
+  9a1580a5-cd61-4527-4b59-73cb393eb1be:
+    version: 8.3.18
   9cb9b062-82e7-4166-77b7-bc4b6632e0c0:
     version: 8.0.4
   9d0aac7b-fbfe-46c1-7191-bb7b3172fa69:
