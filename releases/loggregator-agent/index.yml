@@ -255,6 +255,8 @@ builds:
     version: 8.3.13
   ea3f8b87-cb2c-4773-475e-899599a11257:
     version: 8.1.6
+  f00adaf8-a8f9-4de6-451a-7b38a3eda889:
+    version: 8.3.19
   f3649356-2e94-4ac7-7bcf-bd56c89d020f:
     version: 6.5.4
   f4fb1ff7-51fa-434b-5db8-16e193b6b0bb:
