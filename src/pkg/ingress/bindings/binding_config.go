@@ -35,6 +35,7 @@ func (d *DrainParamParser) FetchBindings() ([]syslog.Binding, error) {
 		b.OmitMetadata = getOmitMetadata(urlParsed, d.defaultDrainMetadata)
 		b.InternalTls = getInternalTLS(urlParsed)
 		b.DrainData = getBindingType(urlParsed)
+		b.LogFilter = d.getLogFilter(urlParsed)
 
 		processed = append(processed, b)
 	}
@@ -82,6 +83,29 @@ func getBindingType(u *url.URL) syslog.DrainData {
 		drainData = syslog.ALL
 	}
 	return drainData
+}
+
+func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.LogFilter {
+	includeSourceTypes := u.Query().Get("include-log-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-log-source-types")
+
+	if excludeSourceTypes != "" {
+		return d.newLogFilter(excludeSourceTypes, syslog.LogFilterModeExclude)
+	} else if includeSourceTypes != "" {
+		return d.newLogFilter(includeSourceTypes, syslog.LogFilterModeInclude)
+	}
+	return nil
+}
+
+// newLogFilter parses a URL query parameter into a LogFilter.
+// sourceTypeList is assumed to be a comma-separated list of valid source types.
+func (d *DrainParamParser) newLogFilter(sourceTypeList string, mode syslog.LogFilterMode) *syslog.LogFilter {
+	if sourceTypeList == "" {
+		return nil
+	}
+
+	set, _ := syslog.ParseSourceTypeList(sourceTypeList)
+	return syslog.NewLogFilter(set, mode)
 }
 
 func getRemoveMetadataQuery(u *url.URL) string {
