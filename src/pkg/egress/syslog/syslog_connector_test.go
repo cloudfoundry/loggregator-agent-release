@@ -2,7 +2,6 @@ package syslog_test
 
 import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 
 	"errors"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -178,15 +178,14 @@ var _ = Describe("SyslogConnector", func() {
 			}).Value).Should(BeNumerically(">=", 10000))
 		})
 
-		It("emits a LGR and SYS log to the log client about logs that have been dropped", func() {
+		It("emits a LGR log to the log client about logs that have been dropped", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := applog.NewAppLogStreamFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogStream(factory.NewAppLogStream(logClient, "3")),
+				syslog.WithLogClient(logClient),
 			)
 
 			binding := syslog.Binding{AppId: "app-id",
@@ -212,24 +211,19 @@ var _ = Describe("SyslogConnector", func() {
 			Eventually(logClient.Message).Should(ContainElement(MatchRegexp("\\d messages lost for application (.*) in user provided syslog drain with url")))
 			Eventually(logClient.AppID).Should(ContainElement("app-id"))
 
-			Eventually(logClient.SourceType).Should(HaveLen(2))
+			Eventually(logClient.SourceType).Should(HaveLen(1))
 			Eventually(logClient.SourceType).Should(HaveKey("LGR"))
-			Eventually(logClient.SourceType).Should(HaveKey("SYS"))
 
-			Eventually(logClient.SourceInstance).Should(HaveLen(2))
-			Eventually(logClient.SourceInstance).Should(HaveKey(""))
-			Eventually(logClient.SourceInstance).Should(HaveKey("3"))
 		})
 
 		It("doesn't emit LGR and SYS log to the log client about aggregate drains drops", func() {
 			logClient := testhelper.NewSpyLogClient()
-			factory := applog.NewAppLogStreamFactory()
 			connector := syslog.NewSyslogConnector(
 				true,
 				spyWaitGroup,
 				writerFactory,
 				sm,
-				syslog.WithAppLogStream(factory.NewAppLogStream(logClient, "3")),
+				syslog.WithLogClient(logClient),
 			)
 
 			binding := syslog.Binding{Drain: syslog.Drain{Url: "dropping://"}}
@@ -285,7 +279,7 @@ type stubWriterFactory struct {
 
 func (f *stubWriterFactory) NewWriter(
 	urlBinding *syslog.URLBinding,
-	appLogStream applog.AppLogStream,
+	appLogClient v2.LogClient,
 ) (egress.WriteCloser, error) {
 	f.called = true
 	return f.writer, f.err

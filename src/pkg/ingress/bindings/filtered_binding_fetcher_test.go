@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 
-	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/bindingfakes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
@@ -16,14 +15,9 @@ import (
 
 var _ = Describe("FilteredBindingFetcher", func() {
 	var (
-		log     = log.New(GinkgoWriter, "", log.LstdFlags)
-		filter  *bindings.FilteredBindingFetcher
-		metrics *metricsHelpers.SpyMetricsRegistry
+		log    = log.New(GinkgoWriter, "", log.LstdFlags)
+		filter *bindings.FilteredBindingFetcher
 	)
-
-	BeforeEach(func() {
-		metrics = metricsHelpers.NewMetricsRegistry()
-	})
 
 	It("returns valid bindings", func() {
 		input := []syslog.Binding{
@@ -33,7 +27,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 		}
 		bindingReader := &SpyBindingReader{bindings: input}
 
-		filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log)
+		filter = bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, true, log)
 		actual, err := filter.FetchBindings()
 
 		Expect(err).ToNot(HaveOccurred())
@@ -43,7 +37,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 	It("returns an error if the binding reader cannot fetch bindings", func() {
 		bindingReader := &SpyBindingReader{nil, errors.New("Woops")}
 
-		filter := bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, metrics, true, log)
+		filter := bindings.NewFilteredBindingFetcher(&spyIPChecker{}, bindingReader, true, log)
 		actual, err := filter.FetchBindings()
 
 		Expect(err).To(HaveOccurred())
@@ -67,7 +61,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -78,8 +71,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
-			Expect(logBuffer.String()).Should(MatchRegexp("Cannot parse syslog drain url for application"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 		})
 
 		Context("when configured not to warn", func() {
@@ -89,7 +81,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			It("doesn't log the warning", func() {
 				_, err := filter.FetchBindings()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(logBuffer.String()).ToNot(MatchRegexp("Cannot parse syslog drain url for application"))
+				Expect(logBuffer.String()).ToNot(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 			})
 		})
 	})
@@ -111,7 +103,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -122,8 +113,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
-			Expect(logBuffer.String()).Should(MatchRegexp("No hostname found in syslog drain url (.*) for application"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 		})
 
 		Context("when configured not to warn", func() {
@@ -133,7 +123,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			It("doesn't log the warning", func() {
 				_, err := filter.FetchBindings()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(logBuffer.String()).ToNot(MatchRegexp("No hostname found"))
+				Expect(logBuffer.String()).ToNot(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 			})
 		})
 	})
@@ -159,14 +149,12 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			log.SetOutput(&logBuffer)
 			warn = true
 
-			metrics = metricsHelpers.NewMetricsRegistry()
 		})
 
 		JustBeforeEach(func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				&spyIPChecker{},
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -177,8 +165,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal(input[:3]))
-			Expect(logBuffer.String()).Should(MatchRegexp("Invalid scheme (.*) in syslog drain url (.*) for application"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(0.0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 		})
 		Context("when configured not to warn", func() {
 			BeforeEach(func() {
@@ -187,7 +174,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			It("doesn't log the warning", func() {
 				_, err := filter.FetchBindings()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(logBuffer.String()).ToNot(MatchRegexp("Invalid scheme"))
+				Expect(logBuffer.String()).ToNot(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 			})
 		})
 	})
@@ -212,7 +199,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -223,8 +209,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
-			Expect(logBuffer.String()).Should(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 		})
 
 		It("caches bindings that failed to resolve", func() {
@@ -232,26 +217,24 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(Equal([]syslog.Binding{}))
 			Eventually(func() int { return mockic.ResolveAddrCallCount() }).Should(BeNumerically(">", 0))
-			Expect(logBuffer.String()).Should(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
-			Expect(logBuffer.String()).ToNot(MatchRegexp("Skipped resolve ip address for syslog drain with url"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 
 			actual, err = filter.FetchBindings()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(BeEmpty())
 			Consistently(func() int { return mockic.ResolveAddrCallCount() }).Should(Equal(1))
-			Expect(logBuffer.String()).Should(MatchRegexp("Skipped resolve ip address for syslog drain with url"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 		})
 
 		Context("when configured not to warn", func() {
 			BeforeEach(func() {
 				warn = false
+				logBuffer.Truncate(0)
 			})
 			It("doesn't log the warning", func() {
 				_, err := filter.FetchBindings()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(logBuffer.String()).ToNot(MatchRegexp("Cannot resolve ip address for syslog drain with url"))
+				Expect(logBuffer.String()).ToNot(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 			})
 		})
 	})
@@ -277,7 +260,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 					resolvedIP:          net.ParseIP("127.0.0.1"),
 				},
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -287,21 +269,20 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			actual, err := filter.FetchBindings()
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(logBuffer.String()).Should(MatchRegexp("Resolved ip address for syslog drain with url (.*) for application (.*) is blacklisted"))
+			Expect(logBuffer.String()).Should(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 			Expect(actual).To(Equal([]syslog.Binding{}))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
-			Expect(metrics.GetMetric("blacklisted_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 
 		Context("when configured not to warn", func() {
 			BeforeEach(func() {
 				warn = false
+				logBuffer.Truncate(0)
 			})
 			It("doesn't log the warning", func() {
 				_, err := filter.FetchBindings()
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(logBuffer.String()).ToNot(MatchRegexp("Resolved ip address for syslog drain with url (.*) for application (.*) is blacklisted"))
+				Expect(logBuffer.String()).ToNot(MatchRegexp("Invalid drains detected in the Syslog Agent. This should not happen. Check your Syslog Binding Cache and its API"))
 			})
 		})
 	})

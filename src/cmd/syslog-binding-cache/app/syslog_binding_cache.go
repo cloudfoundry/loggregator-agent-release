@@ -13,12 +13,12 @@ import (
 
 	"code.cloudfoundry.org/go-loggregator/v10"
 	metrics "code.cloudfoundry.org/go-metric-registry"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/cache"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/api"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/plumbing"
 	"github.com/go-chi/chi/v5"
 )
@@ -35,7 +35,7 @@ type SyslogBindingCache struct {
 	log          *log.Logger
 	metrics      Metrics
 	mu           sync.Mutex
-	appLogStream applog.AppLogStream
+	appLogClient v2.LogClient
 	checker      IPChecker
 }
 
@@ -58,19 +58,17 @@ func NewSyslogBindingCache(config Config, metrics Metrics, logger *log.Logger) *
 	logClient, err := loggregator.NewIngressClient(
 		ingressTLSConfig,
 		loggregator.WithLogger(log.New(os.Stderr, "", log.LstdFlags)),
-		loggregator.WithAddr(config.AgentAddress),
+		loggregator.WithAddr(fmt.Sprintf("%s:%d", config.GRPC.Host, config.GRPC.Port)),
 	)
 	if err != nil {
 		logger.Panicf("failed to create logger client for syslog binding cache: %q", err)
 	}
-	factory := applog.NewAppLogStreamFactory()
-	appLogStream := factory.NewAppLogStream(logClient, "syslog_binding_cache")
 
 	return &SyslogBindingCache{
 		config:       config,
 		log:          logger,
 		metrics:      metrics,
-		appLogStream: appLogStream,
+		appLogClient: logClient,
 		checker:      &config.Blacklist,
 	}
 }
@@ -93,7 +91,7 @@ func (sbc *SyslogBindingCache) Run() {
 		store,
 		sbc.metrics,
 		sbc.log,
-		sbc.appLogStream,
+		sbc.appLogClient,
 		&sbc.config.Blacklist,
 		sbc.config.WarnOnInvalidDrains,
 	)

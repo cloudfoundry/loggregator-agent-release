@@ -10,8 +10,6 @@ import (
 	"os"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -156,9 +154,7 @@ var _ = Describe("SyslogAgent with mTLS", func() {
 			agentCfg.Cache.PollingInterval = 10 * time.Millisecond
 		}
 
-		factory := applog.NewAppLogStreamFactory()
-
-		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr, &factory)
+		agent = app.NewSyslogAgent(agentCfg, agentMetrics, agentLogr)
 		go agent.Run()
 	})
 

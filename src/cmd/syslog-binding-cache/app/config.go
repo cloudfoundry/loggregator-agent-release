@@ -11,7 +11,7 @@ import (
 
 // Config holds the configuration for the syslog binding cache
 type Config struct {
-	UseRFC3339           bool          `env:"USE_RFC3339"`
+	UseRFC3339           bool          `env:"USE_RFC3339, report"`
 	APIURL               string        `env:"API_URL,              required, report"`
 	APICAFile            string        `env:"API_CA_FILE_PATH,     required, report"`
 	APICertFile          string        `env:"API_CERT_FILE_PATH,   required, report"`
@@ -32,21 +32,21 @@ type Config struct {
 
 	MetricsServer config.MetricsServer
 
-	AgentAddress string `env:"AGENT_ADDR, required, report"`
-	GRPC         GRPC
-	Blacklist    blacklist.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+	GRPC      GRPC
+	Blacklist blacklist.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 
 	WarnOnInvalidDrains bool `env:"WARN_ON_INVALID_DRAINS,    report"`
 }
 
-// GRPC stores the configuration for the router as a server using a PORT
+// GRPC stores the configuration for the forwarder agent using a PORT
 // with mTLS certs and as a client.
 type GRPC struct {
-	Port         int      `env:"AGENT_PORT,                     report"`
-	CAFile       string   `env:"AGENT_CA_FILE_PATH,   required, report"`
-	CertFile     string   `env:"AGENT_CERT_FILE_PATH, required, report"`
-	KeyFile      string   `env:"AGENT_KEY_FILE_PATH,  required, report"`
-	CipherSuites []string `env:"AGENT_CIPHER_SUITES,            report"`
+	Host         string   `env:"LOGGREGATOR_AGENT_HOST,                     report"`
+	Port         int      `env:"LOGGREGATOR_AGENT_PORT,                     report"`
+	CAFile       string   `env:"LOGGREGATOR_AGENT_CA_FILE_PATH,   required, report"`
+	CertFile     string   `env:"LOGGREGATOR_AGENT_CERT_FILE_PATH, required, report"`
+	KeyFile      string   `env:"LOGGREGATOR_AGENT_KEY_FILE_PATH,  required, report"`
+	CipherSuites []string `env:"LOGGREGATOR_AGENT_CIPHER_SUITES,            report"`
 }
 
 // LoadConfig will load the configuration for the syslog binding cache from the
@@ -54,7 +54,15 @@ type GRPC struct {
 // panic.
 func LoadConfig() Config {
 	cfg := Config{
-		APIPollingInterval: 15 * time.Second,
+		UseRFC3339:           false,
+		APIPollingInterval:   15 * time.Second,
+		APIBatchSize:         1000,
+		APIDisableKeepAlives: true,
+		WarnOnInvalidDrains:  true,
+		GRPC: GRPC{
+			Host: "127.0.0.1",
+			Port: 3458,
+		},
 	}
 	if err := envstruct.Load(&cfg); err != nil {
 		log.Panicf("Failed to load config from environment: %s", err)

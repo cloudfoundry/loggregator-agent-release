@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -14,35 +13,36 @@ import (
 
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/blacklist"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("Poller", func() {
 	var (
-		apiClient    *fakeAPIClient
-		store        *fakeStore
-		metrics      *metricsHelpers.SpyMetricsRegistry
-		logger       = log.New(GinkgoWriter, "", 0)
-		appLogStream applog.AppLogStream
-		logClient    = testhelper.NewSpyLogClient()
+		logBuffer *gbytes.Buffer
+		logger    *log.Logger
+
+		apiClient *fakeAPIClient
+		store     *fakeStore
+		metrics   *metricsHelpers.SpyMetricsRegistry
+		logClient v2.LogClient
 	)
 
 	BeforeEach(func() {
+		logBuffer = gbytes.NewBuffer()
+		logger = log.New(logBuffer, "", 0)
 		apiClient = newFakeAPIClient()
 		store = newFakeStore()
 		metrics = metricsHelpers.NewMetricsRegistry()
-		factory := applog.NewAppLogStreamFactory()
 		logClient = testhelper.NewSpyLogClient()
-		appLogStream = factory.NewAppLogStream(logClient, "test")
 	})
 
 	It("polls for bindings on an interval", func() {
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logClient, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
@@ -76,7 +76,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logClient, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		var expectedBindings []Binding
@@ -151,7 +151,7 @@ var _ = Describe("Poller", func() {
 			},
 		}
 
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logClient, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		var expectedBindings []Binding
@@ -197,7 +197,7 @@ var _ = Describe("Poller", func() {
 	})
 
 	It("tracks the number of API errors", func() {
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logClient, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		apiClient.errors <- errors.New("expected")
@@ -210,7 +210,7 @@ var _ = Describe("Poller", func() {
 	It("does not update the stores if the response code is bad", func() {
 		apiClient.statusCode <- 404
 
-		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+		p := NewPoller(apiClient, 10*time.Millisecond, store, metrics, logger, logClient, &dummyIPChecker{}, false)
 		go p.Poll()
 
 		Eventually(store.bindings).Should(BeEmpty())
@@ -237,7 +237,7 @@ var _ = Describe("Poller", func() {
 				},
 			},
 		}
-		NewPoller(apiClient, time.Hour, store, metrics, logger, appLogStream, &dummyIPChecker{}, true)
+		NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, true)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
 			To(BeNumerically("==", 2))
@@ -270,11 +270,24 @@ var _ = Describe("Poller", func() {
 						},
 					},
 				},
+				{
+					Url: "syslog://blacklisted_domain",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
 			},
 		}
-		NewPoller(apiClient, time.Hour, store, metrics, logger, appLogStream, &dummyIPChecker{}, false)
+		NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, false)
 
 		Expect(metrics.GetMetric("last_binding_refresh_count", nil).Value()).
+			To(BeNumerically("==", 1))
+		tags := map[string]string{"unit": "total"}
+		Expect(metrics.GetMetric("invalid_drains", tags).Value()).
+			To(BeNumerically("==", 3))
+		Expect(metrics.GetMetric("blacklisted_drains", tags).Value()).
 			To(BeNumerically("==", 1))
 	})
 
@@ -325,7 +338,83 @@ var _ = Describe("Poller", func() {
 	})
 
 	Describe("checkBindings", func() {
-		It("returns no binding which contains an invalid URL and increases invalid_drains", func() {
+
+		var bndChecker *bindingChecker
+		var logClient *testhelper.SpyLogClient
+
+		BeforeEach(func() {
+			logBuffer.Clear() //nolint:errcheck
+			logClient = testhelper.NewSpyLogClient()
+
+			bndChecker = &bindingChecker{
+				appLogClient:     logClient,
+				logger:           logger,
+				checker:          &dummyIPChecker{},
+				failedHostsCache: simplecache.New[string, bool](120 * time.Second),
+				warn:             true,
+			}
+		})
+
+		It("returns no binding and writes an error if no credentials are set for a binding", func() {
+
+			bindings := []Binding{
+				{
+					Url: "syslog://my-syslog-servers.com",
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say("No credentials - which include appIDs - for a binding. Check the bindings in the cloud controller."))
+		})
+
+		It("returns no binding and writes an error if the binding url cannot be parsed", func() {
+
+			bindings := []Binding{
+				{
+					Url: "http://example.com/\x7f",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say("Cannot parse syslog drain URL. for app app-id-0"))
+			Expect(logClient.Message()).To(ContainElement(Equal("Cannot parse syslog drain URL.")))
+			Expect(len(logClient.Message())).To(Equal(1))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
+		})
+
+		It("returns no binding and writes an error if the binding url has invalid scheme", func() {
+
+			bindings := []Binding{
+				{
+					Url: "syslog-ssl://drain-0.com?user=trlala&password=123213",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say("Invalid Scheme syslog-ssl for syslog drain url syslog-ssl://drain-0.com for app app-id-0"))
+			Expect(logClient.Message()).To(ContainElement(Equal("Invalid Scheme syslog-ssl for syslog drain url syslog-ssl://drain-0.com")))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
+		})
+
+		It("returns no binding if a host cannot be parsed from the given url", func() {
 			bindings := []Binding{
 				{
 					Url: "syslog:/invalid-url-a-slash-is-missing",
@@ -336,151 +425,17 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
 
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				&dummyIPChecker{},
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
+			filteredBindings := bndChecker.checkBindings(bindings)
 
 			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say(("No hostname found in syslog drain url syslog:/invalid-url-a-slash-is-missing for app app-id-0")))
 			Expect(logClient.Message()).To(ContainElement(Equal("No hostname found in syslog drain url syslog:/invalid-url-a-slash-is-missing")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
 
-		It("returns no binding which contains an invalid scheme in URL and increases invalid_drains", func() {
-			bindings := []Binding{
-				{
-					Url: "syslog-ssl://drain-0",
-					Credentials: []Credentials{
-						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
-						},
-					},
-				},
-			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
-
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				&dummyIPChecker{},
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Invalid Scheme for syslog drain url syslog-ssl://drain-0")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
-		})
-
-		It("returns no binding with unresolvable URL and increases invalid_drains", func() {
-			bindings := []Binding{
-				{
-					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
-					Credentials: []Credentials{
-						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
-						},
-					},
-				},
-			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
-
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				&unresolvableIPChecker{},
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Cannot resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
-		})
-
-		It("returns no binding which has a blacklisted IP and increases invalid_drains and blacklisted drains", func() {
-			bindings := []Binding{
-				{
-					Url: "syslog://192.168.188.15",
-					Credentials: []Credentials{
-						{
-							Cert: "cert0", Key: "key0", CA: "ca0", Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
-						},
-					},
-				},
-			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
-			blacklistRanges, _ := blacklist.NewBlacklistRanges(
-				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
-			)
-
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				blacklistRanges,
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
-
-			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Resolved ip address for syslog drain with url syslog://192.168.188.15 is blacklisted")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 1))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 1))
-		})
-
-		It("returns no binding when there is a prior IP checking failure for URL and increases invalid_drains", func() {
+		It("returns no binding when there is a prior IP checking failure for a URL", func() {
 			bindings := []Binding{
 				{
 					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
@@ -490,46 +445,63 @@ var _ = Describe("Poller", func() {
 						},
 					},
 				},
+			}
+			cache := simplecache.New[string, bool](120 * time.Second)
+			cache.Set("syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com", true)
+			bndChecker.failedHostsCache = cache
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say(("Skipped resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com due to prior failure for app app-id-0")))
+			Expect(logClient.Message()).To(ContainElement(Equal("Skipped resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com due to prior failure")))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(0)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
+		})
+
+		It("returns no binding when the URL cannot be resolved", func() {
+			bindings := []Binding{
 				{
-					Url: "syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com",
+					Url: "syslog://fail_to_resolve_ip",
 					Credentials: []Credentials{
 						{
-							Apps: []App{{Hostname: "app-hostname1", AppID: "app-id-1"}},
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
 						},
 					},
 				},
 			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
-			blacklistRanges, _ := blacklist.NewBlacklistRanges(
-				blacklist.BlacklistRange{Start: "192.168.188.1", End: "192.168.188.255"},
-			)
 
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				blacklistRanges,
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
+			filteredBindings := bndChecker.checkBindings(bindings)
 
 			Expect(filteredBindings).To(BeEmpty())
-			Expect(logClient.Message()).To(ContainElement(Equal("Skipped resolve ip address for syslog drain with url syslog://syslog-drain-test-37c4f6db-12e2-4206-8bb2-c8d6f440d4d2.example.com due to prior failure")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 2))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+			Expect(logBuffer).Should(gbytes.Say(("Cannot resolve ip address for syslog drain with url syslog://fail_to_resolve_ip for app app-id-0")))
+			Expect(logClient.Message()).To(ContainElement(Equal("Cannot resolve ip address for syslog drain with url syslog://fail_to_resolve_ip")))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
 
-		It("returns no binding when key pair cannot be loaded and does not increase invalid_drains and blacklisted drains", func() {
+		It("returns no binding which has a blacklisted IP", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog://blacklisted_domain",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say(("Resolved ip address for syslog drain with url syslog://blacklisted_domain is blacklisted for app app-id-0")))
+			Expect(logClient.Message()).To(ContainElement(Equal("Resolved ip address for syslog drain with url syslog://blacklisted_domain is blacklisted")))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(1)))
+		})
+
+		It("returns no binding when key pair cannot be loaded", func() {
 			bindings := []Binding{
 				{
 					Url: "syslog-tls://drain-0",
@@ -540,34 +512,17 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
 
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				&dummyIPChecker{},
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
+			filteredBindings := bndChecker.checkBindings(bindings)
 
 			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say(("failed to load certificate for syslog-tls://drain-0 for app app-id-0")))
 			Expect(logClient.Message()).To(ContainElement(Equal("failed to load certificate for syslog-tls://drain-0")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 0))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
 
-		It("returns no binding when CA cannot be loaded and does not increase invalid_drains and blacklisted drains", func() {
+		It("returns no binding when CA cannot be loaded", func() {
 			bindings := []Binding{
 				{
 					Url: "syslog-tls://drain-0",
@@ -578,31 +533,35 @@ var _ = Describe("Poller", func() {
 					},
 				},
 			}
-			cache := simplecache.New[string, bool](120 * time.Second)
-			blacklistedDrainsGauge := metrics.NewGauge(
-				"blacklisted_drains",
-				"Count of blacklisted drains encountered in last binding fetch.",
-			)
-			invalidDrainsGauge := metrics.NewGauge(
-				"invalid_drains",
-				"Count of invalid drains encountered in last binding fetch. Includes blacklisted drains.",
-			)
 
-			filteredBindings := checkBindings(
-				bindings,
-				&appLogStream,
-				&dummyIPChecker{},
-				logger,
-				cache,
-				blacklistedDrainsGauge,
-				invalidDrainsGauge,
-				true,
-			)
+			filteredBindings := bndChecker.checkBindings(bindings)
 
 			Expect(filteredBindings).To(BeEmpty())
+			Expect(logBuffer).Should(gbytes.Say(("failed to load root CA for syslog-tls://drain-0 for app app-id-0")))
 			Expect(logClient.Message()).To(ContainElement(Equal("failed to load root CA for syslog-tls://drain-0")))
-			Expect(metrics.GetMetricValue("invalid_drains", map[string]string{})).To(BeNumerically("==", 0))
-			Expect(metrics.GetMetricValue("blacklisted_drains", map[string]string{})).To(BeNumerically("==", 0))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
+		})
+
+		It("returns bindings when there are no certificates set", func() {
+			bindings := []Binding{
+				{
+					Url: "syslog-tls://drain-0",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(HaveLen(1))
+			Expect(logBuffer.Contents()).Should(BeEmpty())
+			Expect(logClient.Message()).To(BeEmpty())
+			Expect(bndChecker.invalidDrains).To(Equal(float64(0)))
+			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
 	})
 })
@@ -676,19 +635,19 @@ type response struct {
 type dummyIPChecker struct{}
 
 func (d *dummyIPChecker) ResolveAddr(host string) (net.IP, error) {
+	if host == "fail_to_resolve_ip" {
+		return net.IPv4(127, 0, 0, 1), errors.New(host)
+	}
+	if host == "blacklisted_domain" {
+		return net.IPv4(192, 168, 188, 15), nil
+	}
+
 	return net.IPv4(127, 0, 0, 1), nil
 }
 
 func (*dummyIPChecker) CheckBlacklist(ip net.IP) error {
-	return nil
-}
-
-type unresolvableIPChecker struct{}
-
-func (d *unresolvableIPChecker) ResolveAddr(host string) (net.IP, error) {
-	return nil, fmt.Errorf("unable to resolve DNS entry: %s", host)
-}
-
-func (*unresolvableIPChecker) CheckBlacklist(ip net.IP) error {
+	if ip.String() == "192.168.188.15" {
+		return errors.New(ip.String())
+	}
 	return nil
 }

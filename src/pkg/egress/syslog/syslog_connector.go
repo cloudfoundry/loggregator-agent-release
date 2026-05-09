@@ -9,7 +9,7 @@ import (
 	"code.cloudfoundry.org/go-diodes"
 	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
+	v2 "code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/v2"
 )
 
 type Binding struct {
@@ -33,7 +33,7 @@ type Credentials struct {
 }
 
 type writerFactory interface {
-	NewWriter(*URLBinding, applog.AppLogStream) (egress.WriteCloser, error)
+	NewWriter(*URLBinding, v2.LogClient) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
@@ -45,7 +45,7 @@ type SyslogConnector struct {
 
 	droppedMetric metrics.Counter
 
-	appLogStream applog.AppLogStream
+	logClient v2.LogClient
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -79,11 +79,11 @@ func NewSyslogConnector(
 // ConnectorOption allows a syslog connector to be customized.
 type ConnectorOption func(*SyslogConnector)
 
-// WithAppLogStream returns a ConnectorOption that will set up logging for any
+// WithLogClient returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithAppLogStream(appLogStream applog.AppLogStream) ConnectorOption {
+func WithLogClient(logClient v2.LogClient) ConnectorOption {
 	return func(sc *SyslogConnector) {
-		sc.appLogStream = appLogStream
+		sc.logClient = logClient
 	}
 }
 
@@ -95,7 +95,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		return nil, err
 	}
 
-	writer, err := w.writerFactory.NewWriter(urlBinding, w.appLogStream)
+	writer, err := w.writerFactory.NewWriter(urlBinding, w.logClient)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		drainDroppedMetric.Add(float64(missed))
 
 		w.emitStandardOutErrorLog(b.AppId, urlBinding.Scheme(), anonymousUrl.String(), missed)
-		w.appLogStream.Emit(fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()), b.AppId)
+		v2.EmitAppLog(w.logClient, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()), b.AppId)
 	}), w.wg)
 
 	filteredWriter, err := NewFilteringDrainWriter(b, dw)
