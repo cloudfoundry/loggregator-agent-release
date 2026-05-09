@@ -7,6 +7,9 @@ templates:
   api_client.crt.erb: config/certs/api_client.crt
   api_client.key.erb: config/certs/api_client.key
   loggregator_ca.crt.erb: config/certs/loggregator_ca.crt
+  loggregator_agent_ca.crt.erb: config/certs/loggregator_agent_ca.crt
+  loggregator_agent.crt.erb: config/certs/loggregator_agent.crt
+  loggregator_agent.key.erb: config/certs/loggregator_agent.key
   binding_cache.crt.erb: config/certs/binding_cache.crt
   binding_cache.key.erb: config/certs/binding_cache.key
   metrics_ca.crt.erb: config/certs/metrics_ca.crt
@@ -14,9 +17,6 @@ templates:
   metrics.key.erb: config/certs/metrics.key
   aggregate_drains.yml.erb: config/aggregate_drains.yml
   prom_scraper_config.yml.erb: config/prom_scraper_config.yml
-  agent.crt.erb: config/certs/agent.crt
-  agent.key.erb: config/certs/agent.key
-  agent_ca.crt.erb: config/certs/agent_ca.crt
 
 packages:
 - binding-cache
@@ -138,18 +138,19 @@ properties:
     description: "Format for timestamp in component logs. Valid values are 'deprecated' and 'rfc3339'."
     default: "deprecated"
 
-  agent.port:
-    description: "Port the agent is serving gRPC via mTLS"
+  loggregator.host:
+    description: "The gRPC host used to connect to loggregator agent"
+    default: "127.0.0.1"
+  loggregator.port:
+    description: "The gRPC port used to connect to loggregator agent"
     default: 3458
-  agent.ca_cert:
-    description: |
-        TLS loggregator root CA certificate. It is required for key/cert
-         verification.
-  agent.cert:
-    description: "TLS certificate for Syslog Binding Cache signed by the loggregator CA"
-  agent.key:
-    description: "TLS private key for Syslog Binding Cache signed by the loggregator CA"
-  agent.cipher_suites:
+  loggregator.tls.ca_cert:
+    description: "The CA cert used to communicate with loggregator agent"
+  loggregator.tls.cert:
+    description: "The cert used to communicate with loggregator agent"
+  loggregator.tls.key:
+    description: "The key used to communicate with loggregator agent"
+  loggregator.tls.cipher_suites:
     description: |
          An ordered list of supported SSL cipher suites. Allowed cipher suites are
          TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 and TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.

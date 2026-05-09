@@ -38,12 +38,12 @@
       "PPROF_PORT" => "#{p("metrics.pprof_port")}",
       "USE_RFC3339" => "#{p("logging.format.timestamp") == "rfc3339"}",
 
-      "AGENT_CA_FILE_PATH" => "#{certs_dir}/agent_ca.crt",
-      "AGENT_CERT_FILE_PATH" => "#{certs_dir}/agent.crt",
-      "AGENT_KEY_FILE_PATH" => "#{certs_dir}/agent.key",
-      "AGENT_CIPHER_SUITES" => "#{p("agent.cipher_suites").split(":").join(",")}",
-      "AGENT_PORT" => "#{p("agent.port")}",
-      "AGENT_ADDR" => "localhost:#{p("agent.port")}",
+      "LOGGREGATOR_AGENT_HOST" => "#{p("loggregator.host")}",
+      "LOGGREGATOR_AGENT_PORT" => "#{p("loggregator.port")}",
+      "LOGGREGATOR_AGENT_CA_FILE_PATH" => "#{certs_dir}/loggregator_agent_ca.crt",
+      "LOGGREGATOR_AGENT_CERT_FILE_PATH" => "#{certs_dir}/loggregator_agent.crt",
+      "LOGGREGATOR_AGENT_KEY_FILE_PATH" => "#{certs_dir}/loggregator_agent.key",
+      "LOGGREGATOR_AGENT_CIPHER_SUITES" => "#{p("loggregator.tls.cipher_suites").split(":").join(",")}",
 
       "BLACKLISTED_SYSLOG_RANGES" => "#{blacklisted_ips}",
       "WARN_ON_INVALID_DRAINS" => "#{p("warn_on_invalid_drains")}",

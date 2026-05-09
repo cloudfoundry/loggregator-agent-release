@@ -4,7 +4,6 @@ import (
 	"bufio"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 
 	"fmt"
 	"io"
@@ -55,16 +54,14 @@ var _ = Describe("TCPWriter", func() {
 		BeforeEach(func() {
 			var err error
 			egressCounter = &metricsHelpers.SpyMetric{}
-			factory := applog.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
-			appLogStream := factory.NewAppLogStream(logClient, "test_source")
 
 			writer = syslog.NewTCPWriter(
 				binding,
 				netConf,
 				egressCounter,
 				syslog.NewConverter(),
-				appLogStream,
+				logClient,
 			)
 			Expect(err).ToNot(HaveOccurred())
 		})
@@ -191,16 +188,14 @@ var _ = Describe("TCPWriter", func() {
 		It("write returns an error", func() {
 			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
 			binding.URL, _ = url.Parse("syslog://localhost-garbage:9999")
-			factory := applog.NewAppLogStreamFactory()
 			logClient := testhelper.NewSpyLogClient()
-			appLogStream := factory.NewAppLogStream(logClient, "test_source")
 
 			writer := syslog.NewTCPWriter(
 				binding,
 				netConf,
 				&metricsHelpers.SpyMetric{},
 				syslog.NewConverter(),
-				appLogStream,
+				logClient,
 			)
 
 			errs := make(chan error, 1)
@@ -220,15 +215,13 @@ var _ = Describe("TCPWriter", func() {
 		Context("with a happy dialer", func() {
 			BeforeEach(func() {
 				var err error
-				factory := applog.NewAppLogStreamFactory()
 				logClient := testhelper.NewSpyLogClient()
-				logStream := factory.NewAppLogStream(logClient, "test_source")
 				writer = syslog.NewTCPWriter(
 					binding,
 					netConf,
 					&metricsHelpers.SpyMetric{},
 					syslog.NewConverter(),
-					logStream,
+					logClient,
 				)
 				Expect(err).ToNot(HaveOccurred())
 
