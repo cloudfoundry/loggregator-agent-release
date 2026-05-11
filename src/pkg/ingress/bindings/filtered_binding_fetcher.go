@@ -2,7 +2,6 @@ package bindings
 
 import (
 	"log"
-	"net"
 	"net/url"
 	"time"
 
@@ -14,19 +13,13 @@ import (
 
 var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
 
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . IPChecker
-type IPChecker interface {
-	ResolveAddr(host string) (net.IP, error)
-	CheckBlacklist(ip net.IP) error
-}
-
 // Metrics is the client used to expose gauge and counter metricsClient.
 type metricsClient interface {
 	NewGauge(name, helpText string, opts ...metrics.MetricOption) metrics.Gauge
 }
 
 type FilteredBindingFetcher struct {
-	ipChecker         IPChecker
+	ipChecker         binding.IPChecker
 	br                binding.Fetcher
 	warn              bool
 	logger            *log.Logger
@@ -35,7 +28,7 @@ type FilteredBindingFetcher struct {
 	failedHostsCache  *simplecache.SimpleCache[string, bool]
 }
 
-func NewFilteredBindingFetcher(c IPChecker, b binding.Fetcher, m metricsClient, warn bool, lc *log.Logger) *FilteredBindingFetcher {
+func NewFilteredBindingFetcher(c binding.IPChecker, b binding.Fetcher, m metricsClient, warn bool, lc *log.Logger) *FilteredBindingFetcher {
 	opt := metrics.WithMetricLabels(map[string]string{"unit": "total"})
 
 	invalidDrains := m.NewGauge(

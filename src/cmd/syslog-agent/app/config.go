@@ -5,10 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
-	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/bindings"
-
 	"code.cloudfoundry.org/go-envstruct"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/blacklist"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/config"
 )
 
 // GRPC stores the configuration for the router as a server using a PORT
@@ -22,25 +21,26 @@ type GRPC struct {
 }
 
 type Cache struct {
-	URL             string                   `env:"CACHE_URL,                 report"`
-	CAFile          string                   `env:"CACHE_CA_FILE_PATH,        report"`
-	CertFile        string                   `env:"CACHE_CERT_FILE_PATH,      report"`
-	KeyFile         string                   `env:"CACHE_KEY_FILE_PATH,       report"`
-	CommonName      string                   `env:"CACHE_COMMON_NAME,         report"`
-	PollingInterval time.Duration            `env:"CACHE_POLLING_INTERVAL,    report"`
-	Blacklist       bindings.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
+	URL             string                    `env:"CACHE_URL,                 report"`
+	CAFile          string                    `env:"CACHE_CA_FILE_PATH,        report"`
+	CertFile        string                    `env:"CACHE_CERT_FILE_PATH,      report"`
+	KeyFile         string                    `env:"CACHE_KEY_FILE_PATH,       report"`
+	CommonName      string                    `env:"CACHE_COMMON_NAME,         report"`
+	PollingInterval time.Duration             `env:"CACHE_POLLING_INTERVAL,    report"`
+	Blacklist       blacklist.BlacklistRanges `env:"BLACKLISTED_SYSLOG_RANGES, report"`
 }
 
 // Config holds the configuration for the syslog agent
 type Config struct {
-	UseRFC3339           bool          `env:"USE_RFC3339"`
-	BindingsPerAppLimit  int           `env:"BINDING_PER_APP_LIMIT,  report"`
-	DrainSkipCertVerify  bool          `env:"DRAIN_SKIP_CERT_VERIFY, report"`
-	DrainCipherSuites    string        `env:"DRAIN_CIPHER_SUITES,    report"`
-	DrainTrustedCAFile   string        `env:"DRAIN_TRUSTED_CA_FILE,  report"`
-	DefaultDrainMetadata bool          `env:"DEFAULT_DRAIN_METADATA, report"`
-	IdleDrainTimeout     time.Duration `env:"IDLE_DRAIN_TIMEOUT, report"`
-	WarnOnInvalidDrains  bool          `env:"WARN_ON_INVALID_DRAINS,    report"`
+	UseRFC3339             bool          `env:"USE_RFC3339"`
+	BindingsPerAppLimit    int           `env:"BINDING_PER_APP_LIMIT,  report"`
+	DrainSkipCertVerify    bool          `env:"DRAIN_SKIP_CERT_VERIFY, report"`
+	DrainCipherSuites      string        `env:"DRAIN_CIPHER_SUITES,    report"`
+	DrainTrustedCAFile     string        `env:"DRAIN_TRUSTED_CA_FILE,  report"`
+	DefaultDrainMetadata   bool          `env:"DEFAULT_DRAIN_METADATA, report"`
+	IdleDrainTimeout       time.Duration `env:"IDLE_DRAIN_TIMEOUT,     report"`
+	WarnOnInvalidDrains    bool          `env:"WARN_ON_INVALID_DRAINS, report"`
+	LoggregatorIngressAddr string        `env:"LOGGREGATOR_AGENT_ADDR, report, required"`
 
 	GRPC          GRPC
 	Cache         Cache
