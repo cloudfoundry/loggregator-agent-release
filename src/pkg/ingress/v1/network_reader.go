@@ -3,12 +3,19 @@ package v1
 import (
 	"log"
 	"net"
+	"sync"
 
 	metrics "code.cloudfoundry.org/go-metric-registry"
 
 	gendiodes "code.cloudfoundry.org/go-diodes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 )
+
+var packetPool = sync.Pool{
+	New: func() any {
+		return new([65535]byte)
+	},
+}
 
 type ByteArrayWriter interface {
 	Write(message []byte)
@@ -58,17 +65,16 @@ func NewNetworkReader(
 }
 
 func (nr *NetworkReader) StartReading() {
-	readBuffer := make([]byte, 65535) //buffer with size = max theoretical UDP size
 	for {
-		readCount, _, err := nr.connection.ReadFrom(readBuffer)
+		bufPtr := packetPool.Get().(*[65535]byte)
+		readCount, _, err := nr.connection.ReadFrom(bufPtr[:])
 		if err != nil {
 			log.Printf("Error while reading: %s", err)
+			packetPool.Put(bufPtr)
 			return
 		}
-		readData := make([]byte, readCount)
-		copy(readData, readBuffer[:readCount])
 
-		nr.buffer.Set(readData)
+		nr.buffer.Set(bufPtr[:readCount])
 	}
 }
 
@@ -77,6 +83,11 @@ func (nr *NetworkReader) StartWriting() {
 		data := nr.buffer.Next()
 		nr.rxMsgCount(1)
 		nr.writer.Write(data)
+
+		if cap(data) == 65535 {
+			fullSlice := data[:65535]
+			packetPool.Put((*[65535]byte)(fullSlice))
+		}
 	}
 }
 
