@@ -1,7 +1,7 @@
-# code.cloudfoundry.org/go-batching v0.0.0-20260522091843-24c4f6e24f01
+# code.cloudfoundry.org/go-batching v0.0.0-20260526123032-013946b96a09
 ## explicit; go 1.25.0
 code.cloudfoundry.org/go-batching
-# code.cloudfoundry.org/go-diodes v0.0.0-20260518082450-53acbbed6d0f
+# code.cloudfoundry.org/go-diodes v0.0.0-20260526122959-0284fcb5ac88
 ## explicit; go 1.25.0
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.7.0
@@ -13,11 +13,11 @@ code.cloudfoundry.org/go-loggregator/v10
 code.cloudfoundry.org/go-loggregator/v10/conversion
 code.cloudfoundry.org/go-loggregator/v10/rfc5424
 code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20260522085328-be95096762f3
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20260526123058-84feb65e848f
 ## explicit; go 1.25.1
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.55.0
+# code.cloudfoundry.org/tlsconfig v0.56.0
 ## explicit; go 1.25.1
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -42,7 +42,7 @@ github.com/cespare/xxhash/v2
 # github.com/cloudfoundry/dropsonde v1.1.0
 ## explicit; go 1.18
 github.com/cloudfoundry/dropsonde/emitter
-# github.com/cloudfoundry/sonde-go v0.0.0-20251217143644-d1670a435f2a
+# github.com/cloudfoundry/sonde-go v0.0.0-20260526083715-66f310f13c26
 ## explicit; go 1.23
 github.com/cloudfoundry/sonde-go/events
 # github.com/go-chi/chi/v5 v5.3.0
@@ -147,8 +147,8 @@ github.com/prometheus/client_golang/prometheus/promhttp/internal
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.67.5
-## explicit; go 1.24.0
+# github.com/prometheus/common v0.68.0
+## explicit; go 1.25.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
 # github.com/prometheus/procfs v0.20.1
@@ -177,7 +177,7 @@ go.opentelemetry.io/proto/otlp/logs/v1
 go.opentelemetry.io/proto/otlp/metrics/v1
 go.opentelemetry.io/proto/otlp/resource/v1
 go.opentelemetry.io/proto/otlp/trace/v1
-# go.step.sm/crypto v0.81.0
+# go.step.sm/crypto v0.81.1
 ## explicit; go 1.25.1
 go.step.sm/crypto/fingerprint
 go.step.sm/crypto/internal/bcrypt_pbkdf
@@ -188,9 +188,6 @@ go.step.sm/crypto/keyutil
 go.step.sm/crypto/pemutil
 go.step.sm/crypto/randutil
 go.step.sm/crypto/x25519
-# go.yaml.in/yaml/v2 v2.4.4
-## explicit; go 1.15
-go.yaml.in/yaml/v2
 # go.yaml.in/yaml/v3 v3.0.4
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
@@ -283,10 +280,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20260523011958-0a33c5d7ca68
+# google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20260523011958-0a33c5d7ca68
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.81.1
