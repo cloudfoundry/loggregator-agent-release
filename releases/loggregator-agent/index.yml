@@ -199,6 +199,8 @@ builds:
     version: "1.0"
   af3f58ae-a761-432e-55ca-447edfd2255c:
     version: 7.1.1
+  af457cbe-22cb-46b5-47fd-5e5431aed2f1:
+    version: 8.3.20
   b1820df8-2a56-42d5-57a4-12d71851baab:
     version: 6.1.1
   b31b89cf-b8e9-4744-589c-2a96c7214f79:
