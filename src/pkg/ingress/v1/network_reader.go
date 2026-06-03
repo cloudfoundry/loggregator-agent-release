@@ -11,9 +11,11 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/diodes"
 )
 
+const bufferSize int = 65535
+
 var packetPool = sync.Pool{
 	New: func() any {
-		return new([65535]byte)
+		return new([bufferSize]byte)
 	},
 }
 
@@ -66,7 +68,7 @@ func NewNetworkReader(
 
 func (nr *NetworkReader) StartReading() {
 	for {
-		bufPtr := packetPool.Get().(*[65535]byte)
+		bufPtr := packetPool.Get().(*[bufferSize]byte)
 		readCount, _, err := nr.connection.ReadFrom(bufPtr[:])
 		if err != nil {
 			log.Printf("Error while reading: %s", err)
@@ -84,9 +86,9 @@ func (nr *NetworkReader) StartWriting() {
 		nr.rxMsgCount(1)
 		nr.writer.Write(data)
 
-		if cap(data) == 65535 {
-			fullSlice := data[:65535]
-			packetPool.Put((*[65535]byte)(fullSlice))
+		if cap(data) == bufferSize {
+			fullSlice := data[:bufferSize]
+			packetPool.Put((*[bufferSize]byte)(fullSlice))
 		}
 	}
 }
