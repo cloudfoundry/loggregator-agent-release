@@ -25,6 +25,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	defaultMaxRetries        = 7
+	defaultInitialRetryDelay = 1 * time.Second
+	defaultMaxRetryDelay     = 30 * time.Second
+	defaultRetryQueueSize    = 1024
+)
+
 // retryItem holds a failed export closure and a count of retry attempts already made.
 type retryItem struct {
 	exportFn func() error
@@ -87,12 +94,12 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 		ctx:               ctx,
 		cancel:            cancel,
 		l:                 l,
-		maxRetries:        7,
-		initialRetryDelay: 1 * time.Second,
-		maxRetryDelay:     30 * time.Second,
-		metricsRetry:      make(chan retryItem, 1024),
-		logsRetry:         make(chan retryItem, 1024),
-		tracesRetry:       make(chan retryItem, 1024),
+		maxRetries:        defaultMaxRetries,
+		initialRetryDelay: defaultInitialRetryDelay,
+		maxRetryDelay:     defaultMaxRetryDelay,
+		metricsRetry:      make(chan retryItem, defaultRetryQueueSize),
+		logsRetry:         make(chan retryItem, defaultRetryQueueSize),
+		tracesRetry:       make(chan retryItem, defaultRetryQueueSize),
 	}
 	go w.runRetryWorker(w.metricsRetry)
 	go w.runRetryWorker(w.logsRetry)
