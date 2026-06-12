@@ -1097,9 +1097,9 @@ var _ = Describe("Client", func() {
 				logsRetry:         make(chan retryItem, 16),
 				tracesRetry:       make(chan retryItem, 16),
 			}
-			go retryW.runRetryWorker(retryW.metricsRetry)
-			go retryW.runRetryWorker(retryW.logsRetry)
-			go retryW.runRetryWorker(retryW.tracesRetry)
+		go retryW.runRetryWorker("metrics", retryW.metricsRetry)
+		go retryW.runRetryWorker("logs", retryW.logsRetry)
+		go retryW.runRetryWorker("traces", retryW.tracesRetry)
 		})
 
 		AfterEach(func() {
@@ -1131,10 +1131,10 @@ var _ = Describe("Client", func() {
 				retryMSC.responseErr = status.Error(codes.Unavailable, "collector down")
 			})
 
-			It("logs a write error after the final retry attempt", func() {
-				retryW.WriteMetrics([]*metricspb.Metric{{Name: "test-metric"}})
-				Eventually(buf).Should(gbytes.Say("Write error:.*collector down"))
-			})
+		It("logs a drop message after the final retry attempt", func() {
+			retryW.WriteMetrics([]*metricspb.Metric{{Name: "test-metric"}})
+			Eventually(buf).Should(gbytes.Say("Dropping metrics batch after.*collector down"))
+		})
 		})
 
 		Context("when the error is not retryable", func() {

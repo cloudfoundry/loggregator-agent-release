@@ -26,11 +26,17 @@ import (
 )
 
 const (
-	defaultMaxRetries        = 7
-	defaultInitialRetryDelay = 1 * time.Second
-	defaultMaxRetryDelay     = 30 * time.Second
-	defaultRetryQueueSize    = 1024
+	retryInitialDelay = 1 * time.Second
+	retryMaxDelay     = 30 * time.Second
 )
+
+// GRPCWriterConfig holds tunable parameters for the GRPCWriter retry behaviour.
+type GRPCWriterConfig struct {
+	// MaxRetries is the maximum number of retry attempts before a batch is dropped.
+	MaxRetries int
+	// RetryQueueSize is the per-signal channel capacity for pending retry batches.
+	RetryQueueSize int
+}
 
 // retryItem holds a failed export closure and a count of retry attempts already made.
 type retryItem struct {
@@ -63,7 +69,10 @@ type GRPCWriter struct {
 	maxRetryDelay     time.Duration
 
 	// Per-signal queues for async retry workers. Items are enqueued by withRetry
-	// and consumed by runRetryWorker goroutines started in NewGRPCWriter.
+	// and consumed by runRetryWorker goroutines started in NewGRPCWriter. The withRetry
+	// method enqueues a failed batch to a per-signal buffered channel and returns
+	// immediately, releasing the SignalBatcher mutex so the DiodeWriter ring
+	// buffer continues to drain without stalling.
 	// Sized to absorb the full retry window: 7 attempts over 91 s (1+2+4+8+16+30+30)
 	// at the 100 ms flush interval produces at most 910 batches. 1024 clears that
 	// with a small margin. A nil channel disables async retry (used in tests that
@@ -74,7 +83,7 @@ type GRPCWriter struct {
 }
 
 // NewGRPCWriter dials the provided gRPC address and returns a *GRPCWriter.
-func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWriter, error) {
+func NewGRPCWriter(addr string, tlsConfig *tls.Config, cfg GRPCWriterConfig, l *log.Logger) (*GRPCWriter, error) {
 	cc, err := grpc.NewClient(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
 		return nil, err
@@ -94,16 +103,16 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 		ctx:               ctx,
 		cancel:            cancel,
 		l:                 l,
-		maxRetries:        defaultMaxRetries,
-		initialRetryDelay: defaultInitialRetryDelay,
-		maxRetryDelay:     defaultMaxRetryDelay,
-		metricsRetry:      make(chan retryItem, defaultRetryQueueSize),
-		logsRetry:         make(chan retryItem, defaultRetryQueueSize),
-		tracesRetry:       make(chan retryItem, defaultRetryQueueSize),
+		maxRetries:        cfg.MaxRetries,
+		initialRetryDelay: retryInitialDelay,
+		maxRetryDelay:     retryMaxDelay,
+		metricsRetry:      make(chan retryItem, cfg.RetryQueueSize),
+		logsRetry:         make(chan retryItem, cfg.RetryQueueSize),
+		tracesRetry:       make(chan retryItem, cfg.RetryQueueSize),
 	}
-	go w.runRetryWorker(w.metricsRetry)
-	go w.runRetryWorker(w.logsRetry)
-	go w.runRetryWorker(w.tracesRetry)
+	go w.runRetryWorker("metrics", w.metricsRetry)
+	go w.runRetryWorker("logs", w.logsRetry)
+	go w.runRetryWorker("traces", w.tracesRetry)
 	cancel = nil
 	return w, nil
 }
@@ -217,7 +226,7 @@ func drainRetryQueue(dst []retryItem, src <-chan retryItem) []retryItem {
 // The shared pool delay resets to initialRetryDelay each time the pool drains
 // to empty. Items that exhaust maxRetries are logged and discarded. The
 // goroutine exits silently when the writer's context is cancelled.
-func (w *GRPCWriter) runRetryWorker(queue <-chan retryItem) {
+func (w *GRPCWriter) runRetryWorker(signal string, queue <-chan retryItem) {
 	var pool []retryItem
 	delay := w.initialRetryDelay
 
@@ -227,7 +236,6 @@ func (w *GRPCWriter) runRetryWorker(queue <-chan retryItem) {
 		pool = drainRetryQueue(pool, queue)
 		if prevLen == 0 && len(pool) > 0 {
 			delay = w.initialRetryDelay
-			w.l.Println("New item added to empty pool, delay set to", delay)
 		}
 
 		if len(pool) == 0 {
@@ -238,7 +246,6 @@ func (w *GRPCWriter) runRetryWorker(queue <-chan retryItem) {
 			case item := <-queue:
 				pool = append(pool, item)
 				delay = w.initialRetryDelay
-				w.l.Println("New item added to empty pool, delay set to", delay)
 			}
 			pool = drainRetryQueue(pool, queue)
 		}
@@ -255,6 +262,7 @@ func (w *GRPCWriter) runRetryWorker(queue <-chan retryItem) {
 
 		// Attempt every item in the pool; keep the ones that still need more retries.
 		var remaining []retryItem
+		var lastError error
 		for _, item := range pool {
 			if isContextError(w.ctx.Err()) {
 				return
@@ -268,16 +276,23 @@ func (w *GRPCWriter) runRetryWorker(queue <-chan retryItem) {
 			}
 			item.attempts++
 			if !isRetryable(err) || item.attempts >= w.maxRetries {
-				w.l.Println("Write error:", err)
+				w.l.Printf("Dropping %s batch after %d attempts: %v", signal, item.attempts, err)
 				continue
 			}
+			lastError = err
 			remaining = append(remaining, item)
+		}
+
+		if len(remaining) > 0 {
+			w.l.Printf("Retrying %d %s batches in %s, last err: %v", len(remaining), signal, delay, lastError)
+		}
+		if len(pool) > 0 && len(remaining) == 0 {
+			w.l.Printf("%s retry pool drained after recovery", signal)
 		}
 		pool = remaining
 
 		if len(pool) == 0 {
 			delay = w.initialRetryDelay
-			w.l.Println("Pool is empty, delay set to", delay)
 		} else {
 			delay = min(delay*2, w.maxRetryDelay)
 		}
