@@ -28,6 +28,8 @@
        "EMIT_OTEL_TRACES" => "#{p("emit_otel_traces")}",
        "EMIT_OTEL_METRICS" => "#{p("emit_otel_metrics")}",
        "EMIT_OTEL_LOGS" => "#{p("emit_otel_logs")}",
+       "OTEL_RETRY_MAX_RETRIES" => "#{p("otel_retry.max_retries")}",
+       "OTEL_RETRY_QUEUE_SIZE" => "#{p("otel_retry.queue_size")}",
        "METRICS_PORT" => "#{p("metrics.port")}",
        "METRICS_CA_FILE_PATH" => "#{certs_dir}/metrics_ca.crt",
        "METRICS_CERT_FILE_PATH" => "#{certs_dir}/metrics.crt",

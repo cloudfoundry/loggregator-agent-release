@@ -20,8 +20,29 @@ import (
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
+
+const (
+	retryInitialDelay = 1 * time.Second
+	retryMaxDelay     = 30 * time.Second
+)
+
+// GRPCWriterConfig holds tunable parameters for the GRPCWriter retry behaviour.
+type GRPCWriterConfig struct {
+	// MaxRetries is the maximum number of retry attempts before a batch is dropped.
+	MaxRetries int
+	// RetryQueueSize is the per-signal channel capacity for pending retry batches.
+	RetryQueueSize int
+}
+
+// retryItem holds a failed export closure and a count of retry attempts already made.
+type retryItem struct {
+	exportFn func() error
+	attempts int
+}
 
 type GRPCWriter struct {
 	// The client API for the OTel Collector metrics service
@@ -41,10 +62,28 @@ type GRPCWriter struct {
 
 	// The logger to use for errors
 	l *log.Logger
+
+	// Retry configuration.
+	maxRetries        int
+	initialRetryDelay time.Duration
+	maxRetryDelay     time.Duration
+
+	// Per-signal queues for async retry workers. Items are enqueued by withRetry
+	// and consumed by runRetryWorker goroutines started in NewGRPCWriter. The withRetry
+	// method enqueues a failed batch to a per-signal buffered channel and returns
+	// immediately, releasing the SignalBatcher mutex so the DiodeWriter ring
+	// buffer continues to drain without stalling.
+	// Sized to absorb the full retry window: 7 attempts over 91 s (1+2+4+8+16+30+30)
+	// at the 100 ms flush interval produces at most 910 batches. 1024 clears that
+	// with a small margin. A nil channel disables async retry (used in tests that
+	// construct GRPCWriter directly without starting workers).
+	metricsRetry chan retryItem
+	logsRetry    chan retryItem
+	tracesRetry  chan retryItem
 }
 
 // NewGRPCWriter dials the provided gRPC address and returns a *GRPCWriter.
-func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWriter, error) {
+func NewGRPCWriter(addr string, tlsConfig *tls.Config, cfg GRPCWriterConfig, l *log.Logger) (*GRPCWriter, error) {
 	cc, err := grpc.NewClient(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
 		return nil, err
@@ -58,58 +97,205 @@ func NewGRPCWriter(addr string, tlsConfig *tls.Config, l *log.Logger) (*GRPCWrit
 	}()
 
 	w := &GRPCWriter{
-		msc:    colmetricspb.NewMetricsServiceClient(cc),
-		tsc:    coltracepb.NewTraceServiceClient(cc),
-		lsc:    collogspb.NewLogsServiceClient(cc),
-		ctx:    ctx,
-		cancel: cancel,
-		l:      l,
+		msc:               colmetricspb.NewMetricsServiceClient(cc),
+		tsc:               coltracepb.NewTraceServiceClient(cc),
+		lsc:               collogspb.NewLogsServiceClient(cc),
+		ctx:               ctx,
+		cancel:            cancel,
+		l:                 l,
+		maxRetries:        cfg.MaxRetries,
+		initialRetryDelay: retryInitialDelay,
+		maxRetryDelay:     retryMaxDelay,
+		metricsRetry:      make(chan retryItem, cfg.RetryQueueSize),
+		logsRetry:         make(chan retryItem, cfg.RetryQueueSize),
+		tracesRetry:       make(chan retryItem, cfg.RetryQueueSize),
 	}
+	go w.runRetryWorker("metrics", w.metricsRetry)
+	go w.runRetryWorker("logs", w.logsRetry)
+	go w.runRetryWorker("traces", w.tracesRetry)
 	cancel = nil
 	return w, nil
 }
 
 func (w GRPCWriter) WriteLogs(batch []*logspb.ResourceLogs) {
-	resp, err := w.lsc.Export(w.ctx, &collogspb.ExportLogsServiceRequest{
-		ResourceLogs: batch,
-	})
-	if err == nil {
-		err = errorOnLogsRejection(resp)
-	}
-	if err != nil {
-		w.l.Println("Write error:", err)
-	}
+	w.withRetry(func() error {
+		resp, err := w.lsc.Export(w.ctx, &collogspb.ExportLogsServiceRequest{
+			ResourceLogs: batch,
+		})
+		if err != nil {
+			return err
+		}
+		return errorOnLogsRejection(resp)
+	}, w.logsRetry)
 }
 
 func (w GRPCWriter) WriteMetrics(batch []*metricspb.Metric) {
-	resp, err := w.msc.Export(w.ctx, &colmetricspb.ExportMetricsServiceRequest{
-		ResourceMetrics: []*metricspb.ResourceMetrics{
-			{
-				ScopeMetrics: []*metricspb.ScopeMetrics{
-					{
-						Metrics: batch,
+	w.withRetry(func() error {
+		resp, err := w.msc.Export(w.ctx, &colmetricspb.ExportMetricsServiceRequest{
+			ResourceMetrics: []*metricspb.ResourceMetrics{
+				{
+					ScopeMetrics: []*metricspb.ScopeMetrics{
+						{
+							Metrics: batch,
+						},
 					},
 				},
 			},
-		},
-	})
-	if err == nil {
-		err = errorOnRejection(resp)
-	}
-	if err != nil {
-		w.l.Println("Write error:", err)
-	}
+		})
+		if err != nil {
+			return err
+		}
+		return errorOnRejection(resp)
+	}, w.metricsRetry)
 }
 
 func (w GRPCWriter) WriteTrace(batch []*tracepb.ResourceSpans) {
-	resp, err := w.tsc.Export(w.ctx, &coltracepb.ExportTraceServiceRequest{
-		ResourceSpans: batch,
-	})
-	if err == nil {
-		err = errorOnTraceRejection(resp)
+	w.withRetry(func() error {
+		resp, err := w.tsc.Export(w.ctx, &coltracepb.ExportTraceServiceRequest{
+			ResourceSpans: batch,
+		})
+		if err != nil {
+			return err
+		}
+		return errorOnTraceRejection(resp)
+	}, w.tracesRetry)
+}
+
+// isRetryable reports whether a gRPC error is transient and worth retrying.
+// Only codes.Unavailable is retried — the expected code when the OTel
+// Collector is down or restarting. Partial-success rejections (plain errors
+// from errorOn*Rejection) return false.
+func isRetryable(err error) bool {
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
 	}
-	if err != nil {
+	return s.Code() == codes.Unavailable
+}
+
+// isContextError reports whether an error is due to context cancellation so
+// that shutdown paths can be distinguished from genuine write failures.
+func isContextError(err error) bool {
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	s, ok := status.FromError(err)
+	return ok && s.Code() == codes.Canceled
+}
+
+// withRetry makes a single export attempt. If the error is retryable the batch
+// is handed off to the background retry worker via queue so the caller (running
+// inside the SignalBatcher flush path, holding its mutex) is not blocked during
+// backoff. Non-retryable errors and context errors are handled inline.
+func (w GRPCWriter) withRetry(exportFn func() error, queue chan<- retryItem) {
+	err := exportFn()
+	if err == nil {
+		return
+	}
+	if isContextError(err) {
+		return
+	}
+	if !isRetryable(err) {
 		w.l.Println("Write error:", err)
+		return
+	}
+	select {
+	case queue <- retryItem{exportFn: exportFn}:
+	default:
+		w.l.Println("Write error (retry queue full):", err)
+	}
+}
+
+// drainRetryQueue non-blockingly moves all pending items from src into dst.
+func drainRetryQueue(dst []retryItem, src <-chan retryItem) []retryItem {
+	for {
+		select {
+		case item := <-src:
+			dst = append(dst, item)
+		default:
+			return dst
+		}
+	}
+}
+
+// runRetryWorker retries batches that were queued by withRetry. It maintains a
+// pool of pending batches and replays them all on each backoff tick so that
+// when the collector recovers the entire backlog is flushed in one sweep rather
+// than one batch per backoff cycle.
+//
+// The shared pool delay resets to initialRetryDelay each time the pool drains
+// to empty. Items that exhaust maxRetries are logged and discarded. The
+// goroutine exits silently when the writer's context is cancelled.
+func (w *GRPCWriter) runRetryWorker(signal string, queue <-chan retryItem) {
+	var pool []retryItem
+	delay := w.initialRetryDelay
+
+	for {
+		// Merge any newly queued items into the pool.
+		prevLen := len(pool)
+		pool = drainRetryQueue(pool, queue)
+		if prevLen == 0 && len(pool) > 0 {
+			delay = w.initialRetryDelay
+		}
+
+		if len(pool) == 0 {
+			// Block until there is work to do or the context is cancelled.
+			select {
+			case <-w.ctx.Done():
+				return
+			case item := <-queue:
+				pool = append(pool, item)
+				delay = w.initialRetryDelay
+			}
+			pool = drainRetryQueue(pool, queue)
+		}
+
+		// Wait before the retry attempt.
+		select {
+		case <-w.ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+
+		// Drain items that arrived during the sleep.
+		pool = drainRetryQueue(pool, queue)
+
+		// Attempt every item in the pool; keep the ones that still need more retries.
+		var remaining []retryItem
+		var lastError error
+		for _, item := range pool {
+			if isContextError(w.ctx.Err()) {
+				return
+			}
+			err := item.exportFn()
+			if err == nil {
+				continue
+			}
+			if isContextError(err) {
+				return
+			}
+			item.attempts++
+			if !isRetryable(err) || item.attempts >= w.maxRetries {
+				w.l.Printf("Dropping %s batch after %d attempts: %v", signal, item.attempts, err)
+				continue
+			}
+			lastError = err
+			remaining = append(remaining, item)
+		}
+
+		if len(remaining) > 0 {
+			w.l.Printf("Retrying %d %s batches in %s, last err: %v", len(remaining), signal, delay, lastError)
+		}
+		if len(pool) > 0 && len(remaining) == 0 {
+			w.l.Printf("%s retry pool drained after recovery", signal)
+		}
+		pool = remaining
+
+		if len(pool) == 0 {
+			delay = w.initialRetryDelay
+		} else {
+			delay = min(delay*2, w.maxRetryDelay)
+		}
 	}
 }
 

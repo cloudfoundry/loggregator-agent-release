@@ -49,6 +49,14 @@ properties:
     description: "Emit logs to downstream OpenTelemetry consumers"
     default: true
 
+  otel_retry.max_retries:
+    description: "Maximum number of retry attempts before a failed OTel Collector export batch is dropped"
+    default: 7
+
+  otel_retry.queue_size:
+    description: "Per-signal retry queue capacity (number of export batches that can be buffered per signal type)"
+    default: 1024
+
   tls.ca_cert:
     description: |
       TLS loggregator root CA certificate. It is required for key/cert

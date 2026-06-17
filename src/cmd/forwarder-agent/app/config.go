@@ -19,6 +19,12 @@ type GRPC struct {
 	CipherSuites []string `env:"AGENT_CIPHER_SUITES, report"`
 }
 
+// OtelRetry holds tunable parameters for the OTel Collector gRPC retry logic.
+type OtelRetry struct {
+	MaxRetries     int `env:"OTEL_RETRY_MAX_RETRIES, report"`
+	RetryQueueSize int `env:"OTEL_RETRY_QUEUE_SIZE,  report"`
+}
+
 // Config holds the configuration for the forwarder agent
 type Config struct {
 	UseRFC3339 bool `env:"USE_RFC3339"`
@@ -33,6 +39,7 @@ type Config struct {
 	EmitOTelTraces           bool              `env:"EMIT_OTEL_TRACES, report"`
 	EmitOTelMetrics          bool              `env:"EMIT_OTEL_METRICS, report"`
 	EmitOTelLogs             bool              `env:"EMIT_OTEL_LOGS, report"`
+	OtelRetry                OtelRetry
 }
 
 // LoadConfig will load the configuration for the forwarder agent from the
@@ -43,6 +50,10 @@ func LoadConfig() Config {
 		GRPC: GRPC{
 			Host: "127.0.0.1",
 			Port: 3458,
+		},
+		OtelRetry: OtelRetry{
+			MaxRetries:     7,
+			RetryQueueSize: 1024,
 		},
 	}
 	if err := envstruct.Load(&cfg); err != nil {

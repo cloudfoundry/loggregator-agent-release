@@ -44,6 +44,7 @@ type ForwarderAgent struct {
 	emitOTelTraces        bool
 	emitOTelMetrics       bool
 	emitOTelLogs          bool
+	otelRetry             OtelRetry
 }
 
 type Metrics interface {
@@ -77,6 +78,7 @@ func NewForwarderAgent(
 		emitOTelTraces:        cfg.EmitOTelTraces,
 		emitOTelMetrics:       cfg.EmitOTelMetrics,
 		emitOTelLogs:          cfg.EmitOTelLogs,
+		otelRetry:             cfg.OtelRetry,
 	}
 }
 
@@ -100,7 +102,7 @@ func (s *ForwarderAgent) Run() {
 	}))
 
 	dests := downstreamDestinations(s.downstreamFilePattern, s.log)
-	writers := downstreamWriters(dests, s.grpc, s.m, s.emitOTelTraces, s.emitOTelMetrics, s.emitOTelLogs, s.log)
+	writers := downstreamWriters(dests, s.grpc, s.m, s.emitOTelTraces, s.emitOTelMetrics, s.emitOTelLogs, s.otelRetry, s.log)
 	tagger := egress_v2.NewTagger(s.tags)
 	ew := egress_v2.NewEnvelopeWriter(
 		multiWriter{writers: writers},
@@ -213,13 +215,13 @@ func downstreamDestinations(pattern string, l *log.Logger) []destination {
 	return dests
 }
 
-func downstreamWriters(dests []destination, grpc GRPC, m Metrics, emitOTelTraces, emitOTelMetrics, emitOTelLogs bool, l *log.Logger) []Writer {
+func downstreamWriters(dests []destination, grpc GRPC, m Metrics, emitOTelTraces, emitOTelMetrics, emitOTelLogs bool, otelRetry OtelRetry, l *log.Logger) []Writer {
 	var writers []Writer
 	for _, d := range dests {
 		var w Writer
 		switch d.Protocol {
 		case "otelcol":
-			w = otelCollectorClient(d, grpc, m, emitOTelTraces, emitOTelMetrics, emitOTelLogs, l)
+			w = otelCollectorClient(d, grpc, m, emitOTelTraces, emitOTelMetrics, emitOTelLogs, otelRetry, l)
 		default:
 			w = loggregatorClient(d, grpc, m, l)
 		}
@@ -228,7 +230,7 @@ func downstreamWriters(dests []destination, grpc GRPC, m Metrics, emitOTelTraces
 	return writers
 }
 
-func otelCollectorClient(dest destination, grpc GRPC, m Metrics, emitTraces, emitMetrics, emitLogs bool, l *log.Logger) Writer {
+func otelCollectorClient(dest destination, grpc GRPC, m Metrics, emitTraces, emitMetrics, emitLogs bool, otelRetry OtelRetry, l *log.Logger) Writer {
 	clientCreds, err := tlsconfig.Build(
 		tlsconfig.WithInternalServiceDefaults(),
 		tlsconfig.WithIdentityFromFile(grpc.CertFile, grpc.KeyFile),
@@ -242,7 +244,11 @@ func otelCollectorClient(dest destination, grpc GRPC, m Metrics, emitTraces, emi
 
 	occl := log.New(l.Writer(), fmt.Sprintf("[OTEL COLLECTOR CLIENT] -> %s: ", dest.Ingress), l.Flags())
 
-	w, err := otelcolclient.NewGRPCWriter(dest.Ingress, clientCreds, occl)
+	writerCfg := otelcolclient.GRPCWriterConfig{
+		MaxRetries:     otelRetry.MaxRetries,
+		RetryQueueSize: otelRetry.RetryQueueSize,
+	}
+	w, err := otelcolclient.NewGRPCWriter(dest.Ingress, clientCreds, writerCfg, occl)
 	if err != nil {
 		l.Fatalf("Failed to create OTel Collector gRPC writer for %s: %s", dest.Ingress, err)
 	}
