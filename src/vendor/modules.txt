@@ -1,7 +1,7 @@
-# code.cloudfoundry.org/go-batching v0.0.0-20260526123032-013946b96a09
+# code.cloudfoundry.org/go-batching v0.0.0-20260615142341-836c75e2e033
 ## explicit; go 1.25.0
 code.cloudfoundry.org/go-batching
-# code.cloudfoundry.org/go-diodes v0.0.0-20260526122959-0284fcb5ac88
+# code.cloudfoundry.org/go-diodes v0.0.0-20260615142411-472d6bcdb3c6
 ## explicit; go 1.25.0
 code.cloudfoundry.org/go-diodes
 # code.cloudfoundry.org/go-envstruct v1.7.0
@@ -13,11 +13,11 @@ code.cloudfoundry.org/go-loggregator/v10
 code.cloudfoundry.org/go-loggregator/v10/conversion
 code.cloudfoundry.org/go-loggregator/v10/rfc5424
 code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20260608225203-cd1a85c873d4
-## explicit; go 1.25.1
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20260617164716-452ba9c14ce2
+## explicit; go 1.25.8
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.59.0
+# code.cloudfoundry.org/tlsconfig v0.60.0
 ## explicit; go 1.25.8
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -147,7 +147,7 @@ github.com/prometheus/client_golang/prometheus/promhttp/internal
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.68.1
+# github.com/prometheus/common v0.69.0
 ## explicit; go 1.25.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
@@ -282,10 +282,10 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20260610212136-7ab31c22f7ad
+# google.golang.org/genproto/googleapis/api v0.0.0-20260618152121-87f3d3e198d3
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20260610212136-7ab31c22f7ad
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260618152121-87f3d3e198d3
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.81.1

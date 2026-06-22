@@ -3,16 +3,16 @@ module code.cloudfoundry.org/loggregator-agent-release/src
 go 1.25.8
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20260526123032-013946b96a09
-	code.cloudfoundry.org/go-diodes v0.0.0-20260526122959-0284fcb5ac88
+	code.cloudfoundry.org/go-batching v0.0.0-20260615142341-836c75e2e033
+	code.cloudfoundry.org/go-diodes v0.0.0-20260615142411-472d6bcdb3c6
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20260608225203-cd1a85c873d4
-	code.cloudfoundry.org/tlsconfig v0.59.0
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20260617164716-452ba9c14ce2
+	code.cloudfoundry.org/tlsconfig v0.60.0
 	github.com/cloudfoundry/dropsonde v1.1.0
 	github.com/cloudfoundry/sonde-go v0.0.0-20260526083715-66f310f13c26
 	github.com/onsi/gomega v1.42.0
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.68.1
+	github.com/prometheus/common v0.69.0
 	github.com/valyala/fasthttp v1.71.0
 	golang.org/x/net v0.56.0
 	google.golang.org/grpc v1.81.1
@@ -54,6 +54,6 @@ require (
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/tools v0.46.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260610212136-7ab31c22f7ad // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260610212136-7ab31c22f7ad // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260618152121-87f3d3e198d3 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260618152121-87f3d3e198d3 // indirect
 )
