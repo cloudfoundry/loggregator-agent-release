@@ -3,14 +3,14 @@ module code.cloudfoundry.org/loggregator-agent-release/src
 go 1.25.8
 
 require (
-	code.cloudfoundry.org/go-batching v0.0.0-20260615142341-836c75e2e033
-	code.cloudfoundry.org/go-diodes v0.0.0-20260615142411-472d6bcdb3c6
+	code.cloudfoundry.org/go-batching v0.0.0-20260622134952-939d4b5c919c
+	code.cloudfoundry.org/go-diodes v0.0.0-20260629064500-85da08bf73ac
 	code.cloudfoundry.org/go-envstruct v1.7.0
-	code.cloudfoundry.org/go-metric-registry v0.0.0-20260617164716-452ba9c14ce2
+	code.cloudfoundry.org/go-metric-registry v0.0.0-20260623070701-db77e56fa4e6
 	code.cloudfoundry.org/tlsconfig v0.60.0
 	github.com/cloudfoundry/dropsonde v1.1.0
-	github.com/cloudfoundry/sonde-go v0.0.0-20260526083715-66f310f13c26
-	github.com/onsi/gomega v1.42.0
+	github.com/cloudfoundry/sonde-go v0.0.0-20260622134720-d7b012c5b9c4
+	github.com/onsi/gomega v1.42.1
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.69.0
 	github.com/valyala/fasthttp v1.71.0
@@ -24,7 +24,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.11.2
-	github.com/onsi/ginkgo/v2 v2.31.0
+	github.com/onsi/ginkgo/v2 v2.32.0
 	go.opentelemetry.io/proto/otlp v1.10.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -43,17 +43,17 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
-	github.com/prometheus/procfs v0.20.1 // indirect
+	github.com/prometheus/procfs v0.21.0 // indirect
 	github.com/square/certstrap v1.3.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	go.step.sm/crypto v0.83.0 // indirect
+	go.step.sm/crypto v0.84.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
-	golang.org/x/tools v0.46.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260618152121-87f3d3e198d3 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260618152121-87f3d3e198d3 // indirect
+	golang.org/x/tools v0.47.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260622175928-b703f567277d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260622175928-b703f567277d // indirect
 )
