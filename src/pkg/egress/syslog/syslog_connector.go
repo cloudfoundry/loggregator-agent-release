@@ -6,11 +6,10 @@ import (
 
 	"context"
 
-	metrics "code.cloudfoundry.org/go-metric-registry"
-
 	"code.cloudfoundry.org/go-diodes"
-	"code.cloudfoundry.org/go-loggregator/v10"
+	metrics "code.cloudfoundry.org/go-metric-registry"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/ingress/applog"
 )
 
 type Binding struct {
@@ -33,32 +32,20 @@ type Credentials struct {
 	CA   string `json:"ca"`
 }
 
-// LogClient is used to emit logs.
-type LogClient interface {
-	EmitLog(message string, opts ...loggregator.EmitLogOption)
-}
-
-// nullLogClient ensures that the LogClient is in fact optional.
-type nullLogClient struct{}
-
-// EmitLog drops all messages into /dev/null.
-func (nullLogClient) EmitLog(message string, opts ...loggregator.EmitLogOption) {
-}
-
 type writerFactory interface {
-	NewWriter(*URLBinding) (egress.WriteCloser, error)
+	NewWriter(*URLBinding, applog.AppLogStream) (egress.WriteCloser, error)
 }
 
 // SyslogConnector creates the various egress syslog writers.
 type SyslogConnector struct {
 	skipCertVerify bool
-	logClient      LogClient
 	wg             egress.WaitGroup
-	sourceIndex    string
 	writerFactory  writerFactory
+	metricClient   metricClient
 
-	metricClient  metricClient
 	droppedMetric metrics.Counter
+
+	appLogStream applog.AppLogStream
 }
 
 // NewSyslogConnector configures and returns a new SyslogConnector.
@@ -78,7 +65,6 @@ func NewSyslogConnector(
 	sc := &SyslogConnector{
 		skipCertVerify: skipCertVerify,
 		wg:             wg,
-		logClient:      nullLogClient{},
 		writerFactory:  f,
 
 		metricClient:  m,
@@ -93,12 +79,11 @@ func NewSyslogConnector(
 // ConnectorOption allows a syslog connector to be customized.
 type ConnectorOption func(*SyslogConnector)
 
-// WithLogClient returns a ConnectorOption that will set up logging for any
+// WithAppLogStream returns a ConnectorOption that will set up logging for any
 // information about a binding.
-func WithLogClient(logClient LogClient, sourceIndex string) ConnectorOption {
+func WithAppLogStream(appLogStream applog.AppLogStream) ConnectorOption {
 	return func(sc *SyslogConnector) {
-		sc.logClient = logClient
-		sc.sourceIndex = sourceIndex
+		sc.appLogStream = appLogStream
 	}
 }
 
@@ -110,7 +95,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		return nil, err
 	}
 
-	writer, err := w.writerFactory.NewWriter(urlBinding)
+	writer, err := w.writerFactory.NewWriter(urlBinding, w.appLogStream)
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +123,8 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		w.droppedMetric.Add(float64(missed))
 		drainDroppedMetric.Add(float64(missed))
 
-		w.emitLoggregatorErrorLog(b.AppId, fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()))
 		w.emitStandardOutErrorLog(b.AppId, urlBinding.Scheme(), anonymousUrl.String(), missed)
+		w.appLogStream.Emit(fmt.Sprintf("%d messages lost for application %s in user provided syslog drain with url %s", missed, b.AppId, anonymousUrl.String()), b.AppId)
 	}), w.wg)
 
 	filteredWriter, err := NewFilteringDrainWriter(b, dw)
@@ -151,20 +136,6 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 	return filteredWriter, nil
 }
 
-func (w *SyslogConnector) emitLoggregatorErrorLog(appID, message string) {
-	if appID == "" {
-		return
-	}
-	option := loggregator.WithAppInfo(appID, "LGR", "")
-	w.logClient.EmitLog(message, option)
-
-	option = loggregator.WithAppInfo(
-		appID,
-		"SYS",
-		w.sourceIndex,
-	)
-	w.logClient.EmitLog(message, option)
-}
 func (w *SyslogConnector) emitStandardOutErrorLog(appID, scheme, url string, missed int) {
 	errorAppOrAggregate := fmt.Sprintf("for %s's app drain", appID)
 	if appID == "" {
