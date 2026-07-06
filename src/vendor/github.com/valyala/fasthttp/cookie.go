@@ -163,6 +163,7 @@ func (c *Cookie) SetPath(path string) {
 	c.bufK = append(c.bufK[:0], path...)
 	c.path = normalizePath(c.path, c.bufK)
 	c.path = removeNewLines(c.path)
+	c.path = removeSemicolons(c.path)
 }
 
 // SetPathBytes sets cookie path.
@@ -170,6 +171,7 @@ func (c *Cookie) SetPathBytes(path []byte) {
 	c.bufK = append(c.bufK[:0], path...)
 	c.path = normalizePath(c.path, c.bufK)
 	c.path = removeNewLines(c.path)
+	c.path = removeSemicolons(c.path)
 }
 
 // Domain returns cookie domain.
@@ -183,11 +185,13 @@ func (c *Cookie) Domain() []byte {
 // SetDomain sets cookie domain.
 func (c *Cookie) SetDomain(domain string) {
 	c.domain = initHeaderValueString(c.domain, domain)
+	c.domain = removeSemicolons(c.domain)
 }
 
 // SetDomainBytes sets cookie domain.
 func (c *Cookie) SetDomainBytes(domain []byte) {
 	c.domain = initHeaderValueBytes(c.domain, domain)
+	c.domain = removeSemicolons(c.domain)
 }
 
 // MaxAge returns the seconds until the cookie is meant to expire or 0
@@ -239,11 +243,13 @@ func (c *Cookie) Value() []byte {
 // SetValue sets cookie value.
 func (c *Cookie) SetValue(value string) {
 	c.value = initHeaderValueString(c.value, value)
+	c.value = removeSemicolons(c.value)
 }
 
 // SetValueBytes sets cookie value.
 func (c *Cookie) SetValueBytes(value []byte) {
 	c.value = initHeaderValueBytes(c.value, value)
+	c.value = removeSemicolons(c.value)
 }
 
 // Key returns cookie name.
@@ -257,11 +263,13 @@ func (c *Cookie) Key() []byte {
 // SetKey sets cookie name.
 func (c *Cookie) SetKey(key string) {
 	c.key = initHeaderValueString(c.key, key)
+	c.key = removeSemicolons(c.key)
 }
 
 // SetKeyBytes sets cookie name.
 func (c *Cookie) SetKeyBytes(key []byte) {
 	c.key = initHeaderValueBytes(c.key, key)
+	c.key = removeSemicolons(c.key)
 }
 
 // Reset clears the cookie.
@@ -367,7 +375,10 @@ func (c *Cookie) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
-var errNoCookies = errors.New("no cookies found")
+var (
+	ErrNoCookies          = errors.New("no cookies found")
+	ErrInvalidCookieValue = errors.New("invalid cookie value")
+)
 
 // Parse parses Set-Cookie header.
 func (c *Cookie) Parse(src string) error {
@@ -384,7 +395,10 @@ func (c *Cookie) ParseBytes(src []byte) error {
 
 	var k, v []byte
 	if !s.nextRaw(&k, &v) {
-		return errNoCookies
+		return ErrNoCookies
+	}
+	if !validCookieValue(v) {
+		return ErrInvalidCookieValue
 	}
 
 	c.key = initHeaderValueBytes(c.key, k)
@@ -467,6 +481,21 @@ func (c *Cookie) ParseBytes(src []byte) error {
 	return nil
 }
 
+// removeSemicolons replaces every ';' in raw with a space.
+//
+// ';' separates attributes inside a Set-Cookie header, so a ';' carried in a
+// key, value, domain or path taken from untrusted input would let an attacker
+// append arbitrary attributes (Domain, Path, Secure, ...) to the cookie. CR and
+// LF are already neutralised by removeNewLines.
+func removeSemicolons(raw []byte) []byte {
+	for i := range raw {
+		if raw[i] == ';' {
+			raw[i] = ' '
+		}
+	}
+	return raw
+}
+
 func appendCookiePart(dst, key, value []byte) []byte {
 	dst = append(dst, ';', ' ')
 	dst = append(dst, key...)
@@ -517,7 +546,9 @@ func parseRequestCookies(cookies []argsKV, src []byte) []argsKV {
 	cookies, kv = allocArg(cookies)
 	for s.next(&kv.key, &kv.value) {
 		if len(kv.key) > 0 || len(kv.value) > 0 {
-			cookies, kv = allocArg(cookies)
+			if validCookieValue(kv.value) {
+				cookies, kv = allocArg(cookies)
+			}
 		}
 	}
 	return releaseArg(cookies)
@@ -622,6 +653,10 @@ func decodeCookieArg(dst, src []byte, skipQuotes bool) []byte {
 		}
 	}
 	return append(dst[:0], src...)
+}
+
+func validCookieValue(value []byte) bool {
+	return !bytes.ContainsAny(value, "\";\\")
 }
 
 func trimCookieArgNoCopy(src []byte, skipQuotes bool) []byte {

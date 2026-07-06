@@ -2613,7 +2613,7 @@ func (h *RequestHeader) AppendBytes(dst []byte) []byte {
 	}
 
 	contentType := h.ContentType()
-	if !h.noDefaultContentType && len(contentType) == 0 && !h.ignoreBody() {
+	if !h.noDefaultContentType && len(contentType) == 0 && h.ContentLength() > 0 {
 		contentType = strDefaultContentType
 	}
 	if len(contentType) > 0 && !h.disableSpecialHeader {
@@ -2728,6 +2728,11 @@ func parseTrailer(src []byte, dest []argsKV, disableNormalizing bool) ([]argsKV,
 		// Forbidden by RFC 7230, section 4.1.2
 		if isBadTrailer(s.key) {
 			return dest, 0, fmt.Errorf("forbidden trailer key %q", s.key)
+		}
+		for _, ch := range s.value {
+			if !validHeaderValueByte(ch) {
+				return dest, 0, fmt.Errorf("invalid trailer value %q", s.value)
+			}
 		}
 		normalizeHeaderKeyValidated(s.key, disable)
 		dest = appendArgBytes(dest, s.key, s.value, argsHasValue)
@@ -2993,6 +2998,7 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 	s.b = buf
 	var kv *argsKV
 	transferEncodingSeen := false
+	contentLengthSeen := false
 
 	for s.next() {
 		// Trim trailing whitespace before the colon to normalize headers
@@ -3038,6 +3044,11 @@ func (h *ResponseHeader) parseHeaders(buf []byte) (int, error) {
 				continue
 			}
 			if caseInsensitiveCompare(s.key, strContentLength) {
+				if contentLengthSeen {
+					h.connectionClose = true
+					return 0, ErrDuplicateContentLength
+				}
+				contentLengthSeen = true
 				var err error
 				contentLength, err := parseContentLength(s.value)
 				if err != nil {
@@ -3136,6 +3147,7 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 	h.contentLength = -2
 
 	contentLengthSeen := false
+	transferEncodingSeen := false
 	hostSeen := false
 
 	var s headerScanner
@@ -3197,6 +3209,14 @@ func (h *RequestHeader) parseHeaders(buf []byte) (int, error) {
 		case 't':
 			if caseInsensitiveCompare(s.key, strTransferEncoding) {
 				isTransferEncoding = true
+				if transferEncodingSeen {
+					h.connectionClose = true
+					if h.secureErrorLogMessage {
+						return 0, ErrUnsupportedTransferEncoding
+					}
+					return 0, errors.New("too many Transfer-Encoding headers")
+				}
+				transferEncodingSeen = true
 			}
 		}
 
@@ -3398,6 +3418,12 @@ func getHeaderKeyBytes(bufK []byte, key string, disableNormalizing bool) []byte 
 }
 
 func normalizeHeaderKey(b []byte, disableNormalizing bool) {
+	// Neutralise any CR/LF in the key so a header name can't break the
+	// message framing, mirroring the value handling in initHeaderValueBytes.
+	// This runs before the early returns below because a key carrying a space
+	// or an otherwise invalid byte skips normalization entirely.
+	b = removeNewLines(b)
+
 	if disableNormalizing {
 		return
 	}
@@ -3515,7 +3541,7 @@ func copyTrailer(dst, src [][]byte) [][]byte {
 	if cap(dst) >= len(src) {
 		dst = dst[:len(src)]
 	} else {
-		dst = append(dst[:0], src...)
+		dst = make([][]byte, len(src))
 	}
 
 	for i := range dst {
