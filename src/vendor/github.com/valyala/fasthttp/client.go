@@ -216,6 +216,10 @@ type Client struct {
 	// This field is only effective within the range of MaxIdemponentCallAttempts.
 	RetryIfErr RetryIfErrFunc
 
+	// RetryIfErrUpstream works just like RetryIfErr but also provides information about which upstream caused the error, if known.
+	// Upstream information is a <host>:<port> format.
+	RetryIfErrUpstream RetryIfErrUpstreamFunc
+
 	// ConfigureClient configures the fasthttp.HostClient.
 	ConfigureClient func(hc *HostClient) error
 
@@ -275,6 +279,8 @@ type Client struct {
 	// and response body is greater than the limit.
 	//
 	// By default response body size is unlimited.
+	//
+	// Note that if StreamResponseBody is true, MaxResponseBodySize is ignored.
 	MaxResponseBodySize int
 
 	// Maximum duration for waiting for a free connection.
@@ -565,6 +571,7 @@ func (c *Client) hostClient(host []byte, isTLS bool) (*HostClient, error) {
 		MaxConnWaitTimeout:            c.MaxConnWaitTimeout,
 		RetryIf:                       c.RetryIf,
 		RetryIfErr:                    c.RetryIfErr,
+		RetryIfErrUpstream:            c.RetryIfErrUpstream,
 		ConnPoolStrategy:              c.ConnPoolStrategy,
 		StreamResponseBody:            c.StreamResponseBody,
 		clientReaderPool:              &c.readerPool,
@@ -597,6 +604,36 @@ func (c *Client) CloseIdleConnections() {
 		v.CloseIdleConnections()
 	}
 	c.mLock.RUnlock()
+}
+
+// ConnsCount returns total connection count across all HostClients managed by Client.
+func (c *Client) ConnsCount() int {
+	c.mLock.RLock()
+	defer c.mLock.RUnlock()
+
+	n := 0
+	for _, v := range c.m {
+		n += v.ConnsCount()
+	}
+	for _, v := range c.ms {
+		n += v.ConnsCount()
+	}
+	return n
+}
+
+// IdleConnsCount returns total idle connection count across all HostClients managed by Client.
+func (c *Client) IdleConnsCount() int {
+	c.mLock.RLock()
+	defer c.mLock.RUnlock()
+
+	n := 0
+	for _, v := range c.m {
+		n += v.IdleConnsCount()
+	}
+	for _, v := range c.ms {
+		n += v.IdleConnsCount()
+	}
+	return n
 }
 
 func (c *Client) mCleaner(m map[string]*HostClient) {
@@ -693,6 +730,12 @@ type RetryIfFunc func(request *Request) bool
 // the request function will immediately return with the `err`.
 type RetryIfErrFunc func(request *Request, attempts int, err error) (resetTimeout bool, retry bool)
 
+// RetryIfErrUpstreamFunc works just like a RetryIfErrFunc and also provides
+// information about which upstream caused the error, if known.
+//
+// Upstream information is a <host>:<port> format.
+type RetryIfErrUpstreamFunc func(request *Request, attempts int, err error, upstream string) (resetTimeout bool, retry bool)
+
 // RoundTripper wraps every request/response.
 type RoundTripper interface {
 	RoundTrip(hc *HostClient, req *Request, resp *Response) (retry bool, err error)
@@ -753,6 +796,10 @@ type HostClient struct {
 	// based on the return value of this field.
 	// This field is only effective within the range of MaxIdemponentCallAttempts.
 	RetryIfErr RetryIfErrFunc
+
+	// RetryIfErrUpstream works just like RetryIfErr but also provides information about which upstream causes the error, if known.
+	// Upstream information is a <host>:<port> format.
+	RetryIfErrUpstream RetryIfErrUpstreamFunc
 
 	connsWait *wantConnQueue
 
@@ -1046,9 +1093,10 @@ func clientGetURLDeadline(dst []byte, url string, deadline time.Time, c clientDo
 	go func() {
 		req := AcquireRequest()
 
-		statusCodeCopy, bodyCopy, errCopy := doRequestFollowRedirectsBuffer(req, dst, url, c)
+		statusCodeCopy, bodyCopy, errCopy := doRequestFollowRedirectsBuffer(req, nil, url, c)
 		mu.Lock()
 		if !timedout {
+			bodyCopy = append(dst[:0], bodyCopy...)
 			ch <- clientURLResponse{
 				statusCode: statusCodeCopy,
 				body:       bodyCopy,
@@ -1143,6 +1191,7 @@ func doRequestFollowRedirects(
 	req *Request, resp *Response, url string, maxRedirectsCount int, c clientDoer,
 ) (statusCode int, body []byte, err error) {
 	redirectsCount := 0
+	initialHost := hostnameFromURLString(url)
 
 	for {
 		req.SetRequestURI(url)
@@ -1168,9 +1217,34 @@ func doRequestFollowRedirects(
 			err = ErrMissingLocation
 			break
 		}
-		url = getRedirectURL(url, location, req.DisableRedirectPathNormalizing)
+		redirectURI := AcquireURI()
+		url = getRedirectURL(url, location, req.DisableRedirectPathNormalizing, redirectURI)
+		stripSensitiveHeadersOnRedirect(req, initialHost, redirectURI)
+		ReleaseURI(redirectURI)
 
-		if string(req.Header.Method()) == "POST" && (statusCode == 301 || statusCode == 302) {
+		switch {
+		case statusCode == StatusSeeOther:
+			// RFC 9110 section 15.4.4: a 303 (See Other) response redirects
+			// the user agent to retrieve the new URI with a GET (or HEAD)
+			// request, regardless of the original method, and without the
+			// original request body. Drop the body together with every header
+			// that frames it: per RFC 9112 a body is signaled by Content-Length
+			// or Transfer-Encoding, and a Trailer only applies to a chunked
+			// body, so all of them must go once the body is gone.
+			if !req.Header.IsGet() && !req.Header.IsHead() {
+				req.Header.SetMethod(MethodGet)
+			}
+			req.Header.Del(HeaderContentLength)
+			req.Header.Del(HeaderContentType)
+			req.Header.Del(HeaderTransferEncoding)
+			req.Header.Del(HeaderTrailer)
+			req.ResetBody()
+			req.postArgs.Reset()
+			req.parsedPostArgs = false
+		case req.Header.IsPost() && (statusCode == StatusMovedPermanently || statusCode == StatusFound):
+			// RFC 9110 sections 15.4.2/15.4.3 Note: for historical reasons a
+			// user agent MAY change the request method from POST to GET for a
+			// 301 (Moved Permanently) or 302 (Found) response.
 			req.Header.SetMethod(MethodGet)
 		}
 	}
@@ -1178,14 +1252,91 @@ func doRequestFollowRedirects(
 	return statusCode, body, err
 }
 
-func getRedirectURL(baseURL string, location []byte, disablePathNormalizing bool) string {
-	u := AcquireURI()
-	u.Update(baseURL)
-	u.UpdateBytes(location)
-	u.DisablePathNormalizing = disablePathNormalizing
-	redirectURL := u.String()
-	ReleaseURI(u)
-	return redirectURL
+func getRedirectURL(baseURL string, location []byte, disablePathNormalizing bool, dst *URI) string {
+	dst.Update(baseURL)
+	dst.UpdateBytes(location)
+	dst.DisablePathNormalizing = disablePathNormalizing
+	return dst.String()
+}
+
+// Redirect handling reuses the original Request, so sensitive request
+// headers must be cleared before following redirects that net/http treats
+// as untrusted.
+func stripSensitiveHeadersOnRedirect(req *Request, initialHost []byte, redirectURI *URI) {
+	if !shouldStripSensitiveHeadersOnRedirect(initialHost, redirectURI.Host()) {
+		return
+	}
+
+	req.Header.Del(HeaderAuthorization)
+	req.Header.Del(HeaderCookie)
+	req.Header.Del(HeaderCookie2) // Match net/http behavior.
+	req.Header.Del(HeaderProxyAuthenticate)
+	req.Header.Del(HeaderProxyAuthorization)
+	req.Header.Del(HeaderWWWAuthenticate)
+}
+
+// shouldStripSensitiveHeadersOnRedirect defines the trust boundary for
+// caller-supplied credentials during redirect handling.
+//
+// net/http forwards sensitive headers only to trusted redirect targets and
+// documents that policy in the Client redirect handling:
+// https://github.com/golang/go/blob/go1.24.1/src/net/http/client.go#L41-L49
+// https://github.com/golang/go/blob/go1.24.1/src/net/http/client.go#L1005-L1021
+//
+// Match that behavior here by anchoring the trust decision to the initial
+// request host, ignoring ports and scheme, and allowing exact-host or
+// subdomain redirects to keep caller-supplied credentials.
+func shouldStripSensitiveHeadersOnRedirect(initialHost, redirectHostPort []byte) bool {
+	return !isDomainOrSubdomainBytes(hostnameFromHostPortBytes(redirectHostPort), initialHost)
+}
+
+func hostnameFromURLString(url string) []byte {
+	_, host, _ := splitHostURI(nil, s2b(url))
+	if n := bytes.LastIndexByte(host, '@'); n >= 0 {
+		host = host[n+1:]
+	}
+	return hostnameFromHostPortBytes(host)
+}
+
+func hostnameFromHostPortBytes(hostPort []byte) []byte {
+	host, _ := splitHostPortBytes(hostPort)
+	if len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']' {
+		return host[1 : len(host)-1]
+	}
+	return host
+}
+
+func isDomainOrSubdomainBytes(sub, parent []byte) bool {
+	if bytes.EqualFold(sub, parent) {
+		return true
+	}
+	if len(sub) <= len(parent) || bytes.IndexByte(sub, ':') >= 0 || bytes.IndexByte(sub, '%') >= 0 {
+		return false
+	}
+	if !bytes.EqualFold(sub[len(sub)-len(parent):], parent) {
+		return false
+	}
+	return sub[len(sub)-len(parent)-1] == '.'
+}
+
+func splitHostPortBytes(hostPort []byte) ([]byte, []byte) {
+	if len(hostPort) == 0 {
+		return hostPort, nil
+	}
+
+	if hostPort[0] == '[' {
+		n := bytes.LastIndexByte(hostPort, ']')
+		if n >= 0 && n+1 < len(hostPort) && hostPort[n+1] == ':' {
+			return hostPort[:n+1], hostPort[n+2:]
+		}
+		return hostPort, nil
+	}
+
+	n := bytes.LastIndexByte(hostPort, ':')
+	if n < 0 || bytes.IndexByte(hostPort[:n], ':') >= 0 {
+		return hostPort, nil
+	}
+	return hostPort[:n], hostPort[n+1:]
 }
 
 // StatusCodeIsRedirect returns true if the status code indicates a redirect.
@@ -1393,9 +1544,16 @@ func (c *HostClient) Do(req *Request, resp *Response) error {
 		if attempts >= maxAttempts {
 			break
 		}
-		if c.RetryIfErr != nil {
+		switch {
+		case c.RetryIfErrUpstream != nil:
+			upstream := ""
+			if resp.RemoteAddr() != nil {
+				upstream = resp.RemoteAddr().String()
+			}
+			resetTimeout, retry = c.RetryIfErrUpstream(req, attempts, err, upstream)
+		case c.RetryIfErr != nil:
 			resetTimeout, retry = c.RetryIfErr(req, attempts, err)
-		} else {
+		default:
 			retry = retryFunc(req)
 		}
 		if !retry {
@@ -1620,7 +1778,6 @@ func (c *HostClient) AcquireConn(reqTimeout time.Duration, connectionClose bool)
 		case <-w.ready:
 			return w.conn, w.err
 		case <-tc.C:
-			c.connsWait.failedWaiters.Add(1)
 			if timeoutOverridden {
 				return nil, ErrTimeout
 			}
@@ -1758,7 +1915,7 @@ func (c *HostClient) decConnsCount() {
 	c.connsLock.Lock()
 	defer c.connsLock.Unlock()
 	dialed := false
-	if q := c.connsWait; q != nil && q.len() > 0 {
+	if q := c.connsWait; q != nil {
 		for q.len() > 0 {
 			w := q.popFront()
 			if w.waiting() {
@@ -1766,7 +1923,6 @@ func (c *HostClient) decConnsCount() {
 				dialed = true
 				break
 			}
-			c.connsWait.failedWaiters.Add(-1)
 		}
 	}
 	if !dialed {
@@ -1780,6 +1936,14 @@ func (c *HostClient) ConnsCount() int {
 	defer c.connsLock.Unlock()
 
 	return c.connsCount
+}
+
+// IdleConnsCount returns idle connection count of HostClient.
+func (c *HostClient) IdleConnsCount() int {
+	c.connsLock.Lock()
+	defer c.connsLock.Unlock()
+
+	return len(c.conns)
 }
 
 func acquireClientConn(conn net.Conn) *clientConn {
@@ -1814,7 +1978,7 @@ func (c *HostClient) ReleaseConn(cc *clientConn) {
 	c.connsLock.Lock()
 	defer c.connsLock.Unlock()
 	delivered := false
-	if q := c.connsWait; q != nil && q.len() > 0 {
+	if q := c.connsWait; q != nil {
 		for q.len() > 0 {
 			w := q.popFront()
 			if w.waiting() {
@@ -1831,7 +1995,6 @@ func (c *HostClient) ReleaseConn(cc *clientConn) {
 					break
 				}
 			}
-			c.connsWait.failedWaiters.Add(-1)
 		}
 	}
 	if !delivered {
@@ -1895,7 +2058,7 @@ func (c *HostClient) ReleaseReader(br *bufio.Reader) {
 	}
 }
 
-func newClientTLSConfig(c *tls.Config, addr string) *tls.Config {
+func newClientTLSConfig(c *tls.Config, addr string) (*tls.Config, error) {
 	if c == nil {
 		c = &tls.Config{}
 	} else {
@@ -1903,25 +2066,27 @@ func newClientTLSConfig(c *tls.Config, addr string) *tls.Config {
 	}
 
 	if c.ServerName == "" {
-		serverName := tlsServerName(addr)
-		if serverName == "*" {
-			c.InsecureSkipVerify = true
-		} else {
-			c.ServerName = serverName
+		serverName, err := tlsServerName(addr)
+		if err != nil {
+			if c.InsecureSkipVerify {
+				return c, nil
+			}
+			return nil, fmt.Errorf("cannot determine TLS server name from addr %q: %w", addr, err)
 		}
+		c.ServerName = serverName
 	}
-	return c
+	return c, nil
 }
 
-func tlsServerName(addr string) string {
+func tlsServerName(addr string) (string, error) {
 	if !strings.Contains(addr, ":") {
-		return addr
+		return addr, nil
 	}
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		return "*"
+		return "", err
 	}
-	return host
+	return host, nil
 }
 
 func (c *HostClient) nextAddr() string {
@@ -1959,7 +2124,14 @@ func (c *HostClient) dialHostHard(dialTimeout time.Duration) (conn net.Conn, err
 	deadline := time.Now().Add(timeout)
 	for n > 0 {
 		addr := c.nextAddr()
-		tlsConfig := c.cachedTLSConfig(addr)
+		var tlsConfig *tls.Config
+		if c.IsTLS {
+			tlsConfig, err = c.cachedTLSConfig(addr)
+			if err != nil {
+				n--
+				continue
+			}
+		}
 		conn, err = dialAddr(addr, c.Dial, c.DialTimeout, c.DialDualStack, c.IsTLS, tlsConfig, dialTimeout, c.WriteTimeout)
 		if err == nil {
 			return conn, nil
@@ -1972,23 +2144,24 @@ func (c *HostClient) dialHostHard(dialTimeout time.Duration) (conn net.Conn, err
 	return nil, err
 }
 
-func (c *HostClient) cachedTLSConfig(addr string) *tls.Config {
-	if !c.IsTLS {
-		return nil
-	}
-
+func (c *HostClient) cachedTLSConfig(addr string) (*tls.Config, error) {
 	c.tlsConfigMapLock.Lock()
 	if c.tlsConfigMap == nil {
 		c.tlsConfigMap = make(map[string]*tls.Config)
 	}
 	cfg := c.tlsConfigMap[addr]
 	if cfg == nil {
-		cfg = newClientTLSConfig(c.TLSConfig, addr)
+		var err error
+		cfg, err = newClientTLSConfig(c.TLSConfig, addr)
+		if err != nil {
+			c.tlsConfigMapLock.Unlock()
+			return nil, err
+		}
 		c.tlsConfigMap[addr] = cfg
 	}
 	c.tlsConfigMapLock.Unlock()
 
-	return cfg
+	return cfg, nil
 }
 
 // ErrTLSHandshakeTimeout indicates there is a timeout from tls handshake.
@@ -2173,17 +2346,11 @@ type wantConnQueue struct {
 	head    []*wantConn
 	tail    []*wantConn
 	headPos int
-	// failedWaiters is the number of waiters in the head or tail queue,
-	// but is invalid.
-	// These state waiters cannot truly be considered as waiters; the current
-	// implementation does not immediately remove them when they become
-	// invalid but instead only marks them.
-	failedWaiters atomic.Int64
 }
 
 // len returns the number of items in the queue.
 func (q *wantConnQueue) len() int {
-	return len(q.head) - q.headPos + len(q.tail) - int(q.failedWaiters.Load())
+	return len(q.head) - q.headPos + len(q.tail)
 }
 
 // pushBack adds w to the back of the queue.
@@ -2227,7 +2394,6 @@ func (q *wantConnQueue) clearFront() (cleaned bool) {
 			return cleaned
 		}
 		q.popFront()
-		q.failedWaiters.Add(-1)
 		cleaned = true
 	}
 }
@@ -2368,10 +2534,9 @@ type pipelineConnClient struct {
 
 	Dial      DialFunc
 	TLSConfig *tls.Config
-	chW       chan *pipelineWork
-	chR       chan *pipelineWork
 
 	tlsConfig *tls.Config
+	chs       *pipelineConnChannels
 
 	Addr                string
 	Name                string
@@ -2391,6 +2556,12 @@ type pipelineConnClient struct {
 	DisableHeaderNamesNormalizing bool
 	DisablePathNormalizing        bool
 	IsTLS                         bool
+}
+
+type pipelineConnChannels struct {
+	chW   chan *pipelineWork
+	chR   chan *pipelineWork
+	users int
 }
 
 type pipelineWork struct {
@@ -2443,12 +2614,16 @@ func (c *PipelineClient) DoDeadline(req *Request, resp *Response, deadline time.
 }
 
 func (c *pipelineConnClient) DoDeadline(req *Request, resp *Response, deadline time.Time) error {
-	c.init()
-
 	timeout := time.Until(deadline)
 	if timeout <= 0 {
 		return ErrTimeout
 	}
+	if err := c.ensureTLSConfig(); err != nil {
+		return err
+	}
+
+	chs := c.acquirePipelineConnChannels()
+	defer c.releasePipelineConnChannels(chs)
 
 	if c.DisablePathNormalizing {
 		req.URI().DisablePathNormalizing = true
@@ -2476,12 +2651,12 @@ func (c *pipelineConnClient) DoDeadline(req *Request, resp *Response, deadline t
 
 	// Put the request to outgoing queue
 	select {
-	case c.chW <- w:
+	case chs.chW <- w:
 		// Fast path: len(c.ch) < cap(c.ch)
 	default:
 		// Slow path
 		select {
-		case c.chW <- w:
+		case chs.chW <- w:
 		case <-w.t.C:
 			c.releasePipelineWork(w)
 			return ErrTimeout
@@ -2555,7 +2730,12 @@ func (c *PipelineClient) Do(req *Request, resp *Response) error {
 }
 
 func (c *pipelineConnClient) Do(req *Request, resp *Response) error {
-	c.init()
+	if err := c.ensureTLSConfig(); err != nil {
+		return err
+	}
+
+	chs := c.acquirePipelineConnChannels()
+	defer c.releasePipelineConnChannels(chs)
 
 	if c.DisablePathNormalizing {
 		req.URI().DisablePathNormalizing = true
@@ -2583,17 +2763,17 @@ func (c *pipelineConnClient) Do(req *Request, resp *Response) error {
 
 	// Put the request to outgoing queue
 	select {
-	case c.chW <- w:
+	case chs.chW <- w:
 	default:
 		// Try substituting the oldest w with the current one.
 		select {
-		case wOld := <-c.chW:
+		case wOld := <-chs.chW:
 			wOld.err = ErrPipelineOverflow
 			wOld.done <- struct{}{}
 		default:
 		}
 		select {
-		case c.chW <- w:
+		case chs.chW <- w:
 		default:
 			c.releasePipelineWork(w)
 			return ErrPipelineOverflow
@@ -2681,47 +2861,66 @@ var ErrPipelineOverflow = errors.New("pipelined requests' queue has been overflo
 // for PipelineClient.MaxPendingRequests.
 const DefaultMaxPendingRequests = 1024
 
-func (c *pipelineConnClient) init() {
+func (c *pipelineConnClient) acquirePipelineConnChannels() *pipelineConnChannels {
 	c.chLock.Lock()
-	if c.chR == nil {
+	chs := c.chs
+	if chs == nil {
 		maxPendingRequests := c.MaxPendingRequests
 		if maxPendingRequests <= 0 {
 			maxPendingRequests = DefaultMaxPendingRequests
 		}
-		c.chR = make(chan *pipelineWork, maxPendingRequests)
-		if c.chW == nil {
-			c.chW = make(chan *pipelineWork, maxPendingRequests)
+		chs = &pipelineConnChannels{
+			chR: make(chan *pipelineWork, maxPendingRequests),
+			chW: make(chan *pipelineWork, maxPendingRequests),
 		}
-		go func() {
-			// Keep restarting the worker if it fails (connection errors for example).
-			for {
-				if err := c.worker(); err != nil {
-					c.logger().Printf("error in PipelineClient(%q): %v", c.Addr, err)
-					if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-						// Throttle client reconnections on timeout errors
-						time.Sleep(time.Second)
-					}
-				} else {
-					c.chLock.Lock()
-					stop := len(c.chR) == 0 && len(c.chW) == 0
-					if !stop {
-						c.chR = nil
-						c.chW = nil
-					}
-					c.chLock.Unlock()
-
-					if stop {
-						break
-					}
-				}
-			}
-		}()
+		c.chs = chs
+		go c.pipelineWorker(chs)
 	}
+	chs.users++
+	c.chLock.Unlock()
+	return chs
+}
+
+func (c *pipelineConnClient) releasePipelineConnChannels(chs *pipelineConnChannels) {
+	c.chLock.Lock()
+	chs.users--
 	c.chLock.Unlock()
 }
 
-func (c *pipelineConnClient) worker() error {
-	tlsConfig := c.cachedTLSConfig()
+func (c *pipelineConnClient) pipelineWorker(chs *pipelineConnChannels) {
+	// Keep restarting the worker if it fails (connection errors for example).
+	for {
+		if err := c.worker(chs); err != nil {
+			c.logger().Printf("error in PipelineClient(%q): %v", c.Addr, err)
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				// Throttle client reconnections on timeout errors
+				time.Sleep(time.Second)
+			}
+		} else if c.tryRetirePipelineConnChannels(chs) {
+			return
+		}
+	}
+}
+
+func (c *pipelineConnClient) tryRetirePipelineConnChannels(chs *pipelineConnChannels) bool {
+	c.chLock.Lock()
+	stop := c.chs == chs && chs.users == 0 && len(chs.chR) == 0 && len(chs.chW) == 0
+	if stop {
+		c.chs = nil
+	}
+	c.chLock.Unlock()
+	return stop
+}
+
+func (c *pipelineConnClient) worker(chs *pipelineConnChannels) error {
+	var tlsConfig *tls.Config
+	if c.IsTLS {
+		var err error
+		tlsConfig, err = c.cachedTLSConfig()
+		if err != nil {
+			return err
+		}
+	}
 	conn, err := dialAddr(c.Addr, c.Dial, nil, c.DialDualStack, c.IsTLS, tlsConfig, 0, c.WriteTimeout)
 	if err != nil {
 		return err
@@ -2731,12 +2930,12 @@ func (c *pipelineConnClient) worker() error {
 	stopW := make(chan struct{})
 	doneW := make(chan error)
 	go func() {
-		doneW <- c.writer(conn, stopW)
+		doneW <- c.writer(conn, stopW, chs)
 	}()
 	stopR := make(chan struct{})
 	doneR := make(chan error)
 	go func() {
-		doneR <- c.reader(conn, stopR)
+		doneR <- c.reader(conn, stopR, chs)
 	}()
 
 	// Wait until reader and writer are stopped
@@ -2752,8 +2951,8 @@ func (c *pipelineConnClient) worker() error {
 	}
 
 	// Notify pending readers
-	for len(c.chR) > 0 {
-		w := <-c.chR
+	for len(chs.chR) > 0 {
+		w := <-chs.chR
 		w.err = errPipelineConnStopped
 		w.done <- struct{}{}
 	}
@@ -2761,31 +2960,40 @@ func (c *pipelineConnClient) worker() error {
 	return err
 }
 
-func (c *pipelineConnClient) cachedTLSConfig() *tls.Config {
-	if !c.IsTLS {
-		return nil
-	}
-
+func (c *pipelineConnClient) cachedTLSConfig() (*tls.Config, error) {
 	c.tlsConfigLock.Lock()
 	cfg := c.tlsConfig
 	if cfg == nil {
-		cfg = newClientTLSConfig(c.TLSConfig, c.Addr)
+		var err error
+		cfg, err = newClientTLSConfig(c.TLSConfig, c.Addr)
+		if err != nil {
+			c.tlsConfigLock.Unlock()
+			return nil, err
+		}
 		c.tlsConfig = cfg
 	}
 	c.tlsConfigLock.Unlock()
 
-	return cfg
+	return cfg, nil
 }
 
-func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}) error {
+func (c *pipelineConnClient) ensureTLSConfig() error {
+	if !c.IsTLS {
+		return nil
+	}
+	_, err := c.cachedTLSConfig()
+	return err
+}
+
+func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}, chs *pipelineConnChannels) error {
 	writeBufferSize := c.WriteBufferSize
 	if writeBufferSize <= 0 {
 		writeBufferSize = defaultWriteBufferSize
 	}
 	bw := bufio.NewWriterSize(conn, writeBufferSize)
 	defer bw.Flush()
-	chR := c.chR
-	chW := c.chW
+	chR := chs.chR
+	chW := chs.chW
 	writeTimeout := c.WriteTimeout
 
 	maxIdleConnDuration := c.MaxIdleConnDuration
@@ -2815,7 +3023,10 @@ func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}) error
 			select {
 			case w = <-chW:
 			case <-stopTimer.C:
-				return nil
+				if c.canStopPipelineConn(chs) {
+					return nil
+				}
+				goto againChW
 			case <-stopCh:
 				return nil
 			case <-flushTimerCh:
@@ -2884,13 +3095,20 @@ func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}) error
 	}
 }
 
-func (c *pipelineConnClient) reader(conn net.Conn, stopCh <-chan struct{}) error {
+func (c *pipelineConnClient) canStopPipelineConn(chs *pipelineConnChannels) bool {
+	c.chLock.Lock()
+	canStop := c.chs == chs && chs.users == 0
+	c.chLock.Unlock()
+	return canStop && len(chs.chR) == 0 && len(chs.chW) == 0
+}
+
+func (c *pipelineConnClient) reader(conn net.Conn, stopCh <-chan struct{}, chs *pipelineConnChannels) error {
 	readBufferSize := c.ReadBufferSize
 	if readBufferSize <= 0 {
 		readBufferSize = defaultReadBufferSize
 	}
 	br := bufio.NewReaderSize(conn, readBufferSize)
-	chR := c.chR
+	chR := chs.chR
 	readTimeout := c.ReadTimeout
 
 	var (
@@ -2957,10 +3175,11 @@ func (c *PipelineClient) PendingRequests() int {
 }
 
 func (c *pipelineConnClient) PendingRequests() int {
-	c.init()
+	chs := c.acquirePipelineConnChannels()
+	defer c.releasePipelineConnChannels(chs)
 
 	c.chLock.Lock()
-	n := len(c.chR) + len(c.chW)
+	n := len(chs.chR) + len(chs.chW)
 	c.chLock.Unlock()
 	return n
 }
@@ -3062,7 +3281,11 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	closeConn := resetConnection || req.ConnectionClose() || resp.ConnectionClose()
 	if customStreamBody && resp.bodyStream != nil {
 		rbs := resp.bodyStream
+		var closed atomic.Bool
 		resp.bodyStream = newCloseReaderWithError(rbs, func(wErr error) error {
+			if !closed.CompareAndSwap(false, true) {
+				return nil
+			}
 			hc.ReleaseReader(br)
 			if r, ok := rbs.(*requestStream); ok {
 				releaseRequestStream(r)

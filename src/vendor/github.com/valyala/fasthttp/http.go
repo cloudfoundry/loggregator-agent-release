@@ -12,21 +12,22 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/valyala/bytebufferpool"
 )
 
 var (
-	requestBodyPoolSizeLimit  = -1
-	responseBodyPoolSizeLimit = -1
+	requestBodyPoolSizeLimit  int64 = -1
+	responseBodyPoolSizeLimit int64 = -1
 )
 
 // SetBodySizePoolLimit set the max body size for bodies to be returned to the pool.
 // If the body size is larger it will be released instead of put back into the pool for reuse.
 func SetBodySizePoolLimit(reqBodyLimit, respBodyLimit int) {
-	requestBodyPoolSizeLimit = reqBodyLimit
-	responseBodyPoolSizeLimit = respBodyLimit
+	atomic.StoreInt64(&requestBodyPoolSizeLimit, int64(reqBodyLimit))
+	atomic.StoreInt64(&responseBodyPoolSizeLimit, int64(respBodyLimit))
 }
 
 // Request represents HTTP request.
@@ -492,7 +493,15 @@ var (
 // 'Content-Encoding: gzip' for reading un-gzipped body.
 // Use Body for reading gzipped request body.
 func (req *Request) BodyGunzip() ([]byte, error) {
-	return gunzipData(req.Body())
+	return req.BodyGunzipWithLimit(0)
+}
+
+// BodyGunzipWithLimit returns un-gzipped body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (req *Request) BodyGunzipWithLimit(maxBodySize int) ([]byte, error) {
+	return gunzipData(req.Body(), maxBodySize)
 }
 
 // BodyGunzip returns un-gzipped body data.
@@ -501,12 +510,20 @@ func (req *Request) BodyGunzip() ([]byte, error) {
 // 'Content-Encoding: gzip' for reading un-gzipped body.
 // Use Body for reading gzipped response body.
 func (resp *Response) BodyGunzip() ([]byte, error) {
-	return gunzipData(resp.Body())
+	return resp.BodyGunzipWithLimit(0)
 }
 
-func gunzipData(p []byte) ([]byte, error) {
+// BodyGunzipWithLimit returns un-gzipped body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (resp *Response) BodyGunzipWithLimit(maxBodySize int) ([]byte, error) {
+	return gunzipData(resp.Body(), maxBodySize)
+}
+
+func gunzipData(p []byte, maxBodySize int) ([]byte, error) {
 	var bb bytebufferpool.ByteBuffer
-	_, err := WriteGunzip(&bb, p)
+	_, err := writeGunzip(&bb, p, maxBodySize)
 	if err != nil {
 		return nil, err
 	}
@@ -519,7 +536,15 @@ func gunzipData(p []byte) ([]byte, error) {
 // 'Content-Encoding: br' for reading un-brotlied body.
 // Use Body for reading brotlied request body.
 func (req *Request) BodyUnbrotli() ([]byte, error) {
-	return unBrotliData(req.Body())
+	return req.BodyUnbrotliWithLimit(0)
+}
+
+// BodyUnbrotliWithLimit returns un-brotlied body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (req *Request) BodyUnbrotliWithLimit(maxBodySize int) ([]byte, error) {
+	return unBrotliData(req.Body(), maxBodySize)
 }
 
 // BodyUnbrotli returns un-brotlied body data.
@@ -528,12 +553,20 @@ func (req *Request) BodyUnbrotli() ([]byte, error) {
 // 'Content-Encoding: br' for reading un-brotlied body.
 // Use Body for reading brotlied response body.
 func (resp *Response) BodyUnbrotli() ([]byte, error) {
-	return unBrotliData(resp.Body())
+	return resp.BodyUnbrotliWithLimit(0)
 }
 
-func unBrotliData(p []byte) ([]byte, error) {
+// BodyUnbrotliWithLimit returns un-brotlied body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (resp *Response) BodyUnbrotliWithLimit(maxBodySize int) ([]byte, error) {
+	return unBrotliData(resp.Body(), maxBodySize)
+}
+
+func unBrotliData(p []byte, maxBodySize int) ([]byte, error) {
 	var bb bytebufferpool.ByteBuffer
-	_, err := WriteUnbrotli(&bb, p)
+	_, err := writeUnbrotli(&bb, p, maxBodySize)
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +579,15 @@ func unBrotliData(p []byte) ([]byte, error) {
 // 'Content-Encoding: deflate' for reading inflated request body.
 // Use Body for reading deflated request body.
 func (req *Request) BodyInflate() ([]byte, error) {
-	return inflateData(req.Body())
+	return req.BodyInflateWithLimit(0)
+}
+
+// BodyInflateWithLimit returns inflated body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (req *Request) BodyInflateWithLimit(maxBodySize int) ([]byte, error) {
+	return inflateData(req.Body(), maxBodySize)
 }
 
 // BodyInflate returns inflated body data.
@@ -555,7 +596,15 @@ func (req *Request) BodyInflate() ([]byte, error) {
 // 'Content-Encoding: deflate' for reading inflated response body.
 // Use Body for reading deflated response body.
 func (resp *Response) BodyInflate() ([]byte, error) {
-	return inflateData(resp.Body())
+	return resp.BodyInflateWithLimit(0)
+}
+
+// BodyInflateWithLimit returns inflated body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (resp *Response) BodyInflateWithLimit(maxBodySize int) ([]byte, error) {
+	return inflateData(resp.Body(), maxBodySize)
 }
 
 func (ctx *RequestCtx) RequestBodyStream() io.Reader {
@@ -563,25 +612,41 @@ func (ctx *RequestCtx) RequestBodyStream() io.Reader {
 }
 
 func (req *Request) BodyUnzstd() ([]byte, error) {
-	return unzstdData(req.Body())
+	return req.BodyUnzstdWithLimit(0)
+}
+
+// BodyUnzstdWithLimit returns un-zstd body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (req *Request) BodyUnzstdWithLimit(maxBodySize int) ([]byte, error) {
+	return unzstdData(req.Body(), maxBodySize)
 }
 
 func (resp *Response) BodyUnzstd() ([]byte, error) {
-	return unzstdData(resp.Body())
+	return resp.BodyUnzstdWithLimit(0)
 }
 
-func unzstdData(p []byte) ([]byte, error) {
+// BodyUnzstdWithLimit returns un-zstd body data and limits the size
+// of uncompressed body data to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (resp *Response) BodyUnzstdWithLimit(maxBodySize int) ([]byte, error) {
+	return unzstdData(resp.Body(), maxBodySize)
+}
+
+func unzstdData(p []byte, maxBodySize int) ([]byte, error) {
 	var bb bytebufferpool.ByteBuffer
-	_, err := WriteUnzstd(&bb, p)
+	_, err := writeUnzstd(&bb, p, maxBodySize)
 	if err != nil {
 		return nil, err
 	}
 	return bb.B, nil
 }
 
-func inflateData(p []byte) ([]byte, error) {
+func inflateData(p []byte, maxBodySize int) ([]byte, error) {
 	var bb bytebufferpool.ByteBuffer
-	_, err := WriteInflate(&bb, p)
+	_, err := writeInflate(&bb, p, maxBodySize)
 	if err != nil {
 		return nil, err
 	}
@@ -590,45 +655,63 @@ func inflateData(p []byte) ([]byte, error) {
 
 var ErrContentEncodingUnsupported = errors.New("unsupported Content-Encoding")
 
-// BodyUncompressed returns body data and if needed decompress it from gzip, deflate or Brotli.
+// BodyUncompressed returns body data and if needed decompresses it from gzip,
+// deflate, brotli or zstd.
 //
 // This method may be used if the response header contains
 // 'Content-Encoding' for reading uncompressed request body.
 // Use Body for reading the raw request body.
 func (req *Request) BodyUncompressed() ([]byte, error) {
+	return req.BodyUncompressedWithLimit(0)
+}
+
+// BodyUncompressedWithLimit returns body data and if needed decompresses it from gzip,
+// deflate, brotli or zstd. The size of uncompressed data is limited to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (req *Request) BodyUncompressedWithLimit(maxBodySize int) ([]byte, error) {
 	switch string(req.Header.ContentEncoding()) {
 	case "":
 		return req.Body(), nil
 	case "deflate":
-		return req.BodyInflate()
+		return req.BodyInflateWithLimit(maxBodySize)
 	case "gzip":
-		return req.BodyGunzip()
+		return req.BodyGunzipWithLimit(maxBodySize)
 	case "br":
-		return req.BodyUnbrotli()
+		return req.BodyUnbrotliWithLimit(maxBodySize)
 	case "zstd":
-		return req.BodyUnzstd()
+		return req.BodyUnzstdWithLimit(maxBodySize)
 	default:
 		return nil, ErrContentEncodingUnsupported
 	}
 }
 
-// BodyUncompressed returns body data and if needed decompress it from gzip, deflate or Brotli.
+// BodyUncompressed returns body data and if needed decompresses it from gzip,
+// deflate, brotli or zstd.
 //
 // This method may be used if the response header contains
 // 'Content-Encoding' for reading uncompressed response body.
 // Use Body for reading the raw response body.
 func (resp *Response) BodyUncompressed() ([]byte, error) {
+	return resp.BodyUncompressedWithLimit(0)
+}
+
+// BodyUncompressedWithLimit returns body data and if needed decompresses it from gzip,
+// deflate, brotli or zstd. The size of uncompressed data is limited to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+func (resp *Response) BodyUncompressedWithLimit(maxBodySize int) ([]byte, error) {
 	switch string(resp.Header.ContentEncoding()) {
 	case "":
 		return resp.Body(), nil
 	case "deflate":
-		return resp.BodyInflate()
+		return resp.BodyInflateWithLimit(maxBodySize)
 	case "gzip":
-		return resp.BodyGunzip()
+		return resp.BodyGunzipWithLimit(maxBodySize)
 	case "br":
-		return resp.BodyUnbrotli()
+		return resp.BodyUnbrotliWithLimit(maxBodySize)
 	case "zstd":
-		return resp.BodyUnzstd()
+		return resp.BodyUnzstdWithLimit(maxBodySize)
 	default:
 		return nil, ErrContentEncodingUnsupported
 	}
@@ -1009,9 +1092,26 @@ var ErrNoMultipartForm = errors.New("request Content-Type has bad boundary or is
 // Returns ErrNoMultipartForm if request's Content-Type
 // isn't 'multipart/form-data'.
 //
+// This method is equivalent to MultipartFormWithLimit(0), i.e. no body size
+// limit is applied during multipart parsing.
+//
 // RemoveMultipartFormFiles must be called after returned multipart form
 // is processed.
 func (req *Request) MultipartForm() (*multipart.Form, error) {
+	return req.MultipartFormWithLimit(0)
+}
+
+// MultipartFormWithLimit returns request's multipart form and limits the
+// read multipart body size to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+//
+// Returns ErrNoMultipartForm if request's Content-Type
+// isn't 'multipart/form-data'.
+//
+// RemoveMultipartFormFiles must be called after returned multipart form
+// is processed.
+func (req *Request) MultipartFormWithLimit(maxBodySize int) (*multipart.Form, error) {
 	if req.multipartForm != nil {
 		return req.multipartForm, nil
 	}
@@ -1026,29 +1126,45 @@ func (req *Request) MultipartForm() (*multipart.Form, error) {
 
 	if req.bodyStream != nil {
 		bodyStream := req.bodyStream
+		var lr *io.LimitedReader
 		if bytes.Equal(ce, strGzip) {
-			// Do not care about memory usage here.
 			if bodyStream, err = gzip.NewReader(bodyStream); err != nil {
 				return nil, fmt.Errorf("cannot gunzip request body: %w", err)
 			}
 		} else if len(ce) > 0 {
 			return nil, fmt.Errorf("unsupported Content-Encoding: %q", ce)
 		}
+		if maxBodySize > 0 {
+			lr = &io.LimitedReader{
+				R: bodyStream,
+				N: int64(maxBodySize) + 1,
+			}
+			bodyStream = lr
+		}
 
 		mr := multipart.NewReader(bodyStream, req.multipartFormBoundary)
 		req.multipartForm, err = mr.ReadForm(8 * 1024)
 		if err != nil {
+			if lr != nil && lr.N <= 0 {
+				return nil, fmt.Errorf("cannot read multipart/form-data body: %w", ErrBodyTooLarge)
+			}
 			return nil, fmt.Errorf("cannot read multipart/form-data body: %w", err)
+		}
+		if lr != nil && lr.N <= 0 {
+			req.RemoveMultipartFormFiles()
+			return nil, fmt.Errorf("cannot read multipart/form-data body: %w", ErrBodyTooLarge)
 		}
 	} else {
 		body := req.bodyBytes()
 		if bytes.Equal(ce, strGzip) {
-			// Do not care about memory usage here.
-			if body, err = AppendGunzipBytes(nil, body); err != nil {
+			if body, err = gunzipData(body, maxBodySize); err != nil {
 				return nil, fmt.Errorf("cannot gunzip request body: %w", err)
 			}
 		} else if len(ce) > 0 {
 			return nil, fmt.Errorf("unsupported Content-Encoding: %q", ce)
+		}
+		if maxBodySize > 0 && len(body) > maxBodySize {
+			return nil, fmt.Errorf("cannot read multipart/form-data body: %w", ErrBodyTooLarge)
 		}
 
 		req.multipartForm, err = readMultipartForm(bytes.NewReader(body), req.multipartFormBoundary, len(body), len(body))
@@ -1139,8 +1255,8 @@ func readMultipartForm(r io.Reader, boundary string, size, maxInMemoryFileSize i
 // Reset clears request contents.
 func (req *Request) Reset() {
 	req.userValues.Reset() // it should be at the top, since some values might implement io.Closer interface
-	if requestBodyPoolSizeLimit >= 0 && req.body != nil {
-		req.ReleaseBody(requestBodyPoolSizeLimit)
+	if bodyPoolSizeLimit := int(atomic.LoadInt64(&requestBodyPoolSizeLimit)); bodyPoolSizeLimit >= 0 && req.body != nil {
+		req.ReleaseBody(bodyPoolSizeLimit)
 	}
 	req.Header.Reset()
 	req.resetSkipHeader()
@@ -1173,8 +1289,8 @@ func (req *Request) RemoveMultipartFormFiles() {
 
 // Reset clears response contents.
 func (resp *Response) Reset() {
-	if responseBodyPoolSizeLimit >= 0 && resp.body != nil {
-		resp.ReleaseBody(responseBodyPoolSizeLimit)
+	if bodyPoolSizeLimit := int(atomic.LoadInt64(&responseBodyPoolSizeLimit)); bodyPoolSizeLimit >= 0 && resp.body != nil {
+		resp.ReleaseBody(bodyPoolSizeLimit)
 	}
 	resp.resetSkipHeader()
 	resp.Header.Reset()
@@ -1339,7 +1455,10 @@ func (req *Request) ContinueReadBody(r *bufio.Reader, maxBodySize int, preParseM
 
 	if contentLength == -1 {
 		err = req.Header.ReadTrailer(r)
-		if err != nil && err != io.EOF {
+		if err != nil {
+			if err == io.EOF {
+				return ErrBrokenChunk{error: io.ErrUnexpectedEOF}
+			}
 			return err
 		}
 	}
@@ -1477,7 +1596,10 @@ func (resp *Response) ReadLimitBody(r *bufio.Reader, maxBodySize int) error {
 	// A response without a body can't have trailers.
 	if resp.Header.ContentLength() == -1 && !resp.StreamBody && !resp.mustSkipBody() {
 		err = resp.Header.ReadTrailer(r)
-		if err != nil && err != io.EOF {
+		if err != nil {
+			if err == io.EOF {
+				return ErrBrokenChunk{error: io.ErrUnexpectedEOF}
+			}
 			return err
 		}
 	}
@@ -1762,22 +1884,7 @@ func (resp *Response) brotliBody(level int) {
 
 		// Do not care about memory allocations here, since brotli is slow
 		// and allocates a lot of memory by itself.
-		bs := resp.bodyStream
-		resp.bodyStream = NewStreamReader(func(sw *bufio.Writer) {
-			zw := acquireStacklessBrotliWriter(sw, level)
-			fw := &flushWriter{
-				wf: zw,
-				bw: sw,
-			}
-			_, wErr := copyZeroAlloc(fw, bs)
-			releaseStacklessBrotliWriter(zw, level)
-			switch v := bs.(type) {
-			case io.Closer:
-				v.Close()
-			case ReadCloserWithError:
-				v.CloseWithError(wErr) //nolint:errcheck
-			}
-		})
+		resp.bodyStream = newCompressedBodyStream(resp.bodyStream, level, compressBrotliBodyStream)
 	} else {
 		bodyBytes := resp.bodyBytes()
 		if len(bodyBytes) < minCompressLen {
@@ -1820,22 +1927,7 @@ func (resp *Response) gzipBody(level int) {
 
 		// Do not care about memory allocations here, since gzip is slow
 		// and allocates a lot of memory by itself.
-		bs := resp.bodyStream
-		resp.bodyStream = NewStreamReader(func(sw *bufio.Writer) {
-			zw := acquireStacklessGzipWriter(sw, level)
-			fw := &flushWriter{
-				wf: zw,
-				bw: sw,
-			}
-			_, wErr := copyZeroAlloc(fw, bs)
-			releaseStacklessGzipWriter(zw, level)
-			switch v := bs.(type) {
-			case io.Closer:
-				v.Close()
-			case ReadCloserWithError:
-				v.CloseWithError(wErr) //nolint:errcheck
-			}
-		})
+		resp.bodyStream = newCompressedBodyStream(resp.bodyStream, level, compressGzipBodyStream)
 	} else {
 		bodyBytes := resp.bodyBytes()
 		if len(bodyBytes) < minCompressLen {
@@ -1878,22 +1970,7 @@ func (resp *Response) deflateBody(level int) {
 
 		// Do not care about memory allocations here, since flate is slow
 		// and allocates a lot of memory by itself.
-		bs := resp.bodyStream
-		resp.bodyStream = NewStreamReader(func(sw *bufio.Writer) {
-			zw := acquireStacklessDeflateWriter(sw, level)
-			fw := &flushWriter{
-				wf: zw,
-				bw: sw,
-			}
-			_, wErr := copyZeroAlloc(fw, bs)
-			releaseStacklessDeflateWriter(zw, level)
-			switch v := bs.(type) {
-			case io.Closer:
-				v.Close()
-			case ReadCloserWithError:
-				v.CloseWithError(wErr) //nolint:errcheck
-			}
-		})
+		resp.bodyStream = newCompressedBodyStream(resp.bodyStream, level, compressDeflateBodyStream)
 	} else {
 		bodyBytes := resp.bodyBytes()
 		if len(bodyBytes) < minCompressLen {
@@ -1933,22 +2010,7 @@ func (resp *Response) zstdBody(level int) {
 
 		// Do not care about memory allocations here, since flate is slow
 		// and allocates a lot of memory by itself.
-		bs := resp.bodyStream
-		resp.bodyStream = NewStreamReader(func(sw *bufio.Writer) {
-			zw := acquireStacklessZstdWriter(sw, level)
-			fw := &flushWriter{
-				wf: zw,
-				bw: sw,
-			}
-			_, wErr := copyZeroAlloc(fw, bs)
-			releaseStacklessZstdWriter(zw, level)
-			switch v := bs.(type) {
-			case io.Closer:
-				v.Close()
-			case ReadCloserWithError:
-				v.CloseWithError(wErr) //nolint:errcheck
-			}
-		})
+		resp.bodyStream = newCompressedBodyStream(resp.bodyStream, level, compressZstdBodyStream)
 	} else {
 		bodyBytes := resp.bodyBytes()
 		if len(bodyBytes) < minCompressLen {
@@ -1965,6 +2027,156 @@ func (resp *Response) zstdBody(level int) {
 	}
 	resp.Header.SetContentEncodingBytes(strZstd)
 	resp.Header.addVaryBytes(strAcceptEncoding)
+}
+
+type compressedBodyStream struct {
+	io.ReadCloser
+
+	bodyStream io.Reader
+	level      int
+	compress   compressBodyStream
+
+	done chan struct{}
+
+	closeReadOnce sync.Once
+	closeReadErr  error
+
+	originalLock   sync.Mutex
+	originalClosed bool
+	closeErr       error
+}
+
+func (s *compressedBodyStream) Close() error {
+	s.closeReadOnce.Do(func() {
+		s.closeReadErr = s.ReadCloser.Close()
+		if err := s.closeOriginalForDiscard(); s.closeReadErr == nil {
+			s.closeReadErr = err
+		}
+	})
+	err := s.closeReadErr
+	select {
+	case <-s.done:
+		if err == nil {
+			err = s.closeErr
+		}
+	default:
+	}
+	return err
+}
+
+func (s *compressedBodyStream) write(sw *bufio.Writer) {
+	s.closeErr = s.closeOriginal(s.compress(sw, s.bodyStream, s.level))
+	close(s.done)
+}
+
+func (s *compressedBodyStream) closeOriginal(wErr error) error {
+	s.originalLock.Lock()
+	defer s.originalLock.Unlock()
+
+	var err error
+	if !s.originalClosed {
+		if bsc, ok := s.bodyStream.(io.Closer); ok {
+			err = bsc.Close()
+		}
+		s.originalClosed = true
+	}
+	if bsc, ok := s.bodyStream.(ReadCloserWithError); ok {
+		if errc := bsc.CloseWithError(wErr); err == nil {
+			err = errc
+		}
+	}
+	if bsr, ok := s.bodyStream.(*requestStream); ok {
+		releaseRequestStream(bsr)
+	}
+	return err
+}
+
+func (s *compressedBodyStream) closeOriginalForDiscard() error {
+	s.originalLock.Lock()
+	defer s.originalLock.Unlock()
+
+	if s.originalClosed {
+		return nil
+	}
+	bsc, ok := s.bodyStream.(io.Closer)
+	if !ok {
+		return nil
+	}
+	s.originalClosed = true
+	return bsc.Close()
+}
+
+type compressBodyStream func(sw *bufio.Writer, bodyStream io.Reader, level int) error
+
+func newCompressedBodyStream(bodyStream io.Reader, level int, compress compressBodyStream) io.ReadCloser {
+	s := &compressedBodyStream{
+		bodyStream: bodyStream,
+		level:      level,
+		compress:   compress,
+		done:       make(chan struct{}),
+	}
+	s.ReadCloser = NewStreamReader(s.write)
+	return s
+}
+
+func compressBrotliBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int) error {
+	zw := acquireStacklessBrotliWriter(sw, level)
+	fw := &flushWriter{
+		wf: zw,
+		bw: sw,
+	}
+	_, wErr := copyZeroAlloc(fw, bodyStream)
+	releaseStacklessBrotliWriter(zw, level)
+	return wErr
+}
+
+func compressGzipBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int) error {
+	zw := acquireStacklessGzipWriter(sw, level)
+	fw := &flushWriter{
+		wf: zw,
+		bw: sw,
+	}
+	_, wErr := copyZeroAlloc(fw, bodyStream)
+	releaseStacklessGzipWriter(zw, level)
+	return wErr
+}
+
+func compressDeflateBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int) error {
+	zw := acquireStacklessDeflateWriter(sw, level)
+	fw := &flushWriter{
+		wf: zw,
+		bw: sw,
+	}
+	_, wErr := copyZeroAlloc(fw, bodyStream)
+	releaseStacklessDeflateWriter(zw, level)
+	return wErr
+}
+
+func compressZstdBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int) error {
+	zw := acquireStacklessZstdWriter(sw, level)
+	fw := &flushWriter{
+		wf: zw,
+		bw: sw,
+	}
+	_, wErr := copyZeroAlloc(fw, bodyStream)
+	releaseStacklessZstdWriter(zw, level)
+	return wErr
+}
+
+func closeBodyStreamReader(bodyStream io.Reader, wErr error) error {
+	var err error
+	if bsc, ok := bodyStream.(io.Closer); ok {
+		err = bsc.Close()
+	}
+	if bsc, ok := bodyStream.(ReadCloserWithError); ok {
+		if errc := bsc.CloseWithError(wErr); err == nil {
+			err = errc
+		}
+	}
+	if bsr, ok := bodyStream.(*requestStream); ok {
+		releaseRequestStream(bsr)
+	}
+	return err
 }
 
 // Bodies with sizes smaller than minCompressLen aren't compressed at all.
@@ -2139,16 +2351,7 @@ func (resp *Response) closeBodyStream(wErr error) error {
 	if resp.bodyStream == nil {
 		return nil
 	}
-	var err error
-	if bsc, ok := resp.bodyStream.(io.Closer); ok {
-		err = bsc.Close()
-	}
-	if bsc, ok := resp.bodyStream.(ReadCloserWithError); ok {
-		err = bsc.CloseWithError(wErr)
-	}
-	if bsr, ok := resp.bodyStream.(*requestStream); ok {
-		releaseRequestStream(bsr)
-	}
+	err := closeBodyStreamReader(resp.bodyStream, wErr)
 	resp.bodyStream = nil
 	return err
 }
@@ -2464,6 +2667,25 @@ func writeChunk(w *bufio.Writer, b []byte) error {
 // the given limit.
 var ErrBodyTooLarge = errors.New("body size exceeds the given limit")
 
+func copyZeroAllocWithLimit(w io.Writer, r io.Reader, maxBodySize int) (int64, error) {
+	if maxBodySize <= 0 {
+		return copyZeroAlloc(w, r)
+	}
+
+	lr := &io.LimitedReader{
+		R: r,
+		N: int64(maxBodySize) + 1,
+	}
+	n, err := copyZeroAlloc(w, lr)
+	if err != nil {
+		return n, err
+	}
+	if lr.N <= 0 {
+		return n, ErrBodyTooLarge
+	}
+	return n, nil
+}
+
 func readBody(r *bufio.Reader, contentLength, maxBodySize int, dst []byte) ([]byte, error) {
 	if maxBodySize > 0 && contentLength > maxBodySize {
 		return dst, ErrBodyTooLarge
@@ -2481,13 +2703,8 @@ func readBodyWithStreaming(r *bufio.Reader, contentLength, maxBodySize int, dst 
 
 	dst = dst[:0]
 
-	readN := maxBodySize
-	if readN > contentLength {
-		readN = contentLength
-	}
-	if readN > 8*1024 {
-		readN = 8 * 1024
-	}
+	readN := min(maxBodySize, contentLength)
+	readN = min(readN, 8*1024)
 
 	// A fixed-length pre-read function should be used here; otherwise,
 	// it may read content beyond the request body into areas outside
@@ -2614,6 +2831,8 @@ func parseChunkSize(r *bufio.Reader) (int, error) {
 	if err != nil {
 		return -1, err
 	}
+	inExt := false
+	afterSizeOWS := false
 	for {
 		c, err := r.ReadByte()
 		if err != nil {
@@ -2621,24 +2840,41 @@ func parseChunkSize(r *bufio.Reader) (int, error) {
 				error: fmt.Errorf("cannot read '\\r' char at the end of chunk size: %w", err),
 			}
 		}
-		// Skip chunk extension after chunk size.
-		// Add support later if anyone needs it.
-		if c != '\r' {
-			// Security: Don't allow newlines in chunk extensions.
-			// This can lead to request smuggling issues with some reverse proxies.
-			if c == '\n' {
+		if c == '\r' {
+			if err := r.UnreadByte(); err != nil {
 				return -1, ErrBrokenChunk{
-					error: errors.New("invalid character '\\n' after chunk size"),
+					error: fmt.Errorf("cannot unread '\\r' char at the end of chunk size: %w", err),
 				}
 			}
-			continue
+			break
 		}
-		if err := r.UnreadByte(); err != nil {
+		// Security: Don't allow newlines in chunk extensions.
+		// This can lead to request smuggling issues with some reverse proxies.
+		if c == '\n' {
 			return -1, ErrBrokenChunk{
-				error: fmt.Errorf("cannot unread '\\r' char at the end of chunk size: %w", err),
+				error: errors.New("invalid character '\\n' after chunk size"),
 			}
 		}
-		break
+		if inExt {
+			continue
+		}
+		switch c {
+		case ' ', '\t':
+			afterSizeOWS = true
+			continue
+		case ';':
+			if afterSizeOWS {
+				return -1, ErrBrokenChunk{
+					error: fmt.Errorf("invalid character %q after chunk size", c),
+				}
+			}
+			inExt = true
+			continue
+		default:
+			return -1, ErrBrokenChunk{
+				error: fmt.Errorf("invalid character %q after chunk size", c),
+			}
+		}
 	}
 	err = readCrLf(r)
 	if err != nil {

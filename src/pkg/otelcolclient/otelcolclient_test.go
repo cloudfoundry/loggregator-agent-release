@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"math"
+	"sync"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
@@ -20,6 +21,8 @@ import (
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -1056,6 +1059,169 @@ var _ = Describe("Client", func() {
 		})
 	})
 
+	Describe("retry behavior", func() {
+		var (
+			retryMSC    *spyMetricsServiceClient
+			retryLSC    *spyLogsServiceClient
+			retryTSC    *spyTraceServiceClient
+			retryW      *GRPCWriter
+			retryCancel context.CancelFunc
+		)
+
+		BeforeEach(func() {
+			retryMSC = &spyMetricsServiceClient{
+				requests: make(chan *colmetricspb.ExportMetricsServiceRequest, 10),
+				response: &colmetricspb.ExportMetricsServiceResponse{},
+			}
+			retryLSC = &spyLogsServiceClient{
+				requests: make(chan *collogspb.ExportLogsServiceRequest, 10),
+				response: &collogspb.ExportLogsServiceResponse{},
+			}
+			retryTSC = &spyTraceServiceClient{
+				requests: make(chan *coltracepb.ExportTraceServiceRequest, 10),
+				response: &coltracepb.ExportTraceServiceResponse{},
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			retryCancel = cancel
+			retryW = &GRPCWriter{
+				msc:               retryMSC,
+				tsc:               retryTSC,
+				lsc:               retryLSC,
+				ctx:               ctx,
+				cancel:            cancel,
+				l:                 log.New(GinkgoWriter, "", 0),
+				maxRetries:        3,
+				initialRetryDelay: time.Millisecond,
+				maxRetryDelay:     5 * time.Millisecond,
+				metricsRetry:      make(chan retryItem, 16),
+				logsRetry:         make(chan retryItem, 16),
+				tracesRetry:       make(chan retryItem, 16),
+			}
+		go retryW.runRetryWorker("metrics", retryW.metricsRetry)
+		go retryW.runRetryWorker("logs", retryW.logsRetry)
+		go retryW.runRetryWorker("traces", retryW.tracesRetry)
+		})
+
+		AfterEach(func() {
+			retryCancel()
+		})
+
+		Context("when a metrics export fails with a retryable error then succeeds on retry", func() {
+			BeforeEach(func() {
+				retryMSC.responseErrs = []error{
+					status.Error(codes.Unavailable, "collector temporarily unavailable"),
+					nil,
+				}
+			})
+
+			It("retries in the background and does not log a write error", func() {
+				retryW.WriteMetrics([]*metricspb.Metric{{Name: "test-metric"}})
+
+				Eventually(func() int {
+					retryMSC.mu.Lock()
+					defer retryMSC.mu.Unlock()
+					return retryMSC.exportCount
+				}).Should(Equal(2))
+				Expect(buf).NotTo(gbytes.Say("Write error"))
+			})
+		})
+
+		Context("when all retries are exhausted", func() {
+			BeforeEach(func() {
+				retryMSC.responseErr = status.Error(codes.Unavailable, "collector down")
+			})
+
+		It("logs a drop message after the final retry attempt", func() {
+			retryW.WriteMetrics([]*metricspb.Metric{{Name: "test-metric"}})
+			Eventually(buf).Should(gbytes.Say("Dropping metrics batch after.*collector down"))
+		})
+		})
+
+		Context("when the error is not retryable", func() {
+			BeforeEach(func() {
+				retryMSC.responseErr = status.Error(codes.InvalidArgument, "bad metric")
+			})
+
+			It("logs the error immediately without queuing a retry", func() {
+				retryW.WriteMetrics([]*metricspb.Metric{{Name: "test-metric"}})
+
+				retryMSC.mu.Lock()
+				count := retryMSC.exportCount
+				retryMSC.mu.Unlock()
+
+				Expect(count).To(Equal(1))
+				Expect(buf).To(gbytes.Say("Write error:.*bad metric"))
+			})
+		})
+
+		Context("when a logs export fails with ResourceExhausted", func() {
+			BeforeEach(func() {
+				retryLSC.responseErr = status.Error(codes.ResourceExhausted, "rate limited")
+			})
+
+			It("logs the error immediately without queuing a retry", func() {
+				retryW.WriteLogs([]*logspb.ResourceLogs{{}})
+
+				retryLSC.mu.Lock()
+				count := retryLSC.exportCount
+				retryLSC.mu.Unlock()
+
+				Expect(count).To(Equal(1))
+				Expect(buf).To(gbytes.Say("Write error:.*rate limited"))
+			})
+		})
+
+		Context("when a trace export fails with Aborted", func() {
+			BeforeEach(func() {
+				retryTSC.responseErr = status.Error(codes.Aborted, "transaction aborted")
+			})
+
+			It("logs the error immediately without queuing a retry", func() {
+				retryW.WriteTrace([]*tracepb.ResourceSpans{{}})
+
+				retryTSC.mu.Lock()
+				count := retryTSC.exportCount
+				retryTSC.mu.Unlock()
+
+				Expect(count).To(Equal(1))
+				Expect(buf).To(gbytes.Say("Write error:.*transaction aborted"))
+			})
+		})
+
+		Context("when the retry queue is full", func() {
+			BeforeEach(func() {
+				retryW.metricsRetry = make(chan retryItem, 1)
+				retryMSC.responseErr = status.Error(codes.Unavailable, "collector down")
+			})
+
+			It("logs a queue-full error for the overflow batch", func() {
+				retryW.WriteMetrics([]*metricspb.Metric{{Name: "m1"}})
+				retryW.WriteMetrics([]*metricspb.Metric{{Name: "m2"}})
+				Eventually(buf).Should(gbytes.Say("retry queue full"))
+			})
+		})
+
+		Context("when the context is cancelled while retries are pending", func() {
+			BeforeEach(func() {
+				retryMSC.responseErr = status.Error(codes.Unavailable, "collector down")
+			})
+
+			It("stops the retry worker without logging a write error", func() {
+				retryW.WriteMetrics([]*metricspb.Metric{{Name: "test-metric"}})
+				Eventually(func() int {
+					retryMSC.mu.Lock()
+					defer retryMSC.mu.Unlock()
+					return retryMSC.exportCount
+				}).Should(BeNumerically(">=", 1))
+
+				retryCancel()
+				// Allow goroutine to observe cancellation, then confirm no error was logged
+				// for the cancelled in-flight retry.
+				Consistently(buf, "50ms").ShouldNot(gbytes.Say("Write error"))
+			})
+		})
+	})
+
 	Describe("Close", func() {
 		It("cancels the gRPC context", func() {
 			envelope := &loggregator_v2.Envelope{
@@ -1078,42 +1244,93 @@ var _ = Describe("Client", func() {
 })
 
 type spyMetricsServiceClient struct {
-	requests    chan *colmetricspb.ExportMetricsServiceRequest
-	response    *colmetricspb.ExportMetricsServiceResponse
-	responseErr error
-	ctx         context.Context
+	mu           sync.Mutex
+	requests     chan *colmetricspb.ExportMetricsServiceRequest
+	response     *colmetricspb.ExportMetricsServiceResponse
+	responseErr  error
+	responseErrs []error // dequeued on successive calls; falls back to responseErr when empty
+	exportCount  int
+	ctx          context.Context
 }
 
 func (c *spyMetricsServiceClient) Export(ctx context.Context, in *colmetricspb.ExportMetricsServiceRequest, opts ...grpc.CallOption) (*colmetricspb.ExportMetricsServiceResponse, error) {
-	c.requests <- in
+	c.mu.Lock()
+	c.exportCount++
+	var err error
+	if len(c.responseErrs) > 0 {
+		err = c.responseErrs[0]
+		c.responseErrs = c.responseErrs[1:]
+	} else {
+		err = c.responseErr
+	}
+	c.mu.Unlock()
+
+	select {
+	case c.requests <- in:
+	default:
+	}
 	c.ctx = ctx
-	return c.response, c.responseErr
+	return c.response, err
 }
 
 type spyLogsServiceClient struct {
-	requests    chan *collogspb.ExportLogsServiceRequest
-	response    *collogspb.ExportLogsServiceResponse
-	responseErr error
-	ctx         context.Context
+	mu           sync.Mutex
+	requests     chan *collogspb.ExportLogsServiceRequest
+	response     *collogspb.ExportLogsServiceResponse
+	responseErr  error
+	responseErrs []error
+	exportCount  int
+	ctx          context.Context
 }
 
 func (c *spyLogsServiceClient) Export(ctx context.Context, in *collogspb.ExportLogsServiceRequest, opts ...grpc.CallOption) (*collogspb.ExportLogsServiceResponse, error) {
-	c.requests <- in
+	c.mu.Lock()
+	c.exportCount++
+	var err error
+	if len(c.responseErrs) > 0 {
+		err = c.responseErrs[0]
+		c.responseErrs = c.responseErrs[1:]
+	} else {
+		err = c.responseErr
+	}
+	c.mu.Unlock()
+
+	select {
+	case c.requests <- in:
+	default:
+	}
 	c.ctx = ctx
-	return c.response, c.responseErr
+	return c.response, err
 }
 
 type spyTraceServiceClient struct {
-	requests    chan *coltracepb.ExportTraceServiceRequest
-	response    *coltracepb.ExportTraceServiceResponse
-	responseErr error
-	ctx         context.Context
+	mu           sync.Mutex
+	requests     chan *coltracepb.ExportTraceServiceRequest
+	response     *coltracepb.ExportTraceServiceResponse
+	responseErr  error
+	responseErrs []error
+	exportCount  int
+	ctx          context.Context
 }
 
 func (c *spyTraceServiceClient) Export(ctx context.Context, in *coltracepb.ExportTraceServiceRequest, opts ...grpc.CallOption) (*coltracepb.ExportTraceServiceResponse, error) {
-	c.requests <- in
+	c.mu.Lock()
+	c.exportCount++
+	var err error
+	if len(c.responseErrs) > 0 {
+		err = c.responseErrs[0]
+		c.responseErrs = c.responseErrs[1:]
+	} else {
+		err = c.responseErr
+	}
+	c.mu.Unlock()
+
+	select {
+	case c.requests <- in:
+	default:
+	}
 	c.ctx = ctx
-	return c.response, c.responseErr
+	return c.response, err
 }
 
 func span(tsr *coltracepb.ExportTraceServiceRequest) *tracepb.Span {

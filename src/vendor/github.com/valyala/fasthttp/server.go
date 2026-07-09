@@ -20,6 +20,7 @@ import (
 var errNoCertOrKeyProvided = errors.New("cert or key has not provided")
 
 // ErrAlreadyServing is deprecated.
+//
 // Deprecated: ErrAlreadyServing is never returned from Serve. See issue #633.
 var ErrAlreadyServing = errors.New("Server is already serving connections")
 
@@ -193,6 +194,26 @@ type Server struct {
 	// like they are normal requests.
 	ContinueHandler func(header *RequestHeader) bool
 
+	// ExpectHandler is called after receiving the Expect 100 Continue Header.
+	//
+	// https://www.rfc-editor.org/rfc/rfc9110.html#field.expect
+	//
+	// ExpectHandler provides more control than ContinueHandler by allowing
+	// the server to respond with any final status code. The handler should return
+	// StatusContinue (100) to accept the request and proceed to read the body,
+	// or any other status code to reject it and close the connection since the
+	// client may have already started sending the request body.
+	//
+	// The ctx provides access to request headers and connection metadata (e.g.
+	// RemoteAddr for IP-based filtering). The response must not be modified.
+	//
+	// If both ExpectHandler and ContinueHandler are set, ExpectHandler
+	// takes precedence.
+	//
+	// The default behavior (when neither handler is set) is to automatically accept
+	// the request body.
+	ExpectHandler func(ctx *RequestCtx) int
+
 	// ConnState specifies an optional callback function that is
 	// called when a client connection changes state. See the
 	// ConnState type and associated constants for details.
@@ -209,10 +230,14 @@ type Server struct {
 	// instead.
 	TLSConfig *tls.Config
 
-	// FormValueFunc, which is used by RequestCtx.FormValue and support for customizing
-	// the behaviour of the RequestCtx.FormValue function.
+	// FormValueFunc customizes the behavior of RequestCtx.FormValue.
 	//
-	// NetHttpFormValueFunc gives a FormValueFunc func implementation that is consistent with net/http.
+	// For multipart requests, the default FormValue path calls MultipartForm()
+	// without a body size limit. If you need a limit for multipart parsing,
+	// provide a custom FormValueFunc and call MultipartFormWithLimit() there.
+	//
+	// NetHttpFormValueFunc gives a FormValueFunc implementation that is
+	// consistent with net/http.
 	FormValueFunc FormValueFunc
 
 	nextProtos map[string]ServeHandler
@@ -287,6 +312,7 @@ type Server struct {
 	MaxRequestsPerConn int
 
 	// MaxKeepaliveDuration is a no-op and only left here for backwards compatibility.
+	//
 	// Deprecated: Use IdleTimeout instead.
 	MaxKeepaliveDuration time.Duration
 
@@ -1075,6 +1101,9 @@ func (ctx *RequestCtx) PostArgs() *Args {
 // Returns ErrNoMultipartForm if request's content-type
 // isn't 'multipart/form-data'.
 //
+// This method is equivalent to MultipartFormWithLimit(0), i.e. no body size
+// limit is applied during multipart parsing.
+//
 // All uploaded temporary files are automatically deleted after
 // returning from RequestHandler. Either move or copy uploaded files
 // into new place if you want retaining them.
@@ -1088,6 +1117,17 @@ func (ctx *RequestCtx) MultipartForm() (*multipart.Form, error) {
 	return ctx.Request.MultipartForm()
 }
 
+// MultipartFormWithLimit returns request's multipart form and limits the read
+// multipart body size to maxBodySize bytes.
+//
+// If maxBodySize <= 0, then no limit is applied.
+//
+// Call this method before FormValue/FormFile if you need a limit for
+// multipart parsing.
+func (ctx *RequestCtx) MultipartFormWithLimit(maxBodySize int) (*multipart.Form, error) {
+	return ctx.Request.MultipartFormWithLimit(maxBodySize)
+}
+
 // FormFile returns uploaded file associated with the given multipart form key.
 //
 // The file is automatically deleted after returning from RequestHandler,
@@ -1096,13 +1136,16 @@ func (ctx *RequestCtx) MultipartForm() (*multipart.Form, error) {
 // Use SaveMultipartFile function for permanently saving uploaded file.
 //
 // The returned file header is valid until your request handler returns.
+//
+// For multipart requests with untrusted input, call MultipartFormWithLimit()
+// before FormFile.
 func (ctx *RequestCtx) FormFile(key string) (*multipart.FileHeader, error) {
 	mf, err := ctx.MultipartForm()
 	if err != nil {
 		return nil, err
 	}
 	if mf.File == nil {
-		return nil, err
+		return nil, ErrMissingFile
 	}
 	fhh := mf.File[key]
 	if fhh == nil {
@@ -1116,6 +1159,10 @@ func (ctx *RequestCtx) FormFile(key string) (*multipart.FileHeader, error) {
 var ErrMissingFile = errors.New("there is no uploaded file associated with the given key")
 
 // SaveMultipartFile saves multipart file fh under the given filename path.
+//
+// The path is used as-is and must be a server-trusted destination filename.
+// Do not pass the attacker-controlled fh.Filename directly without validating
+// it and constraining it to the intended destination directory.
 func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 	var (
 		f  multipart.File
@@ -1180,6 +1227,10 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 //   - FormFile for obtaining uploaded files.
 //
 // The returned value is valid until your request handler returns.
+//
+// For multipart requests with untrusted input, either call
+// MultipartFormWithLimit() before FormValue or provide a custom
+// Server.FormValueFunc that uses MultipartFormWithLimit().
 func (ctx *RequestCtx) FormValue(key string) []byte {
 	if ctx.formValueFunc != nil {
 		return ctx.formValueFunc(ctx, key)
@@ -1187,6 +1238,7 @@ func (ctx *RequestCtx) FormValue(key string) []byte {
 	return defaultFormValue(ctx, key)
 }
 
+// FormValueFunc customizes how RequestCtx.FormValue resolves a value.
 type FormValueFunc func(*RequestCtx, string) []byte
 
 var (
@@ -1422,7 +1474,7 @@ func (ctx *RequestCtx) RedirectBytes(uri []byte, statusCode int) {
 }
 
 func (ctx *RequestCtx) redirect(uri []byte, statusCode int) {
-	ctx.Response.Header.setNonSpecial(strLocation, uri)
+	ctx.Response.Header.SetCanonical(strLocation, uri)
 	statusCode = getRedirectStatusCode(statusCode)
 	ctx.Response.SetStatusCode(statusCode)
 }
@@ -1459,13 +1511,33 @@ func (ctx *RequestCtx) ResetBody() {
 //
 // SendFile logs all the errors via ctx.Logger.
 //
-// See also ServeFile, FSHandler and FS.
+// SendFile interprets path as a URI path internally. Percent-encoded
+// sequences may be decoded, and '?' or '#' may be treated as URI delimiters.
+// Use SendFileLiteral if you need literal path semantics.
+//
+// See also ServeFile, SendFileLiteral, FSHandler and FS.
 //
 // WARNING: do not pass any user supplied paths to this function!
 // WARNING: if path is based on user input users will be able to request
 // any file on your filesystem! Use fasthttp.FS with a sane Root instead.
 func (ctx *RequestCtx) SendFile(path string) {
 	ServeFile(ctx, path)
+}
+
+// SendFileLiteral sends local file contents from the given path as response body
+// using literal path semantics.
+//
+// This is a shortcut to ServeFileLiteral(ctx, path).
+//
+// SendFileLiteral logs all the errors via ctx.Logger.
+//
+// See also ServeFileLiteral, SendFile, FSHandler and FS.
+//
+// WARNING: do not pass any user supplied paths to this function!
+// WARNING: if path is based on user input users will be able to request
+// any file on your filesystem! Use fasthttp.FS with a sane Root instead.
+func (ctx *RequestCtx) SendFileLiteral(path string) {
+	ServeFileLiteral(ctx, path)
 }
 
 // SendFileBytes sends local file contents from the given path as response body.
@@ -1699,6 +1771,9 @@ func (s *Server) ListenAndServeUNIX(addr string, mode os.FileMode) error {
 		return err
 	}
 	if err = os.Chmod(addr, mode); err != nil {
+		// Close the listener so the unix socket file descriptor is not
+		// leaked when chmod fails before Serve takes ownership of it.
+		_ = ln.Close()
 		return fmt.Errorf("cannot chmod %#o for %q: %w", mode, addr, err)
 	}
 	return s.Serve(ln)
@@ -1720,7 +1795,14 @@ func (s *Server) ListenAndServeTLS(addr, certFile, keyFile string) error {
 	if err != nil {
 		return err
 	}
-	return s.ServeTLS(ln, certFile, keyFile)
+	// ServeTLS only takes ownership of ln on the serving path; close it
+	// here when it returns an error (e.g. cert loading) so the listener
+	// is not leaked.
+	if err := s.ServeTLS(ln, certFile, keyFile); err != nil {
+		_ = ln.Close()
+		return err
+	}
+	return nil
 }
 
 // ListenAndServeTLSEmbed serves HTTPS requests from the given TCP4 addr.
@@ -1739,7 +1821,14 @@ func (s *Server) ListenAndServeTLSEmbed(addr string, certData, keyData []byte) e
 	if err != nil {
 		return err
 	}
-	return s.ServeTLSEmbed(ln, certData, keyData)
+	// ServeTLSEmbed only takes ownership of ln on the serving path; close
+	// it here when it returns an error (e.g. cert loading) so the listener
+	// is not leaked.
+	if err := s.ServeTLSEmbed(ln, certData, keyData); err != nil {
+		_ = ln.Close()
+		return err
+	}
+	return nil
 }
 
 // ServeTLS serves HTTPS requests from the given listener.
@@ -1753,16 +1842,19 @@ func (s *Server) ServeTLS(ln net.Listener, certFile, keyFile string) error {
 	s.configTLS()
 	configHasCert := len(s.TLSConfig.Certificates) > 0 || s.TLSConfig.GetCertificate != nil
 	if !configHasCert || certFile != "" || keyFile != "" {
-		if err := s.AppendCert(certFile, keyFile); err != nil {
+		cert, err := loadX509KeyPair(certFile, keyFile)
+		if err != nil {
 			s.mu.Unlock()
 			return err
 		}
+		s.appendCertLocked(&cert)
 	}
+	tlsConfig := s.TLSConfig.Clone()
 
 	s.mu.Unlock()
 
 	return s.Serve(
-		tls.NewListener(ln, s.TLSConfig.Clone()),
+		tls.NewListener(ln, tlsConfig),
 	)
 }
 
@@ -1777,16 +1869,19 @@ func (s *Server) ServeTLSEmbed(ln net.Listener, certData, keyData []byte) error 
 	s.configTLS()
 	configHasCert := len(s.TLSConfig.Certificates) > 0 || s.TLSConfig.GetCertificate != nil
 	if !configHasCert || len(certData) != 0 || len(keyData) != 0 {
-		if err := s.AppendCertEmbed(certData, keyData); err != nil {
+		cert, err := x509KeyPair(certData, keyData)
+		if err != nil {
 			s.mu.Unlock()
 			return err
 		}
+		s.appendCertLocked(&cert)
 	}
+	tlsConfig := s.TLSConfig.Clone()
 
 	s.mu.Unlock()
 
 	return s.Serve(
-		tls.NewListener(ln, s.TLSConfig.Clone()),
+		tls.NewListener(ln, tlsConfig),
 	)
 }
 
@@ -1795,37 +1890,60 @@ func (s *Server) ServeTLSEmbed(ln net.Listener, certData, keyData []byte) error 
 // This function allows programmer to handle multiple domains
 // in one server structure. See examples/multidomain.
 func (s *Server) AppendCert(certFile, keyFile string) error {
-	if certFile == "" && keyFile == "" {
-		return errNoCertOrKeyProvided
-	}
-
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	cert, err := loadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return fmt.Errorf("cannot load TLS key pair from certFile=%q and keyFile=%q: %w", certFile, keyFile, err)
+		return err
 	}
 
-	s.configTLS()
-	s.TLSConfig.Certificates = append(s.TLSConfig.Certificates, cert)
+	s.mu.Lock()
+	s.appendCertLocked(&cert)
+	s.mu.Unlock()
 
 	return nil
 }
 
+func loadX509KeyPair(certFile, keyFile string) (tls.Certificate, error) {
+	if certFile == "" && keyFile == "" {
+		return tls.Certificate{}, errNoCertOrKeyProvided
+	}
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("cannot load TLS key pair from certFile=%q and keyFile=%q: %w", certFile, keyFile, err)
+	}
+	return cert, nil
+}
+
 // AppendCertEmbed does the same as AppendCert but using in-memory data.
 func (s *Server) AppendCertEmbed(certData, keyData []byte) error {
+	cert, err := x509KeyPair(certData, keyData)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	s.appendCertLocked(&cert)
+	s.mu.Unlock()
+
+	return nil
+}
+
+func x509KeyPair(certData, keyData []byte) (tls.Certificate, error) {
 	if len(certData) == 0 && len(keyData) == 0 {
-		return errNoCertOrKeyProvided
+		return tls.Certificate{}, errNoCertOrKeyProvided
 	}
 
 	cert, err := tls.X509KeyPair(certData, keyData)
 	if err != nil {
-		return fmt.Errorf("cannot load TLS key pair from the provided certData(%d) and keyData(%d): %w",
+		return tls.Certificate{}, fmt.Errorf("cannot load TLS key pair from the provided certData(%d) and keyData(%d): %w",
 			len(certData), len(keyData), err)
 	}
+	return cert, nil
+}
 
+func (s *Server) appendCertLocked(cert *tls.Certificate) {
 	s.configTLS()
-	s.TLSConfig.Certificates = append(s.TLSConfig.Certificates, cert)
-
-	return nil
+	s.TLSConfig.Certificates = append(s.TLSConfig.Certificates, *cert)
 }
 
 func (s *Server) configTLS() {
@@ -2082,19 +2200,16 @@ func (s *Server) ServeConn(c net.Conn) error {
 		c = pic
 	}
 
-	n := int(s.concurrency.Add(1)) // #nosec G115
-	if n > s.getConcurrency() {
-		s.concurrency.Add(^uint32(0))
+	if !s.tryAcquireConcurrency() {
 		s.writeFastError(c, StatusServiceUnavailable, "The connection cannot be served because Server.Concurrency limit exceeded")
 		c.Close()
 		return ErrConcurrencyLimit
 	}
+	defer s.releaseConcurrency()
 
 	s.open.Add(1)
 
-	err := s.serveConn(c)
-
-	s.concurrency.Add(^uint32(0))
+	err := s.serveConnCounted(c, false)
 
 	if err != errHijacked {
 		errc := c.Close()
@@ -2107,6 +2222,19 @@ func (s *Server) ServeConn(c net.Conn) error {
 		s.setState(c, StateHijacked)
 	}
 	return err
+}
+
+func (s *Server) tryAcquireConcurrency() bool {
+	n := int(s.concurrency.Add(1)) // #nosec G115
+	if n <= s.getConcurrency() {
+		return true
+	}
+	s.releaseConcurrency()
+	return false
+}
+
+func (s *Server) releaseConcurrency() {
+	s.concurrency.Add(^uint32(0))
 }
 
 var errHijacked = errors.New("connection has been hijacked")
@@ -2168,14 +2296,22 @@ func (s *Server) idleTimeout() time.Duration {
 	return s.ReadTimeout
 }
 
-func (s *Server) serveConnCleanup() {
+func (s *Server) serveConnCleanup(countConcurrency bool) {
 	s.open.Add(-1)
-	s.concurrency.Add(^uint32(0))
+	if countConcurrency {
+		s.releaseConcurrency()
+	}
 }
 
 func (s *Server) serveConn(c net.Conn) error {
-	defer s.serveConnCleanup()
-	s.concurrency.Add(1)
+	return s.serveConnCounted(c, true)
+}
+
+func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
+	defer s.serveConnCleanup(countConcurrency)
+	if countConcurrency {
+		s.concurrency.Add(1)
+	}
 
 	proto, err := s.getNextProto(c)
 	if err != nil {
@@ -2242,8 +2378,15 @@ func (s *Server) serveConn(c net.Conn) error {
 	for {
 		connRequestNum++
 
-		// If this is a keep-alive connection set the idle timeout.
-		if connRequestNum > 1 {
+		if connRequestNum == 1 {
+			// Apply ReadTimeout to the first request byte.
+			if s.ReadTimeout > 0 {
+				if err = c.SetReadDeadline(time.Now().Add(s.ReadTimeout)); err != nil {
+					break
+				}
+			}
+		} else {
+			// If this is a keep-alive connection set the idle timeout.
 			if d := s.idleTimeout(); d > 0 {
 				if err = c.SetReadDeadline(time.Now().Add(d)); err != nil {
 					break
@@ -2270,8 +2413,8 @@ func (s *Server) serveConn(c net.Conn) error {
 				}
 			}
 		} else {
-			// If this is a keep-alive connection acquireByteReader will try to peek
-			// a couple of bytes already so the idle timeout will already be used.
+			// On keep-alive connections acquireByteReader will read the first byte
+			// while the idle timeout is active.
 			br, err = acquireByteReader(&ctx)
 		}
 
@@ -2286,9 +2429,8 @@ func (s *Server) serveConn(c net.Conn) error {
 		ctx.Response.secureErrorLogMessage = s.SecureErrorLogMessage
 
 		if err == nil {
-			s.setState(c, StateActive)
-
 			idleConnTime.Store(0)
+			s.setState(c, StateActive)
 
 			if s.ReadTimeout > 0 {
 				if err = c.SetReadDeadline(time.Now().Add(s.ReadTimeout)); err != nil {
@@ -2397,10 +2539,20 @@ func (s *Server) serveConn(c net.Conn) error {
 		}
 
 		// 'Expect: 100-continue' request handling.
-		// See https://www.w3.org/Protocols/rfc2616/rfc2616-sec8.html#sec8.2.3 for details.
+		// See https://www.rfc-editor.org/rfc/rfc9110.html#field.expect for details.
 		if ctx.Request.MayContinue() {
-			// Allow the ability to deny reading the incoming request body
-			if s.ContinueHandler != nil {
+			// Allow the ability to deny reading the incoming request body.
+			if s.ExpectHandler != nil {
+				if expectStatus := s.ExpectHandler(ctx); expectStatus != StatusContinue {
+					continueReadingRequest = false
+					if br != nil {
+						br.Reset(ctx.c)
+					}
+					ctx.SetStatusCode(expectStatus)
+					// Close connection since client may have already started sending body data.
+					connectionClose = true
+				}
+			} else if s.ContinueHandler != nil {
 				if continueReadingRequest = s.ContinueHandler(&ctx.Request.Header); !continueReadingRequest {
 					if br != nil {
 						br.Reset(ctx.c)
@@ -2450,8 +2602,9 @@ func (s *Server) serveConn(c net.Conn) error {
 			}
 		}
 
-		// store req.ConnectionClose so even if it was changed inside of handler
-		connectionClose = s.DisableKeepalive || ctx.Request.Header.ConnectionClose()
+		// store req.ConnectionClose so even if it was changed inside of handler.
+		// Preserve connectionClose if already set (e.g., by ExpectHandler).
+		connectionClose = connectionClose || s.DisableKeepalive || ctx.Request.Header.ConnectionClose()
 
 		if serverName != "" {
 			ctx.Response.Header.SetServer(serverName)
@@ -2569,6 +2722,7 @@ func (s *Server) serveConn(c net.Conn) error {
 			ctx.Request.bodyStream = nil
 		}
 
+		idleConnTime.Store(time.Now().Unix())
 		s.setState(c, StateIdle)
 		ctx.Request.Reset()
 		ctx.Response.Reset()
@@ -2577,8 +2731,6 @@ func (s *Server) serveConn(c net.Conn) error {
 			err = nil
 			break
 		}
-
-		idleConnTime.Store(time.Now().Unix())
 	}
 
 	if br != nil {
@@ -2612,7 +2764,9 @@ func hijackConnHandler(ctx *RequestCtx, r io.Reader, c net.Conn, s *Server, h Hi
 	hjc := s.acquireHijackConn(r, c)
 	h(hjc)
 
-	if br, ok := r.(*bufio.Reader); ok {
+	// When the caller keeps using the hijacked connection after return,
+	// the buffered reader must remain owned by that escaped connection.
+	if br, ok := r.(*bufio.Reader); ok && !s.KeepHijackedConns {
 		releaseReader(s, br)
 	}
 	if !s.KeepHijackedConns {

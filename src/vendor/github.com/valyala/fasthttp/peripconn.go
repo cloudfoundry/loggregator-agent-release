@@ -31,10 +31,7 @@ func (cc *perIPConnCounter) Unregister(ip uint32) {
 		// developer safeguard
 		panic("BUG: perIPConnCounter.Register() wasn't called")
 	}
-	n := cc.m[ip] - 1
-	if n < 0 {
-		n = 0
-	}
+	n := max(cc.m[ip]-1, 0)
 	cc.m[ip] = n
 }
 
@@ -119,7 +116,12 @@ func (c *perIPTLSConn) Close() error {
 }
 
 func getUint32IP(c net.Conn) uint32 {
-	return ip2uint32(getConnIP4(c))
+	ip := getConnIP4(c)
+
+	if len(ip) != 4 {
+		return 0
+	}
+	return uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
 }
 
 func getConnIP4(c net.Conn) net.IP {
@@ -129,20 +131,4 @@ func getConnIP4(c net.Conn) net.IP {
 		return net.IPv4zero
 	}
 	return ipAddr.IP.To4()
-}
-
-func ip2uint32(ip net.IP) uint32 {
-	if len(ip) != 4 {
-		return 0
-	}
-	return uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
-}
-
-func uint322ip(ip uint32) net.IP {
-	b := make([]byte, 4)
-	b[0] = byte(ip >> 24)
-	b[1] = byte(ip >> 16)
-	b[2] = byte(ip >> 8)
-	b[3] = byte(ip)
-	return b
 }
