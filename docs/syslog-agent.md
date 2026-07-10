@@ -3,6 +3,8 @@
 An agent that forwards app logs to a syslog drain. Drains are registered by binding User Provided Services to apps. 
 Any logs coming from a registered app are forwarded to the configured endpoint. 
 
+The Syslog Binding Cache validates the Syslog Drain URL defined by the application developers and informs them in case they have misconfigured something. It also provides the following two metrics: `blacklisted_drains` (number of drains configured to blacklisted destinations) and `invalid_drains` (total amount of misconfigured drains, including blacklisted ones). The Syslog Agent should always get valid drains, but it validates the drains itself as well as a safeguard against tampering of the Syslog Binding Cache API. If something goes wrong, the Syslog Agent will write logs stating that something went wrong and advising the operator to check the Syslog Binding Cache.
+
 #### Deploying Syslog Agent
 
 To deploy syslog agent, add the following jobs to all instance groups and the variables to the variables section.
