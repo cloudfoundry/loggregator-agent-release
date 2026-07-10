@@ -260,7 +260,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -272,7 +271,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(HaveLen(0))
 			Expect(logBuffer.String()).Should(MatchRegexp("include-log-source-types and exclude-log-source-types cannot be used at the same time"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 
 		})
 
@@ -309,7 +307,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -321,7 +318,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(logBuffer.String()).Should(MatchRegexp("Unknown source types"))
 			Expect(logBuffer.String()).Should(MatchRegexp("unknown"))
 			Expect(logBuffer.String()).Should(MatchRegexp("invalid"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 
 		It("logs a warning and ignores the drain in exclude mode", func() {
@@ -331,7 +327,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -342,7 +337,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(actual).To(HaveLen(0))
 			Expect(logBuffer.String()).Should(MatchRegexp("Unknown source types"))
 			Expect(logBuffer.String()).Should(MatchRegexp("unknown"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 
 		It("logs a warning and ignores the drain when source types have spaces", func() {
@@ -352,7 +346,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			filter = bindings.NewFilteredBindingFetcher(
 				mockic,
 				&SpyBindingReader{bindings: input},
-				metrics,
 				warn,
 				log,
 			)
@@ -362,7 +355,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actual).To(HaveLen(0))
 			Expect(logBuffer.String()).Should(MatchRegexp("Unknown source types"))
-			Expect(metrics.GetMetric("invalid_drains", map[string]string{"unit": "total"}).Value()).To(Equal(1.0))
 		})
 
 		Context("when configured not to warn", func() {
@@ -376,7 +368,6 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				filter = bindings.NewFilteredBindingFetcher(
 					mockic,
 					&SpyBindingReader{bindings: input},
-					metrics,
 					warn,
 					log,
 				)
