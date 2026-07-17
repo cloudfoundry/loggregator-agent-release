@@ -35,17 +35,13 @@ func NewFilteringDrainWriter(binding Binding, writer egress.Writer) (*FilteringD
 }
 
 func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
-	if w.binding.DrainData == ALL {
-		return w.writer.Write(env)
-	}
-
 	if env.GetTimer() != nil {
-		if w.binding.DrainData == TRACES {
+		if w.binding.DrainData == TRACES || w.binding.DrainData == ALL {
 			return w.writer.Write(env)
 		}
 	}
 	if env.GetEvent() != nil {
-		if w.binding.DrainData == LOGS {
+		if w.binding.DrainData == LOGS || w.binding.DrainData == ALL {
 			return w.writer.Write(env)
 		}
 	}
@@ -65,7 +61,7 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 }
 
 func sendsLogs(drainData DrainData, logFilter *LogFilter, sourceTypeTag string) bool {
-	if drainData != LOGS && drainData != LOGS_AND_METRICS && drainData != LOGS_NO_EVENTS {
+	if drainData == TRACES || drainData == METRICS {
 		return false
 	}
 
@@ -77,6 +73,8 @@ func sendsMetrics(drainData DrainData) bool {
 	case LOGS_AND_METRICS:
 		return true
 	case METRICS:
+		return true
+	case ALL:
 		return true
 	default:
 		return false
