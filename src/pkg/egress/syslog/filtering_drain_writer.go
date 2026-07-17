@@ -41,13 +41,12 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 		}
 	}
 	if env.GetEvent() != nil {
-		if w.binding.DrainData == LOGS || w.binding.DrainData == ALL {
+		if sendsEvents(w.binding.DrainData, w.binding.LogFilter, env.GetTags()["source_type"]) {
 			return w.writer.Write(env)
 		}
 	}
 	if env.GetLog() != nil {
-		sourceType := env.GetTags()["source_type"]
-		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, sourceType) {
+		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, env.GetTags()["source_type"]) {
 			return w.writer.Write(env)
 		}
 	}
@@ -60,6 +59,14 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 	return nil
 }
 
+func sendsEvents(drainData DrainData, logFilter *LogFilter, sourceTypeTag string) bool {
+	if drainData != LOGS && drainData != ALL {
+		return false
+	}
+
+	return logFilter.ShouldInclude(sourceTypeTag)
+}
+
 func sendsLogs(drainData DrainData, logFilter *LogFilter, sourceTypeTag string) bool {
 	if drainData == TRACES || drainData == METRICS {
 		return false
@@ -69,14 +76,8 @@ func sendsLogs(drainData DrainData, logFilter *LogFilter, sourceTypeTag string) 
 }
 
 func sendsMetrics(drainData DrainData) bool {
-	switch drainData {
-	case LOGS_AND_METRICS:
-		return true
-	case METRICS:
-		return true
-	case ALL:
-		return true
-	default:
+	if drainData != LOGS_AND_METRICS && drainData != METRICS && drainData != ALL {
 		return false
 	}
+	return true
 }

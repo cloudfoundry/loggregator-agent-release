@@ -186,7 +186,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 			Expect(fakeWriter.received).To(Equal(1))
 		})
 
-		It("still forwards non-log envelopes when drain-data is ALL with a log filter", func() {
+		It("still forwards metrics and traces when drain-data is ALL with a log filter", func() {
 			binding := syslog.Binding{
 				DrainData: syslog.ALL,
 				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
@@ -198,7 +198,6 @@ var _ = Describe("Filtering Drain Writer", func() {
 			envelopes := []*loggregator_v2.Envelope{
 				{Message: &loggregator_v2.Envelope_Counter{Counter: &loggregator_v2.Counter{}}},
 				{Message: &loggregator_v2.Envelope_Gauge{Gauge: &loggregator_v2.Gauge{}}},
-				{Message: &loggregator_v2.Envelope_Event{Event: &loggregator_v2.Event{}}},
 				{Message: &loggregator_v2.Envelope_Timer{Timer: &loggregator_v2.Timer{}}},
 			}
 
@@ -208,7 +207,39 @@ var _ = Describe("Filtering Drain Writer", func() {
 			}
 
 			// All non-log categories still flow through under drain-data=all
-			Expect(fakeWriter.received).To(Equal(4))
+			Expect(fakeWriter.received).To(Equal(3))
+		})
+
+		It("filters event envelopes by source type just like logs", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.ALL,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			appEvent := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Event{
+					Event: &loggregator_v2.Event{Title: "app crash", Body: "exited"},
+				},
+				Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+			}
+			rtrEvent := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Event{
+					Event: &loggregator_v2.Event{Title: "route", Body: "request"},
+				},
+				Tags: map[string]string{"source_type": "RTR/1"},
+			}
+
+			for _, envelope := range []*loggregator_v2.Envelope{appEvent, rtrEvent} {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// The include filter applies to events too: only the APP event passes,
+			// the RTR event is dropped.
+			Expect(fakeWriter.received).To(Equal(1))
 		})
 
 		It("filters logs based on include filter - includes only APP logs", func() {
