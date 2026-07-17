@@ -41,7 +41,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 		Entry("traces", syslog.TRACES, false, false, false, true),
 		Entry("all", syslog.ALL, true, true, true, true),
 		Entry("log without events", syslog.LOGS_NO_EVENTS, true, false, false, false),
-		Entry("metrics and logs", syslog.LOGS_AND_METRICS, true, true, false, false),
+		Entry("metrics and logs without events", syslog.LOGS_AND_METRICS, true, true, false, false),
 	)
 
 	It("errors on invalid binding type", func() {
@@ -206,7 +206,6 @@ var _ = Describe("Filtering Drain Writer", func() {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
-			// All non-log categories still flow through under drain-data=all
 			Expect(fakeWriter.received).To(Equal(3))
 		})
 

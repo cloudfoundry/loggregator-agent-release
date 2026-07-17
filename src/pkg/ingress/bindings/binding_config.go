@@ -58,6 +58,7 @@ func getOmitMetadata(url *url.URL, defaultDrainMetadata bool) bool {
 }
 
 func getBindingType(u *url.URL) syslog.DrainData {
+	// Legacy drain-type query param does not forward events
 	drainData := syslog.LOGS
 	switch u.Query().Get("drain-type") {
 	case "logs":
