@@ -4,12 +4,12 @@ go 1.25.8
 
 require (
 	code.cloudfoundry.org/go-batching v0.0.0-20260706132333-0f1820de0021
-	code.cloudfoundry.org/go-diodes v0.0.0-20260706112827-32a910f327a2
+	code.cloudfoundry.org/go-diodes v0.0.0-20260720065427-59f65622c841
 	code.cloudfoundry.org/go-envstruct v1.7.0
 	code.cloudfoundry.org/go-metric-registry v0.0.0-20260708091250-9b8a8be7e306
 	code.cloudfoundry.org/tlsconfig v0.62.0
 	github.com/cloudfoundry/dropsonde v1.1.0
-	github.com/cloudfoundry/sonde-go v0.0.0-20260706112804-cd2c61a47573
+	github.com/cloudfoundry/sonde-go v0.0.0-20260720065356-6728909ed72b
 	github.com/onsi/gomega v1.42.1
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.70.0
