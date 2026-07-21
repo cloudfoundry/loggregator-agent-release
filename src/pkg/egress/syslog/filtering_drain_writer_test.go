@@ -41,7 +41,7 @@ var _ = Describe("Filtering Drain Writer", func() {
 		Entry("traces", syslog.TRACES, false, false, false, true),
 		Entry("all", syslog.ALL, true, true, true, true),
 		Entry("log without events", syslog.LOGS_NO_EVENTS, true, false, false, false),
-		Entry("metrics and logs", syslog.LOGS_AND_METRICS, true, true, false, false),
+		Entry("metrics and logs without events", syslog.LOGS_AND_METRICS, true, true, false, false),
 	)
 
 	It("errors on invalid binding type", func() {
@@ -52,6 +52,299 @@ var _ = Describe("Filtering Drain Writer", func() {
 			DrainData: 10}
 		_, err := syslog.NewFilteringDrainWriter(binding, &fakeWriter{})
 		Expect(err).To(HaveOccurred())
+	})
+
+	Context("when source_type tag is missing", func() {
+		var envelope *loggregator_v2.Envelope
+
+		BeforeEach(func() {
+			envelope = &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{
+						Payload: []byte("test log"),
+					},
+				},
+				Tags: map[string]string{
+					// source_type tag is intentionally missing
+				},
+			}
+		})
+
+		It("filters out the log with missing source_type when include filter is configured", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = drainWriter.Write(envelope)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(0))
+
+			appEnvelope := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("app log")},
+				},
+				Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+			}
+			err = drainWriter.Write(appEnvelope)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
+		})
+
+		It("sends the log with missing source_type when exclude filter is configured", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_RTR: struct{}{}}, syslog.LogFilterModeExclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = drainWriter.Write(envelope)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
+
+			rtrEnvelope := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+				},
+				Tags: map[string]string{"source_type": "RTR/1"},
+			}
+			err = drainWriter.Write(rtrEnvelope)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
+		})
+	})
+
+	Context("when source_type tag is present", func() {
+		It("applies the include filter even when drain-data is ALL", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.ALL,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			envelopes := []*loggregator_v2.Envelope{
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("app log")},
+					},
+					Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+				},
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+					},
+					Tags: map[string]string{"source_type": "RTR/1"},
+				},
+			}
+
+			for _, envelope := range envelopes {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// Only APP log should be sent; RTR must be dropped even with drain-data=all
+			Expect(fakeWriter.received).To(Equal(1))
+		})
+
+		It("applies the exclude filter even when drain-data is ALL", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.ALL,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_RTR: struct{}{}}, syslog.LogFilterModeExclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			envelopes := []*loggregator_v2.Envelope{
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("app log")},
+					},
+					Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+				},
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+					},
+					Tags: map[string]string{"source_type": "RTR/1"},
+				},
+			}
+
+			for _, envelope := range envelopes {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// APP log should be sent, RTR should be filtered out even with drain-data=all
+			Expect(fakeWriter.received).To(Equal(1))
+		})
+
+		It("still forwards metrics and traces when drain-data is ALL with a log filter", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.ALL,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			envelopes := []*loggregator_v2.Envelope{
+				{Message: &loggregator_v2.Envelope_Counter{Counter: &loggregator_v2.Counter{}}},
+				{Message: &loggregator_v2.Envelope_Gauge{Gauge: &loggregator_v2.Gauge{}}},
+				{Message: &loggregator_v2.Envelope_Timer{Timer: &loggregator_v2.Timer{}}},
+			}
+
+			for _, envelope := range envelopes {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			Expect(fakeWriter.received).To(Equal(3))
+		})
+
+		It("filters event envelopes by source type just like logs", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.ALL,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			appEvent := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Event{
+					Event: &loggregator_v2.Event{Title: "app crash", Body: "exited"},
+				},
+				Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+			}
+			rtrEvent := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Event{
+					Event: &loggregator_v2.Event{Title: "route", Body: "request"},
+				},
+				Tags: map[string]string{"source_type": "RTR/1"},
+			}
+
+			for _, envelope := range []*loggregator_v2.Envelope{appEvent, rtrEvent} {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// The include filter applies to events too: only the APP event passes,
+			// the RTR event is dropped.
+			Expect(fakeWriter.received).To(Equal(1))
+		})
+
+		It("filters logs based on include filter - includes only APP logs", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeInclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			envelopes := []*loggregator_v2.Envelope{
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("app log")},
+					},
+					Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+				},
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+					},
+					Tags: map[string]string{"source_type": "RTR/1"},
+				},
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("stg log")},
+					},
+					Tags: map[string]string{"source_type": "STG/0"},
+				},
+			}
+
+			for _, envelope := range envelopes {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// Only APP log should be sent
+			Expect(fakeWriter.received).To(Equal(1))
+		})
+
+		It("filters logs based on exclude filter - excludes RTR logs", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_RTR: struct{}{}}, syslog.LogFilterModeExclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			envelopes := []*loggregator_v2.Envelope{
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("app log")},
+					},
+					Tags: map[string]string{"source_type": "APP/PROC/WEB/0"},
+				},
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("rtr log")},
+					},
+					Tags: map[string]string{"source_type": "RTR/1"},
+				},
+				{
+					Message: &loggregator_v2.Envelope_Log{
+						Log: &loggregator_v2.Log{Payload: []byte("stg log")},
+					},
+					Tags: map[string]string{"source_type": "STG/0"},
+				},
+			}
+
+			for _, envelope := range envelopes {
+				err = drainWriter.Write(envelope)
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// APP and STG logs should be sent, RTR should be filtered out
+			Expect(fakeWriter.received).To(Equal(2))
+		})
+
+		It("sends logs with unknown source_type prefix when filter is set", func() {
+			binding := syslog.Binding{
+				DrainData: syslog.LOGS,
+				LogFilter: syslog.NewLogFilter(syslog.LogSourceTypeSet{syslog.LOG_SOURCE_APP: struct{}{}}, syslog.LogFilterModeExclude),
+			}
+			fakeWriter := &fakeWriter{}
+			drainWriter, err := syslog.NewFilteringDrainWriter(binding, fakeWriter)
+			Expect(err).NotTo(HaveOccurred())
+
+			envelope := &loggregator_v2.Envelope{
+				Message: &loggregator_v2.Envelope_Log{
+					Log: &loggregator_v2.Log{
+						Payload: []byte("test log"),
+					},
+				},
+				Tags: map[string]string{
+					"source_type": "UNKNOWN/some/path",
+				},
+			}
+
+			err = drainWriter.Write(envelope)
+
+			// Should send the log because unknown types default to being included for exclude filter
+			Expect(err).NotTo(HaveOccurred())
+			Expect(fakeWriter.received).To(Equal(1))
+		})
 	})
 })
 

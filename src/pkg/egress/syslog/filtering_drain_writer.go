@@ -35,22 +35,18 @@ func NewFilteringDrainWriter(binding Binding, writer egress.Writer) (*FilteringD
 }
 
 func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
-	if w.binding.DrainData == ALL {
-		return w.writer.Write(env)
-	}
-
 	if env.GetTimer() != nil {
-		if w.binding.DrainData == TRACES {
+		if w.binding.DrainData == TRACES || w.binding.DrainData == ALL {
 			return w.writer.Write(env)
 		}
 	}
 	if env.GetEvent() != nil {
-		if w.binding.DrainData == LOGS {
+		if sendsEvents(w.binding.DrainData, w.binding.LogFilter, env.GetTags()["source_type"]) {
 			return w.writer.Write(env)
 		}
 	}
 	if env.GetLog() != nil {
-		if sendsLogs(w.binding.DrainData) {
+		if sendsLogs(w.binding.DrainData, w.binding.LogFilter, env.GetTags()["source_type"]) {
 			return w.writer.Write(env)
 		}
 	}
@@ -63,26 +59,25 @@ func (w *FilteringDrainWriter) Write(env *loggregator_v2.Envelope) error {
 	return nil
 }
 
-func sendsLogs(drainData DrainData) bool {
-	switch drainData {
-	case LOGS:
-		return true
-	case LOGS_AND_METRICS:
-		return true
-	case LOGS_NO_EVENTS:
-		return true
-	default:
+func sendsEvents(drainData DrainData, logFilter *LogFilter, sourceTypeTag string) bool {
+	if drainData != LOGS && drainData != ALL {
 		return false
 	}
+
+	return logFilter.ShouldInclude(sourceTypeTag)
+}
+
+func sendsLogs(drainData DrainData, logFilter *LogFilter, sourceTypeTag string) bool {
+	if drainData == TRACES || drainData == METRICS {
+		return false
+	}
+
+	return logFilter.ShouldInclude(sourceTypeTag)
 }
 
 func sendsMetrics(drainData DrainData) bool {
-	switch drainData {
-	case LOGS_AND_METRICS:
-		return true
-	case METRICS:
-		return true
-	default:
+	if drainData != LOGS_AND_METRICS && drainData != METRICS && drainData != ALL {
 		return false
 	}
+	return true
 }

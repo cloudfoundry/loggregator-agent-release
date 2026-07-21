@@ -3,6 +3,7 @@ package bindings
 import (
 	"log"
 	"net/url"
+	"strings"
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding"
@@ -55,7 +56,7 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 			continue
 		}
 
-		anonymousUrl := u
+		anonymousUrl := *u
 		anonymousUrl.User = nil
 		anonymousUrl.RawQuery = ""
 
@@ -66,6 +67,19 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 
 		if len(u.Host) == 0 {
 			invalidDrains += 1
+			continue
+		}
+
+		if invalidLogFilter(u) {
+			invalidDrains += 1
+			f.printWarning("include-log-source-types and exclude-log-source-types cannot be used at the same time in syslog drain url %s for application %s", anonymousUrl.String(), b.AppId)
+			continue
+		}
+
+		sourceTypes := getUnknownSourceTypes(u.Query())
+		if sourceTypes != nil {
+			invalidDrains += 1
+			f.printWarning("Unknown source types '%s' in source type filter in syslog drain url %s for application %s", strings.Join(sourceTypes, ", "), anonymousUrl.String(), b.AppId)
 			continue
 		}
 
@@ -97,6 +111,34 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 
 	return newBindings, nil
 
+}
+
+// invalidLogFilter checks if both include-log-source-types and exclude-log-source-types
+func invalidLogFilter(u *url.URL) bool {
+	includeSourceTypes := u.Query().Get("include-log-source-types")
+	excludeSourceTypes := u.Query().Get("exclude-log-source-types")
+	if excludeSourceTypes != "" && includeSourceTypes != "" {
+		return true
+	}
+	return false
+}
+
+// assumes only one of include-log-source-types or exclude-log-source-types is set
+func getUnknownSourceTypes(u url.Values) []string {
+	var sourceTypeList string
+	includeSourceTypes := u.Get("include-log-source-types")
+	excludeSourceTypes := u.Get("exclude-log-source-types")
+
+	if includeSourceTypes != "" {
+		sourceTypeList = includeSourceTypes
+	} else if excludeSourceTypes != "" {
+		sourceTypeList = excludeSourceTypes
+	} else {
+		return nil
+	}
+
+	_, unknownTypes := syslog.ParseSourceTypeList(sourceTypeList)
+	return unknownTypes
 }
 
 func (f FilteredBindingFetcher) printWarning(format string, v ...any) {
