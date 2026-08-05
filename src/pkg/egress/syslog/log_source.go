@@ -16,7 +16,6 @@ const (
 	LOG_SOURCE_CELL   LogSourceType = "CELL"
 	LOG_SOURCE_PROXY  LogSourceType = "PROXY"
 	LOG_SOURCE_HEALTH LogSourceType = "HEALTH"
-	LOG_SOURCE_SYS    LogSourceType = "SYS"
 	LOG_SOURCE_STATS  LogSourceType = "STATS"
 )
 
