@@ -245,7 +245,7 @@ func (bc *bindingChecker) checkBindings(bindings []Binding) []Binding {
 
 		sourceTypes := getUnknownSourceTypes(u.Query())
 		if sourceTypes != nil {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("Unknown source types '%s' in source type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()), true)
+			bc.rejectBinding(b.Credentials, fmt.Sprintf("Unknown log types '%s' in log type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()), true)
 			continue
 		}
 
