@@ -239,7 +239,7 @@ func (bc *bindingChecker) checkBindings(bindings []Binding) []Binding {
 		}
 
 		if invalidLogFilter(u) {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("include-log-source-types and exclude-log-source-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()), true)
+			bc.rejectBinding(b.Credentials, fmt.Sprintf("include-log-types and exclude-log-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()), true)
 			continue
 		}
 
@@ -321,21 +321,21 @@ func invalidScheme(scheme string) bool {
 	return true
 }
 
-// invalidLogFilter checks if both include-log-source-types and exclude-log-source-types
+// invalidLogFilter checks if both include-log-types and exclude-log-types are set
 func invalidLogFilter(u *url.URL) bool {
-	includeSourceTypes := u.Query().Get("include-log-source-types")
-	excludeSourceTypes := u.Query().Get("exclude-log-source-types")
+	includeSourceTypes := u.Query().Get("include-log-types")
+	excludeSourceTypes := u.Query().Get("exclude-log-types")
 	if excludeSourceTypes != "" && includeSourceTypes != "" {
 		return true
 	}
 	return false
 }
 
-// assumes only one of include-log-source-types or exclude-log-source-types is set
+// assumes only one of include-log-types or exclude-log-types is set
 func getUnknownSourceTypes(u url.Values) []string {
 	var sourceTypeList string
-	includeSourceTypes := u.Get("include-log-source-types")
-	excludeSourceTypes := u.Get("exclude-log-source-types")
+	includeSourceTypes := u.Get("include-log-types")
+	excludeSourceTypes := u.Get("exclude-log-types")
 
 	if includeSourceTypes != "" {
 		sourceTypeList = includeSourceTypes
