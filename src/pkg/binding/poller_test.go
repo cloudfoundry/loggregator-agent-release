@@ -605,7 +605,7 @@ var _ = Describe("Poller", func() {
 			})
 		})
 
-		Context("when unknown source types are provided", func() {
+		Context("when unknown log types are provided", func() {
 			It("logs a warning and ignores the drain in include mode", func() {
 				bindings := []Binding{
 					{
@@ -620,7 +620,7 @@ var _ = Describe("Poller", func() {
 				filteredBindings := bndChecker.checkBindings(bindings)
 
 				Expect(filteredBindings).To(BeEmpty())
-				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown source types")))
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown log types")))
 				Expect(logClient.Message()).To(ContainElement(MatchRegexp("unknown")))
 				Expect(logClient.Message()).To(ContainElement(MatchRegexp("invalid")))
 				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
@@ -640,7 +640,7 @@ var _ = Describe("Poller", func() {
 				filteredBindings := bndChecker.checkBindings(bindings)
 
 				Expect(filteredBindings).To(BeEmpty())
-				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown source types")))
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown log types")))
 				Expect(logClient.Message()).To(ContainElement(MatchRegexp("unknown")))
 				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
 			})
@@ -659,7 +659,7 @@ var _ = Describe("Poller", func() {
 				filteredBindings := bndChecker.checkBindings(bindings)
 
 				Expect(filteredBindings).To(BeEmpty())
-				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown source types")))
+				Expect(logClient.Message()).To(ContainElement(MatchRegexp("Unknown log types")))
 				Expect(bndChecker.invalidDrains).To(BeNumerically("==", 1))
 			})
 
@@ -678,7 +678,7 @@ var _ = Describe("Poller", func() {
 				bndChecker.checkBindings(bindings)
 
 				for _, msg := range logClient.Message() {
-					Expect(msg).ToNot(MatchRegexp("Unknown source types"))
+					Expect(msg).ToNot(MatchRegexp("Unknown log types"))
 				}
 			})
 		})
