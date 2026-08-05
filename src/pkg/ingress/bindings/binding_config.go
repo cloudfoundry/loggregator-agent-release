@@ -87,8 +87,12 @@ func getBindingType(u *url.URL) syslog.DrainData {
 }
 
 func (d *DrainParamParser) getLogFilter(u *url.URL) *syslog.LogFilter {
-	includeSourceTypes := u.Query().Get("include-log-source-types")
-	excludeSourceTypes := u.Query().Get("exclude-log-source-types")
+	// The log filter URL query parameters are called "include-log-types" and "exclude-log-types",
+	// so that the names are short and the naming is aligned with the docs https://docs.cloudfoundry.org/devguide/deploy-apps/streaming-logs.html#format
+	// Technically, the log type is defined in the "source_type" tag/attribute of the log messages https://github.com/cloudfoundry/loggregator-api#logmessage
+	// That is why in the code the variables and functions related to the types of logs have "source type" in the name
+	includeSourceTypes := u.Query().Get("include-log-types")
+	excludeSourceTypes := u.Query().Get("exclude-log-types")
 
 	if excludeSourceTypes != "" {
 		return d.newLogFilter(excludeSourceTypes, syslog.LogFilterModeExclude)
