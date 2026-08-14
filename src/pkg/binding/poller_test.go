@@ -430,6 +430,46 @@ var _ = Describe("Poller", func() {
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
 
+		It("returns non-network-scheme bindings even without a hostname, like the Metric Registrar's documented convention", func() {
+			// e.g. "metrics-endpoint:///metrics" - a discovery tag, not a real drain endpoint, and never
+			// has a host. It must not be rejected by the "no hostname found" check.
+			bindings := []Binding{
+				{
+					Url: "metrics-endpoint:///metrics",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(HaveLen(1))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(0)))
+		})
+
+		It("returns non-network-scheme bindings even when their host cannot be resolved via DNS", func() {
+			// e.g. "structured-format://DogStatsD" - the host segment is an opaque tag, not a resolvable
+			// hostname, so it must not be rejected by the DNS resolution check.
+			bindings := []Binding{
+				{
+					Url: "structured-format://fail_to_resolve_ip",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+			}
+
+			filteredBindings := bndChecker.checkBindings(bindings)
+
+			Expect(filteredBindings).To(HaveLen(1))
+			Expect(bndChecker.invalidDrains).To(Equal(float64(0)))
+		})
+
 		It("returns no binding if a host cannot be parsed from the given url", func() {
 			bindings := []Binding{
 				{

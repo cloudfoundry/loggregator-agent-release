@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -77,6 +78,14 @@ type Setter interface {
 // Syslog Agent and the TAS Metric Registrar as consumers. All schemes a part from "secure-endpoint", "metrics-endpoint", "structured-format"
 // belong to the Syslog Agent. If a particular downstream consumer doesn't support some scheme, it should handle the validation itself
 var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch", "secure-endpoint", "metrics-endpoint", "structured-format"}
+
+// nonNetworkSchemes lists schemes used by downstream consumers other than the Syslog Agent as opaque
+// discovery tags on a CUPS binding (e.g. TAS Metric Registrar's documented "structured-format://" and
+// "metrics-endpoint://" convention) rather than as real syslog drain endpoints. Bindings using these
+// schemes aren't guaranteed to have a resolvable, or even present, hostname, so they must be exempt from
+// the syslog-drain-specific network checks below (hostname presence, log type filters, DNS resolution,
+// IP blacklist) - those only make sense for bindings that are actually dialed as drains.
+var nonNetworkSchemes = []string{"secure-endpoint", "metrics-endpoint", "structured-format"}
 
 func NewPoller(
 	ac client,
@@ -237,39 +246,41 @@ func (bc *bindingChecker) checkBindings(bindings []Binding) []Binding {
 			continue
 		}
 
-		if len(u.Host) == 0 {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("No hostname found in syslog drain url %s", anonymousUrl.String()), true)
-			continue
-		}
+		if !slices.Contains(nonNetworkSchemes, u.Scheme) {
+			if len(u.Host) == 0 {
+				bc.rejectBinding(b.Credentials, fmt.Sprintf("No hostname found in syslog drain url %s", anonymousUrl.String()), true)
+				continue
+			}
 
-		if invalidLogFilter(u) {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("include-log-types and exclude-log-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()), true)
-			continue
-		}
+			if invalidLogFilter(u) {
+				bc.rejectBinding(b.Credentials, fmt.Sprintf("include-log-types and exclude-log-types cannot be used at the same time in syslog drain url %s", anonymousUrl.String()), true)
+				continue
+			}
 
-		sourceTypes := getUnknownSourceTypes(u.Query())
-		if sourceTypes != nil {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("Unknown log types '%s' in log type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()), true)
-			continue
-		}
+			sourceTypes := getUnknownSourceTypes(u.Query())
+			if sourceTypes != nil {
+				bc.rejectBinding(b.Credentials, fmt.Sprintf("Unknown log types '%s' in log type filter in syslog drain url %s", strings.Join(sourceTypes, ", "), anonymousUrl.String()), true)
+				continue
+			}
 
-		_, exists := bc.failedHostsCache.Get(u.Host)
-		if exists {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), false)
-			continue
-		}
+			_, exists := bc.failedHostsCache.Get(u.Host)
+			if exists {
+				bc.rejectBinding(b.Credentials, fmt.Sprintf("Skipped resolve ip address for syslog drain with url %s due to prior failure", anonymousUrl.String()), false)
+				continue
+			}
 
-		ip, err := bc.checker.ResolveAddr(u.Host)
-		if err != nil {
-			bc.failedHostsCache.Set(u.Host, true)
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), true)
-			continue
-		}
+			ip, err := bc.checker.ResolveAddr(u.Host)
+			if err != nil {
+				bc.failedHostsCache.Set(u.Host, true)
+				bc.rejectBinding(b.Credentials, fmt.Sprintf("Cannot resolve ip address for syslog drain with url %s", anonymousUrl.String()), true)
+				continue
+			}
 
-		err = bc.checker.CheckBlacklist(ip)
-		if err != nil {
-			bc.rejectBinding(b.Credentials, fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), true, true)
-			continue
+			err = bc.checker.CheckBlacklist(ip)
+			if err != nil {
+				bc.rejectBinding(b.Credentials, fmt.Sprintf("Resolved ip address for syslog drain with url %s is blacklisted", anonymousUrl.String()), true, true)
+				continue
+			}
 		}
 
 		var validCredentials []Credentials
@@ -316,13 +327,7 @@ func sendAppLogMessage(msg string, apps []App, appLogClient v2.LogClient, logger
 }
 
 func invalidScheme(scheme string) bool {
-	for _, s := range allowedSchemes {
-		if s == scheme {
-			return false
-		}
-	}
-
-	return true
+	return !slices.Contains(allowedSchemes, scheme)
 }
 
 // invalidLogFilter checks if both include-log-types and exclude-log-types are set
