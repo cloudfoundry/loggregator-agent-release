@@ -3,6 +3,7 @@ package bindings
 import (
 	"log"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -11,7 +12,11 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/simplecache"
 )
 
+// allowedSchemes defines which URL schemes are allowed to be used with user-provided-services for Syslog Drains
 var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
+
+// Ignored schemes that are valid in the user-provided-services, but are not used in Syslog Drains and are not processed by the Syslog Agent
+var ignoredSchemes = []string{"secure-endpoint", "metrics-endpoint", "structured-format"}
 
 type FilteredBindingFetcher struct {
 	ipChecker        binding.IPChecker
@@ -59,6 +64,10 @@ func (f *FilteredBindingFetcher) FetchBindings() ([]syslog.Binding, error) {
 		anonymousUrl := *u
 		anonymousUrl.User = nil
 		anonymousUrl.RawQuery = ""
+
+		if ignoredScheme(u.Scheme) {
+			continue
+		}
 
 		if invalidScheme(u.Scheme) {
 			invalidDrains += 1
@@ -148,11 +157,9 @@ func (f FilteredBindingFetcher) printWarning(format string, v ...any) {
 }
 
 func invalidScheme(scheme string) bool {
-	for _, s := range allowedSchemes {
-		if s == scheme {
-			return false
-		}
-	}
+	return !slices.Contains(allowedSchemes, scheme)
+}
 
-	return true
+func ignoredScheme(scheme string) bool {
+	return slices.Contains(ignoredSchemes, scheme)
 }

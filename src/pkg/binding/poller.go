@@ -72,7 +72,11 @@ type Setter interface {
 	Set(bindings []Binding, bindingCount int)
 }
 
-var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch"}
+// allowedSchemes defines which URL schemes are allowed to be used with user-provided-services. As the validation is done centrally,
+// all schemes which are used by the downstream consumers of the Syslog Binding Cache have to be listed here. At the moment we have the
+// Syslog Agent and the TAS Metric Registrar as consumers. All schemes a part from "secure-endpoint", "metrics-endpoint", "structured-format"
+// belong to the Syslog Agent. If a particular downstream consumer doesn't support some scheme, it should handle the validation itself
+var allowedSchemes = []string{"syslog", "syslog-tls", "https", "https-batch", "secure-endpoint", "metrics-endpoint", "structured-format"}
 
 func NewPoller(
 	ac client,

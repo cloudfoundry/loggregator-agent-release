@@ -392,7 +392,7 @@ var _ = Describe("Poller", func() {
 			Expect(bndChecker.blacklistedDrains).To(Equal(float64(0)))
 		})
 
-		It("returns no binding and writes an error if the binding url has invalid scheme", func() {
+		It("returns only bindings with valid scheme and writes an error if a binding url has invalid scheme", func() {
 
 			bindings := []Binding{
 				{
@@ -403,11 +403,27 @@ var _ = Describe("Poller", func() {
 						},
 					},
 				},
+				{
+					Url: "https://drain-1.com?user=trlala&password=123213",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
+				{
+					Url: "secure-endpoint://drain-2.com?user=trlala&password=123213",
+					Credentials: []Credentials{
+						{
+							Apps: []App{{Hostname: "app-hostname0", AppID: "app-id-0"}},
+						},
+					},
+				},
 			}
 
 			filteredBindings := bndChecker.checkBindings(bindings)
 
-			Expect(filteredBindings).To(BeEmpty())
+			Expect(filteredBindings).To(HaveLen(2))
 			Expect(logBuffer).Should(gbytes.Say("Invalid Scheme syslog-ssl for syslog drain url syslog-ssl://drain-0.com for app app-id-0"))
 			Expect(logClient.Message()).To(ContainElement(Equal("Invalid Scheme syslog-ssl for syslog drain url syslog-ssl://drain-0.com")))
 			Expect(bndChecker.invalidDrains).To(Equal(float64(1)))

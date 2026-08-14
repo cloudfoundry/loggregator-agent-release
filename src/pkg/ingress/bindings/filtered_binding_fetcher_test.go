@@ -143,6 +143,7 @@ var _ = Describe("FilteredBindingFetcher", func() {
 				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "bad-scheme://10.10.10.10"}},
 				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "bad-scheme:///path"}},
 				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "blah://10.10.10.10"}},
+				{AppId: "app-id", Hostname: "unknown", Drain: syslog.Drain{Url: "secure-endpoint://:8081/metrics"}},
 			}
 
 			logBuffer = bytes.Buffer{}
