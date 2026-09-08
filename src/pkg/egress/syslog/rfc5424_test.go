@@ -12,9 +12,7 @@ import (
 )
 
 var _ = Describe("RFC5424", func() {
-	var (
-		c *syslog.Converter
-	)
+	var c *syslog.Converter
 
 	BeforeEach(func() {
 		c = syslog.NewConverter()
@@ -184,22 +182,128 @@ var _ = Describe("RFC5424", func() {
 		expectConversion(receivedMsgs, expectedMsg+"\n")
 	})
 
-	It("truncates processid if is longer than 128", func() {
-		env := buildLogEnvelope("MY TASK", strings.Repeat("A", 300), "just a test", loggregator_v2.Log_OUT)
-		receivedMsgs, err := c.ToRFC5424(env, "host")
-		Expect(err).ToNot(HaveOccurred())
-		expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host test-app-id [MY-TASK/%s] - [tags@47450 source_type="MY TASK"] just a test`, strings.Repeat("A", 118))
-		expectConversion(receivedMsgs, expectedMsg+"\n")
+	When("sourceType >= 127 and index empty", func() {
+		It("truncates sourceType when index is empty", func() {
+			taskName := strings.Repeat("A", 127)
+			index := ""
+			expectedRenderedProcID := fmt.Sprintf("[%s]", taskName[:126])
+
+			env := buildLogEnvelope(taskName, index, "just a test", loggregator_v2.Log_OUT)
+
+			receivedMsgs, err := c.ToRFC5424(env, "host")
+			Expect(err).ToNot(HaveOccurred())
+			expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host test-app-id %s - [tags@47450 source_type="%s"] just a test`, expectedRenderedProcID, taskName)
+			expectConversion(receivedMsgs, expectedMsg+"\n")
+		})
+	})
+	When("len (sourceType) + len(index) >= 126", func() {
+		It("truncates sourceType, keeping sourceInstance at max length", func() {
+			taskName := strings.Repeat("A", 126)
+			index := strings.Repeat("B", syslog.MaxSourceInstanceLength)
+			expectedRenderedProcID := fmt.Sprintf("[%s/%s]", taskName[:89], index)
+
+			env := buildLogEnvelope(taskName, index, "just a test", loggregator_v2.Log_OUT)
+
+			receivedMsgs, err := c.ToRFC5424(env, "host")
+			Expect(err).ToNot(HaveOccurred())
+			expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host test-app-id %s - [tags@47450 source_type="%s"] just a test`, expectedRenderedProcID, taskName)
+			expectConversion(receivedMsgs, expectedMsg+"\n")
+		})
+	})
+	When("len(sourceInstance) + len(sourceType) <= 125", func() {
+		for _, inputPairLengths := range [][]int{
+			{124, 1},
+			{123, 2},
+			{66, 59},
+			{65, 60},
+			{64, 61},
+			{63, 62},
+			{62, 63},
+			{3, 122},
+			{4, 121},
+			{5, 120},
+			{1, 124},
+			{100, 20},
+			{60, 40},
+			{20, 100},
+			{10, 50},
+		} {
+			It("will not truncate even when sourceInstance or sourceType contain unexpected long values", func() {
+				taskName := strings.Repeat("A", inputPairLengths[0])
+				index := strings.Repeat("B", inputPairLengths[1])
+				expectedRenderedProcID := fmt.Sprintf("[%s]", taskName)
+				if inputPairLengths[1] != 0 {
+					expectedRenderedProcID = fmt.Sprintf("[%s/%s]", taskName, index)
+				}
+				env := buildLogEnvelope(taskName, index, "just a test", loggregator_v2.Log_OUT)
+
+				receivedMsgs, err := c.ToRFC5424(env, "host")
+				Expect(err).ToNot(HaveOccurred())
+				expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host test-app-id %s - [tags@47450 source_type="%s"] just a test`, expectedRenderedProcID, taskName)
+				expectConversion(receivedMsgs, expectedMsg+"\n")
+			})
+		}
+	})
+	When("len(sourceInstance) + len(sourceType) > 125", func() {
+		fakeUUID := "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+		fakeNumericalIndex := 12
+		fakeNumericalLong := 1212
+		fakeUnexpectedLongerThanUUID := fakeUUID + "-" + fakeUUID
+		fakeUnexpectedLongValueSourceType := strings.Repeat("A", 89) // 89 is max length when we see len(sourceInstance)==36
+
+		for _, input := range []struct {
+			taskName string
+			index    any
+			expected string
+		}{
+			{strings.Repeat("A", 128), "B", fmt.Sprintf("[%s/%s]", strings.Repeat("A", 124), "B")}, // cut unexpectedLongType, keep INDEX short
+			{strings.Repeat("A", 127), "B", fmt.Sprintf("[%s/%s]", strings.Repeat("A", 124), "B")},
+			{strings.Repeat("A", 126), "B", fmt.Sprintf("[%s/%s]", strings.Repeat("A", 124), "B")},
+			{strings.Repeat("A", 125), "B", fmt.Sprintf("[%s/%s]", strings.Repeat("A", 124), "B")},
+			{strings.Repeat("A", 124), fakeUUID, fmt.Sprintf("[%s/%s]", fakeUnexpectedLongValueSourceType, fakeUUID)}, // cut unexpectedLongType, keep INDEX UUID
+			{strings.Repeat("A", 128), fakeUUID, fmt.Sprintf("[%s/%s]", fakeUnexpectedLongValueSourceType, fakeUUID)},
+			{strings.Repeat("A", 180), fakeUUID, fmt.Sprintf("[%s/%s]", fakeUnexpectedLongValueSourceType, fakeUUID)},
+			{strings.Repeat("A", 180), fakeNumericalIndex, fmt.Sprintf("[%s/%s]", strings.Repeat("A", 123), "12")},
+			{strings.Repeat("A", 180), fakeNumericalLong, fmt.Sprintf("[%s/%s]", strings.Repeat("A", 121), "1212")},
+			{strings.Repeat("A", 66), fakeUnexpectedLongerThanUUID, fmt.Sprintf("[%s/%s]", strings.Repeat("A", 66), fakeUUID)}, // cut unexpectedLongIndex
+			// cut unexpectedLongType
+			// len(fakeUnexpectedLongValueSourceType) == syslog.MaxReturnLen - syslog.MaxSourceInstanceLength - len([/]) == 89;
+			{fakeUnexpectedLongValueSourceType, fakeUnexpectedLongerThanUUID, fmt.Sprintf("[%s/%s]", fakeUnexpectedLongValueSourceType, fakeUUID)},
+			{strings.Repeat("A", 90), fakeUnexpectedLongerThanUUID, fmt.Sprintf("[%s/%s]", fakeUnexpectedLongValueSourceType, fakeUUID)},  // cut unexpectedLongIndex and unexpectedLongType
+			{strings.Repeat("A", 100), fakeUnexpectedLongerThanUUID, fmt.Sprintf("[%s/%s]", fakeUnexpectedLongValueSourceType, fakeUUID)}, // cut unexpectedLongIndex and unexpectedLongType
+		} {
+			It("truncates sourceInstance to at most syslog.MaxSourceInstanceLength and truncates sourceType if necessary", func() {
+				index := fmt.Sprintf("%v", input.index)
+				expectedRenderedProcID := input.expected
+				env := buildLogEnvelope(input.taskName, index, "just a test", loggregator_v2.Log_OUT)
+				receivedMsgs, err := c.ToRFC5424(env, "host")
+				Expect(err).ToNot(HaveOccurred())
+				expectedMsg := fmt.Sprintf(`<14>1 1970-01-01T00:00:00.012345+00:00 host test-app-id %s - [tags@47450 source_type="%s"] just a test`, expectedRenderedProcID, input.taskName)
+				expectConversion(receivedMsgs, expectedMsg+"\n")
+			})
+		}
 	})
 
 	Describe("validation", func() {
-
 		It("returns an error if app name includes unprintable characters", func() {
 			env := buildLogEnvelope("MY TASK", "2", "just a test", 20)
 			env.SourceId = "   "
 			_, err := c.ToRFC5424(env, "test-hostname")
 			Expect(err).To(HaveOccurred())
 		})
+	})
+	It("does not panic for the maximum valid task name", func() {
+		taskName := strings.Repeat("A", 255)
+		env := buildLogEnvelope(
+			"APP/TASK/"+taskName,
+			"0",
+			"just a test",
+			loggregator_v2.Log_OUT,
+		)
+
+		Expect(func() {
+			_, _ = c.ToRFC5424(env, "host")
+		}).NotTo(Panic())
 	})
 })
 
