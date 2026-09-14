@@ -786,6 +786,12 @@ func (h *RequestHeader) RequestURI() []byte {
 	requestURI := h.requestURI
 	if len(requestURI) == 0 {
 		requestURI = strSlash
+	} else if requestURI[0] == '?' {
+		// Origin-form requires a path. An empty path is "/".
+		h.requestURI = append(h.requestURI, 0)
+		copy(h.requestURI[1:], h.requestURI[:len(h.requestURI)-1])
+		h.requestURI[0] = '/'
+		requestURI = h.requestURI
 	}
 	return requestURI
 }
@@ -847,6 +853,11 @@ func (h *RequestHeader) IsTrace() bool {
 // IsPatch returns true if request method is PATCH.
 func (h *RequestHeader) IsPatch() bool {
 	return string(h.Method()) == MethodPatch
+}
+
+// IsQuery returns true if request method is QUERY.
+func (h *RequestHeader) IsQuery() bool {
+	return string(h.Method()) == MethodQuery
 }
 
 // IsHTTP11 returns true if the header is HTTP/1.1.
@@ -1907,6 +1918,16 @@ func (h *ResponseHeader) PeekBytes(key []byte) []byte {
 	return h.peek(h.bufK)
 }
 
+// PeekCanonical returns header value for the given key without normalizing it.
+// The key must match the canonical form used with SetCanonical.
+//
+// The returned value is valid until the response is released,
+// either though ReleaseResponse or your request handler returning.
+// Do not store references to the returned value. Make copies instead.
+func (h *ResponseHeader) PeekCanonical(key []byte) []byte {
+	return h.peek(key)
+}
+
 // Peek returns header value for the given key.
 //
 // The returned value is valid until the request is released,
@@ -1926,6 +1947,16 @@ func (h *RequestHeader) PeekBytes(key []byte) []byte {
 	h.bufK = append(h.bufK[:0], key...)
 	normalizeHeaderKey(h.bufK, h.disableNormalizing)
 	return h.peek(h.bufK)
+}
+
+// PeekCanonical returns header value for the given key without normalizing it.
+// The key must match the canonical form used with SetCanonical.
+//
+// The returned value is valid until the request is released,
+// either though ReleaseRequest or your request handler returning.
+// Do not store references to the returned value. Make copies instead.
+func (h *RequestHeader) PeekCanonical(key []byte) []byte {
+	return h.peek(key)
 }
 
 func (h *ResponseHeader) peek(key []byte) []byte {
@@ -3180,6 +3211,14 @@ func (h *RequestHeader) parseHeaders(buf []byte, blockEnd int) (int, error) {
 		case 't':
 			if caseInsensitiveCompare(s.key, strTransferEncoding) {
 				isTransferEncoding = true
+				// RFC 9112 section 6.1 requires an HTTP/1.0 message carrying
+				// Transfer-Encoding to be treated as having faulty framing,
+				// even if Content-Length is present, and the connection to be
+				// closed afterwards.
+				if h.noHTTP11 {
+					h.connectionClose = true
+					return 0, ErrUnsupportedTransferEncoding
+				}
 				if transferEncodingSeen {
 					h.connectionClose = true
 					if h.secureErrorLogMessage {

@@ -247,6 +247,10 @@ type Server struct {
 	idleConns map[net.Conn]*atomic.Int64
 	done      chan struct{}
 
+	// Whether done was already closed. A ShutdownWithContext that gives up on
+	// its context leaves it closed but in place, and it must not be closed twice.
+	doneClosed bool
+
 	// Server name for sending in response headers.
 	//
 	// Default server name is used if left blank.
@@ -330,6 +334,8 @@ type Server struct {
 	// The server rejects requests with bodies exceeding this limit.
 	//
 	// Request body size is limited by DefaultMaxRequestBodySize by default.
+	// A value less than or equal to zero selects DefaultMaxRequestBodySize; it
+	// does not disable the limit.
 	MaxRequestBodySize int
 
 	// SleepWhenConcurrencyLimitsExceeded is a duration to be slept of if
@@ -461,6 +467,10 @@ type Server struct {
 	// StreamRequestBody enables request body streaming,
 	// and calls the handler sooner when given body is
 	// larger than the current limit.
+	//
+	// Process large bodies through RequestBodyStream to keep memory usage
+	// bounded. Calling PostBody or Request.Body reads the entire remaining body
+	// into memory.
 	StreamRequestBody bool
 }
 
@@ -1326,6 +1336,11 @@ func (ctx *RequestCtx) IsPatch() bool {
 	return ctx.Request.Header.IsPatch()
 }
 
+// IsQuery returns true if request method is QUERY.
+func (ctx *RequestCtx) IsQuery() bool {
+	return ctx.Request.Header.IsQuery()
+}
+
 // Method return request method.
 //
 // Returned value is valid until your request handler returns.
@@ -1614,6 +1629,9 @@ func (ctx *RequestCtx) PostBody() []byte {
 // before returning io.EOF.
 //
 // If bodySize < 0, then bodyStream is read until io.EOF.
+//
+// See BodyWriterTo for controlling whether fasthttp may use WriteTo instead of
+// Read when consuming bodyStream.
 //
 // See also SetBodyStreamWriter.
 func (ctx *RequestCtx) SetBodyStream(bodyStream io.Reader, bodySize int) {
@@ -2068,8 +2086,9 @@ func (s *Server) ShutdownWithContext(ctx context.Context) (err error) {
 
 	lnerr := s.closeListenersLocked()
 
-	if s.done != nil {
+	if s.done != nil && !s.doneClosed {
 		close(s.done)
+		s.doneClosed = true
 	}
 
 	// Closing the listener will make Serve() call Stop on the worker pool.
@@ -2084,6 +2103,7 @@ func (s *Server) ShutdownWithContext(ctx context.Context) (err error) {
 		if open := s.open.Load(); open == 0 {
 			// There may be a pending request to call ctx.Done(). Therefore, we only set it to nil when open == 0.
 			s.done = nil
+			s.doneClosed = false
 			return lnerr
 		}
 		// This is not an optimal solution but using a sync.WaitGroup
@@ -3147,8 +3167,9 @@ func (s *Server) closeIdleConns() {
 		t := ict.Load()
 		if t != 0 && now-t >= 0 {
 			_ = c.Close()
+			// Don't recycle ict: the connection's own goroutine still holds it
+			// and stores into it, so only that goroutine may return it.
 			delete(s.idleConns, c)
-			idleConnTimePool.Put(ict)
 		}
 	}
 	s.idleConnsMu.Unlock()

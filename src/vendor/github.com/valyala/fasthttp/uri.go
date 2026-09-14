@@ -404,6 +404,24 @@ func isValidScheme(scheme []byte) bool {
 	return true
 }
 
+// isAuthorityDelimiter reports whether the "//" at index n in uri introduces an
+// authority. Per RFC 3986 that is only the case for a network-path reference,
+// which starts with "//", or when the "//" is preceded by a scheme and a colon.
+// Anywhere else the "//" belongs to a path or to a query, so "a//b" is a
+// relative path and not scheme "a" with host "b".
+func isAuthorityDelimiter(uri []byte, n int) bool {
+	if n == 0 {
+		return true
+	}
+	scheme := uri[:n]
+	if scheme[len(scheme)-1] != ':' {
+		return false
+	}
+	// splitHostURI also accepts the empty scheme in "://host".
+	scheme = scheme[:len(scheme)-1]
+	return len(scheme) == 0 || isValidScheme(scheme)
+}
+
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
 //
@@ -736,13 +754,19 @@ func (u *URI) RequestURI() []byte {
 	var dst []byte
 	if u.DisablePathNormalizing {
 		dst = u.requestURI[:0]
-		dst = append(dst, u.PathOriginal()...)
+		path := u.PathOriginal()
+		if len(path) == 0 {
+			path = strSlash
+		}
+		dst = append(dst, path...)
 	} else {
 		dst = appendQuotedPath(u.requestURI[:0], u.Path())
 	}
-	if u.parsedQueryArgs && u.queryArgs.Len() > 0 {
-		dst = append(dst, '?')
-		dst = u.queryArgs.AppendBytes(dst)
+	if u.parsedQueryArgs {
+		if u.queryArgs.Len() > 0 {
+			dst = append(dst, '?')
+			dst = u.queryArgs.AppendBytes(dst)
+		}
 	} else if len(u.queryString) > 0 {
 		dst = append(dst, '?')
 		dst = append(dst, u.queryString...)
@@ -807,7 +831,7 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 	}
 
 	n := bytes.Index(newURI, strSlashSlash)
-	if n >= 0 {
+	if n >= 0 && isAuthorityDelimiter(newURI, n) {
 		// absolute uri
 		var b [32]byte
 		schemeOriginal := b[:0]
