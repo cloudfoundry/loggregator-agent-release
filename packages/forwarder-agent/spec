@@ -2,7 +2,7 @@
 name: forwarder-agent
 
 dependencies:
-- golang-1.26-linux
+- golang-1.27-linux
 files:
 - cmd/forwarder-agent/**/*.go
 - pkg/**/*.go
