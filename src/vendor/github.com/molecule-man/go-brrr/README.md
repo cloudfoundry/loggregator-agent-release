@@ -91,6 +91,19 @@ If you compress or decompress repeatedly (e.g. per request in a webserver), keep
 
 go-brrr is optimized for throughput. Some hot paths intentionally use larger functions, duplicated loops, and specialized code where benchmarks showed measurable wins. These choices stay local to performance-sensitive encoder and decoder internals; public APIs stay small and conventional.
 
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you start.
+
+The most important rules:
+
+- **One pull request is one logical change.** Independent optimizations go into separate pull requests, so each one can be benchmarked, reverted, and bisected on its own.
+- **Explain the expected effect and its cause.** 
+
+The maintainer measures every performance change against a file corpus on dedicated hardware.
+
+For a large optimization, open an issue first and agree on the scope.
+
 ## Acknowledgments
 
 This library is a port of the [Brotli reference implementation](https://github.com/google/brotli) by the Brotli Authors, licensed under the MIT License.

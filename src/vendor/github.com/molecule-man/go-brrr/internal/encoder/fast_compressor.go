@@ -94,18 +94,23 @@ func (c *fastCompressor) Write(dst io.Writer, p []byte) (int, error) {
 	return total, nil
 }
 
-// Flush emits buffered input as a non-final meta-block and writes all complete
-// output bytes to dst. As in the C reference fast path, the trailing sub-byte
-// (at most 7 bits) is retained and continues into the next meta-block rather
-// than being padded out, so the bitstream stays continuous. The brotli stream
-// is not finalized.
+// Flush emits buffered input as a non-final meta-block, then byte-aligns the
+// stream so everything written so far is decodable from the bytes on the wire.
+// The brotli stream is not finalized.
+//
+// Between fragments the encoder carries up to seven trailing bits, which is
+// correct while the bitstream continues internally. At a flush it is not: those
+// bits hold the tail of the data just written, so leaving them behind means a
+// streaming consumer decodes a short prefix and blocks. The reference encoder
+// injects a byte-padding block for exactly this reason.
 func (c *fastCompressor) Flush(dst io.Writer) error {
-	if len(c.buf) == 0 {
-		return nil
+	if len(c.buf) > 0 {
+		if err := c.emitFragment(dst, c.buf, false); err != nil {
+			return err
+		}
+		c.buf = c.buf[:0]
 	}
-	err := c.emitFragment(dst, c.buf, false)
-	c.buf = c.buf[:0]
-	return err
+	return c.padToByteBoundary(dst)
 }
 
 // Close emits any remaining buffered input as the final meta-block, finalizing
@@ -236,6 +241,29 @@ func (c *fastCompressor) emitFragment(dst io.Writer, block []byte, isLast bool) 
 	// carryBits is 0.
 	c.carry = c.outBuf[n]
 	c.carryBits = b.bitOffset & 7
+	return nil
+}
+
+// padToByteBoundary flushes the pending sub-byte carry by appending an empty
+// metadata meta-block and zero-padding to the next byte boundary.
+//
+// The six header bits are ISLAST=0, MNIBBLES=3 (the metadata marker),
+// reserved=0, MSKIPBYTES=0 — the value 0x6 written LSB-first, which is what
+// InjectBytePaddingBlock emits in the reference encoder's encode.c. Decoders
+// skip metadata blocks, so the block costs at most two bytes and leaves the
+// stream ready to continue at a byte boundary.
+func (c *fastCompressor) padToByteBoundary(dst io.Writer) error {
+	if c.carryBits == 0 {
+		return nil
+	}
+	seal := uint32(c.carry) | 0x6<<c.carryBits
+	sealBits := c.carryBits + 6 // at most 7+6 = 13, so never more than 2 bytes
+	out := [2]byte{byte(seal), byte(seal >> 8)}
+	if _, err := dst.Write(out[:(sealBits+7)/8]); err != nil {
+		return err
+	}
+	c.carry = 0
+	c.carryBits = 0
 	return nil
 }
 

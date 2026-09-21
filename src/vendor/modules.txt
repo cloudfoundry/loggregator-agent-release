@@ -13,11 +13,11 @@ code.cloudfoundry.org/go-loggregator/v10
 code.cloudfoundry.org/go-loggregator/v10/conversion
 code.cloudfoundry.org/go-loggregator/v10/rfc5424
 code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2
-# code.cloudfoundry.org/go-metric-registry v0.0.0-20260901100552-589270c3b9ea
-## explicit; go 1.25.8
+# code.cloudfoundry.org/go-metric-registry v0.0.0-20260915045411-6e7ffc53e0ba
+## explicit; go 1.26.0
 code.cloudfoundry.org/go-metric-registry
 code.cloudfoundry.org/go-metric-registry/testhelpers
-# code.cloudfoundry.org/tlsconfig v0.66.0
+# code.cloudfoundry.org/tlsconfig v0.67.0
 ## explicit; go 1.26.0
 code.cloudfoundry.org/tlsconfig
 code.cloudfoundry.org/tlsconfig/certtest
@@ -86,7 +86,7 @@ github.com/maxbrunsfeld/counterfeiter/v6
 github.com/maxbrunsfeld/counterfeiter/v6/arguments
 github.com/maxbrunsfeld/counterfeiter/v6/command
 github.com/maxbrunsfeld/counterfeiter/v6/generator
-# github.com/molecule-man/go-brrr v1.1.0
+# github.com/molecule-man/go-brrr v1.1.1
 ## explicit; go 1.22.0
 github.com/molecule-man/go-brrr
 github.com/molecule-man/go-brrr/internal/core
@@ -94,7 +94,7 @@ github.com/molecule-man/go-brrr/internal/encoder
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/onsi/ginkgo/v2 v2.32.2
+# github.com/onsi/ginkgo/v2 v2.33.0
 ## explicit; go 1.25.0
 github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
@@ -118,7 +118,7 @@ github.com/onsi/ginkgo/v2/internal/reporters
 github.com/onsi/ginkgo/v2/internal/testingtproxy
 github.com/onsi/ginkgo/v2/reporters
 github.com/onsi/ginkgo/v2/types
-# github.com/onsi/gomega v1.43.0
+# github.com/onsi/gomega v1.43.1
 ## explicit; go 1.25.0
 github.com/onsi/gomega
 github.com/onsi/gomega/format
@@ -178,7 +178,7 @@ go.opentelemetry.io/proto/otlp/logs/v1
 go.opentelemetry.io/proto/otlp/metrics/v1
 go.opentelemetry.io/proto/otlp/resource/v1
 go.opentelemetry.io/proto/otlp/trace/v1
-# go.step.sm/crypto v0.90.0
+# go.step.sm/crypto v0.91.0
 ## explicit; go 1.26.0
 go.step.sm/crypto/fingerprint
 go.step.sm/crypto/internal/bcrypt_pbkdf
@@ -287,13 +287,13 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/genproto/googleapis/api v0.0.0-20260911204522-f61a6ca850bd
-## explicit; go 1.25.0
+# google.golang.org/genproto/googleapis/api v0.0.0-20260918162117-cecb64721679
+## explicit; go 1.26.0
 google.golang.org/genproto/googleapis/api/httpbody
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd
-## explicit; go 1.25.0
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20260918162117-cecb64721679
+## explicit; go 1.26.0
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.83.2
+# google.golang.org/grpc v1.84.0
 ## explicit; go 1.25.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
