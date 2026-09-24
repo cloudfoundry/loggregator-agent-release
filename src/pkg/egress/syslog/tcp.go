@@ -158,7 +158,6 @@ func generateProcessID(sourceType, sourceInstance string) string {
 	// [sourceType/sourceInstance]
 	// source type is almost certainly very small, except someone decides to have very
 	// long generated task names
-	// sourceInstance
 	maxReturnLen := MaxReturnLen - 2
 	sourceType = strings.ToUpper(sourceType)
 
