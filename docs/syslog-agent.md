@@ -105,6 +105,21 @@ variables:
     common_name: metricScraperCA
 ```
 
+#### PROCID truncation
+
+The RFC5424 `PROCID` field carries the log source, rendered as `[SOURCE_TYPE/SOURCE_INSTANCE]`
+(e.g. `[APP/TASK/my-task/0]`). RFC5424 caps `PROCID` at 128 bytes, but CF task names are free
+text and can exceed it. To avoid dropping source identification, the agent truncates instead of
+rejecting the message:
+
+- Fits in 128 bytes → emitted unchanged.
+- Too long → `SOURCE_INSTANCE` is capped at 36 bytes (enough to preserve an instance index or UUID).
+- Still too long → `SOURCE_TYPE` (the task name) is trimmed to fit.
+
+Only the `PROCID` is affected; the full, untruncated task name is still emitted in the
+`source_type` structured-data tag. Operators who need stable, unambiguous source identification
+should keep task names short.
+
 #### Logs and metrics
 
 Syslog emits metrics relating to per-app egress, total egress, and total dropped
