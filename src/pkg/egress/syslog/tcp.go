@@ -145,23 +145,35 @@ func appendNewline(msg []byte) []byte {
 	return msg
 }
 
-func generateProcessID(sourceType, sourceInstance string) string {
-	sourceType = strings.ToUpper(sourceType)
-	if sourceInstance != "" {
-		// 128 is the max size, 3 for [] and /, truncate to fit
-		// source type is almost certainly very small
-		if len(sourceType)+len(sourceInstance)+3 > 128 {
-			sourceInstance = sourceInstance[:(128 - len(sourceType) - 3)]
-		}
-		tmp := make([]byte, 0, 3+len(sourceType)+len(sourceInstance))
-		tmp = append(tmp, '[')
-		tmp = append(tmp, []byte(strings.ReplaceAll(sourceType, " ", "-"))...)
-		tmp = append(tmp, '/')
-		tmp = append(tmp, []byte(sourceInstance)...)
-		tmp = append(tmp, ']')
+const (
+	MaxSourceInstanceLength = 36
+	MaxReturnLen            = 128
+)
 
-		return string(tmp)
+func generateProcessID(sourceType, sourceInstance string) string {
+	// 128 is the max size for the total length
+	// if sourceInstance equals "" we need 2 additional characters for templating
+	// [sourceType]
+	// if sourceInstance is not "" we need 3 additional characters for templating
+	// [sourceType/sourceInstance]
+	// source type is almost certainly very small, except someone decides to have very
+	// long generated task names
+	maxReturnLen := MaxReturnLen - 2
+	sourceType = strings.ToUpper(sourceType)
+
+	if sourceInstance == "" {
+		return "[" + sourceType[:min(len(sourceType), maxReturnLen)] + "]"
 	}
 
-	return fmt.Sprintf("[%s]", sourceType)
+	maxReturnLen--
+
+	if len(sourceInstance)+len(sourceType) > maxReturnLen {
+		sourceInstance = sourceInstance[:min(len(sourceInstance), MaxSourceInstanceLength)]
+	}
+
+	if len(sourceInstance)+len(sourceType) > maxReturnLen {
+		sourceType = sourceType[:maxReturnLen-len(sourceInstance)]
+	}
+
+	return "[" + sourceType + "/" + sourceInstance + "]"
 }
