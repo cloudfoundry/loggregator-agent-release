@@ -5,8 +5,8 @@ package brrr
 import "unsafe"
 
 // fastInputSlack is the minimum bytes of unconsumed input required for
-// fast-path bit reading (162 bits + 7 bytes of margin).
-const fastInputSlack = 28
+// fast-path bit reading (162 bits + 11 bytes of margin for the 8-byte refill).
+const fastInputSlack = 32
 
 // bitReaderState is a snapshot of a bitReader, used to save and restore
 // position for speculative reads that may need to be rolled back.
@@ -94,11 +94,11 @@ func (br *bitReader) checkInputAmount() bool {
 }
 
 // fillBitWindow ensures that at least nBits+1 bits are available in the
-// accumulator. If the accumulator has 32 or fewer valid bits, 4 bytes are
+// accumulator. If the accumulator has fewer than 32 valid bits, 4 bytes are
 // loaded from input. nBits must be in the range [1..24].
 func (br *bitReader) fillBitWindow(nBits uint) {
 	_ = nBits // used for documentation; the 64-bit path handles up to 32
-	if br.bitPos <= 32 {
+	if br.bitPos < 32 {
 		br.val |= uint64(*(*uint32)(unsafe.Add(br.inputBase, br.pos))) << br.bitPos
 		br.bitPos += 32
 		br.pos += 4

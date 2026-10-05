@@ -374,9 +374,13 @@ type Client struct {
 
 	// StreamResponseBody enables response body streaming for Do methods.
 	// Response bodies aren't fully buffered before Do returns. The caller must
-	// read and close Response.BodyStream. Body read errors occur after Do returns
-	// and aren't handled by retry callbacks. ReadTimeout and request deadlines
-	// remain active while reading the stream.
+	// read [Response.BodyStream] and close it with [Response.CloseBodyStream] or
+	// [ReadCloserWithError.CloseWithError]. Body read errors occur after Do
+	// returns and aren't handled by retry callbacks. ReadTimeout and request
+	// deadlines remain active while reading the stream.
+	//
+	// See the [Response.BodyStream] example for retaining only a bounded prefix
+	// of a response body.
 	//
 	// Get and Post methods still read the full response body before returning.
 	// If Do is called with a nil Response, the client drains only small,
@@ -1022,9 +1026,13 @@ type HostClient struct {
 
 	// StreamResponseBody enables response body streaming for Do methods.
 	// Response bodies aren't fully buffered before Do returns. The caller must
-	// read and close Response.BodyStream. Body read errors occur after Do returns
-	// and aren't handled by retry callbacks. ReadTimeout and request deadlines
-	// remain active while reading the stream.
+	// read [Response.BodyStream] and close it with [Response.CloseBodyStream] or
+	// [ReadCloserWithError.CloseWithError]. Body read errors occur after Do
+	// returns and aren't handled by retry callbacks. ReadTimeout and request
+	// deadlines remain active while reading the stream.
+	//
+	// See the [Response.BodyStream] example for retaining only a bounded prefix
+	// of a response body.
 	//
 	// Get and Post methods still read the full response body before returning.
 	// If Do is called with a nil Response, the client drains only small,
@@ -1039,6 +1047,12 @@ type clientConn struct {
 
 	createdTime time.Time
 	lastUseTime time.Time
+
+	// readDeadlineSet and writeDeadlineSet record whether c currently has a
+	// deadline, so a request without timeouts can skip clearing one that was
+	// never set.
+	readDeadlineSet  bool
+	writeDeadlineSet bool
 }
 
 // Conn returns the underlying net.Conn associated with the client connection.
@@ -1756,12 +1770,14 @@ func (c *HostClient) doNonNilReqResp(req *Request, resp *Response) (bool, error)
 	// Free up resources occupied by response before sending the request,
 	// so the GC may reclaim these resources (e.g. response body).
 
-	// backing up SkipBody in case it was set explicitly
+	// Preserve response options that may have been set explicitly.
 	customSkipBody := resp.SkipBody
 	customStreamBody := !req.forceResponseBodyBuffering && (resp.StreamBody || c.StreamResponseBody)
+	customNoDefaultContentType := resp.Header.noDefaultContentType
 	resp.Reset()
 	resp.SkipBody = customSkipBody
 	resp.StreamBody = customStreamBody
+	resp.Header.noDefaultContentType = customNoDefaultContentType
 
 	req.URI().DisablePathNormalizing = c.DisablePathNormalizing
 
@@ -1829,8 +1845,32 @@ var ErrTimeout = &timeoutError{}
 // SetMaxConns sets up the maximum number of connections which may be established to all hosts listed in Addr.
 func (c *HostClient) SetMaxConns(newMaxConns int) {
 	c.connsLock.Lock()
+	defer c.connsLock.Unlock()
 	c.MaxConns = newMaxConns
-	c.connsLock.Unlock()
+	// Grown capacity must reach requests already parked in the wait queue.
+	for c.connsCount < c.maxConnsLocked() && c.serveWaiterLocked() {
+		c.connsCount++
+	}
+}
+
+// maxConnsLocked is MaxConns with its default applied. connsLock must be held.
+func (c *HostClient) maxConnsLocked() int {
+	if c.MaxConns <= 0 {
+		return DefaultMaxConnsPerHost
+	}
+	return c.MaxConns
+}
+
+// serveWaiterLocked hands a connection slot to the next parked waiter and
+// reports whether one took it. connsLock must be held.
+func (c *HostClient) serveWaiterLocked() bool {
+	for q := c.connsWait; q != nil && q.len() > 0; {
+		if w := q.popFront(); w.waiting() {
+			go c.dialConnFor(w)
+			return true
+		}
+	}
+	return false
 }
 
 func (c *HostClient) AcquireConn(reqTimeout time.Duration, connectionClose bool) (cc *clientConn, err error) {
@@ -1841,11 +1881,7 @@ func (c *HostClient) AcquireConn(reqTimeout time.Duration, connectionClose bool)
 	c.connsLock.Lock()
 	n = len(c.conns)
 	if n == 0 {
-		maxConns := c.MaxConns
-		if maxConns <= 0 {
-			maxConns = DefaultMaxConnsPerHost
-		}
-		if c.connsCount < maxConns {
+		if c.connsCount < c.maxConnsLocked() {
 			c.connsCount++
 			createConn = true
 			if !c.connsCleanerRun && !connectionClose {
@@ -1907,7 +1943,7 @@ func (c *HostClient) AcquireConn(reqTimeout time.Duration, connectionClose bool)
 			}
 		}()
 
-		c.queueForIdle(w)
+		c.queueForIdle(w, connectionClose)
 
 		select {
 		case <-w.ready:
@@ -1934,14 +1970,55 @@ func (c *HostClient) AcquireConn(reqTimeout time.Duration, connectionClose bool)
 	return cc, nil
 }
 
-func (c *HostClient) queueForIdle(w *wantConn) {
+func (c *HostClient) queueForIdle(w *wantConn, connectionClose bool) {
 	c.connsLock.Lock()
-	defer c.connsLock.Unlock()
+	if n := len(c.conns); n > 0 {
+		var cc *clientConn
+		switch c.ConnPoolStrategy {
+		case LIFO:
+			n--
+			cc = c.conns[n]
+			c.conns[n] = nil
+			c.conns = c.conns[:n]
+		case FIFO:
+			cc = c.conns[0]
+			copy(c.conns, c.conns[1:])
+			c.conns[n-1] = nil
+			c.conns = c.conns[:n-1]
+		default:
+			c.connsLock.Unlock()
+			w.tryDeliver(nil, ErrConnPoolStrategyNotImpl)
+			return
+		}
+		c.connsLock.Unlock()
+		w.tryDeliver(cc, nil)
+		return
+	}
+	// A connection may have been closed since AcquireConn checked the pool and
+	// the connection count, freeing capacity without adding an idle connection.
+	// Reserve the freed slot and dial a replacement connection for w. The conns
+	// cleaner may have exited after observing connsCount == 0 before the slot
+	// was reserved, so restart it as well.
+	if c.connsCount < c.maxConnsLocked() {
+		c.connsCount++
+		startCleaner := false
+		if !c.connsCleanerRun && !connectionClose {
+			c.connsCleanerRun = true
+			startCleaner = true
+		}
+		c.connsLock.Unlock()
+		if startCleaner {
+			go c.connsCleaner()
+		}
+		go c.dialConnFor(w)
+		return
+	}
 	if c.connsWait == nil {
 		c.connsWait = &wantConnQueue{}
 	}
 	c.connsWait.clearFront()
 	c.connsWait.pushBack(w)
+	c.connsLock.Unlock()
 }
 
 func (c *HostClient) dialConnFor(w *wantConn) {
@@ -2049,18 +2126,13 @@ func (c *HostClient) decConnsCount() {
 
 	c.connsLock.Lock()
 	defer c.connsLock.Unlock()
-	dialed := false
-	if q := c.connsWait; q != nil {
-		for q.len() > 0 {
-			w := q.popFront()
-			if w.waiting() {
-				go c.dialConnFor(w)
-				dialed = true
-				break
-			}
-		}
+	if c.connsCount > c.maxConnsLocked() {
+		// The limit shrank while this slot was held; retire it so the count
+		// converges on the new cap instead of handing it to a waiter.
+		c.connsCount--
+		return
 	}
-	if !dialed {
+	if !c.serveWaiterLocked() {
 		c.connsCount--
 	}
 }
@@ -2089,6 +2161,8 @@ func acquireClientConn(conn net.Conn) *clientConn {
 	cc := v.(*clientConn) //nolint:forcetypeassert
 	cc.c = conn
 	cc.createdTime = time.Now()
+	cc.readDeadlineSet = true
+	cc.writeDeadlineSet = true
 	return cc
 }
 
@@ -2101,39 +2175,54 @@ func releaseClientConn(cc *clientConn) {
 var clientConnPool sync.Pool
 
 func (c *HostClient) ReleaseConn(cc *clientConn) {
-	cc.lastUseTime = time.Now()
-	if c.MaxConnWaitTimeout <= 0 {
-		c.connsLock.Lock()
-		c.conns = append(c.conns, cc)
-		c.connsLock.Unlock()
-		return
-	}
+	// The caller may have changed the deadlines through cc.Conn().
+	cc.readDeadlineSet = true
+	cc.writeDeadlineSet = true
+	c.releaseConn(cc)
+}
 
-	// try to deliver an idle connection to a *wantConn
+func (c *HostClient) releaseConn(cc *clientConn) {
+	cc.lastUseTime = time.Now()
+	startCleaner := false
 	c.connsLock.Lock()
-	defer c.connsLock.Unlock()
-	delivered := false
-	if q := c.connsWait; q != nil {
-		for q.len() > 0 {
-			w := q.popFront()
-			if w.waiting() {
-				delivered = w.tryDeliver(cc, nil)
-				// This is the last resort to hand over conCount sema.
-				// We must ensure that there are no valid waiters in connsWait
-				// when we exit this loop.
-				//
-				// We did not apply the same looping pattern in the decConnsCount
-				// method because it needs to create a new time-spent connection,
-				// and the decConnsCount call chain will inevitably reach this point.
-				// When MaxConnWaitTimeout>0.
-				if delivered {
-					break
+	if c.MaxConnWaitTimeout <= 0 {
+		c.conns = append(c.conns, cc)
+	} else {
+		// try to deliver an idle connection to a *wantConn
+		delivered := false
+		if q := c.connsWait; q != nil {
+			for q.len() > 0 {
+				w := q.popFront()
+				if w.waiting() {
+					delivered = w.tryDeliver(cc, nil)
+					// This is the last resort to hand over conCount sema.
+					// We must ensure that there are no valid waiters in connsWait
+					// when we exit this loop.
+					//
+					// We did not apply the same looping pattern in the decConnsCount
+					// method because it needs to create a new time-spent connection,
+					// and the decConnsCount call chain will inevitably reach this point.
+					// When MaxConnWaitTimeout>0.
+					if delivered {
+						break
+					}
 				}
 			}
 		}
+		if !delivered {
+			c.conns = append(c.conns, cc)
+		}
 	}
-	if !delivered {
-		c.conns = append(c.conns, cc)
+	// A connection may be pooled while the conns cleaner is not running, for
+	// example a replacement dialed for a waiter that timed out and cancelled.
+	// Keep the cleaner running so pooled connections are closed once idle.
+	if len(c.conns) > 0 && !c.connsCleanerRun {
+		c.connsCleanerRun = true
+		startCleaner = true
+	}
+	c.connsLock.Unlock()
+	if startCleaner {
+		go c.connsCleaner()
 	}
 }
 
@@ -2618,6 +2707,16 @@ type PipelineClient struct {
 	// By default request write timeout is unlimited.
 	WriteTimeout time.Duration
 
+	// Maximum response body size. The client returns ErrBodyTooLarge if
+	// this limit is greater than 0 and the response body exceeds it.
+	//
+	// A value less than or equal to zero disables the limit (the default).
+	// Set a positive limit when requesting untrusted servers.
+	//
+	// This limit also applies when Response.StreamBody is enabled, because
+	// PipelineClient buffers each body before reading the next response.
+	MaxResponseBodySize int
+
 	connClientsLock sync.Mutex
 
 	// NoDefaultUserAgentHeader when set to true, causes the default
@@ -2687,6 +2786,7 @@ type pipelineConnClient struct {
 	WriteBufferSize     int
 	ReadTimeout         time.Duration
 	WriteTimeout        time.Duration
+	MaxResponseBodySize int
 
 	chLock sync.Mutex
 
@@ -2990,6 +3090,7 @@ func (c *PipelineClient) newConnClient() *pipelineConnClient {
 		WriteBufferSize:               c.WriteBufferSize,
 		ReadTimeout:                   c.ReadTimeout,
 		WriteTimeout:                  c.WriteTimeout,
+		MaxResponseBodySize:           c.MaxResponseBodySize,
 		Logger:                        c.Logger,
 	}
 	c.connClients = append(c.connClients, cc)
@@ -3034,40 +3135,56 @@ func (c *pipelineConnClient) releasePipelineConnChannels(chs *pipelineConnChanne
 func (c *pipelineConnClient) pipelineWorker(chs *pipelineConnChannels) {
 	// Keep restarting the worker if it fails (connection errors for example).
 	for {
-		if err := c.worker(chs); err != nil {
-			c.logger().Printf("error in PipelineClient(%q): %v", c.Addr, err)
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				// Throttle client reconnections on timeout errors
-				time.Sleep(time.Second)
-			}
-		} else if c.tryRetirePipelineConnChannels(chs) {
+		if c.tryRetirePipelineConnChannels(chs) {
 			return
+		}
+		connected, err := c.worker(chs)
+		if err != nil {
+			c.logger().Printf("error in PipelineClient(%q): %v", c.Addr, err)
+		}
+		if c.tryRetirePipelineConnChannels(chs) {
+			return
+		}
+		if netErr, ok := err.(net.Error); !connected || (ok && netErr.Timeout()) {
+			// Throttle all connection establishment failures and timeouts.
+			// Reconnect promptly after other errors on an established connection.
+			time.Sleep(time.Second)
 		}
 	}
 }
 
 func (c *pipelineConnClient) tryRetirePipelineConnChannels(chs *pipelineConnChannels) bool {
 	c.chLock.Lock()
-	stop := c.chs == chs && chs.users == 0 && len(chs.chR) == 0 && len(chs.chW) == 0
+	stop := c.chs == chs && chs.users == 0 && len(chs.chR) == 0
 	if stop {
 		c.chs = nil
 	}
 	c.chLock.Unlock()
+	if stop {
+		// The reader and writer have stopped, and no callers are using these
+		// channels. Any remaining outgoing requests were abandoned on timeout.
+		// New callers acquire new channels. Reset work outside chLock, since
+		// closing a request body stream may call back into the client.
+		for len(chs.chW) > 0 {
+			c.releasePipelineWork(<-chs.chW)
+		}
+	}
 	return stop
 }
 
-func (c *pipelineConnClient) worker(chs *pipelineConnChannels) error {
+// worker returns whether a connection was established and the worker's error.
+func (c *pipelineConnClient) worker(chs *pipelineConnChannels) (bool, error) {
 	var tlsConfig *tls.Config
 	if c.IsTLS {
 		var err error
 		tlsConfig, err = c.cachedTLSConfig()
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 	conn, err := dialAddr(c.Addr, c.Dial, nil, c.DialDualStack, c.IsTLS, tlsConfig, 0, c.WriteTimeout)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Start reader and writer
@@ -3101,7 +3218,7 @@ func (c *pipelineConnClient) worker(chs *pipelineConnChannels) error {
 		w.done <- struct{}{}
 	}
 
-	return err
+	return true, err
 }
 
 func (c *pipelineConnClient) cachedTLSConfig() (*tls.Config, error) {
@@ -3287,7 +3404,7 @@ func (c *pipelineConnClient) reader(conn net.Conn, stopCh <-chan struct{}, chs *
 		// reader API with a buffered stream instead of leaving bytes in br.
 		streamBody := w.resp.StreamBody
 		w.resp.StreamBody = false
-		err = w.resp.Read(br)
+		err = w.resp.ReadLimitBody(br, c.MaxResponseBodySize)
 		w.resp.StreamBody = streamBody
 		if err != nil {
 			w.err = err
@@ -3420,9 +3537,12 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		}
 	}
 
-	if err = conn.SetWriteDeadline(writeDeadline); err != nil {
-		hc.CloseConn(cc)
-		return true, err
+	if !writeDeadline.IsZero() || cc.writeDeadlineSet {
+		if err = conn.SetWriteDeadline(writeDeadline); err != nil {
+			hc.CloseConn(cc)
+			return true, err
+		}
+		cc.writeDeadlineSet = !writeDeadline.IsZero()
 	}
 
 	resetConnection := false
@@ -3461,9 +3581,12 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		}
 	}
 
-	if err = conn.SetReadDeadline(readDeadline); err != nil {
-		hc.CloseConn(cc)
-		return true, err
+	if !readDeadline.IsZero() || cc.readDeadlineSet {
+		if err = conn.SetReadDeadline(readDeadline); err != nil {
+			hc.CloseConn(cc)
+			return true, err
+		}
+		cc.readDeadlineSet = !readDeadline.IsZero()
 	}
 
 	if customSkipBody || req.Header.IsHead() {
@@ -3492,7 +3615,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 			if closeConn || discard || resp.ConnectionClose() {
 				hc.CloseConn(cc)
 			} else {
-				hc.ReleaseConn(cc)
+				hc.releaseConn(cc)
 			}
 		}
 		// ReadLimitBody always creates a network-backed requestStream when
@@ -3518,7 +3641,7 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 	if closeConn {
 		hc.CloseConn(cc)
 	} else {
-		hc.ReleaseConn(cc)
+		hc.releaseConn(cc)
 	}
 	return false, nil
 }

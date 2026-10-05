@@ -139,23 +139,27 @@ func (a *Args) QueryString() []byte {
 
 // Sort sorts Args by key and then value using 'f' as comparison function.
 //
+// f must return a negative value, zero, or a positive value when x is less
+// than, equal to, or greater than y, respectively.
 // For example args.Sort(bytes.Compare).
 func (a *Args) Sort(f func(x, y []byte) int) {
 	sort.SliceStable(a.args, func(i, j int) bool {
 		n := f(a.args[i].key, a.args[j].key)
 		if n == 0 {
-			return f(a.args[i].value, a.args[j].value) == -1
+			return f(a.args[i].value, a.args[j].value) < 0
 		}
-		return n == -1
+		return n < 0
 	})
 }
 
 // SortKeys sorts Args by key only using 'f' as comparison function.
 //
+// f must return a negative value, zero, or a positive value when x is less
+// than, equal to, or greater than y, respectively.
 // For example args.SortKeys(bytes.Compare).
 func (a *Args) SortKeys(f func(x, y []byte) int) {
 	sort.SliceStable(a.args, func(i, j int) bool {
-		return f(a.args[i].key, a.args[j].key) == -1
+		return f(a.args[i].key, a.args[j].key) < 0
 	})
 }
 
@@ -461,6 +465,32 @@ func setArg(h []argsKV, key, value string, noValue bool) []argsKV {
 
 func appendArgBytes(h []argsKV, key, value []byte, noValue bool) []argsKV {
 	return appendArg(h, b2s(key), b2s(value), noValue)
+}
+
+// appendArgNormalized stores a parsed header field, canonicalizing the key
+// while it is copied so the source bytes stay untouched.
+func appendArgNormalized(args []argsKV, key, value []byte, disableNormalizing bool) []argsKV {
+	var kv *argsKV
+	args, kv = allocArg(args)
+	if disableNormalizing {
+		kv.key = append(kv.key[:0], key...)
+	} else {
+		dst := kv.key[:0]
+		upper := true
+		for _, c := range key {
+			if upper {
+				c = toUpperTable[c]
+			} else {
+				c = toLowerTable[c]
+			}
+			upper = c == '-'
+			dst = append(dst, c)
+		}
+		kv.key = dst
+	}
+	kv.value = append(kv.value[:0], value...)
+	kv.noValue = argsHasValue
+	return args
 }
 
 func appendArg(args []argsKV, key, value string, noValue bool) []argsKV {

@@ -66,7 +66,7 @@ func (e *encodeState) copyInputToRingBuffer(input []byte) {
 
 	// Path A: small first write. Allocate only n bytes instead of the full
 	// ring buffer when the first input is smaller than the tail/block size.
-	if e.ringBufPos == 0 && n < tailSize && e.ringBufAlloc == nil {
+	if e.ringBufPos == 0 && n < tailSize && cap(e.ringBufAlloc) < int(2+size+tailSize+7) {
 		e.ringBufPos = n
 		e.initRingBuffer(n)
 		copy(e.data[:n], input)

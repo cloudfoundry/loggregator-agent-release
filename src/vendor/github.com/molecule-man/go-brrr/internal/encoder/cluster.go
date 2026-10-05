@@ -8,6 +8,21 @@ package encoder
 // bitCost.
 
 // histogramPair tracks the cost of merging two histogram clusters.
+type clusterBufs struct {
+	chClusterSize []uint32
+	chClusters    []uint32
+	chBitCosts    []float64
+	chTotalCounts []uint32
+	chSymbols     []uint32
+	chTmpHist     []uint32
+	chPairs       []histogramPair
+
+	hrNewIndex    []uint32
+	hrTmpData     []uint32
+	hrTmpBitCosts []float64
+	hrTmpTotals   []uint32
+}
+
 type histogramPair struct {
 	idx1, idx2 uint32
 	costCombo  float64 // combined histogram cost
@@ -30,9 +45,9 @@ func histogramPairIsLess(p1, p2 *histogramPair) bool {
 // combine two clusters of sizes sizeA and sizeB.
 func clusterCostDiff(sizeA, sizeB uint32) float64 {
 	sizeC := sizeA + sizeB
-	return float64(sizeA)*fastLog2(int(sizeA)) +
-		float64(sizeB)*fastLog2(int(sizeB)) -
-		float64(sizeC)*fastLog2(int(sizeC))
+	return float64(float64(sizeA)*fastLog2(int(sizeA))) +
+		float64(float64(sizeB)*fastLog2(int(sizeB))) -
+		float64(float64(sizeC)*fastLog2(int(sizeC)))
 }
 
 // histogramSlice returns the sub-slice of the flat histogram array for index idx.
@@ -302,7 +317,7 @@ func histogramReindex(
 	out []uint32, alphabetSize int,
 	bitCosts []float64, totalCounts []uint32,
 	symbols []uint32, length int,
-	bufs *q10Bufs,
+	bufs *clusterBufs,
 ) int {
 	const invalidIndex = ^uint32(0)
 	bufs.hrNewIndex = growUint32(bufs.hrNewIndex, length)
@@ -374,7 +389,7 @@ func clusterHistograms(
 	inSize, alphabetSize int,
 	maxHistograms int,
 	out []uint32,
-	bufs *q10Bufs,
+	bufs *clusterBufs,
 ) (outSize int, symbols []uint32) {
 	bufs.chClusterSize = growUint32(bufs.chClusterSize, inSize)
 	clusterSize := bufs.chClusterSize[:inSize]

@@ -41,6 +41,7 @@ var decodeStatePool = sync.Pool{
 	New: func() any {
 		s := new(decodeState)
 		s.init()
+		s.outChunks = chunkWriter{pool: &decodeChunkPool, size: decodeChunkSize}
 		return s
 	},
 }
@@ -50,6 +51,17 @@ var decodeStatePool = sync.Pool{
 // created per Reader. The oneshot Decompress path already pools the entire
 // decodeState (including its ring buffer).
 var decRingBufPool sync.Pool
+
+var cmdLutPacked = packCmdLut()
+
+func packCmdLut() (t [core.AlphabetSizeInsertAndCopyLength]uint64) {
+	for i := range core.CmdLut {
+		e := &core.CmdLut[i]
+		t[i] = uint64(e.InsertLenExtraBits) | uint64(e.CopyLenExtraBits)<<8 | uint64(uint8(e.DistanceCode))<<16 |
+			uint64(e.Context)<<24 | uint64(e.InsertLenOffset)<<32 | uint64(e.CopyLenOffset)<<48
+	}
+	return t
+}
 
 func getDecRingBuf(size int) []byte {
 	if v := decRingBufPool.Get(); v != nil {
@@ -76,25 +88,33 @@ func Decompress(data []byte) ([]byte, error) {
 	s := decodeStatePool.Get().(*decodeState)
 	s.initForReuse()
 	s.br.setInput(data)
+	s.sink = &s.outChunks
+	err := s.decodeAll()
+	s.sink = nil
+	if err != nil {
+		s.outChunks.discard()
+		decodeStatePool.Put(s)
+		return nil, err
+	}
+	out := s.outChunks.take()
+	decodeStatePool.Put(s)
+	return out, nil
+}
+
+func (s *decodeState) decodeAll() error {
 	var output []byte
-	var err error
 	for {
 		switch s.decompressStream(&output) {
 		case decoderResultSuccess:
 			if s.excessiveInput() {
-				decodeStatePool.Put(s)
-				return nil, ErrExcessiveInput
+				return ErrExcessiveInput
 			}
-			result := s.flushOutput(output)
-			decodeStatePool.Put(s)
-			return result, nil
+			s.flushOutput(output)
+			return nil
 		case decoderResultError:
-			err = s.err
-			decodeStatePool.Put(s)
-			return nil, err
+			return s.err
 		case decoderResultNeedsMoreInput:
-			decodeStatePool.Put(s)
-			return nil, decompressError("truncated input")
+			return decompressError("truncated input")
 		case decoderResultNeedsMoreOutput:
 			output = s.flushOutput(output)
 		}
@@ -380,16 +400,32 @@ func (s *decodeState) decompressStream(output *[]byte) decoderResult {
 	}
 }
 
-// flushOutput appends any unwritten ring buffer content to output. Bytes
-// beyond ringbufferSize (in the slack region after a dictionary word write)
-// are left for writeRingBuffer to wrap.
-func (s *decodeState) flushOutput(output []byte) []byte {
+// pendingOutput aliases unread ring-buffer bytes until decoding resumes.
+// writeRingBuffer handles bytes in the write-ahead slack.
+func (s *decodeState) pendingOutput() []byte {
 	pos := min(s.pos, s.ringbufferSize)
 	flushed := int(s.partialPosOut) - int(s.rbRoundtrips)*s.ringbufferSize
-	if pos > flushed {
-		output = append(output, s.ringbuffer[flushed:pos]...)
-		s.partialPosOut += uint(pos - flushed)
+	if pos <= flushed {
+		return nil
 	}
+	return s.ringbuffer[flushed:pos]
+}
+
+func (s *decodeState) consumeOutput(n int) {
+	s.partialPosOut += uint(n)
+}
+
+func (s *decodeState) flushOutput(output []byte) []byte {
+	pending := s.pendingOutput()
+	if len(pending) == 0 {
+		return output
+	}
+	if s.sink != nil {
+		s.sink.write(pending)
+	} else {
+		output = append(output, pending...)
+	}
+	s.consumeOutput(len(pending))
 	return output
 }
 
@@ -407,10 +443,14 @@ func (s *decodeState) writeRingBuffer(output *[]byte) {
 				newSize = min(newSize<<1, 1<<s.windowBits)
 			}
 			if newSize != s.ringbufferSize {
-				newBuf := getDecRingBuf(newSize + ringBufferWriteAheadSlack)
-				copy(newBuf, s.ringbuffer[:s.pos])
-				putDecRingBuf(s.ringbuffer)
-				s.ringbuffer = newBuf
+				if cap(s.ringbuffer) >= newSize+ringBufferWriteAheadSlack {
+					s.ringbuffer = s.ringbuffer[:newSize+ringBufferWriteAheadSlack]
+				} else {
+					newBuf := getDecRingBuf(newSize + ringBufferWriteAheadSlack)
+					copy(newBuf, s.ringbuffer[:s.pos])
+					putDecRingBuf(s.ringbuffer)
+					s.ringbuffer = newBuf
+				}
 				s.ringbufferSize = newSize
 				s.ringbufferMask = newSize - 1
 				s.newRingbufferSize = newSize
@@ -419,7 +459,11 @@ func (s *decodeState) writeRingBuffer(output *[]byte) {
 				return
 			}
 		}
-		*output = append(*output, s.ringbuffer[int(s.partialPosOut)-int(s.rbRoundtrips)*s.ringbufferSize:s.ringbufferSize]...)
+		if s.sink != nil {
+			s.sink.write(s.ringbuffer[int(s.partialPosOut)-int(s.rbRoundtrips)*s.ringbufferSize : s.ringbufferSize])
+		} else {
+			*output = append(*output, s.ringbuffer[int(s.partialPosOut)-int(s.rbRoundtrips)*s.ringbufferSize:s.ringbufferSize]...)
+		}
 		s.partialPosOut = s.rbRoundtrips*uint(s.ringbufferSize) + uint(s.ringbufferSize)
 		s.pos -= s.ringbufferSize
 		s.rbRoundtrips++
@@ -1173,6 +1217,7 @@ func (s *decodeState) readCodeLengthCodeLengths() decoderResult {
 		if !prefixAvailable {
 			avail := br.availBits()
 			if avail != 0 {
+				br.normalize()
 				ix = br.bitsUnmasked() & 0xF
 			} else {
 				ix = 0
@@ -1280,7 +1325,7 @@ func (s *decodeState) readSymbolCodeLengths(alphabetSize uint) decoderResult {
 
 		for symbol < alphabetSize && h.space > 0 {
 			// fillBitWindow inline
-			if bitPos <= 32 {
+			if bitPos < 32 {
 				if brPos > br.fastEnd {
 					break
 				}
@@ -1396,6 +1441,7 @@ slow:
 			availBits := br.availBits()
 			var bits uint64
 			if availBits != 0 {
+				br.normalize()
 				bits = br.bitsUnmasked()
 			}
 			entry := p[bits&bitMask(core.HuffmanMaxCodeLengthCodeLength)]
@@ -1473,7 +1519,27 @@ func (s *decodeState) calculateDistanceLut() {
 	b.cachedValid = true
 }
 
-// --- Command processing (the hot loop) ---
+// copyOverlappingPattern fills n bytes at pos by repeating the dist-byte pattern
+// that ends there, for dist < n.
+//
+// The first loop doubles the usable gap: after storing dist correct bytes the
+// valid run behind p is twice as long, so once it reaches 16 every 16-byte load
+// lies entirely inside already-final data and the second loop can run flat out.
+// Both loops store 16 bytes at a time and so may write up to 15 bytes past
+// pos+n, which the ring buffer's 542 bytes of slack absorb — the same contract
+// the eager 16-byte store in processCommands already relies on.
+func copyOverlappingPattern(base unsafe.Pointer, pos, dist, n int) {
+	p, end := pos, pos+n
+	for dist < 16 && p < end {
+		*(*[16]byte)(unsafe.Add(base, p)) = *(*[16]byte)(unsafe.Add(base, p-dist))
+		p += dist
+		dist += dist
+	}
+	for p < end {
+		*(*[16]byte)(unsafe.Add(base, p)) = *(*[16]byte)(unsafe.Add(base, p-dist))
+		p += 16
+	}
+}
 
 func (s *decodeState) processCommands() decoderResult {
 	br := &s.br
@@ -1481,7 +1547,6 @@ func (s *decodeState) processCommands() decoderResult {
 	i := s.loopCounter
 	var cmdCode uint
 	var ok bool
-	var v core.CmdLutElement
 	var insertLenExtra uint64
 	var literal uint
 	var p1, p2 byte
@@ -1510,8 +1575,10 @@ commandBegin:
 
 	// Read command.
 	if br.checkInputAmount() {
-		br.fillBitWindow(16)
-		val := br.val
+		val, bitPos := br.val, br.bitPos
+		val |= *(*uint64)(unsafe.Add(br.inputBase, br.pos)) << (bitPos & 63)
+		br.pos += int((63 - bitPos) >> 3)
+		bitPos |= 56
 		// Inline command symbol decode with unsafe pointer arithmetic to
 		// avoid bounds checks on every command (same pattern as distanceSymbolEntryFast).
 		cmdTableBase := unsafe.Pointer(unsafe.SliceData(s.htreeCommand))
@@ -1527,43 +1594,38 @@ commandBegin:
 			cmdCode = uint(raw >> 16)
 		}
 
-		v = *(*core.CmdLutElement)(unsafe.Add(unsafe.Pointer(&core.CmdLut[0]), uintptr(cmdCode)*unsafe.Sizeof(core.CmdLutElement{})))
-		s.distanceCode = int(v.DistanceCode)
-		s.distanceContext = int(v.Context)
+		lut := *(*uint64)(unsafe.Add(unsafe.Pointer(&cmdLutPacked[0]), uintptr(cmdCode)*8))
+		s.distanceCode = int(int8(lut >> 16))
+		s.distanceContext = int(uint8(lut >> 24))
 		s.distCodesOffset = s.distCodesCache[s.distanceContext&3]
-		i = int(v.InsertLenOffset)
+		i = int(uint16(lut >> 32))
+		insertBits := uint(uint8(lut))
+		copyBits := uint(uint8(lut >> 8))
 
 		// Combined drop + readBits for insertLenExtra + copyLenExtra:
 		// use local val/bitPos to avoid redundant stores/loads of br.val
 		// and br.bitPos across intervening struct writes.
 		val >>= cmdDrop & 63
-		bitPos := br.bitPos - cmdDrop
+		bitPos -= cmdDrop
 
 		insertLenExtra = 0
-		if v.InsertLenExtraBits != 0 {
-			if bitPos <= 32 {
-				val |= uint64(*(*uint32)(unsafe.Add(br.inputBase, br.pos))) << bitPos
-				bitPos += 32
-				br.pos += 4
-			}
-			insertLenExtra = val & bitMask(uint(v.InsertLenExtraBits))
-			val >>= uint(v.InsertLenExtraBits) & 63
-			bitPos -= uint(v.InsertLenExtraBits)
+		if insertBits != 0 {
+			insertLenExtra = val & bitMask(insertBits)
+			val >>= insertBits & 63
+			bitPos -= insertBits
 		}
 
-		if bitPos <= 32 {
-			val |= uint64(*(*uint32)(unsafe.Add(br.inputBase, br.pos))) << bitPos
-			bitPos += 32
-			br.pos += 4
-		}
-		copyExtra := val & bitMask(uint(v.CopyLenExtraBits))
-		val >>= uint(v.CopyLenExtraBits) & 63
-		bitPos -= uint(v.CopyLenExtraBits)
+		val |= *(*uint64)(unsafe.Add(br.inputBase, br.pos)) << (bitPos & 63)
+		br.pos += int((63 - bitPos) >> 3)
+		bitPos |= 56
+		copyExtra := val & bitMask(copyBits)
+		val >>= copyBits & 63
+		bitPos -= copyBits
 
 		br.val = val
 		br.bitPos = bitPos
 
-		s.copyLength = int(v.CopyLenOffset) + int(copyExtra)
+		s.copyLength = int(lut>>48) + int(copyExtra)
 	} else {
 		cmdMemento := br.saveState()
 		cmdCode, ok = safeReadSymbol(s.htreeCommand, br)
@@ -1574,7 +1636,7 @@ commandBegin:
 		}
 		s.safeCmdMemento = cmdMemento
 
-		v = core.CmdLut[cmdCode]
+		v := core.CmdLut[cmdCode]
 		s.distanceCode = int(v.DistanceCode)
 		s.distanceContext = int(v.Context)
 		s.distCodesOffset = s.distCodesCache[s.distanceContext]
@@ -1629,11 +1691,12 @@ commandInner:
 
 			// Batch decode: when we have enough input, ringbuffer space,
 			// and block length, decode multiple literals without per-symbol checks.
-			n := min(i, int(s.blockLength[0]), s.ringbufferSize-pos, (br.availIn()-4)/2)
+			n := min(i, int(s.blockLength[0]), s.ringbufferSize-pos, (br.availIn()-8)/2)
 			if n == 1 {
-				// Inline single-symbol decode to avoid decodeLiteralsBatch
-				// function-call overhead (register save/restore) for the common
-				// case of insert_len=1. Safe because n=1 implies availIn>=6>4.
+				// Decode one symbol here. The call overhead of
+				// decodeLiteralsBatch costs more than one symbol saves.
+				// n == 1 implies availIn >= 10, so the 4-byte load in
+				// fillBitWindow stays in bounds.
 				br.fillBitWindow(16)
 				s.ringbuffer[pos] = byte(decodeSymbol(br.val, s.literalHTree, br))
 				pos++
@@ -1707,7 +1770,7 @@ commandInner:
 			// Batch decode: when we have enough input, ringbuffer space,
 			// and block length, decode multiple context-dependent literals
 			// without per-symbol bounds checks.
-			n := min(i, int(s.blockLength[0]), s.ringbufferSize-pos, (br.availIn()-4)/2)
+			n := min(i, int(s.blockLength[0]), s.ringbufferSize-pos, (br.availIn()-8)/2)
 			if n > 0 {
 				p1, p2 = decodeLiteralsContextBatch(
 					s.ringbuffer[pos:], n,
@@ -1791,8 +1854,10 @@ commandPostDecodeLiterals:
 		// Inlined fast path of readDistance to avoid function call overhead
 		// (readDistance exceeds the compiler's inlining budget).
 		if br.checkInputAmount() {
-			br.fillBitWindow(16)
-			val := br.val
+			val, bitPos := br.val, br.bitPos
+			val |= *(*uint64)(unsafe.Add(br.inputBase, br.pos)) << (bitPos & 63)
+			br.pos += int((63 - bitPos) >> 3)
+			bitPos |= 56
 			raw := distanceSymbolEntryFast(val, s.distanceHGroup.codes, s.distCodesOffset)
 			drop := uint(raw & 0xFF)
 			code := uint(raw >> 16)
@@ -1802,7 +1867,7 @@ commandPostDecodeLiterals:
 			// Combined dropBits + readBits32: use locals to avoid
 			// redundant stores/loads of br.val and br.bitPos.
 			val >>= drop & 63
-			bitPos := br.bitPos - drop
+			bitPos -= drop
 			s.blockLength[2]--
 			s.distanceContext = 0
 			if code&^0xF == 0 {
@@ -1814,11 +1879,6 @@ commandPostDecodeLiterals:
 				b := &s.bodyArena
 				nExtra := uint(*(*byte)(unsafe.Add(unsafe.Pointer(&b.distExtraBits[0]), uintptr(code))))
 				offset := *(*uint)(unsafe.Add(unsafe.Pointer(&b.distOffset[0]), uintptr(code)*unsafe.Sizeof(uint(0))))
-				if bitPos <= 32 {
-					val |= uint64(*(*uint32)(unsafe.Add(br.inputBase, br.pos))) << bitPos
-					bitPos += 32
-					br.pos += 4
-				}
 				bits := val & bitMask(nExtra)
 				br.val = val >> (nExtra & 63)
 				br.bitPos = bitPos - nExtra
@@ -1888,7 +1948,8 @@ commandPostDecodeLiterals:
 				copy(s.ringbuffer[pos:], word)
 			} else {
 				i = core.TransformDictionaryWord(s.ringbuffer[pos:], word, transformIdx)
-				if i == 0 {
+				// Omit transforms may produce an empty word; retain C's distance guard.
+				if i == 0 && s.distanceCode <= 120 {
 					s.err = decompressError("invalid dictionary transform")
 					return decoderResultError
 				}
@@ -1932,9 +1993,19 @@ commandPostDecodeLiterals:
 		base := unsafe.Pointer(unsafe.SliceData(s.ringbuffer))
 		*(*[16]byte)(unsafe.Add(base, pos)) = *(*[16]byte)(unsafe.Add(base, srcStart))
 
-		if (srcEnd > pos && dstEnd > srcStart) ||
-			dstEnd >= s.ringbufferSize || srcEnd >= s.ringbufferSize {
-			// Overlapping or wrapping — fall back to byte-by-byte.
+		if dstEnd >= s.ringbufferSize || srcEnd >= s.ringbufferSize {
+			// Wrapping — the byte loop is what yields to the state machine.
+			goto commandPostWrapCopy
+		}
+		if srcEnd > pos && dstEnd > srcStart {
+			// Overlapping but not wrapping. Only a source behind pos can be
+			// pattern-replicated; when the ring-buffer subtraction wrapped,
+			// srcStart is ahead of pos and the masked byte loop is still needed.
+			if dist := pos - srcStart; dist > 0 {
+				copyOverlappingPattern(base, pos, dist, i)
+				pos += i
+				goto postCopy
+			}
 			goto commandPostWrapCopy
 		}
 
@@ -1967,9 +2038,29 @@ commandPostDecodeLiterals:
 
 commandPostWrapCopy:
 	for i > 0 {
-		s.ringbuffer[pos] = s.ringbuffer[(pos-s.distanceCode)&s.ringbufferMask]
-		pos++
-		i--
+		srcStart := (pos - s.distanceCode) & s.ringbufferMask
+		// Take the copy in chunks that stop at the ring-buffer end, so neither
+		// cursor wraps inside one. ringbufferMask is ringbufferSize-1, so both
+		// remainders are at least 1 and the loop always advances.
+		n := min(i, s.ringbufferSize-pos, s.ringbufferSize-srcStart)
+		if dist := pos - srcStart; dist > 0 {
+			if dist >= n {
+				copy(s.ringbuffer[pos:pos+n], s.ringbuffer[srcStart:srcStart+n])
+			} else {
+				// Stores up to 15 bytes past pos+n, which cannot exceed
+				// ringbufferSize+15 and so stays inside the 542 bytes of slack.
+				copyOverlappingPattern(unsafe.Pointer(unsafe.SliceData(s.ringbuffer)),
+					pos, dist, n)
+			}
+			pos += n
+			i -= n
+		} else {
+			// The ring-buffer subtraction wrapped, putting the source ahead of
+			// pos; that has no contiguous run to copy, so step one byte.
+			s.ringbuffer[pos] = s.ringbuffer[srcStart]
+			pos++
+			i--
+		}
 		if pos == s.ringbufferSize {
 			s.state = decoderStateCommandPostWrite2
 			s.pos = pos
@@ -2117,9 +2208,10 @@ func decodeDistanceSymbolSecondLevel(bits uint64, table []core.HuffmanCode, offs
 // decodeLiteralsBatch decodes n literal symbols from br into dst using table.
 // It hoists the bitReader state into local variables to keep them in registers
 // and avoid repeated struct field access on the hot path.
-// The loop is 2x-unrolled: after one fill (bitPos goes from ≤32 to ≥33),
-// two Huffman decodes (each consuming ≤15 bits) are safe without a second fill
-// since 33−30 = 3 bits always remain, and the next pair will refill.
+// The fill is on demand: a symbol consumes at most core.HuffmanMaxCodeLength
+// bits, so bits are only loaded once fewer than that remain. One fill leaves
+// ≥56 bits, which covers about nine to fourteen symbols at typical code
+// lengths, so the branch is taken rarely and predicts well.
 func decodeLiteralsBatch(dst []byte, n int, table []core.HuffmanCode, br *bitReader) {
 	val := br.val
 	bitPos := br.bitPos
@@ -2127,55 +2219,13 @@ func decodeLiteralsBatch(dst []byte, n int, table []core.HuffmanCode, br *bitRea
 	inputBase := br.inputBase
 	tableBase := unsafe.Pointer(unsafe.SliceData(table))
 
-	j := 0
-	for ; j+1 < n; j += 2 {
-		// fillBitWindow inline — one fill covers two symbols.
-		if bitPos <= 32 {
-			val |= uint64(*(*uint32)(unsafe.Add(inputBase, brPos))) << bitPos
-			bitPos += 32
-			brPos += 4
+	for j := range n {
+		if bitPos < core.HuffmanMaxCodeLength {
+			val |= *(*uint64)(unsafe.Add(inputBase, brPos)) << (bitPos & 63)
+			brPos += int((63 - bitPos) >> 3)
+			bitPos |= 56
 		}
 
-		// Symbol 1
-		idx := val & huffmanTableMask
-		raw := *(*uint32)(unsafe.Add(tableBase, idx*4))
-		drop := uint(raw & 0xFF)
-		value := uint(raw >> 16)
-		if drop > huffmanTableBits {
-			nbits := drop - huffmanTableBits
-			idx2 := idx + uint64(value) + ((val >> huffmanTableBits) & bitMask(nbits))
-			raw = *(*uint32)(unsafe.Add(tableBase, idx2*4))
-			drop = huffmanTableBits + uint(raw&0xFF)
-			value = uint(raw >> 16)
-		}
-		bitPos -= drop
-		val >>= drop & 63
-		dst[j] = byte(value)
-
-		// Symbol 2 — at least 18 bits remain (33 − 15), enough for any code (max 15).
-		idx = val & huffmanTableMask
-		raw = *(*uint32)(unsafe.Add(tableBase, idx*4))
-		drop = uint(raw & 0xFF)
-		value = uint(raw >> 16)
-		if drop > huffmanTableBits {
-			nbits := drop - huffmanTableBits
-			idx2 := idx + uint64(value) + ((val >> huffmanTableBits) & bitMask(nbits))
-			raw = *(*uint32)(unsafe.Add(tableBase, idx2*4))
-			drop = huffmanTableBits + uint(raw&0xFF)
-			value = uint(raw >> 16)
-		}
-		bitPos -= drop
-		val >>= drop & 63
-		dst[j+1] = byte(value)
-	}
-
-	// Handle remaining odd element.
-	if j < n {
-		if bitPos <= 32 {
-			val |= uint64(*(*uint32)(unsafe.Add(inputBase, brPos))) << bitPos
-			bitPos += 32
-			brPos += 4
-		}
 		idx := val & huffmanTableMask
 		raw := *(*uint32)(unsafe.Add(tableBase, idx*4))
 		drop := uint(raw & 0xFF)
@@ -2215,20 +2265,19 @@ func decodeLiteralsContextBatch(
 	// loop counter onto the stack — on x86-64 the shift in fillBitWindow
 	// requires CX, which would otherwise evict j every iteration.
 	dstPtr := unsafe.Pointer(unsafe.SliceData(dst))
+	ptrsBase := unsafe.Pointer(ptrs)
+	c1, c2 := uint(p1), uint(p2)
 
 	for n > 0 {
 		n--
-		// fillBitWindow inline
-		if bitPos <= 32 {
-			val |= uint64(*(*uint32)(unsafe.Add(inputBase, brPos))) << bitPos
-			bitPos += 32
-			brPos += 4
+		if bitPos < core.HuffmanMaxCodeLength {
+			val |= *(*uint64)(unsafe.Add(inputBase, brPos)) << (bitPos & 63)
+			brPos += int((63 - bitPos) >> 3)
+			bitPos |= 56
 		}
 
-		// Context lookup inline — contextLookup has 512 entries,
-		// p1 indexes [0..255], p2 indexes [256..511].
-		ctx := *(*byte)(unsafe.Add(ctxBase, int(p1))) | *(*byte)(unsafe.Add(ctxBase, 256+int(p2)))
-		tableBase := ptrs[ctx&63]
+		ctx := uint(*(*byte)(unsafe.Add(ctxBase, c1))) | uint(*(*byte)(unsafe.Add(ctxBase, 256+c2)))
+		tableBase := *(*unsafe.Pointer)(unsafe.Add(ptrsBase, uintptr(ctx)*unsafe.Sizeof(unsafe.Pointer(nil))))
 
 		// decodeSymbol inline
 		idx := val & huffmanTableMask
@@ -2246,16 +2295,16 @@ func decodeLiteralsContextBatch(
 		bitPos -= drop
 		val >>= drop & 63
 
-		p2 = p1
-		p1 = byte(value)
-		*(*byte)(dstPtr) = p1
+		c2 = c1
+		c1 = value
+		*(*byte)(dstPtr) = byte(value)
 		dstPtr = unsafe.Add(dstPtr, 1)
 	}
 
 	br.val = val
 	br.bitPos = bitPos
 	br.pos = brPos
-	return p1, p2
+	return byte(c1), byte(c2)
 }
 
 // safeDecodeSymbol is a fallback when fewer than 15 bits may be available.
@@ -2267,6 +2316,7 @@ func safeDecodeSymbol(table []core.HuffmanCode, br *bitReader) (uint, bool) {
 		}
 		return 0, false
 	}
+	br.normalize()
 	val := br.bitsUnmasked()
 	idx := val & huffmanTableMask
 	entry := table[idx]

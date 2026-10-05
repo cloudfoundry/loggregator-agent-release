@@ -3,17 +3,33 @@
 package brrr
 
 import (
-	"bytes"
 	"errors"
 	"io"
+	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/molecule-man/go-brrr/internal/encoder"
 )
 
+const minWorkerLevel = 10
+
+const maxLevel = 11
+
+var oneshotCompressors [maxLevel + 1]sync.Pool
+
+type oneshotCompressor struct {
+	c      encoder.Compressor
+	chunks chunkWriter
+}
+
 // Writer compresses data into brotli format.
 //
 // Callers must Close the Writer to finalize the brotli stream.
+//
+// At levels 10 and 11, a Writer uses up to two worker goroutines when
+// GOMAXPROCS is at least 2. This can reduce latency but uses more memory.
+// A Writer does not support concurrent calls.
 type Writer struct {
 	dst      io.Writer
 	err      error
@@ -24,6 +40,7 @@ type Writer struct {
 	sizeHint uint // from WriterOptions, preserved across Reset
 	closed   bool
 	reused   bool // true after first Reset; suppresses pool release on Close
+	parallel bool
 }
 
 // NewWriter returns a new Writer compressing data to dst at the given
@@ -38,8 +55,12 @@ func NewWriter(dst io.Writer, level int) (*Writer, error) {
 // selects the default (22). Compound dictionaries supplied via opts.Dictionaries
 // require level >= 2.
 func NewWriterOptions(dst io.Writer, level int, opts WriterOptions) (*Writer, error) {
-	if level < 0 || level > 11 {
-		return nil, errors.New("brrr: invalid compression level: " + strconv.Itoa(level))
+	return newWriter(dst, level, opts, runtime.GOMAXPROCS(0) >= 2)
+}
+
+func newWriter(dst io.Writer, level int, opts WriterOptions, workers bool) (*Writer, error) {
+	if err := checkLevel(level); err != nil {
+		return nil, err
 	}
 
 	lgwin := opts.LGWin
@@ -58,10 +79,21 @@ func NewWriterOptions(dst io.Writer, level int, opts WriterOptions) (*Writer, er
 		return nil, encoder.ErrQualityTooLow
 	}
 
-	w := &Writer{dst: dst, quality: level, lgwin: lgwin, sizeHint: opts.SizeHint, dicts: opts.Dictionaries}
-	w.c = encoder.NewCompressor(w.quality, w.lgwin, w.sizeHint)
+	w := &Writer{
+		dst:      dst,
+		quality:  level,
+		lgwin:    lgwin,
+		sizeHint: opts.SizeHint,
+		dicts:    opts.Dictionaries,
+		parallel: workers && level >= minWorkerLevel,
+	}
+	w.c = encoder.NewCompressor(w.quality, w.lgwin, w.sizeHint, w.parallel)
 	for _, pd := range w.dicts {
 		_ = w.c.AttachDictionary(pd.impl)
+	}
+	if w.parallel {
+		// Release the collector if the caller abandons this Writer.
+		runtime.SetFinalizer(w, (*Writer).release)
 	}
 	return w, nil
 }
@@ -71,18 +103,61 @@ func NewWriterOptions(dst io.Writer, level int, opts WriterOptions) (*Writer, er
 // Supported levels are 0 (BestSpeed) through 11 (BestCompression). The exact
 // input length is supplied to the encoder as a size hint.
 func Compress(data []byte, level int) ([]byte, error) {
-	var buf bytes.Buffer
-	w, err := NewWriterOptions(&buf, level, WriterOptions{SizeHint: uint(len(data))})
+	o, err := getOneshotCompressor(level, uint(len(data)))
 	if err != nil {
 		return nil, err
 	}
-	if _, err := w.Write(data); err != nil {
+	err = o.compress(&o.chunks, data)
+	if err != nil {
+		o.chunks.discard()
+		o.drop()
 		return nil, err
 	}
-	if err := w.Close(); err != nil {
+	out := o.chunks.take()
+	oneshotCompressors[level].Put(o)
+	return out, nil
+}
+
+func getOneshotCompressor(level int, sizeHint uint) (*oneshotCompressor, error) {
+	if err := checkLevel(level); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	if v := oneshotCompressors[level].Get(); v != nil {
+		o := v.(*oneshotCompressor)
+		o.c.ResetSizeHint(sizeHint)
+		return o, nil
+	}
+	o := &oneshotCompressor{
+		c:      encoder.NewCompressor(level, defaultLGWin, sizeHint, false),
+		chunks: chunkWriter{pool: &encodeChunkPool, size: encodeChunkSize},
+	}
+	return o, nil
+}
+
+func (o *oneshotCompressor) compress(dst io.Writer, data []byte) error {
+	if _, err := o.c.Write(dst, data); err != nil {
+		return err
+	}
+	return o.c.Close(dst)
+}
+
+func (o *oneshotCompressor) drop() {
+	if o.c != nil {
+		o.c.Release()
+		o.c = nil
+	}
+}
+
+func checkLevel(level int) error {
+	if level < 0 || level > maxLevel {
+		return errors.New("brrr: invalid compression level: " + strconv.Itoa(level))
+	}
+	return nil
+}
+
+func (w *chunkWriter) Write(p []byte) (int, error) {
+	w.write(p)
+	return len(p), nil
 }
 
 // Write compresses p and writes it to the underlying writer.
@@ -146,11 +221,18 @@ func (w *Writer) Reset(dst io.Writer) {
 
 	if w.c == nil {
 		// Compressor was released on a previous Close; re-acquire.
-		w.c = encoder.NewCompressor(w.quality, w.lgwin, w.sizeHint)
+		w.c = encoder.NewCompressor(w.quality, w.lgwin, w.sizeHint, w.parallel)
 	} else {
 		w.c.Reset()
 	}
 	for _, pd := range w.dicts {
 		_ = w.c.AttachDictionary(pd.impl)
+	}
+}
+
+func (w *Writer) release() {
+	if w.c != nil {
+		w.c.Release()
+		w.c = nil
 	}
 }

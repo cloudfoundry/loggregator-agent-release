@@ -47,6 +47,13 @@ const (
 // Quality threshold: qualities below this use 3 iterations, at or above use 10.
 const hqZopflificationQuality = 11
 
+// Below splitOffloadMinCommands, the worker handoffs cost more than the
+// command and distance splits and the distance clustering they offload.
+const splitOffloadMinCommands = 512
+
+// noMinCost is findBlocks' sentinel starting cost, larger than any real one.
+const noMinCost = 1e99
+
 // splitVecParams holds per-category tuning constants for splitByteVector.
 type splitVecParams struct {
 	symbolsPerHistogram int
@@ -55,6 +62,29 @@ type splitVecParams struct {
 	blockSwitchCost     float64
 	quality             int
 	alphabetSize        int
+}
+
+type splitVecBufs struct {
+	svHistograms []uint32
+	svBlockIDs   []byte
+	svFloat      []float64
+	svSwitchSig  []byte
+	svNewID      []uint16
+
+	cbHistSymbols   []uint32
+	cbAllHistograms []uint32
+	cbClusterSizes  []uint32
+	cbBatchHist     []uint32
+	cbPairs         []histogramPair
+	cbTmpHist       []uint32
+	cbBatchU32      []uint32
+	cbBlockLengths  []uint32
+	cbBatchFloat    []float64
+	cbBatchTotals   []uint32
+	cbClusters      []uint32
+	cbNewIndex      []uint32
+
+	sbUint16 []uint16
 }
 
 // ---------------------------------------------------------------------------
@@ -190,37 +220,7 @@ func findBlocks(
 	clear(cost[:numHistograms])
 	clear(switchSignal[:length*bitmapLen])
 
-	const prologueLength = 2000
-	const prologueMultiplier = 0.07 / 2000
-
-	for byteIx := range length {
-		ix := byteIx * bitmapLen
-		symbol := int(data[byteIx])
-		insertCostIx := symbol * numHistograms
-		minCost := 1e99
-		switchCost := blockSwitchBitcost
-
-		for k := range numHistograms {
-			cost[k] += insertCost[insertCostIx+k]
-			if cost[k] < minCost {
-				minCost = cost[k]
-				blockID[byteIx] = byte(k)
-			}
-		}
-
-		// Reduce switch cost in the prologue to encourage early splits.
-		if byteIx < prologueLength {
-			switchCost *= 0.77 + prologueMultiplier*float64(byteIx)
-		}
-
-		for k := range numHistograms {
-			cost[k] -= minCost
-			if cost[k] >= switchCost {
-				cost[k] = switchCost
-				switchSignal[ix+(k>>3)] |= 1 << (k & 7)
-			}
-		}
-	}
+	findBlocksDP(data[:length], insertCost, cost[:numHistograms], switchSignal, blockID, blockSwitchBitcost)
 
 	// Backtrace from the last position to determine block boundaries.
 	byteIx := length - 1
@@ -290,7 +290,7 @@ func buildBlockHistograms(
 //  5. Write the compacted result into the blockSplit.
 func clusterBlocks(
 	split *blockSplit,
-	bufs *q10Bufs,
+	bufs *splitVecBufs,
 	data []uint16, blockIDs []byte,
 	length, numBlocks, alphabetSize int,
 ) {
@@ -534,7 +534,7 @@ func clusterBlocks(
 //  4. Cluster the resulting blocks via clusterBlocks.
 func splitByteVector(
 	split *blockSplit,
-	bufs *q10Bufs,
+	bufs *splitVecBufs,
 	data []uint16, length int,
 	p splitVecParams,
 ) {
@@ -610,15 +610,48 @@ func splitBlock(
 	data []byte, pos, mask uint,
 	quality int,
 ) {
-	// Extract and split literals.
 	bufs.sbLiteralBytes = copyLiteralsToByteArrayBuf(cmds, data, pos, mask, bufs.sbLiteralBytes)
+	splitLiterals(litSplit, bufs, quality)
+	splitCommands(cmdSplit, &bufs.splitVecBufs, cmds, quality)
+	splitDistances(distSplit, &bufs.splitVecBufs, cmds, quality)
+}
+
+func splitBlockParallel(
+	litSplit, cmdSplit, distSplit *blockSplit,
+	bufs *q10Bufs,
+	cmds []command,
+	data []byte, pos, mask uint,
+	quality int,
+) distanceParams {
+	bufs.sbLiteralBytes = copyLiteralsToByteArrayBuf(cmds, data, pos, mask, bufs.sbLiteralBytes)
+
+	cmdWorker := &bufs.hqCollector
+	cmdWorker.cmds = cmds
+	cmdWorker.cmdSplit = cmdSplit
+	cmdWorker.quality = quality
+	cmdWorker.begin(hqJobSplitCommands)
+
+	distWorker := &bufs.hqHelper
+	distWorker.bufs = bufs
+	distWorker.cmds = cmds
+	distWorker.distSplit = distSplit
+	distWorker.quality = quality
+	distWorker.begin(hqJobSplitDistances)
+
+	splitLiterals(litSplit, bufs, quality)
+	cmdWorker.wait()
+	distWorker.wait()
+	return distWorker.distParams
+}
+
+func splitLiterals(litSplit *blockSplit, bufs *q10Bufs, quality int) {
 	numLiterals := len(bufs.sbLiteralBytes)
 	bufs.sbUint16 = growUint16(bufs.sbUint16, numLiterals)
 	symbols := bufs.sbUint16[:numLiterals]
 	for i, b := range bufs.sbLiteralBytes {
 		symbols[i] = uint16(b)
 	}
-	splitByteVector(litSplit, bufs, symbols, numLiterals, splitVecParams{
+	splitByteVector(litSplit, &bufs.splitVecBufs, symbols, numLiterals, splitVecParams{
 		symbolsPerHistogram: symbolsPerLiteralHistogram,
 		maxHistograms:       maxLiteralHistograms,
 		samplingStride:      literalStrideLength,
@@ -626,10 +659,11 @@ func splitBlock(
 		quality:             quality,
 		alphabetSize:        core.AlphabetSizeLiteral,
 	})
+}
 
-	// Extract and split command prefixes.
+func splitCommands(cmdSplit *blockSplit, bufs *splitVecBufs, cmds []command, quality int) {
 	bufs.sbUint16 = growUint16(bufs.sbUint16, len(cmds))
-	symbols = bufs.sbUint16[:len(cmds)]
+	symbols := bufs.sbUint16[:len(cmds)]
 	for i := range cmds {
 		symbols[i] = cmds[i].cmdPrefix
 	}
@@ -641,10 +675,11 @@ func splitBlock(
 		quality:             quality,
 		alphabetSize:        core.AlphabetSizeInsertAndCopyLength,
 	})
+}
 
-	// Extract and split distance prefixes (only for commands that encode a distance).
+func splitDistances(distSplit *blockSplit, bufs *splitVecBufs, cmds []command, quality int) {
 	bufs.sbUint16 = growUint16(bufs.sbUint16, len(cmds))
-	symbols = bufs.sbUint16[:len(cmds)]
+	symbols := bufs.sbUint16[:len(cmds)]
 	j := 0
 	for i := range cmds {
 		cmd := &cmds[i]

@@ -54,30 +54,10 @@ type encoderArena struct {
 // grow-and-reuse semantics: grown on demand, never shrunk. After the first
 // metablock they typically never allocate again.
 type q10Bufs struct {
-	// splitByteVector scratch (reused across 3 calls per splitBlock).
-	svHistograms []uint32
-	svBlockIDs   []byte
-	svFloat      []float64 // combined: insertCost + cost
-	svSwitchSig  []byte
-	svNewID      []uint16
-
-	// clusterBlocks scratch.
-	cbHistSymbols   []uint32
-	cbAllHistograms []uint32
-	cbClusterSizes  []uint32
-	cbBatchHist     []uint32
-	cbPairs         []histogramPair
-	cbTmpHist       []uint32
-	cbBatchU32      []uint32 // combined: sizes + newClusters + symbols + remap (4×64)
-	cbBlockLengths  []uint32
-	cbBatchFloat    []float64 // combined: batchBitCosts + allBitCosts
-	cbBatchTotals   []uint32  // combined: batchTotals + allTotals
-	cbClusters      []uint32
-	cbNewIndex      []uint32
+	splitVecBufs
 
 	// splitBlock scratch.
 	sbLiteralBytes []byte
-	sbUint16       []uint16 // shared for literals, cmdPrefixes, distPrefixes
 
 	// buildMetaBlock scratch.
 	bmTmpHist      []uint32
@@ -87,20 +67,8 @@ type q10Bufs struct {
 	bmLitOutHist   []uint32
 	bmDistOutHist  []uint32
 
-	// clusterHistograms scratch.
-	chClusterSize []uint32
-	chClusters    []uint32
-	chBitCosts    []float64
-	chTotalCounts []uint32
-	chSymbols     []uint32
-	chTmpHist     []uint32
-	chPairs       []histogramPair
-
-	// histogramReindex scratch.
-	hrNewIndex    []uint32
-	hrTmpData     []uint32
-	hrTmpBitCosts []float64
-	hrTmpTotals   []uint32
+	clusterBufs
+	distClusterBufs clusterBufs
 
 	// Zopfli backward references scratch.
 	zNodes   []zopfliNode
@@ -109,8 +77,14 @@ type q10Bufs struct {
 	// Q11 HQ Zopfli scratch.
 	hqNumMatchesArr []uint32
 	hqMatches       []backwardMatch
+	hqHasherSnap    []uint32
 
-	zCostModel zopfliCostModel // large value type; keep last to minimize pointer bytes
+	hqFeed      matchFeed
+	hqCollector hqCollector
+	hqHelper    hqCollector
+	zCostModel  zopfliCostModel // large value type; keep last to minimize pointer bytes
+
+	parallel bool
 }
 
 // encoderSplit is the Q4–Q10 streaming encoder. It uses greedy block splitting,
@@ -136,6 +110,8 @@ type encoderSplit struct {
 // releaseBuffers extends encoderCore.releaseBuffers to also return the stashed
 // prevHasher to its pool.
 func (e *encoderSplit) releaseBuffers() {
+	e.q10.hqCollector.stop()
+	e.q10.hqHelper.stop()
 	releaseHasher(e.prevHasher)
 	e.prevHasher = nil
 	e.encoderCore.releaseBuffers()
@@ -791,18 +767,15 @@ func (b *q10Bufs) preallocQ10(blockSizeArg int) {
 	blockSize := 2 * blockSizeArg
 	// Maximum histogram counts (from block_splitter constants).
 	const (
-		maxLitHist     = 100                                  // maxLiteralHistograms
-		maxCmdHist     = 50                                   // maxCommandHistograms
-		maxDistHist    = 50                                   // maxCommandHistograms (distances use same limit)
-		maxAlpha       = core.AlphabetSizeInsertAndCopyLength // 704, largest alphabet
-		litAlpha       = core.AlphabetSizeLiteral             // 256
-		distAlpha      = core.NumHistogramDistanceSymbols     // 544
-		hpb            = 64                                   // histogramsPerBatch
-		cpb            = 16                                   // clustersPerBatch
-		maxPairs       = hpb*hpb/2 + 1
-		maxBlockTypes  = maxNumberOfBlockTypes
-		litContextMul  = 64 // 1 << core.LiteralContextBits
-		distContextMul = 4  // 1 << core.DistanceContextBits
+		maxLitHist    = 100                                  // maxLiteralHistograms
+		maxCmdHist    = 50                                   // maxCommandHistograms
+		maxDistHist   = 50                                   // maxCommandHistograms (distances use same limit)
+		maxAlpha      = core.AlphabetSizeInsertAndCopyLength // 704, largest alphabet
+		hpb           = 64                                   // histogramsPerBatch
+		cpb           = 16                                   // clustersPerBatch
+		maxPairs      = hpb*hpb/2 + 1
+		maxBlockTypes = maxNumberOfBlockTypes
+		litContextMul = 64 // 1 << core.LiteralContextBits
 	)
 
 	// Upper bound for numBlocks from splitByteVector. In practice much
@@ -814,13 +787,10 @@ func (b *q10Bufs) preallocQ10(blockSizeArg int) {
 	b.svHistograms = preallocUint32(b.svHistograms, (maxLitHist+1)*maxAlpha)
 	b.svBlockIDs = preallocByte(b.svBlockIDs, blockSize)
 	b.svFloat = preallocFloat64(b.svFloat, maxAlpha*maxLitHist+maxLitHist)
-	bitmapLen := (maxLitHist + 7) >> 3
-	b.svSwitchSig = preallocByte(b.svSwitchSig, blockSize*bitmapLen)
 	b.svNewID = preallocUint16(b.svNewID, maxLitHist)
 
 	// clusterBlocks scratch.
 	b.cbHistSymbols = preallocUint32(b.cbHistSymbols, estBlocks)
-	b.cbAllHistograms = preallocUint32(b.cbAllHistograms, estClusters*maxAlpha)
 	b.cbClusterSizes = preallocUint32(b.cbClusterSizes, estClusters)
 	b.cbBatchHist = preallocUint32(b.cbBatchHist, hpb*maxAlpha)
 	b.cbPairs = preallocHistogramPairs(b.cbPairs, maxPairs)
@@ -840,11 +810,6 @@ func (b *q10Bufs) preallocQ10(blockSizeArg int) {
 	b.bmTmpHist = preallocUint32(b.bmTmpHist, maxAlpha)
 	b.bmContextModes = preallocByte(b.bmContextModes, maxBlockTypes)
 	litHistSize := maxBlockTypes * litContextMul
-	b.bmLitHist = preallocUint32(b.bmLitHist, litHistSize*litAlpha)
-	distHistSize := maxBlockTypes * distContextMul
-	b.bmDistHist = preallocUint32(b.bmDistHist, distHistSize*distAlpha)
-	b.bmLitOutHist = preallocUint32(b.bmLitOutHist, litHistSize*litAlpha)
-	b.bmDistOutHist = preallocUint32(b.bmDistOutHist, distHistSize*distAlpha)
 
 	// clusterHistograms scratch.
 	maxInSize := litHistSize // largest input to clusterHistograms
@@ -858,12 +823,11 @@ func (b *q10Bufs) preallocQ10(blockSizeArg int) {
 
 	// histogramReindex scratch.
 	b.hrNewIndex = preallocUint32(b.hrNewIndex, maxInSize)
-	b.hrTmpData = preallocUint32(b.hrTmpData, maxBlockTypes*maxAlpha)
 	b.hrTmpBitCosts = preallocFloat64(b.hrTmpBitCosts, maxBlockTypes)
 	b.hrTmpTotals = preallocUint32(b.hrTmpTotals, maxBlockTypes)
 
 	// Zopfli backward references scratch.
-	b.zNodes = preallocZopfliNodes(b.zNodes, blockSize+1)
+	b.zNodes = preallocZopfliNodes(b.zNodes, blockSizeArg+1)
 	b.zMatches = preallocBackwardMatches(b.zMatches, 2*(h10MaxNumMatches+64))
 	if cap(b.zCostModel.literalCosts) < blockSize+2 {
 		b.zCostModel.literalCosts = make([]float32, 0, blockSize+2)
@@ -873,7 +837,7 @@ func (b *q10Bufs) preallocQ10(blockSizeArg int) {
 	}
 
 	// Q11 HQ Zopfli scratch.
-	b.hqNumMatchesArr = preallocUint32(b.hqNumMatchesArr, blockSize)
+	b.hqNumMatchesArr = preallocUint32(b.hqNumMatchesArr, blockSizeArg)
 	b.hqMatches = preallocBackwardMatches(b.hqMatches, 4*blockSize)
 }
 
@@ -892,7 +856,7 @@ func (e *encoderSplit) reset(quality, lgwin int, sizeHint uint) {
 	// HasherSetup, which calls ChooseHasher after UpdateSizeHint has
 	// auto-calculated the size hint from the first Write call.
 	// Q10+ always uses h10 regardless of sizeHint, so keep eagerly.
-	if quality < 10 && sizeHint == 0 {
+	if quality < 10 {
 		// Must re-choose hasher after auto-sizeHint is calculated.
 		// chooseHasher will reuse the existing hasher when the type matches.
 		if e.hasher != nil {
@@ -916,10 +880,6 @@ func (e *encoderSplit) reset(quality, lgwin int, sizeHint uint) {
 		blockSize := 1 << e.lgblock
 		e.q10.preallocQ10(blockSize)
 
-		// The h10 forest is sized in h10.reset, which knows the real input
-		// size and whether the encode is one-shot. Pre-allocating here would
-		// force the full window even for a small input.
-
 		// Pre-allocate metaBlockSplit context maps.
 		const (
 			maxTypes       = 256
@@ -928,7 +888,6 @@ func (e *encoderSplit) reset(quality, lgwin int, sizeHint uint) {
 		)
 		e.mb.literalContextMap = preallocUint32(e.mb.literalContextMap, maxTypes*litContextMul)
 		e.mb.distanceContextMap = preallocUint32(e.mb.distanceContextMap, maxTypes*distContextMul)
-		e.mb.cmdHistograms = preallocUint32(e.mb.cmdHistograms, maxTypes*core.AlphabetSizeInsertAndCopyLength)
 
 		// Pre-allocate blockSplit types/lengths for each category.
 		e.mb.litSplit.types = preallocByte(e.mb.litSplit.types, maxTypes)
@@ -938,14 +897,6 @@ func (e *encoderSplit) reset(quality, lgwin int, sizeHint uint) {
 		e.mb.distSplit.types = preallocByte(e.mb.distSplit.types, maxTypes)
 		e.mb.distSplit.lengths = preallocUint32(e.mb.distSplit.lengths, maxTypes)
 
-		// Pre-allocate encoderSplit Huffman code buffers.
-		// Sizes are numHistograms * alphabetSize; use maxTypes as a safe bound.
-		e.litDepths = preallocByte(e.litDepths, maxTypes*litContextMul*core.AlphabetSizeLiteral)
-		e.litBits = preallocUint16(e.litBits, maxTypes*litContextMul*core.AlphabetSizeLiteral)
-		e.cmdDepths = preallocByte(e.cmdDepths, maxTypes*core.AlphabetSizeInsertAndCopyLength)
-		e.cmdBits = preallocUint16(e.cmdBits, maxTypes*core.AlphabetSizeInsertAndCopyLength)
-		e.distDepths = preallocByte(e.distDepths, maxTypes*distContextMul*core.NumHistogramDistanceSymbols)
-		e.distBits = preallocUint16(e.distBits, maxTypes*distContextMul*core.NumHistogramDistanceSymbols)
 		e.rleSymBuf = preallocUint32(e.rleSymBuf, maxTypes*litContextMul)
 		if cap(e.goodForRLE) < core.AlphabetSizeInsertAndCopyLength {
 			e.goodForRLE = make([]bool, 0, core.AlphabetSizeInsertAndCopyLength)
@@ -1204,7 +1155,7 @@ func (e *encoderSplit) writeMetaBlockSplit(length int, isLast bool) {
 		s.distAlphabetSizeLimit = uint(distParams.alphabetSizeLimit)
 		s.distParams = distParams
 		optimizeHistograms(&e.mb, int(s.distAlphabetSizeLimit), &e.goodForRLE)
-		e.writeMetaBlock(length, isLast, &e.mb, e.tree[:])
+		e.writeMetaBlock(length, isLast, contextMode, &e.mb, e.tree[:])
 		s.distParams = savedDistParams
 		s.distAlphabetSizeMax = savedDistMax
 		s.distAlphabetSizeLimit = savedDistLimit
@@ -1223,7 +1174,7 @@ func (e *encoderSplit) writeMetaBlockSplit(length int, isLast bool) {
 	buildMetaBlockGreedy(s.data, startPos, uint(s.mask), s.prevByte, s.prevByte2,
 		numContexts, staticContextMap, s.commands, &e.splitBufs, &e.mb)
 	optimizeHistograms(&e.mb, int(s.distAlphabetSizeMax), &e.goodForRLE)
-	e.writeMetaBlock(length, isLast, &e.mb, e.tree[:])
+	e.writeMetaBlock(length, isLast, core.ContextUTF8, &e.mb, e.tree[:])
 }
 
 // writeMetaBlock encodes commands into a compressed meta-block using the full
@@ -1242,7 +1193,7 @@ func (e *encoderSplit) writeMetaBlockSplit(length int, isLast bool) {
 // When a distance context map is present (Q10+ slow path), distance symbols
 // are encoded with storeSymbolWithContext using a 2-bit distance context.
 // Otherwise distance encoding uses trivial context maps.
-func (e *encoderSplit) writeMetaBlock(length int, isLast bool, mb *metaBlockSplit, tree []huffmanTreeNode) {
+func (e *encoderSplit) writeMetaBlock(length int, isLast bool, contextMode byte, mb *metaBlockSplit, tree []huffmanTreeNode) {
 	s := &e.encodeState
 	b := &s.b
 	input := s.data
@@ -1271,15 +1222,8 @@ func (e *encoderSplit) writeMetaBlock(length int, isLast bool, mb *metaBlockSpli
 	b.writeBits(2, uint64(npostfix))
 	b.writeBits(4, uint64(ndirect>>npostfix))
 
-	// Literal context modes (2 bits per literal block type).
-	// For Q10+ the mode is determined by chooseContextMode; for Q4–Q9 it
-	// is always UTF-8.
-	var literalContextMode byte = core.ContextUTF8
-	if s.quality >= 10 {
-		literalContextMode = chooseContextMode(s.quality, s.data, startPos, mask, uint(length))
-	}
 	for range mb.litSplit.numTypes {
-		b.writeBits(2, uint64(literalContextMode))
+		b.writeBits(2, uint64(contextMode))
 	}
 
 	// Literal context map: full encoding when context modeling is active,
@@ -1338,7 +1282,7 @@ func (e *encoderSplit) writeMetaBlock(length int, isLast bool, mb *metaBlockSpli
 		if useLitContextMap {
 			for j := cmd.insertLen; j != 0; j-- {
 				literal := input[pos&mask]
-				context := uint(core.ContextLookup(uint(literalContextMode), prevByte, prevByte2))
+				context := uint(core.ContextLookup(uint(contextMode), prevByte, prevByte2))
 				litEnc.storeSymbolWithContext(uint(literal), context,
 					mb.literalContextMap, core.LiteralContextBits, b)
 				prevByte2 = prevByte

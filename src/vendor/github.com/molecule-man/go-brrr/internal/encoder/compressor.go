@@ -26,6 +26,8 @@ type Compressor interface {
 	// Reset discards per-stream state for reuse with the same parameters.
 	Reset()
 
+	ResetSizeHint(sizeHint uint)
+
 	// AttachDictionary attaches a compound dictionary to the encoder.
 	AttachDictionary(pd *PreparedDictionary) error
 
@@ -36,11 +38,13 @@ type Compressor interface {
 
 // NewCompressor constructs a Compressor for the given quality/lgwin/sizeHint,
 // dispatching to the appropriate backend (q0/q1 fast or q>=2 streaming) and
-// configuring it from its pool.
-func NewCompressor(quality, lgwin int, sizeHint uint) Compressor {
+// configuring it from its pool. parallel lets q10 and q11 search matches,
+// split blocks and cluster distances on worker goroutines.
+func NewCompressor(quality, lgwin int, sizeHint uint, parallel bool) Compressor {
 	switch {
 	case quality >= 4:
 		e := poolEncoderSplit.Get().(*encoderSplit)
+		e.q10.parallel = parallel
 		e.reset(quality, lgwin, sizeHint)
 		return e
 	case quality >= 2:
