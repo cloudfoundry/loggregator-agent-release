@@ -93,13 +93,19 @@ func (br *bitReader) checkInputAmount() bool {
 	return br.pos <= br.fastEnd
 }
 
+// checkInputAmountAndBits reports whether the fast input window and at least n bits are available.
+// The bitwise OR combines both signed boundary checks.
+func (br *bitReader) checkInputAmountAndBits(n uint) bool {
+	return (br.fastEnd-br.pos)|(int(br.bitPos)-int(n)) >= 0
+}
+
 // fillBitWindow ensures that at least nBits+1 bits are available in the
 // accumulator. If the accumulator has fewer than 32 valid bits, 4 bytes are
 // loaded from input. nBits must be in the range [1..24].
 func (br *bitReader) fillBitWindow(nBits uint) {
 	_ = nBits // used for documentation; the 64-bit path handles up to 32
 	if br.bitPos < 32 {
-		br.val |= uint64(*(*uint32)(unsafe.Add(br.inputBase, br.pos))) << br.bitPos
+		br.val |= uint64(le32(*(*uint32)(unsafe.Add(br.inputBase, br.pos)))) << br.bitPos
 		br.bitPos += 32
 		br.pos += 4
 	}

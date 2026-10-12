@@ -1,13 +1,11 @@
-// H6 hasher variant with blockBits=5 for quality 6, large inputs with large windows.
+// H6b5 uses 32 positions per bucket for quality 6 and large inputs.
 //
-// Identical to H6 (hash6.go) except each bucket holds 32 entries instead of
-// 16, doubling the match search depth at the cost of more hash table memory.
-//
-// Selected when quality=6, sizeHint >= 1MiB, and lgwin >= 19.
+// The encoder converts h6b5u to h6b5 when many entries have different tags.
 
 package encoder
 
 import (
+	"math/bits"
 	"unsafe"
 
 	"github.com/molecule-man/go-brrr/internal/core"
@@ -36,30 +34,31 @@ const (
 )
 
 // h6b5 is the H6 hasher with blockBits=5: a forgetful hash table where each
-// bucket holds a ring buffer of up to h6b5BlockSize (32) positions.
+// bucket holds a ring buffer of up to h6b5BlockSize (32) tagged positions.
 type h6b5 struct {
-	num        [h6b5BucketSize]uint16                 // entry count per bucket
-	buckets    [h6b5BucketSize * h6b5BlockSize]uint32 // position ring buffers
-	nextBucket uint32                                 // speculative load to warm cache
-	// everWrapped is sticky: false until any createBackwardReferences call
-	// has positions reaching or exceeding mask+1, after which the no-wrap
-	// fast path is disabled because stored bucket values may then encode
-	// positions outside the ring buffer's modular window.
+	num    [h6b5BucketSize]uint16 // 0xFFFF minus entry count, per bucket
+	blocks [h6b5BucketSize]h6b5Block
+	// everWrapped disables the direct position path after the first ring wrap.
 	everWrapped bool
 	hasherCommon
+	nextWarm uint32 //nolint:unused // generic scan loads the next bucket into the cache
+}
+
+// h6b5Block stores tags beside positions in each bucket.
+type h6b5Block struct {
+	tags [h6b5BlockSize]uint8  // low hash bits of each entry
+	pos  [h6b5BlockSize]uint32 // position ring buffer
 }
 
 func (h *h6b5) common() *hasherCommon { return &h.hasherCommon }
 
-// bucketAt returns a pointer to the h6b5BlockSize-entry ring buffer for key.
+// bucketAt returns the position ring buffer for key.
 //
-// hash() shifts its product right by h6b5HashShift, so key is always <
-// h6b5BucketSize and key<<h6b5BlockBits addresses a whole block inside buckets.
-// Handing the scan loops a fixed-size array pointer instead of a slice lets
-// the compiler prove `i & h6b5BlockMask` is in range, dropping a bounds check
-// from every probe iteration of the match search.
+// key is always < h6b5BucketSize. The mask lets the compiler drop the
+// bounds check. The fixed-size array pointer lets it prove that
+// `i & h6b5BlockMask` is in range in the scan loops.
 func (h *h6b5) bucketAt(key uint32) *[h6b5BlockSize]uint32 {
-	return (*[h6b5BlockSize]uint32)(unsafe.Add(unsafe.Pointer(&h.buckets), uintptr(key)<<(h6b5BlockBits+2)))
+	return &h.blocks[key&(h6b5BucketSize-1)].pos
 }
 
 // hash computes a 15-bit bucket index from 8 bytes at data[i:i+8].
@@ -67,18 +66,31 @@ func (h *h6b5) hash(data []byte, i uint) uint32 {
 	return uint32((loadU64LE(data, i) * h6b5HashMul) >> h6b5HashShift)
 }
 
-// reset zeroes the entry counts before use.
+// hashTag computes the bucket key and the 8-bit tag of the entry at data[i:i+8].
+func (h *h6b5) hashTag(data []byte, i uint) (uint32, uint8) {
+	v := (loadU64LE(data, i) * h6b5HashMul) >> (h6b5HashShift - 8)
+	return uint32(v >> 8), uint8(v)
+}
+
+// tagsAt returns the tags of the block for key. See bucketAt.
+func (h *h6b5) tagsAt(key uint32) *[h6b5BlockSize]uint8 {
+	return &h.blocks[key&(h6b5BucketSize-1)].tags
+}
+
+// reset marks all buckets as empty before use.
 // When oneShot is true and the input is small, only the touched buckets
-// are cleared (partial prepare). Otherwise the full count array is zeroed.
+// are cleared (partial prepare). Otherwise all buckets are cleared.
 func (h *h6b5) reset(oneShot bool, inputSize uint, data []byte) {
 	partialPrepareThreshold := h6b5BucketSize >> 6
 	if oneShot && inputSize <= uint(partialPrepareThreshold) {
 		for i := range inputSize {
 			key := h.hash(data, i)
-			h.num[key] = 0
+			h.num[key] = 0xFFFF
 		}
 	} else {
-		h.num = [h6b5BucketSize]uint16{}
+		for i := range h.num {
+			h.num[i] = 0xFFFF
+		}
 	}
 	h.everWrapped = false
 	h.ready = true
@@ -87,11 +99,12 @@ func (h *h6b5) reset(oneShot bool, inputSize uint, data []byte) {
 // store records position pos in the ring buffer for the 8-byte sequence at
 // data[pos & mask].
 func (h *h6b5) store(data []byte, mask, pos uint) {
-	key := h.hash(data, pos&mask)
+	key, tag := h.hashTag(data, pos&mask)
 	minorIx := h.num[key] & h6b5BlockMask
-	offset := uint(minorIx) + uint(key)<<h6b5BlockBits
-	h.num[key]++
-	h.buckets[offset] = uint32(pos)
+	h.num[key]--
+	b := &h.blocks[key&(h6b5BucketSize-1)]
+	b.pos[minorIx] = uint32(pos)
+	b.tags[minorIx] = tag
 }
 
 // storeRange records positions [start, end) in the hash table.
@@ -102,11 +115,12 @@ func (h *h6b5) storeRange(data []byte, mask, start, end uint) {
 }
 
 func (h *h6b5) storeNoWrap(data []byte, pos uint) {
-	key := h.hash(data, pos)
+	key, tag := h.hashTag(data, pos)
 	minorIx := h.num[key] & h6b5BlockMask
-	offset := uint(minorIx) + uint(key)<<h6b5BlockBits
-	h.num[key]++
-	h.buckets[offset] = uint32(pos)
+	h.num[key]--
+	b := &h.blocks[key&(h6b5BucketSize-1)]
+	b.pos[minorIx] = uint32(pos)
+	b.tags[minorIx] = tag
 }
 
 func (h *h6b5) storeRangeNoWrap(data []byte, start, end uint) {
@@ -128,54 +142,39 @@ func (h *h6b5) stitchToPreviousBlock(numBytes, position uint, ringBuffer []byte,
 // findLongestMatch searches for the best backward reference at position cur
 // in the ring buffer, then stores cur in the hash table.
 //
-// The search has three phases:
+// The search has two phases:
 //  1. Distance cache: try the last 4 cached distances (and 6 derived
 //     near-miss distances for the first two). Accept length >= 3, or
 //     length == 2 for the first two cache entries.
-//  2. Hash bucket scan: walk the ring buffer of up to 32 positions for the
-//     bucket. Reject candidates with a 4-byte quick comparison, accept
-//     length >= 4.
-//  3. Static dictionary fallback: when neither phase produced a match,
-//     search the static dictionary with shallow=false (deep search).
+//  2. Hash bucket scan: walk the up to 32 positions of the bucket whose
+//     tag matches, newest first. Reject candidates with a 4-byte quick
+//     comparison, accept length >= 4.
+//
+// The caller searches the static dictionary if neither phase finds a match.
 func (h *h6b5) findLongestMatch(
 	data []byte, ringBufferMask uint,
 	distCache *[4]uint,
-	cur, maxLength, maxBackward, dictDistance uint,
-	dictNumLookups, dictNumMatches *uint,
+	cur, maxLength, maxBackward uint,
 	out *hasherSearchResult,
 ) {
 	if ringBufferMask >= uint(len(data)) {
 		h.findLongestMatchSmallBuf(data, ringBufferMask, distCache,
-			cur, maxLength, maxBackward, dictDistance,
-			dictNumLookups, dictNumMatches, out)
+			cur, maxLength, maxBackward, out)
 		return
 	}
 
 	// --- fast path: ringBufferMask < len(data) ---
-	// The ring buffer has a mirrored tail beyond ringBufferMask
-	// (see copyInputToRingBuffer). Since bestLen <= maxLength <= tailSize,
-	// data[curMasked+bestLen] and data[prev+bestLen] are always within
-	// len(data), so per-iteration wrap-around bounds guards are not needed.
 	_ = data[ringBufferMask]
 
 	curMasked := cur & ringBufferMask
 	bestScore := out.score
 	bestLen := out.len
-	key := h.hash(data, curMasked)
-	bucket := h.bucketAt(key)
-
-	// Speculatively load from the next position's bucket to warm the cache.
-	nextKey := h.hash(data, (cur+1)&ringBufferMask)
-	nextBucket := h.bucketAt(nextKey)
-	nextN := h.num[nextKey]
-	h.nextBucket = nextBucket[0]
-	if nextN > 0 {
-		p := uint(nextBucket[(nextN-1)&h6b5BlockMask]) & ringBufferMask
-		h.nextBucket = uint32(data[p])
-	}
+	key, tag := h.hashTag(data, curMasked)
 
 	out.len = 0
 	out.lenCodeDelta = 0
+
+	lim := ringLimit(ringBufferMask, curMasked, bestLen)
 
 	// Phase 1: try cached distances. Unrolled so the per-entry conditions
 	// (penalty index, ml >= 2 acceptance) are compile-time constants.
@@ -183,13 +182,14 @@ func (h *h6b5) findLongestMatch(
 	backward := distCache[0]
 	if backward-1 < maxBackward {
 		prev := (cur - backward) & ringBufferMask
-		if curByte == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, curMasked, int(maxLength)))
+		if curByte == loadByte(data, prev+bestLen) && prev < lim {
+			ml := uint(matchLenAt(data, prev, curMasked, int(maxLength)))
 			if ml >= 3 || ml == 2 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
 					bestScore = score
 					bestLen = ml
+					lim = ringLimit(ringBufferMask, curMasked, bestLen)
 					out.len = bestLen
 					out.distance = backward
 					out.score = bestScore
@@ -202,8 +202,8 @@ func (h *h6b5) findLongestMatch(
 	backward = distCache[1]
 	if backward-1 < maxBackward {
 		prev := (cur - backward) & ringBufferMask
-		if curByte == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, curMasked, int(maxLength)))
+		if curByte == loadByte(data, prev+bestLen) && prev < lim {
+			ml := uint(matchLenAt(data, prev, curMasked, int(maxLength)))
 			if ml >= 3 || ml == 2 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -211,6 +211,7 @@ func (h *h6b5) findLongestMatch(
 					if bestScore < score {
 						bestScore = score
 						bestLen = ml
+						lim = ringLimit(ringBufferMask, curMasked, bestLen)
 						out.len = bestLen
 						out.distance = backward
 						out.score = bestScore
@@ -224,8 +225,8 @@ func (h *h6b5) findLongestMatch(
 	backward = distCache[2]
 	if backward-1 < maxBackward {
 		prev := (cur - backward) & ringBufferMask
-		if curByte == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, curMasked, int(maxLength)))
+		if curByte == loadByte(data, prev+bestLen) && prev < lim {
+			ml := uint(matchLenAt(data, prev, curMasked, int(maxLength)))
 			if ml >= 3 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -233,6 +234,7 @@ func (h *h6b5) findLongestMatch(
 					if bestScore < score {
 						bestScore = score
 						bestLen = ml
+						lim = ringLimit(ringBufferMask, curMasked, bestLen)
 						out.len = bestLen
 						out.distance = backward
 						out.score = bestScore
@@ -246,8 +248,8 @@ func (h *h6b5) findLongestMatch(
 	backward = distCache[3]
 	if backward-1 < maxBackward {
 		prev := (cur - backward) & ringBufferMask
-		if curByte == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, curMasked, int(maxLength)))
+		if curByte == loadByte(data, prev+bestLen) && prev < lim {
+			ml := uint(matchLenAt(data, prev, curMasked, int(maxLength)))
 			if ml >= 3 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -269,50 +271,13 @@ func (h *h6b5) findLongestMatch(
 		bestLen = 3
 	}
 
-	// Phase 2: scan hash bucket entries.
+	// Phase 2: scan the bucket entries whose tag matches, newest first.
 	// backward == 0 is impossible here: cur is stored after this scan.
-	n := h.num[key]
-	down := uint(0)
-	if uint(n) > h6b5BlockSize {
-		down = uint(n) - h6b5BlockSize
-	}
+	// Keep the scan last so no values remain live across the call.
 	minPrev := cur - maxBackward
-	curProbe := loadU32LE(data, curMasked+bestLen-3)
-	for i := uint(n); i > down; {
-		i--
-		prevRaw := uint(bucket[i&h6b5BlockMask])
-		if prevRaw < minPrev {
-			break
-		}
-		prevMasked := prevRaw & ringBufferMask
-		if curProbe != loadU32LE(data, prevMasked+bestLen-3) {
-			continue
-		}
-
-		ml := uint(matchLenAtNoInline(data, prevMasked, curMasked, int(maxLength)))
-		if ml >= 4 {
-			backward := cur - prevRaw
-			score := backwardReferenceScore(ml, backward)
-			if bestScore < score {
-				bestScore = score
-				bestLen = ml
-				out.len = bestLen
-				out.distance = backward
-				out.score = bestScore
-				curProbe = loadU32LE(data, curMasked+bestLen-3)
-			}
-		}
-	}
-
-	// Store current position in the bucket.
-	bucket[h.num[key]&h6b5BlockMask] = uint32(cur)
-	h.num[key]++
-
-	// Phase 3: static dictionary fallback when no hash match was found.
-	if out.score == minScore {
-		searchStaticDictionaryDeep(data[curMasked:], maxLength, dictDistance, maxBackwardDistance,
-			dictNumLookups, dictNumMatches, out)
-	}
+	h6b5FindInBucket(h, unsafe.Pointer(unsafe.SliceData(data)), uint(key)<<8|uint(tag),
+		cur, curMasked, ringBufferMask, minPrev, maxLength, bestLen, bestScore,
+		&h.blocks[h.hash(data, (cur+1)&ringBufferMask)], out)
 }
 
 // findLongestMatchSmallBuf is the generic version of findLongestMatch used
@@ -320,24 +285,26 @@ func (h *h6b5) findLongestMatch(
 func (h *h6b5) findLongestMatchSmallBuf(
 	data []byte, ringBufferMask uint,
 	distCache *[4]uint,
-	cur, maxLength, maxBackward, dictDistance uint,
-	dictNumLookups, dictNumMatches *uint,
+	cur, maxLength, maxBackward uint,
 	out *hasherSearchResult,
 ) {
 	curMasked := cur & ringBufferMask
 	bestScore := out.score
 	bestLen := out.len
-	key := h.hash(data, curMasked)
+	key, tag := h.hashTag(data, curMasked)
 	bucket := h.bucketAt(key)
-
-	// Speculatively load from the next position's bucket to warm the cache.
-	nextKey := h.hash(data, (cur+1)&ringBufferMask)
-	nextBucket := h.bucketAt(nextKey)
-	nextN := h.num[nextKey]
-	h.nextBucket = nextBucket[0]
-	if nextN > 0 {
-		p := uint(nextBucket[(nextN-1)&h6b5BlockMask]) & ringBufferMask
-		h.nextBucket = uint32(data[p])
+	// Bit j of matches: slot (head+j) has the same tag. Bit 0 is the newest entry.
+	n := h.num[key]
+	head := uint(n+1) & h6b5BlockMask
+	tags := h.tagsAt(key)
+	splat := uint64(tag) * 0x0101010101010101
+	matches := bits.RotateLeft32(tagEqualMask8(loadU64LE(tags[:], 0)^splat)|
+		tagEqualMask8(loadU64LE(tags[:], 8)^splat)<<8|
+		tagEqualMask8(loadU64LE(tags[:], 16)^splat)<<16|
+		tagEqualMask8(loadU64LE(tags[:], 24)^splat)<<24, -int(head))
+	// Drop the slots that hold no entry yet.
+	if stored := 0xFFFF - n; stored < h6b5BlockSize {
+		matches &= uint32(1)<<stored - 1
 	}
 
 	out.len = 0
@@ -384,17 +351,11 @@ func (h *h6b5) findLongestMatchSmallBuf(
 		bestLen = 3
 	}
 
-	// Phase 2: scan hash bucket entries.
+	// Phase 2: scan the bucket entries whose tag matches, newest first.
 	// backward == 0 is impossible here: cur is stored after this scan.
-	n := h.num[key]
-	down := uint(0)
-	if uint(n) > h6b5BlockSize {
-		down = uint(n) - h6b5BlockSize
-	}
 	curProbe := loadU32LE(data, curMasked+bestLen-3)
-	for i := uint(n); i > down; {
-		i--
-		prev := uint(bucket[i&h6b5BlockMask])
+	for ; matches != 0; matches &= matches - 1 {
+		prev := uint(bucket[(head+uint(bits.TrailingZeros32(matches)))&h6b5BlockMask])
 		backward := cur - prev
 		if backward > maxBackward {
 			break
@@ -423,27 +384,20 @@ func (h *h6b5) findLongestMatchSmallBuf(
 	}
 
 	// Store current position in the bucket.
-	bucket[h.num[key]&h6b5BlockMask] = uint32(cur)
-	h.num[key]++
-
-	// Phase 3: static dictionary fallback when no hash match was found.
-	if out.score == minScore {
-		searchStaticDictionaryDeep(data[curMasked:], maxLength, dictDistance, maxBackwardDistance,
-			dictNumLookups, dictNumMatches, out)
-	}
+	slot := uint(h.num[key]) & h6b5BlockMask
+	bucket[slot] = uint32(cur)
+	tags[slot] = tag
+	h.num[key]--
 }
 
 // createBackwardReferences finds backward reference matches using this hasher
 // and populates s.commands. The hot findLongestMatch/store/storeRange calls
 // are direct (non-virtual) since the receiver is concrete.
 //
-// When the call's [wrappedPos, wrappedPos+bytes) range fits entirely within
-// the ring buffer (no modular wrap) and no past call has wrapped, dispatch
-// to createBackwardReferencesNoWrap which omits the per-iteration & mask
-// ops (each redundant when stored bucket values are < mask+1).
+// If this call and past calls stay within the ring, use the path without masks.
 func (h *h6b5) createBackwardReferences(s *encodeState, bytes, wrappedPos uint32) {
 	mask := uint(s.mask)
-	if !h.everWrapped && uint(wrappedPos)+uint(bytes) <= mask+1 {
+	if !h.everWrapped && uint(wrappedPos)+uint(bytes) <= mask {
 		h.createBackwardReferencesNoWrap(s, bytes, wrappedPos)
 		return
 	}
@@ -476,9 +430,11 @@ func (h *h6b5) createBackwardReferences(s *encodeState, bytes, wrappedPos uint32
 		var sr hasherSearchResult
 		sr.score = minScore
 
-		h.findLongestMatch(data, mask, distCache,
-			position, maxLength, maxDistance, maxDistance+gap,
-			&s.dictNumLookups, &s.dictNumMatches, &sr)
+		h.findLongestMatch(data, mask, distCache, position, maxLength, maxDistance, &sr)
+		if sr.score == minScore {
+			searchStaticDictionaryDeep(data[position&mask:], maxLength, maxDistance+gap, maxBackwardDistance,
+				&s.dictNumLookups, &s.dictNumMatches, &sr)
+		}
 		if hasCompound {
 			s.compound.lookupMatch(data, mask,
 				&s.distCache, position, maxLength,
@@ -494,9 +450,11 @@ func (h *h6b5) createBackwardReferences(s *encodeState, bytes, wrappedPos uint32
 				sr2.score = minScore
 				maxDistance = min(position+1, maxBackwardLimit)
 
-				h.findLongestMatch(data, mask, distCache,
-					position+1, maxLength, maxDistance, maxDistance+gap,
-					&s.dictNumLookups, &s.dictNumMatches, &sr2)
+				h.findLongestMatch(data, mask, distCache, position+1, maxLength, maxDistance, &sr2)
+				if sr2.score == minScore {
+					searchStaticDictionaryDeep(data[(position+1)&mask:], maxLength, maxDistance+gap, maxBackwardDistance,
+						&s.dictNumLookups, &s.dictNumMatches, &sr2)
+				}
 				if hasCompound {
 					s.compound.lookupMatch(data, mask,
 						&s.distCache, position+1, maxLength,
@@ -569,13 +527,8 @@ func (h *h6b5) createBackwardReferences(s *encodeState, bytes, wrappedPos uint32
 	s.numCommands += uint(len(s.commands)) - origCmdCount
 }
 
-// createBackwardReferencesNoWrap is the no-wrap fast path used by
-// createBackwardReferences when the call's position range fits entirely
-// within mask+1 and no past call has wrapped. Stored bucket values are
-// then guaranteed < mask+1, so per-iteration `prev &= mask` and
-// `position & mask` ops in findLongestMatch are redundant and elided
-// here via findLongestMatchNoWrap. The paired no-wrap store helpers also
-// skip redundant position masking while preserving the same bucket update.
+// createBackwardReferencesNoWrap uses direct positions before the first ring wrap.
+// All stored positions fit within the ring, so scans and stores omit masks.
 func (h *h6b5) createBackwardReferencesNoWrap(s *encodeState, bytes, wrappedPos uint32) {
 	data := s.data
 	mask := uint(s.mask)
@@ -606,9 +559,11 @@ func (h *h6b5) createBackwardReferencesNoWrap(s *encodeState, bytes, wrappedPos 
 		var sr hasherSearchResult
 		sr.score = minScore
 
-		h.findLongestMatchNoWrap(data, distCache,
-			position, maxLength, maxDistance, maxDistance+gap,
-			&s.dictNumLookups, &s.dictNumMatches, &sr)
+		h.findLongestMatchNoWrap(data, distCache, position, maxLength, maxDistance, &sr)
+		if sr.score == minScore {
+			searchStaticDictionaryDeep(data[position:], maxLength, maxDistance+gap, maxBackwardDistance,
+				&s.dictNumLookups, &s.dictNumMatches, &sr)
+		}
 		if hasCompound {
 			s.compound.lookupMatch(data, mask,
 				&s.distCache, position, maxLength,
@@ -624,9 +579,11 @@ func (h *h6b5) createBackwardReferencesNoWrap(s *encodeState, bytes, wrappedPos 
 				sr2.score = minScore
 				maxDistance = min(position+1, maxBackwardLimit)
 
-				h.findLongestMatchNoWrap(data, distCache,
-					position+1, maxLength, maxDistance, maxDistance+gap,
-					&s.dictNumLookups, &s.dictNumMatches, &sr2)
+				h.findLongestMatchNoWrap(data, distCache, position+1, maxLength, maxDistance, &sr2)
+				if sr2.score == minScore {
+					searchStaticDictionaryDeep(data[position+1:], maxLength, maxDistance+gap, maxBackwardDistance,
+						&s.dictNumLookups, &s.dictNumMatches, &sr2)
+				}
 				if hasCompound {
 					s.compound.lookupMatch(data, mask,
 						&s.distCache, position+1, maxLength,
@@ -699,32 +656,18 @@ func (h *h6b5) createBackwardReferencesNoWrap(s *encodeState, bytes, wrappedPos 
 	s.numCommands += uint(len(s.commands)) - origCmdCount
 }
 
-// findLongestMatchNoWrap is the no-wrap variant of findLongestMatch's fast
-// path. It assumes cur < mask+1 and that all stored bucket values are
-// < mask+1, which makes `& ringBufferMask` ops redundant — they are elided
-// here. Otherwise the search structure (Phase 1 distance cache, Phase 2
-// bucket scan, Phase 3 dictionary fallback) matches findLongestMatch.
+// findLongestMatchNoWrap searches before the first ring wrap.
+// Current and stored positions fit within the ring, so the scan omits masks.
+// The caller searches the static dictionary if this search finds no match.
 func (h *h6b5) findLongestMatchNoWrap(
 	data []byte,
 	distCache *[4]uint,
-	cur, maxLength, maxBackward, dictDistance uint,
-	dictNumLookups, dictNumMatches *uint,
+	cur, maxLength, maxBackward uint,
 	out *hasherSearchResult,
 ) {
 	bestScore := out.score
 	bestLen := out.len
-	key := h.hash(data, cur)
-	bucket := h.bucketAt(key)
-
-	// Speculatively load from the next position's bucket to warm the cache.
-	nextKey := h.hash(data, cur+1)
-	nextBucket := h.bucketAt(nextKey)
-	nextN := h.num[nextKey]
-	h.nextBucket = nextBucket[0]
-	if nextN > 0 {
-		p := uint(nextBucket[(nextN-1)&h6b5BlockMask])
-		h.nextBucket = uint32(data[p])
-	}
+	key, tag := h.hashTag(data, cur)
 
 	out.len = 0
 	out.lenCodeDelta = 0
@@ -735,7 +678,7 @@ func (h *h6b5) findLongestMatchNoWrap(
 	if backward-1 < maxBackward {
 		prev := cur - backward
 		if loadByte(data, cur+bestLen) == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, cur, int(maxLength)))
+			ml := uint(matchLenAt(data, prev, cur, int(maxLength)))
 			if ml >= 3 || ml == 2 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -753,7 +696,7 @@ func (h *h6b5) findLongestMatchNoWrap(
 	if backward-1 < maxBackward {
 		prev := cur - backward
 		if loadByte(data, cur+bestLen) == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, cur, int(maxLength)))
+			ml := uint(matchLenAt(data, prev, cur, int(maxLength)))
 			if ml >= 3 || ml == 2 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -774,7 +717,7 @@ func (h *h6b5) findLongestMatchNoWrap(
 	if backward-1 < maxBackward {
 		prev := cur - backward
 		if loadByte(data, cur+bestLen) == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, cur, int(maxLength)))
+			ml := uint(matchLenAt(data, prev, cur, int(maxLength)))
 			if ml >= 3 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -795,7 +738,7 @@ func (h *h6b5) findLongestMatchNoWrap(
 	if backward-1 < maxBackward {
 		prev := cur - backward
 		if loadByte(data, cur+bestLen) == loadByte(data, prev+bestLen) {
-			ml := uint(matchLenAtNoInline(data, prev, cur, int(maxLength)))
+			ml := uint(matchLenAt(data, prev, cur, int(maxLength)))
 			if ml >= 3 {
 				score := backwardReferenceScoreUsingLastDistance(ml)
 				if bestScore < score {
@@ -817,46 +760,10 @@ func (h *h6b5) findLongestMatchNoWrap(
 		bestLen = 3
 	}
 
-	// Phase 2: scan hash bucket entries.
-	n := h.num[key]
-	down := uint(0)
-	if uint(n) > h6b5BlockSize {
-		down = uint(n) - h6b5BlockSize
-	}
+	// Phase 2: scan the bucket entries whose tag matches, newest first.
+	// Keep the scan last so no values remain live across the call.
 	minPrev := cur - maxBackward
-	curProbe := loadU32LE(data, cur+bestLen-3)
-	for i := uint(n); i > down; {
-		i--
-		prevRaw := uint(bucket[i&h6b5BlockMask])
-		if prevRaw < minPrev {
-			break
-		}
-		if curProbe != loadU32LE(data, prevRaw+bestLen-3) {
-			continue
-		}
-
-		ml := uint(matchLenAtNoInline(data, prevRaw, cur, int(maxLength)))
-		if ml >= 4 {
-			backward := cur - prevRaw
-			score := backwardReferenceScore(ml, backward)
-			if bestScore < score {
-				bestScore = score
-				bestLen = ml
-				out.len = bestLen
-				out.distance = backward
-				out.score = bestScore
-				curProbe = loadU32LE(data, cur+bestLen-3)
-			}
-		}
-	}
-
-	// Store current position in the bucket.
-	bucket[h.num[key]&h6b5BlockMask] = uint32(cur)
-	h.num[key]++
-
-	// Phase 3: static dictionary fallback when no hash match was found.
-	if out.score == minScore {
-		searchStaticDictionaryDeep(data[cur:], maxLength, dictDistance, maxBackwardDistance,
-			dictNumLookups, dictNumMatches, out)
-	}
+	h6b5FindInBucket(h, unsafe.Pointer(unsafe.SliceData(data)), uint(key)<<8|uint(tag),
+		cur, cur, ^uint(0), minPrev, maxLength, bestLen, bestScore,
+		&h.blocks[h.hash(data, cur+1)], out)
 }

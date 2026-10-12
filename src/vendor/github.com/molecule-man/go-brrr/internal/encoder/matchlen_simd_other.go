@@ -1,6 +1,4 @@
-// Fallback matchLenSIMD for platforms without amd64 SSE2.
-
-//go:build !amd64 || purego
+//go:build (!amd64 || purego) && !(ppc64 || s390x || mips || mips64)
 
 package encoder
 

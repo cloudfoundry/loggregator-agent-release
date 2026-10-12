@@ -161,11 +161,9 @@ func (h *h5b5) findLongestMatch(
 	out.len = 0
 	out.lenCodeDelta = 0
 
+	lim := ringLimit(ringBufferMask, curMasked, bestLen)
+
 	// Phase 1: try cached distances.
-	// In the fast path, the ring buffer has a mirrored tail of tailSize bytes
-	// beyond ringBufferMask (see copyInputToRingBuffer). Since bestLen ≤
-	// maxLength ≤ tailSize, loadByte accesses are always within len(data), so
-	// the per-iteration wrap-around bounds guards are not needed here.
 	// backward-1 >= maxBackward is a single check replacing both
 	// "prev >= cur" (backward==0) and "backward > maxBackward".
 	for i := range uint(h5b5NumLastDistances) {
@@ -175,7 +173,7 @@ func (h *h5b5) findLongestMatch(
 		}
 		prev := (cur - backward) & ringBufferMask
 
-		if loadByte(data, curMasked+bestLen) != loadByte(data, prev+bestLen) {
+		if loadByte(data, curMasked+bestLen) != loadByte(data, prev+bestLen) || prev >= lim {
 			continue
 		}
 
@@ -189,6 +187,7 @@ func (h *h5b5) findLongestMatch(
 				if bestScore < score {
 					bestScore = score
 					bestLen = ml
+					lim = ringLimit(ringBufferMask, curMasked, bestLen)
 					out.len = bestLen
 					out.distance = backward
 					out.score = bestScore
@@ -203,7 +202,6 @@ func (h *h5b5) findLongestMatch(
 	}
 
 	// Phase 2: scan hash bucket entries.
-	// Same tail guarantee: ring buffer end checks are omitted for the fast path.
 	// backward == 0 is impossible here: we store cur after the loop, so all
 	// bucket entries refer to strictly earlier positions.
 	//
@@ -218,6 +216,9 @@ func (h *h5b5) findLongestMatch(
 	}
 	minPrev := cur - maxBackward
 	curProbe := loadU32LE(data, curMasked+bestLen-3)
+	if curMasked+bestLen > ringBufferMask {
+		down = uint(n)
+	}
 	for i := uint(n); i > down; {
 		i--
 		prevRaw := uint(bucket[i&h5b5BlockMask])
@@ -225,7 +226,7 @@ func (h *h5b5) findLongestMatch(
 			break
 		}
 		prevMasked := prevRaw & ringBufferMask
-		if curProbe != loadU32LE(data, prevMasked+bestLen-3) {
+		if curProbe != loadU32LE(data, prevMasked+bestLen-3) || prevMasked+bestLen > ringBufferMask {
 			continue
 		}
 
@@ -239,6 +240,9 @@ func (h *h5b5) findLongestMatch(
 				out.len = bestLen
 				out.distance = backward
 				out.score = bestScore
+				if curMasked+bestLen > ringBufferMask {
+					break
+				}
 				curProbe = loadU32LE(data, curMasked+bestLen-3)
 			}
 		}
@@ -373,7 +377,7 @@ func (h *h5b5) findLongestMatchSmallBuf(
 // ops (each redundant when stored bucket values are < mask+1).
 func (h *h5b5) createBackwardReferences(s *encodeState, bytes, wrappedPos uint32) {
 	mask := uint(s.mask)
-	if !h.everWrapped && uint(wrappedPos)+uint(bytes) <= mask+1 {
+	if !h.everWrapped && uint(wrappedPos)+uint(bytes) <= mask {
 		h.createBackwardReferencesNoWrap(s, bytes, wrappedPos)
 		return
 	}
