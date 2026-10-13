@@ -70,6 +70,7 @@ var _ = Describe("App", func() {
 				KeyFile:  agentCerts.Key(agentCN),
 			},
 			DownstreamIngressPortCfg: fmt.Sprintf("%s/*/ingress_port.yml", ingressCfgPath),
+			OTelCollectorHost:        "127.0.0.1",
 			MetricsServer: config.MetricsServer{
 				Port:      uint16(metricsPort),
 				CAFile:    agentCerts.CA(),
@@ -358,9 +359,10 @@ var _ = Describe("App", func() {
 		)
 
 		BeforeEach(func() {
-			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector")
-			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector")
-			otelLogsServer = startSpyOtelColLogServer(ingressCfgPath, agentCerts, "otel-collector")
+			agentCfg.OTelCollectorHost = "::1"
+			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector", agentCfg.OTelCollectorHost)
+			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector", agentCfg.OTelCollectorHost)
+			otelLogsServer = startSpyOtelColLogServer(ingressCfgPath, agentCerts, "otel-collector", agentCfg.OTelCollectorHost)
 			agentCfg.EmitOTelTraces = true
 			agentCfg.EmitOTelMetrics = true
 			agentCfg.EmitOTelLogs = true

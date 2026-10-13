@@ -224,7 +224,7 @@ type spyOtelColMetricServer struct {
 // registers it as a gRPC service, and writes out a temp file for the forwarder
 // agent to recognize it as a destination. The cfgPath it accepts is the folder
 // under which to write the temp file.
-func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commonName string) *spyOtelColMetricServer {
+func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commonName, host string) *spyOtelColMetricServer {
 	serverCreds, err := plumbing.NewServerCredentials(
 		tc.Cert(commonName),
 		tc.Key(commonName),
@@ -232,7 +232,7 @@ func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commo
 	)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-	lis, err := net.Listen("tcp", "127.0.0.1:")
+	lis, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	s := &spyOtelColMetricServer{
@@ -244,7 +244,9 @@ func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commo
 	colmetricspb.RegisterMetricsServiceServer(s.srv, s)
 	go s.srv.Serve(lis) //nolint:errcheck
 
-	port, err := strconv.Atoi(strings.Split(s.addr, ":")[1])
+	_, portString, err := net.SplitHostPort(s.addr)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	port, err := strconv.Atoi(portString)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	dir, err := os.MkdirTemp(cfgPath, "")
@@ -284,7 +286,7 @@ type spyOtelColTraceServer struct {
 // registers it as a gRPC service, and writes out a temp file for the forwarder
 // agent to recognize it as a destination. The cfgPath it accepts is the folder
 // under which to write the temp file.
-func startSpyOtelColTraceServer(cfgPath string, tc *testhelper.TestCerts, commonName string) *spyOtelColTraceServer {
+func startSpyOtelColTraceServer(cfgPath string, tc *testhelper.TestCerts, commonName, host string) *spyOtelColTraceServer {
 	serverCreds, err := plumbing.NewServerCredentials(
 		tc.Cert(commonName),
 		tc.Key(commonName),
@@ -292,7 +294,7 @@ func startSpyOtelColTraceServer(cfgPath string, tc *testhelper.TestCerts, common
 	)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-	lis, err := net.Listen("tcp", "127.0.0.1:")
+	lis, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	s := &spyOtelColTraceServer{
@@ -304,7 +306,9 @@ func startSpyOtelColTraceServer(cfgPath string, tc *testhelper.TestCerts, common
 	coltracepb.RegisterTraceServiceServer(s.srv, s)
 	go s.srv.Serve(lis) //nolint:errcheck
 
-	port, err := strconv.Atoi(strings.Split(s.addr, ":")[1])
+	_, portString, err := net.SplitHostPort(s.addr)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	port, err := strconv.Atoi(portString)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	dir, err := os.MkdirTemp(cfgPath, "")
@@ -344,7 +348,7 @@ type spyOtelColLogServer struct {
 // registers it as a gRPC service, and writes out a temp file for the forwarder
 // agent to recognize it as a destination. The cfgPath it accepts is the folder
 // under which to write the temp file.
-func startSpyOtelColLogServer(cfgPath string, tc *testhelper.TestCerts, commonName string) *spyOtelColLogServer {
+func startSpyOtelColLogServer(cfgPath string, tc *testhelper.TestCerts, commonName, host string) *spyOtelColLogServer {
 	serverCreds, err := plumbing.NewServerCredentials(
 		tc.Cert(commonName),
 		tc.Key(commonName),
@@ -352,7 +356,7 @@ func startSpyOtelColLogServer(cfgPath string, tc *testhelper.TestCerts, commonNa
 	)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-	lis, err := net.Listen("tcp", "127.0.0.1:")
+	lis, err := net.Listen("tcp", net.JoinHostPort(host, "0"))
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	s := &spyOtelColLogServer{
@@ -364,7 +368,9 @@ func startSpyOtelColLogServer(cfgPath string, tc *testhelper.TestCerts, commonNa
 	collogspb.RegisterLogsServiceServer(s.srv, s)
 	go s.srv.Serve(lis) //nolint:errcheck
 
-	port, err := strconv.Atoi(strings.Split(s.addr, ":")[1])
+	_, portString, err := net.SplitHostPort(s.addr)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	port, err := strconv.Atoi(portString)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	dir, err := os.MkdirTemp(cfgPath, "")

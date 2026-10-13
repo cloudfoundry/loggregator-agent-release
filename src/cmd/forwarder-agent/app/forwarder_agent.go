@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -38,6 +39,7 @@ type ForwarderAgent struct {
 	grpc                  GRPC
 	v2srv                 *v2.Server
 	downstreamFilePattern string
+	otelCollectorHost     string
 	log                   *log.Logger
 	tags                  map[string]string
 	debugMetrics          bool
@@ -72,6 +74,7 @@ func NewForwarderAgent(
 		grpc:                  cfg.GRPC,
 		m:                     m,
 		downstreamFilePattern: cfg.DownstreamIngressPortCfg,
+		otelCollectorHost:     cfg.OTelCollectorHost,
 		log:                   log,
 		tags:                  cfg.Tags,
 		debugMetrics:          cfg.MetricsServer.DebugMetrics,
@@ -101,7 +104,7 @@ func (s *ForwarderAgent) Run() {
 		ingressDropped.Add(float64(missed))
 	}))
 
-	dests := downstreamDestinations(s.downstreamFilePattern, s.log)
+	dests := downstreamDestinations(s.downstreamFilePattern, s.otelCollectorHost, s.log)
 	writers := downstreamWriters(dests, s.grpc, s.m, s.emitOTelTraces, s.emitOTelMetrics, s.emitOTelLogs, s.otelRetry, s.log)
 	tagger := egress_v2.NewTagger(s.tags)
 	ew := egress_v2.NewEnvelopeWriter(
@@ -185,7 +188,7 @@ type destination struct {
 	Protocol string `yaml:"protocol"`
 }
 
-func downstreamDestinations(pattern string, l *log.Logger) []destination {
+func downstreamDestinations(pattern, otelCollectorHost string, l *log.Logger) []destination {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		l.Fatal("Unable to read downstream port location")
@@ -207,7 +210,11 @@ func downstreamDestinations(pattern string, l *log.Logger) []destination {
 		if d.Ingress == "" {
 			l.Printf("No ingress port defined in %s. Ignoring this destination.", f)
 		} else {
-			d.Ingress = fmt.Sprintf("127.0.0.1:%s", d.Ingress)
+			if d.Protocol == "otelcol" {
+				d.Ingress = net.JoinHostPort(otelCollectorHost, d.Ingress)
+			} else {
+				d.Ingress = net.JoinHostPort("127.0.0.1", d.Ingress)
+			}
 			dests = append(dests, d)
 		}
 	}

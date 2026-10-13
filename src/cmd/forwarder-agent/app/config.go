@@ -32,6 +32,7 @@ type Config struct {
 	// receive each envelope. It is assumed to adhere to the Loggregator Ingress
 	// Service and use the provided TLS configuration.
 	DownstreamIngressPortCfg string `env:"DOWNSTREAM_INGRESS_PORT_GLOB, report"`
+	OTelCollectorHost        string `env:"OTEL_COLLECTOR_HOST, report"`
 	GRPC                     GRPC
 	MetricsServer            config.MetricsServer
 	Tags                     map[string]string `env:"AGENT_TAGS"`
@@ -51,6 +52,7 @@ func LoadConfig() Config {
 			Host: "127.0.0.1",
 			Port: 3458,
 		},
+		OTelCollectorHost: "127.0.0.1",
 		OtelRetry: OtelRetry{
 			MaxRetries:     7,
 			RetryQueueSize: 1024,
