@@ -28,6 +28,9 @@ properties:
       mTLS configuration. The forwarder assumes the downstream server is
       serving Loggregator's V2 IngressService. See code.cloudfoundry.org/loggregator-api.
     default: /var/vcap/jobs/*/config/ingress_port.yml
+  otel_collector.host:
+    description: "Host used for downstream OpenTelemetry Collector destinations"
+    default: "127.0.0.1"
 
   deployment:
     description: "Name of deployment (added as tag on all outgoing v1 envelopes)"
