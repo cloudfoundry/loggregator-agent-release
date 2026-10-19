@@ -39,7 +39,6 @@ type ForwarderAgent struct {
 	grpc                  GRPC
 	v2srv                 *v2.Server
 	downstreamFilePattern string
-	otelCollectorHost     string
 	log                   *log.Logger
 	tags                  map[string]string
 	debugMetrics          bool
@@ -74,7 +73,6 @@ func NewForwarderAgent(
 		grpc:                  cfg.GRPC,
 		m:                     m,
 		downstreamFilePattern: cfg.DownstreamIngressPortCfg,
-		otelCollectorHost:     cfg.OTelCollectorHost,
 		log:                   log,
 		tags:                  cfg.Tags,
 		debugMetrics:          cfg.MetricsServer.DebugMetrics,
@@ -104,7 +102,7 @@ func (s *ForwarderAgent) Run() {
 		ingressDropped.Add(float64(missed))
 	}))
 
-	dests := downstreamDestinations(s.downstreamFilePattern, s.otelCollectorHost, s.log)
+	dests := downstreamDestinations(s.downstreamFilePattern, s.log)
 	writers := downstreamWriters(dests, s.grpc, s.m, s.emitOTelTraces, s.emitOTelMetrics, s.emitOTelLogs, s.otelRetry, s.log)
 	tagger := egress_v2.NewTagger(s.tags)
 	ew := egress_v2.NewEnvelopeWriter(
@@ -186,9 +184,10 @@ func (mw multiWriter) Write(e *loggregator_v2.Envelope) error {
 type destination struct {
 	Ingress  string `yaml:"ingress"`
 	Protocol string `yaml:"protocol"`
+	Host     string `yaml:"host"`
 }
 
-func downstreamDestinations(pattern, otelCollectorHost string, l *log.Logger) []destination {
+func downstreamDestinations(pattern string, l *log.Logger) []destination {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		l.Fatal("Unable to read downstream port location")
@@ -210,11 +209,10 @@ func downstreamDestinations(pattern, otelCollectorHost string, l *log.Logger) []
 		if d.Ingress == "" {
 			l.Printf("No ingress port defined in %s. Ignoring this destination.", f)
 		} else {
-			if d.Protocol == "otelcol" {
-				d.Ingress = net.JoinHostPort(otelCollectorHost, d.Ingress)
-			} else {
-				d.Ingress = net.JoinHostPort("127.0.0.1", d.Ingress)
+			if d.Host == "" {
+				d.Host = "127.0.0.1"
 			}
+			d.Ingress = net.JoinHostPort(d.Host, d.Ingress)
 			dests = append(dests, d)
 		}
 	}

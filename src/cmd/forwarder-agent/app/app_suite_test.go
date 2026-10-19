@@ -95,7 +95,7 @@ type spyLoggregatorV2Ingress struct {
 	envelopes chan *loggregator_v2.Envelope
 }
 
-func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts, commonName string, cfgPath string) *spyLoggregatorV2Ingress {
+func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts, commonName, cfgPath, host string) *spyLoggregatorV2Ingress {
 	s := &spyLoggregatorV2Ingress{
 		envelopes: make(chan *loggregator_v2.Envelope, 10000),
 	}
@@ -107,7 +107,11 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts, commonName st
 	)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	lis, err := net.Listen("tcp", "127.0.0.1:")
+	listenHost := host
+	if listenHost == "" {
+		listenHost = "127.0.0.1"
+	}
+	lis, err := net.Listen("tcp", net.JoinHostPort(listenHost, "0"))
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	s.srv = grpc.NewServer(grpc.Creds(serverCreds), grpc.MaxRecvMsgSize(10*1024*1024))
@@ -119,13 +123,17 @@ func startSpyLoggregatorV2Ingress(testCerts *testhelper.TestCerts, commonName st
 	}
 
 	s.addr = lis.Addr().String()
-	port := strings.Split(s.addr, ":")
+	_, port, err := net.SplitHostPort(s.addr)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	dir, err := os.MkdirTemp(cfgPath, "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	tmpfn := filepath.Join(dir, "ingress_port.yml")
 
-	contents := fmt.Sprintf(configTempl, port[len(port)-1])
+	contents := fmt.Sprintf(configTempl, port)
+	if host != "" {
+		contents += fmt.Sprintf("host: %q\n", host)
+	}
 	err = os.WriteFile(tmpfn, []byte(contents), 0600)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
@@ -256,7 +264,8 @@ func startSpyOtelColMetricServer(cfgPath string, tc *testhelper.TestCerts, commo
 	contents := fmt.Sprintf(`---
 ingress: %d
 protocol: otelcol
-`, port)
+host: %q
+`, port, host)
 	err = os.WriteFile(tmpfn, []byte(contents), 0600)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
@@ -318,7 +327,8 @@ func startSpyOtelColTraceServer(cfgPath string, tc *testhelper.TestCerts, common
 	contents := fmt.Sprintf(`---
 ingress: %d
 protocol: otelcol
-`, port)
+host: %q
+`, port, host)
 	err = os.WriteFile(tmpfn, []byte(contents), 0600)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
@@ -380,7 +390,8 @@ func startSpyOtelColLogServer(cfgPath string, tc *testhelper.TestCerts, commonNa
 	contents := fmt.Sprintf(`---
 ingress: %d
 protocol: otelcol
-`, port)
+host: %q
+`, port, host)
 	err = os.WriteFile(tmpfn, []byte(contents), 0600)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 

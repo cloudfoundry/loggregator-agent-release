@@ -57,9 +57,9 @@ var _ = Describe("App", func() {
 		ingressCfgPath = GinkgoT().TempDir()
 		ingressClient = newIngressClient(grpcPort, agentCerts, 1)
 
-		ingressServer1 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath)
-		ingressServer2 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath)
-		ingressServer3 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath)
+		ingressServer1 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath, "")
+		ingressServer2 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath, "")
+		ingressServer3 = startSpyLoggregatorV2Ingress(agentCerts, agentCN, ingressCfgPath, "::1")
 		ingressServer3.blocking = true
 
 		agentCfg = app.Config{
@@ -70,7 +70,6 @@ var _ = Describe("App", func() {
 				KeyFile:  agentCerts.Key(agentCN),
 			},
 			DownstreamIngressPortCfg: fmt.Sprintf("%s/*/ingress_port.yml", ingressCfgPath),
-			OTelCollectorHost:        "127.0.0.1",
 			MetricsServer: config.MetricsServer{
 				Port:      uint16(metricsPort),
 				CAFile:    agentCerts.CA(),
@@ -199,6 +198,18 @@ var _ = Describe("App", func() {
 
 		Eventually(ingressServer1.envelopes, 5).Should(Receive(protoEqual(sampleEnvelope)))
 		Eventually(ingressServer2.envelopes, 5).Should(Receive(protoEqual(sampleEnvelope)))
+	})
+
+	It("defaults a missing destination host to localhost", func() {
+		ingressClient.Emit(sampleEnvelope)
+
+		Eventually(ingressServer1.envelopes, 5).Should(Receive(protoEqual(sampleEnvelope)))
+	})
+
+	It("forwards to an IPv6 host from a registration file", func() {
+		ingressClient.Emit(sampleEnvelope)
+
+		Eventually(ingressServer3.envelopes, 5).Should(Receive(protoEqual(sampleEnvelope)))
 	})
 
 	It("can send a batch of 100, max-size (for Diego) messages downstream", func() {
@@ -359,10 +370,10 @@ var _ = Describe("App", func() {
 		)
 
 		BeforeEach(func() {
-			agentCfg.OTelCollectorHost = "::1"
-			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector", agentCfg.OTelCollectorHost)
-			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector", agentCfg.OTelCollectorHost)
-			otelLogsServer = startSpyOtelColLogServer(ingressCfgPath, agentCerts, "otel-collector", agentCfg.OTelCollectorHost)
+			host := "::1"
+			otelMetricsServer = startSpyOtelColMetricServer(ingressCfgPath, agentCerts, "otel-collector", host)
+			otelTraceServer = startSpyOtelColTraceServer(ingressCfgPath, agentCerts, "otel-collector", host)
+			otelLogsServer = startSpyOtelColLogServer(ingressCfgPath, agentCerts, "otel-collector", host)
 			agentCfg.EmitOTelTraces = true
 			agentCfg.EmitOTelMetrics = true
 			agentCfg.EmitOTelLogs = true

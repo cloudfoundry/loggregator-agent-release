@@ -13,8 +13,8 @@ Accepts the Loggregator v1 api over UDP and forwards it to a downstream Loggrega
 This is available for backwards compatibility between the v1 API and the Forwarder, Syslog, or Loggregator agents.
 
 ### Forwarder Agent
-A Loggregator v2 API multiplexer. Downstream registration files supply a port and protocol; destinations default to localhost.
-`protocol: otelcol` destinations use `otel_collector.host` (default `127.0.0.1`), allowing an OTel Collector on another host.
+A Loggregator v2 API multiplexer. Downstream registration files supply an ingress port and may specify a host and protocol.
+The host defaults to `127.0.0.1`; set it in the registration file for remote or IPv6 destinations.
 To configure downstream agents, place an `ingress_port.yml` file in the job's config directory. [example][ingress-port]
 
 ### Syslog Agent
