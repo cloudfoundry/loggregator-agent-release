@@ -52,6 +52,7 @@ var (
 	strIfNoneMatch        = []byte(HeaderIfNoneMatch)
 	strAcceptRanges       = []byte(HeaderAcceptRanges)
 	strRange              = []byte(HeaderRange)
+	strIfRange            = []byte(HeaderIfRange)
 	strContentRange       = []byte(HeaderContentRange)
 	strAuthorization      = []byte(HeaderAuthorization)
 	strTE                 = []byte(HeaderTE)
@@ -93,6 +94,7 @@ var (
 	strBasicSpace          = []byte("Basic ")
 	strLink                = []byte("Link")
 	strConnect             = []byte("CONNECT")
+	strOptions             = []byte("OPTIONS")
 
 	strApplicationSlash = []byte("application/")
 	strImageSVG         = []byte("image/svg")

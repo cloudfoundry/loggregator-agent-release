@@ -428,11 +428,11 @@ func (c *Cookie) ParseBytes(src []byte) error {
 
 			case 'e': // "expires"
 				if caseInsensitiveCompare(strCookieExpires, k) {
-					exptime, err := parseCookieExpires(v)
-					if err != nil {
-						return err
+					// RFC 6265, section 5.2.1: an Expires value that isn't
+					// a valid date is ignored, not the whole cookie.
+					if exptime, err := parseCookieExpires(v); err == nil {
+						c.expire = exptime
 					}
-					c.expire = exptime
 				}
 
 			case 'd': // "domain"
@@ -736,7 +736,7 @@ func caseInsensitiveCompare(a, b []byte) bool {
 		return false
 	}
 	for i := range a {
-		if a[i]|0x20 != b[i]|0x20 {
+		if toLowerTable[a[i]] != toLowerTable[b[i]] {
 			return false
 		}
 	}

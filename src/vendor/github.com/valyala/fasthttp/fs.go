@@ -275,17 +275,23 @@ type PathRewriteFunc func(ctx *RequestCtx) []byte
 func NewVHostPathRewriter(slashesCount int) PathRewriteFunc {
 	return func(ctx *RequestCtx) []byte {
 		path := stripLeadingSlashes(ctx.Path(), slashesCount)
+		// On Windows ctx.Path() may keep a '..' segment, e.g. from `/a/..\../`.
+		// Return it unchanged so FS rejects it instead of letting the second
+		// normalization below remove the host segment.
+		if hasDotDotPathSegment(path) {
+			return path
+		}
 		host := ctx.Host()
-		if n := bytes.IndexByte(host, '/'); n >= 0 {
+		if n := bytes.IndexAny(host, `/\`); n >= 0 {
 			host = nil
 		}
-		if len(host) == 0 {
+		if len(host) == 0 || len(bytes.Trim(host, ".")) == 0 {
 			host = strInvalidHost
 		}
 		b := bytebufferpool.Get()
 		b.B = append(b.B, '/')
-		b.B = append(b.B, host...)
-		b.B = append(b.B, path...)
+		b.B = appendQuotedPath(b.B, host)
+		b.B = appendQuotedPath(b.B, path)
 		ctx.URI().SetPathBytes(b.B)
 		bytebufferpool.Put(b)
 
@@ -739,7 +745,7 @@ func (ff *fsFile) bigFileReader() (io.Reader, error) {
 		return nil, errors.New("bug: ff.f must be non-nil in big file reader")
 	}
 
-	var r io.Reader
+	var r *bigFileReader
 
 	ff.bigFilesLock.Lock()
 	n := len(ff.bigFiles)
@@ -749,19 +755,27 @@ func (ff *fsFile) bigFileReader() (io.Reader, error) {
 	}
 	ff.bigFilesLock.Unlock()
 
-	if r != nil {
-		return r, nil
+	if r == nil {
+		f, err := ff.h.filesystem.Open(ff.filename)
+		if err != nil {
+			return nil, fmt.Errorf("cannot open already opened file: %w", err)
+		}
+		r = &bigFileReader{
+			f:  f,
+			ff: ff,
+		}
 	}
 
-	f, err := ff.h.filesystem.Open(ff.filename)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open already opened file: %w", err)
+	// The file may have grown since its size was cached. Stop at the cached
+	// size, so nothing follows the body the Content-Length announces. A file
+	// with a negative size is streamed until EOF.
+	r.r = r.f
+	if ff.contentLength >= 0 {
+		r.lr.R = r.f
+		r.lr.N = int64(ff.contentLength)
+		r.r = &r.lr
 	}
-	return &bigFileReader{
-		f:  f,
-		ff: ff,
-		r:  f,
-	}, nil
+	return r, nil
 }
 
 func (ff *fsFile) Release() {
@@ -1382,7 +1396,12 @@ func (h *fsHandler) handleRequest(ctx *RequestCtx) {
 	mustCompress := false
 	fileCacheKind := defaultCacheKind
 	fileEncoding := ""
-	byteRange := ctx.Request.Header.peek(strRange)
+	var byteRange []byte
+	if ctx.IsGet() || ctx.IsHead() {
+		// Range handling is only defined for GET, and HEAD gets the same
+		// headers as GET. See https://www.rfc-editor.org/rfc/rfc9110#section-14.2
+		byteRange = ctx.Request.Header.peek(strRange)
+	}
 	if len(byteRange) == 0 && h.compress {
 		switch {
 		case h.compressBrotli && ctx.Request.Header.HasAcceptEncodingBytes(strBr):
@@ -1457,7 +1476,9 @@ func (h *fsHandler) handleRequest(ctx *RequestCtx) {
 			}
 			notModified = true
 		}
-	} else {
+	} else if ctx.IsGet() || ctx.IsHead() {
+		// If-Modified-Since only applies to GET and HEAD.
+		// See https://www.rfc-editor.org/rfc/rfc9110#section-13.1.3
 		notModified = !ctx.IfModifiedSince(ff.lastModified)
 	}
 	if notModified {
@@ -1502,7 +1523,7 @@ func (h *fsHandler) handleRequest(ctx *RequestCtx) {
 	contentLength := ff.contentLength
 	if h.acceptByteRange {
 		hdr.setNonSpecial(strAcceptRanges, strBytes)
-		if len(byteRange) > 0 {
+		if isSingleByteRange(byteRange) && fsIfRangeMatch(ctx.Request.Header.peek(strIfRange), ff.lastModified) {
 			startPos, endPos, err := ParseByteRange(byteRange, contentLength)
 			if err != nil {
 				_ = r.(io.Closer).Close() //nolint:forcetypeassert
@@ -1547,6 +1568,18 @@ func (h *fsHandler) handleRequest(ctx *RequestCtx) {
 		ctx.SetContentType(ff.contentType)
 	}
 	ctx.SetStatusCode(statusCode)
+}
+
+// fsIfRangeMatch reports whether the Range header may be served given
+// the If-Range header value. If-Range uses the strong comparison and FS
+// only generates weak entity tags, so only a date equal to Last-Modified
+// matches. See https://www.rfc-editor.org/rfc/rfc9110#section-13.1.5
+func fsIfRangeMatch(ifRange []byte, lastModified time.Time) bool {
+	if len(ifRange) == 0 {
+		return true
+	}
+	t, err := ParseHTTPDate(ifRange)
+	return err == nil && t.Equal(lastModified.Truncate(time.Second))
 }
 
 // appendFSETag appends a weak entity tag built from the hex-encoded
@@ -1653,6 +1686,15 @@ func trimWeakETagPrefix(etag []byte) []byte {
 
 type byteRangeUpdater interface {
 	UpdateByteRange(startPos, endPos int) error
+}
+
+// isSingleByteRange reports whether byteRange asks for a single range in
+// bytes, the only kind of Range the FS handler serves. Any other Range is
+// ignored and the whole file is sent: RFC 9110, section 14.2 allows a server
+// to ignore Range and requires it for a range unit it does not understand.
+func isSingleByteRange(byteRange []byte) bool {
+	return len(byteRange) > len(strBytes) && byteRange[len(strBytes)] == '=' &&
+		bytes.HasPrefix(byteRange, strBytes) && bytes.IndexByte(byteRange, ',') < 0
 }
 
 // ParseByteRange parses 'Range: bytes=...' header value.
