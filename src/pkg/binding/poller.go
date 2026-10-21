@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -142,24 +143,10 @@ func (p *Poller) poll() {
 	nextID := 0
 	var bindings []Binding
 	for {
-		resp, err := p.apiClient.Get(nextID)
-		if err != nil {
-			p.bindingRefreshErrorCounter.Add(1)
-			p.logger.Printf("failed to get page %d from internal bindings endpoint: %s", nextID, err)
-			return
-		}
-		if resp.StatusCode != http.StatusOK {
-			p.logger.Printf(
-				"unexpected response from internal bindings endpoint. status code: %d",
-				resp.StatusCode,
-			)
-			return
-		}
+		aResp, err := p.fetchPage(nextID)
 
-		var aResp apiResponse
-		err = json.NewDecoder(resp.Body).Decode(&aResp)
 		if err != nil {
-			p.logger.Printf("failed to decode JSON: %s", err)
+			p.logger.Print(err)
 			return
 		}
 
@@ -185,6 +172,25 @@ func (p *Poller) poll() {
 	bindingCount := CalculateBindingCount(filteredBindings)
 	p.lastBindingCount.Set(float64(bindingCount))
 	p.store.Set(filteredBindings, bindingCount)
+}
+
+func (p *Poller) fetchPage(nextID int) (apiResponse, error) {
+	resp, err := p.apiClient.Get(nextID)
+	if err != nil {
+		p.bindingRefreshErrorCounter.Add(1)
+		return apiResponse{}, fmt.Errorf("failed to get page %d from internal bindings endpoint: %w", nextID, err)
+	}
+	defer closeAndIgnoreError(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return apiResponse{}, fmt.Errorf("unexpected response from internal bindings endpoint. status code: %d", resp.StatusCode)
+	}
+
+	var aResp apiResponse
+	if err := json.NewDecoder(resp.Body).Decode(&aResp); err != nil {
+		return apiResponse{}, fmt.Errorf("failed to decode JSON: %w", err)
+	}
+	return aResp, nil
 }
 
 // bindingChecker validates bindings and keeps track of invalid
@@ -373,4 +379,8 @@ func CalculateBindingCount(bindings []Binding) int {
 type apiResponse struct {
 	Results []Binding
 	NextID  int `json:"next_id"`
+}
+
+func closeAndIgnoreError(c io.Closer) {
+	_ = c.Close()
 }
