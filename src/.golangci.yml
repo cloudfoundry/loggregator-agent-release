@@ -11,6 +11,10 @@ linters:
     - gocyclo
     # Inspects source code for security problems.
     - gosec
+    # Checks whether HTTP response body is closed successfully.
+    - bodyclose
+    # Checks for unchecked errors.
+    - errcheck
   exclusions:
     generated: lax
     presets:
@@ -18,11 +22,6 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    rules:
-      # Exclude some linters from running on helheim generated file.
-      - linters:
-          - unused
-        path: pkg/egress/v2/helheim_test\.go
     paths:
       - third_party$
       - builtin$

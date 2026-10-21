@@ -107,6 +107,58 @@ var _ = Describe("Poller", func() {
 		}))
 	})
 
+	Describe("response body handling", func() {
+		It("closes the response body after a successful page", func() {
+			apiClient.bindings <- response{Results: []Binding{{Url: "syslog://drain-0"}}}
+
+			NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, false)
+
+			Expect(apiClient.openedBodies).To(HaveLen(1))
+			Expect(apiClient.allBodiesClosed()).To(BeTrue())
+		})
+
+		It("closes every page's response body when paging", func() {
+			apiClient.bindings <- response{Results: []Binding{{Url: "syslog://drain-0"}}, NextID: 2}
+			apiClient.bindings <- response{Results: []Binding{{Url: "syslog://drain-1"}}}
+
+			NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, false)
+
+			Expect(apiClient.openedBodies).To(HaveLen(2))
+			Expect(apiClient.allBodiesClosed()).To(BeTrue())
+		})
+
+		It("closes the response body on a non-200 status", func() {
+			apiClient.statusCode <- http.StatusInternalServerError
+
+			NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, false)
+
+			Expect(apiClient.openedBodies).To(HaveLen(1))
+			Expect(apiClient.allBodiesClosed()).To(BeTrue())
+			Expect(logBuffer).To(gbytes.Say("unexpected response from internal bindings endpoint. status code: 500"))
+		})
+
+		It("closes the response body when the JSON cannot be decoded", func() {
+			apiClient.rawBodies <- "not json"
+
+			NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, false)
+
+			Expect(apiClient.openedBodies).To(HaveLen(1))
+			Expect(apiClient.allBodiesClosed()).To(BeTrue())
+			Expect(logBuffer).To(gbytes.Say("failed to decode JSON"))
+		})
+
+		It("does not panic when the request fails with no response", func() {
+			apiClient.errors <- errors.New("expected")
+
+			Expect(func() {
+				NewPoller(apiClient, time.Hour, store, metrics, logger, logClient, &dummyIPChecker{}, false)
+			}).ToNot(Panic())
+
+			Expect(apiClient.openedBodies).To(BeEmpty())
+			Expect(logBuffer).To(gbytes.Say("failed to get page 0 from internal bindings endpoint: expected"))
+		})
+	})
+
 	It("fetches the next page of bindings and stores the result", func() {
 		apiClient.bindings <- response{
 			NextID: 2,
@@ -746,7 +798,28 @@ type fakeAPIClient struct {
 	bindings     chan response
 	errors       chan error
 	statusCode   chan int
+	rawBodies    chan string
 	requestedIDs []int
+	openedBodies []*closeTracker
+}
+
+type closeTracker struct {
+	io.Reader
+	closed bool
+}
+
+func (c *closeTracker) Close() error {
+	c.closed = true
+	return nil
+}
+
+func (c *fakeAPIClient) allBodiesClosed() bool {
+	for _, b := range c.openedBodies {
+		if !b.closed {
+			return false
+		}
+	}
+	return true
 }
 
 func newFakeAPIClient() *fakeAPIClient {
@@ -754,6 +827,7 @@ func newFakeAPIClient() *fakeAPIClient {
 		bindings:   make(chan response, 100),
 		errors:     make(chan error, 100),
 		statusCode: make(chan int, 100),
+		rawBodies:  make(chan string, 100),
 	}
 }
 
@@ -762,7 +836,10 @@ func (c *fakeAPIClient) Get(nextID int) (*http.Response, error) {
 
 	var binding response
 	var statusCode = 200
+	var rawBody *string
 	select {
+	case raw := <-c.rawBodies:
+		rawBody = &raw
 	case err := <-c.errors:
 		return nil, err
 	case binding = <-c.bindings:
@@ -776,8 +853,13 @@ func (c *fakeAPIClient) Get(nextID int) (*http.Response, error) {
 	b, err := json.Marshal(&binding)
 	Expect(err).ToNot(HaveOccurred())
 	body = b
+	if rawBody != nil {
+		body = []byte(*rawBody)
+	}
+	tracker := &closeTracker{Reader: bytes.NewReader(body)}
+	c.openedBodies = append(c.openedBodies, tracker)
 	resp := &http.Response{
-		Body: io.NopCloser(bytes.NewReader(body)),
+		Body: tracker,
 	}
 	resp.StatusCode = statusCode
 
