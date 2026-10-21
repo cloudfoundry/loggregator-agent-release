@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -183,6 +184,7 @@ func (mw multiWriter) Write(e *loggregator_v2.Envelope) error {
 type destination struct {
 	Ingress  string `yaml:"ingress"`
 	Protocol string `yaml:"protocol"`
+	Host     string `yaml:"host"`
 }
 
 func downstreamDestinations(pattern string, l *log.Logger) []destination {
@@ -207,7 +209,10 @@ func downstreamDestinations(pattern string, l *log.Logger) []destination {
 		if d.Ingress == "" {
 			l.Printf("No ingress port defined in %s. Ignoring this destination.", f)
 		} else {
-			d.Ingress = fmt.Sprintf("127.0.0.1:%s", d.Ingress)
+			if d.Host == "" {
+				d.Host = "127.0.0.1"
+			}
+			d.Ingress = net.JoinHostPort(d.Host, d.Ingress)
 			dests = append(dests, d)
 		}
 	}
