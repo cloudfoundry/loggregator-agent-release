@@ -3,6 +3,7 @@ package binding_test
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("Manager", func() {
@@ -545,6 +547,44 @@ var _ = Describe("Manager", func() {
 		Consistently(func() []egress.Writer {
 			return m.GetDrains("app-1")
 		}).Should(HaveLen(0))
+	})
+
+	// credentials must not leak into logs when an aggregate
+	// drain fails to connect.
+	It("does not log drain credentials when an aggregate drain fails to connect", func() {
+		logBuffer := gbytes.NewBuffer()
+		failingAggregate := syslog.Binding{
+			Hostname: "host-1",
+			Drain: syslog.Drain{
+				Url: "syslog-invalid-scheme://aggregate.url.com",
+				Credentials: syslog.Credentials{
+					Cert: "-----BEGIN CERTIFICATE-----secret-cert-----END CERTIFICATE-----",
+					Key:  "-----BEGIN PRIVATE KEY-----secret-key-----END PRIVATE KEY-----",
+					CA:   "-----BEGIN CERTIFICATE-----secret-ca-----END CERTIFICATE-----",
+				},
+			},
+		}
+		stubAppBindingFetcher.bindings <- []syslog.Binding{}
+		stubAggregateBindingFetcher.bindings <- []syslog.Binding{failingAggregate}
+
+		m := binding.NewManager(
+			stubAppBindingFetcher,
+			stubAggregateBindingFetcher,
+			spyConnector,
+			spyMetricClient, 10*time.Millisecond,
+			10*time.Minute,
+			10*time.Minute,
+			log.New(io.MultiWriter(logBuffer, GinkgoWriter), "", 0),
+		)
+		go m.Run()
+
+		Eventually(logBuffer).Should(gbytes.Say("failed to connect to aggregate drain syslog-invalid-scheme://aggregate.url.com: invalid hostname"))
+
+		logged := string(logBuffer.Contents())
+		Expect(logged).ToNot(ContainSubstring("PRIVATE KEY"))
+		Expect(logged).ToNot(ContainSubstring("secret-key"))
+		Expect(logged).ToNot(ContainSubstring("secret-cert"))
+		Expect(logged).ToNot(ContainSubstring("secret-ca"))
 	})
 })
 
