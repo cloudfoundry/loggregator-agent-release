@@ -27,6 +27,12 @@ type Drain struct {
 	Credentials Credentials `json:"credentials"`
 }
 
+// If Drain is logged as a string it would by default expose the credential.
+// Adding this String() allows us to avoid spilling credentials.
+func (d Drain) String() string {
+	return d.Url
+}
+
 type Credentials struct {
 	Cert string `json:"cert"`
 	Key  string `json:"key"`
