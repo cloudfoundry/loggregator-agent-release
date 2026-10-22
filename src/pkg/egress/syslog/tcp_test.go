@@ -206,6 +206,29 @@ var _ = Describe("TCPWriter", func() {
 		})
 	})
 
+	Describe("when write fails to connect to a URL with credentials", func() {
+		It("does not emit the userinfo or query in the app log", func() {
+			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
+			binding.URL, _ = url.Parse("syslog://user:s3cret@localhost-garbage:9999?apikey=hunter2")
+			logClient := testhelper.NewSpyLogClient()
+
+			writer := syslog.NewTCPWriter(
+				binding,
+				netConf,
+				&metricsHelpers.SpyMetric{},
+				syslog.NewConverter(),
+				logClient,
+			)
+
+			Expect(writer.Write(env)).ToNot(Succeed())
+			Expect(logClient.Message()).To(ContainElement("Failed to connect to syslog://localhost-garbage:9999"))
+			for _, m := range logClient.Message() {
+				Expect(m).ToNot(ContainSubstring("s3cret"))
+				Expect(m).ToNot(ContainSubstring("hunter2"))
+			}
+		})
+	})
+
 	Describe("Cancel Context", func() {
 		var (
 			writer egress.WriteCloser

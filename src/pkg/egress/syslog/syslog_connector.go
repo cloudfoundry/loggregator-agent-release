@@ -3,6 +3,7 @@ package syslog
 import (
 	"fmt"
 	"log"
+	"net/url"
 
 	"context"
 
@@ -28,9 +29,15 @@ type Drain struct {
 }
 
 // If Drain is logged as a string it would by default expose the credential.
-// Adding this String() allows us to avoid spilling credentials.
+// Adding this String() allows us to avoid spilling credentials. The URL is
+// redacted too, since it may embed userinfo or query parameters.
 func (d Drain) String() string {
-	return d.Url
+	u, err := url.Parse(d.Url)
+	if err != nil {
+		// url.Error embeds the raw URL, so don't surface it.
+		return "<unparseable drain url>"
+	}
+	return redactedURL(u).String()
 }
 
 type Credentials struct {
@@ -107,9 +114,7 @@ func (w *SyslogConnector) Connect(ctx context.Context, b Binding) (egress.Writer
 		return nil, err
 	}
 
-	anonymousUrl := *urlBinding.URL
-	anonymousUrl.User = nil
-	anonymousUrl.RawQuery = ""
+	anonymousUrl := redactedURL(urlBinding.URL)
 
 	drainScope := "app"
 	if b.AppId == "" {

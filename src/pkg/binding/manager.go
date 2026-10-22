@@ -210,7 +210,7 @@ func (m *Manager) resetAggregateDrains() {
 
 		writer, err := m.connector.Connect(aggregateDrainHolder.ctx, b)
 		if err != nil {
-			m.log.Printf("failed to connect to aggregate drain %s: %s", b.Drain.Url, err)
+			m.log.Printf("failed to connect to aggregate drain %s: %s", b.Drain, err)
 			aggregateDrainHolder.cancel()
 			continue
 		}

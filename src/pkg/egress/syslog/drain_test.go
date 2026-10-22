@@ -40,6 +40,17 @@ var _ = Describe("Drain", func() {
 		Entry("%+v", "%+v"),
 	)
 
+	It("redacts userinfo and query parameters from the URL", func() {
+		drain.Url = "https://user:s3cret@logs.example/path?apikey=hunter2"
+		Expect(drain.String()).To(Equal("https://logs.example/path"))
+	})
+
+	It("does not echo an unparseable URL", func() {
+		drain.Url = "https://user:s3cret@logs.example:bad port/"
+		Expect(drain.String()).ToNot(ContainSubstring("s3cret"))
+		Expect(drain.String()).To(Equal("<unparseable drain url>"))
+	})
+
 	It("does not expose credentials when embedded in a Binding", func() {
 		out := fmt.Sprintf("%v", syslog.Binding{AppId: "app-1", Drain: drain})
 		Expect(out).ToNot(ContainSubstring("secret"))
