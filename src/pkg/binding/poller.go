@@ -180,7 +180,10 @@ func (p *Poller) fetchPage(nextID int) (apiResponse, error) {
 		p.bindingRefreshErrorCounter.Add(1)
 		return apiResponse{}, fmt.Errorf("failed to get page %d from internal bindings endpoint: %w", nextID, err)
 	}
-	defer closeAndIgnoreError(resp.Body)
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return apiResponse{}, fmt.Errorf("unexpected response from internal bindings endpoint. status code: %d", resp.StatusCode)
@@ -379,8 +382,4 @@ func CalculateBindingCount(bindings []Binding) int {
 type apiResponse struct {
 	Results []Binding
 	NextID  int `json:"next_id"`
-}
-
-func closeAndIgnoreError(c io.Closer) {
-	_ = c.Close()
 }
