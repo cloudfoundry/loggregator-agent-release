@@ -79,9 +79,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, appLogClient v2.LogClient) (egr
 	if ub.AppID == "" {
 		drainScope = "aggregate"
 	}
-	anonymousURL := *ub.URL
-	anonymousURL.User = nil
-	anonymousURL.RawQuery = ""
+	anonymousURL := redactedURL(ub.URL)
 	egressMetric := f.m.NewCounter(
 		"egress",
 		"Total number of envelopes successfully egressed.",
