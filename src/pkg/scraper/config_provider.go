@@ -45,15 +45,17 @@ func (p *ConfigProvider) Configs() ([]PromScraperConfig, error) {
 
 	var targets []PromScraperConfig
 	for _, f := range files {
-		scraperConfig, err := p.parseConfig(f)
+		fileTargets, err := p.parseConfig(f)
 		if err != nil {
 			return nil, err
 		}
-		portInt, err := strconv.Atoi(scraperConfig.Port)
-		if err != nil || portInt <= 0 || portInt > 65536 {
-			p.log.Printf("Prom scraper config at %s does not have a valid port - skipping this config file\n", f)
-		} else {
-			targets = append(targets, scraperConfig)
+		for _, cfg := range fileTargets {
+			portInt, err := strconv.Atoi(cfg.Port)
+			if err != nil || portInt <= 0 || portInt > 65536 {
+				p.log.Printf("Prom scraper config at %s does not have a valid port - skipping this config file\n", f)
+			} else {
+				targets = append(targets, cfg)
+			}
 		}
 	}
 
@@ -75,22 +77,39 @@ func (p *ConfigProvider) filesForGlobs() []string {
 	return files
 }
 
-func (p *ConfigProvider) parseConfig(file string) (PromScraperConfig, error) {
+func (p *ConfigProvider) parseConfig(file string) ([]PromScraperConfig, error) {
 	yamlFile, err := os.ReadFile(file)
 	if err != nil {
-		return PromScraperConfig{}, fmt.Errorf("cannot read file: %s", err)
+		return nil, fmt.Errorf("cannot read file: %s", err)
 	}
 
-	scraperConfig := PromScraperConfig{
+	var listConfigs []PromScraperConfig
+	if err := yaml.Unmarshal(yamlFile, &listConfigs); err == nil && listConfigs != nil {
+		for i := range listConfigs {
+			applyConfigDefaults(&listConfigs[i], p.defaultScrapeInterval)
+		}
+		return listConfigs, nil
+	}
+
+	cfg := PromScraperConfig{
 		Scheme:         "http",
 		Path:           "/metrics",
 		ScrapeInterval: p.defaultScrapeInterval,
 	}
-
-	err = yaml.Unmarshal(yamlFile, &scraperConfig)
-	if err != nil {
-		return PromScraperConfig{}, fmt.Errorf("unmarshal: %v", err)
+	if err := yaml.Unmarshal(yamlFile, &cfg); err != nil {
+		return nil, fmt.Errorf("unmarshal: %v", err)
 	}
+	return []PromScraperConfig{cfg}, nil
+}
 
-	return scraperConfig, nil
+func applyConfigDefaults(cfg *PromScraperConfig, defaultInterval time.Duration) {
+	if cfg.Scheme == "" {
+		cfg.Scheme = "http"
+	}
+	if cfg.Path == "" {
+		cfg.Path = "/metrics"
+	}
+	if cfg.ScrapeInterval == 0 {
+		cfg.ScrapeInterval = defaultInterval
+	}
 }

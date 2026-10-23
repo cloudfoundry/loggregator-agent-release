@@ -51,6 +51,27 @@ labels:
 - It will add the `source_id` and `instance_id` values as tags to all metrics
 - The scraped metrics will be converted to Loggregator metrics and emitted through Loggregator Agent
 
+### Static scrape targets
+
+For targets that cannot place a `prom_scraper_config.yml` file on disk (e.g. external jobs or non-BOSH components), you can define targets directly in the BOSH manifest via the `scrape.static_targets` property:
+
+```yaml
+- name: prom_scraper
+  release: loggregator-agent
+  properties:
+    scrape:
+      static_targets:
+        - port: "9090"
+          source_id: concourse
+          scheme: https
+          server_name: concourse
+          scrape_interval: 60s
+        - port: "8080"
+          source_id: my-job
+```
+
+Each entry supports the same fields as a `prom_scraper_config.yml` file. Static targets are merged with file-discovered targets at startup. The same defaults apply: `scheme` defaults to `http`, `path` to `/metrics`, and `scrape_interval` to the global `scrape_interval` property.
+
 #### Deploying Prom Scraper
 
 To deploy prom scraper, add the following jobs to all instance groups and the variables to the variables section.
