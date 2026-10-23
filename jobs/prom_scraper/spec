@@ -18,6 +18,7 @@ templates:
   metrics.crt.erb: config/certs/metrics.crt
   metrics.key.erb: config/certs/metrics.key
   prom_scraper_config.yml.erb: config/prom_scraper_config.yml
+  static_scrape_targets.yml.erb: config/static_scrape_targets.yml
 
 packages:
 - prom_scraper
@@ -41,6 +42,9 @@ properties:
     description: "The key used to communicate with scrape targets"
   scrape.tls.ca_cert:
     description: "The CA used to communicate with scrape targets"
+  scrape.static_targets:
+    description: "Static scrape targets merged with file-discovered targets at startup. Same fields as prom_scraper_config.yml."
+    default: []
 
   loggregator_agent.grpc_port:
     description: "The gRPC port used to connect to loggregator agent. Can come from loggregator link"
