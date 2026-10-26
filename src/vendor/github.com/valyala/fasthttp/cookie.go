@@ -411,19 +411,18 @@ func (c *Cookie) ParseBytes(src []byte) error {
 			case 'm':
 				if caseInsensitiveCompare(strCookieMaxAge, k) {
 					// RFC 6265, section 5.2.2: a Max-Age of zero or less
-					// expires the cookie immediately.
+					// expires the cookie immediately, and a value that isn't
+					// a number is ignored, not the whole cookie.
 					negative := len(v) > 0 && v[0] == '-'
 					if negative {
 						v = v[1:]
 					}
-					maxAge, err := ParseUint(v)
-					if err != nil {
-						return err
+					if maxAge, err := ParseUint(v); err == nil {
+						if maxAge == 0 || negative {
+							maxAge = -1
+						}
+						c.maxAge = maxAge
 					}
-					if maxAge == 0 || negative {
-						maxAge = -1
-					}
-					c.maxAge = maxAge
 				}
 
 			case 'e': // "expires"
@@ -443,16 +442,28 @@ func (c *Cookie) ParseBytes(src []byte) error {
 					c.domain = initHeaderValueBytes(c.domain, v)
 				}
 
-			case 'p': // "path"
+			// RFC 6265, sections 5.2.5 and 5.2.6: Secure and HttpOnly are
+			// matched by name alone, so a value after them is ignored.
+			// Partitioned works the same way.
+			case 'h': // "httponly"
+				if caseInsensitiveCompare(strCookieHTTPOnly, k) {
+					c.httpOnly = true
+				}
+
+			case 'p': // "path" or "partitioned"
 				if caseInsensitiveCompare(strCookiePath, k) {
 					if !validCookiePathValue(v) {
 						return ErrInvalidCookieValue
 					}
 					c.path = initHeaderValueBytes(c.path, v)
+				} else if caseInsensitiveCompare(strCookiePartitioned, k) {
+					c.partitioned = true
 				}
 
-			case 's': // "samesite"
-				if caseInsensitiveCompare(strCookieSameSite, k) {
+			case 's': // "samesite" or "secure"
+				if caseInsensitiveCompare(strCookieSecure, k) {
+					c.secure = true
+				} else if caseInsensitiveCompare(strCookieSameSite, k) {
 					if len(v) > 0 {
 						// Case insensitive switch on first char
 						switch v[0] | 0x20 {
@@ -518,12 +529,18 @@ func appendCookiePart(dst, key, value []byte) []byte {
 	return append(dst, value...)
 }
 
+// getCookieKey returns the key of a Set-Cookie value the same way
+// Cookie.ParseBytes does: a cookie without '=' in its name-value pair,
+// such as "sid; Path=/", has an empty key.
 func getCookieKey(dst, src []byte) []byte {
-	n := bytes.IndexByte(src, '=')
-	if n >= 0 {
+	if n := bytes.IndexByte(src, ';'); n >= 0 {
 		src = src[:n]
 	}
-	return decodeCookieArg(dst, src, false)
+	n := bytes.IndexByte(src, '=')
+	if n < 0 {
+		return dst[:0]
+	}
+	return decodeCookieArg(dst, src[:n], false)
 }
 
 func appendRequestCookieBytes(dst []byte, cookies []argsKV) []byte {
@@ -651,17 +668,13 @@ func (s *cookieScanner) next(key, val *[]byte) bool {
 
 func decodeCookieArg(dst, src []byte, skipQuotes bool) []byte {
 	// Fast path: already trimmed and not quoted.
-	if n := len(src); n > 0 && src[0] != ' ' && src[n-1] != ' ' &&
+	if n := len(src); n > 0 && src[0] != ' ' && src[0] != '\t' &&
+		src[n-1] != ' ' && src[n-1] != '\t' &&
 		(!skipQuotes || n < 2 || src[0] != '"' || src[n-1] != '"') {
 		return append(dst[:0], src...)
 	}
 
-	for len(src) > 0 && src[0] == ' ' {
-		src = src[1:]
-	}
-	for len(src) > 0 && src[len(src)-1] == ' ' {
-		src = src[:len(src)-1]
-	}
+	src = trim(src)
 	if skipQuotes {
 		if len(src) > 1 && src[0] == '"' && src[len(src)-1] == '"' {
 			src = src[1 : len(src)-1]
@@ -700,12 +713,7 @@ func validCookiePathValue(value []byte) bool {
 }
 
 func trimCookieArgNoCopy(src []byte, skipQuotes bool) []byte {
-	for len(src) > 0 && src[0] == ' ' {
-		src = src[1:]
-	}
-	for len(src) > 0 && src[len(src)-1] == ' ' {
-		src = src[:len(src)-1]
-	}
+	src = trim(src)
 	if skipQuotes && len(src) > 1 && src[0] == '"' && src[len(src)-1] == '"' {
 		src = src[1 : len(src)-1]
 	}

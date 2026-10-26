@@ -78,6 +78,25 @@ type Request struct {
 	parsedPostArgs bool
 	uriParseErr    error
 
+	// KeepBodyBuffer controls whether the request body buffer is kept
+	// across Reset() and ResetBody() calls instead of returning it to requestBodyPool.
+	//
+	// It is false by default. Set it to true if you want to reuse the same
+	// Request instance across multiple requests, reusing the existing body
+	// buffer when its capacity is sufficient (growing the body beyond capacity
+	// can still allocate).
+	//
+	// KeepBodyBuffer adheres to the following contract:
+	//   - Reset and ResetBody clear the contents but preserve the buffer and the flag.
+	//   - KeepBodyBuffer bypasses SetBodySizePoolLimit, so a large buffer can stay attached
+	//     until explicitly released (e.g. via ReleaseBody or ReleaseRequest).
+	//   - CopyTo leaves the destination's KeepBodyBuffer setting unchanged.
+	//   - ReleaseRequest clears the setting and releases the buffer to the pool.
+	//   - Server contexts clear the public setting between requests.
+	//   - PipelineClient.DoTimeout and DoDeadline may copy body data to preserve
+	//     caller ownership across timeouts, so enabling this isn't necessarily
+	//     faster for those methods.
+	KeepBodyBuffer bool
 	keepBodyBuffer bool
 
 	// Used by byte-returning client helpers so body limits and retries remain
@@ -148,7 +167,27 @@ type Response struct {
 	// Use it for writing HEAD responses.
 	SkipBody bool
 
-	keepBodyBuffer        bool
+	// KeepBodyBuffer controls whether the response body buffer is kept
+	// across Reset() and ResetBody() calls instead of returning it to responseBodyPool.
+	//
+	// It is false by default. Set it to true if you want to reuse the same
+	// Response instance across multiple requests, reusing the existing body
+	// buffer when its capacity is sufficient (growing the body beyond capacity
+	// can still allocate).
+	//
+	// KeepBodyBuffer adheres to the following contract:
+	//   - Reset and ResetBody clear the contents but preserve the buffer and the flag.
+	//   - KeepBodyBuffer bypasses SetBodySizePoolLimit, so a large buffer can stay attached
+	//     until explicitly released (e.g. via ReleaseBody or ReleaseResponse).
+	//   - CopyTo leaves the destination's KeepBodyBuffer setting unchanged.
+	//   - ReleaseResponse clears the setting and releases the buffer to the pool.
+	//   - Server contexts clear the public setting between requests.
+	//   - PipelineClient.DoTimeout and DoDeadline may copy body data to preserve
+	//     caller ownership across timeouts, so enabling this isn't necessarily
+	//     faster for those methods.
+	KeepBodyBuffer bool
+	keepBodyBuffer bool
+
 	preserveBodyBuffer    bool
 	secureErrorLogMessage bool
 }
@@ -866,7 +905,7 @@ func (resp *Response) ResetBody() {
 	resp.bodyRaw = nil
 	resp.closeBodyStream(nil) //nolint:errcheck
 	if resp.body != nil {
-		if resp.keepBodyBuffer {
+		if resp.KeepBodyBuffer || resp.keepBodyBuffer {
 			resp.body.Reset()
 		} else {
 			responseBodyPool.Put(resp.body)
@@ -1045,7 +1084,7 @@ func (req *Request) ResetBody() {
 	req.serverStream = nil
 	if req.body != nil {
 		switch {
-		case req.keepBodyBuffer:
+		case req.KeepBodyBuffer || req.keepBodyBuffer:
 			req.body.Reset()
 		case rs != nil:
 			// The server still drains rs after the handler returns, and it
@@ -1445,8 +1484,10 @@ func readMultipartForm(r io.Reader, boundary string, size, maxInMemoryFileSize i
 // Reset clears request contents.
 func (req *Request) Reset() {
 	req.userValues.Reset() // it should be at the top, since some values might implement io.Closer interface
-	if bodyPoolSizeLimit := int(atomic.LoadInt64(&requestBodyPoolSizeLimit)); bodyPoolSizeLimit >= 0 && req.body != nil {
-		req.ReleaseBody(bodyPoolSizeLimit)
+	if !req.KeepBodyBuffer {
+		if bodyPoolSizeLimit := int(atomic.LoadInt64(&requestBodyPoolSizeLimit)); bodyPoolSizeLimit >= 0 && req.body != nil {
+			req.ReleaseBody(bodyPoolSizeLimit)
+		}
 	}
 	req.Header.Reset()
 	req.resetSkipHeader()
@@ -1481,7 +1522,7 @@ func (req *Request) RemoveMultipartFormFiles() {
 
 // Reset clears response contents.
 func (resp *Response) Reset() {
-	if !resp.preserveBodyBuffer {
+	if !resp.preserveBodyBuffer && !resp.KeepBodyBuffer {
 		if bodyPoolSizeLimit := int(atomic.LoadInt64(&responseBodyPoolSizeLimit)); bodyPoolSizeLimit >= 0 && resp.body != nil {
 			resp.ReleaseBody(bodyPoolSizeLimit)
 		}
@@ -1595,6 +1636,9 @@ func (req *Request) readBodyStream(r *bufio.Reader, maxBodySize int, getOnly, pr
 // MayContinue returns true if the request contains
 // 'Expect: 100-continue' header.
 //
+// It always returns false for HTTP/1.0 requests, since a server must ignore
+// the expectation in them (RFC 9110, section 10.1.1).
+//
 // The caller must do one of the following actions if MayContinue returns true:
 //
 //   - Either send StatusExpectationFailed response if request headers don't
@@ -1603,7 +1647,7 @@ func (req *Request) readBodyStream(r *bufio.Reader, maxBodySize int, getOnly, pr
 //     with ContinueReadBody.
 //   - Or close the connection.
 func (req *Request) MayContinue() bool {
-	return caseInsensitiveCompare(req.Header.peek(strExpect), str100Continue)
+	return req.Header.IsHTTP11() && caseInsensitiveCompare(req.Header.peek(strExpect), str100Continue)
 }
 
 // ContinueReadBody reads request body if request header contains
@@ -2370,6 +2414,9 @@ func (s *compressedBodyStream) closeOriginalForDiscard() error {
 type compressBodyStream func(sw *bufio.Writer, bodyStream io.Reader, level int) error
 
 func newCompressedBodyStream(bodyStream io.Reader, level int, compress compressBodyStream) io.ReadCloser {
+	if _, ok := bodyStream.(*streamPipe); ok {
+		return newBoundedCompressedBodyStream(bodyStream, level, compress)
+	}
 	return &compressedBodyStream{
 		bodyStream: bodyStream,
 		level:      level,
