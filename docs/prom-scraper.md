@@ -46,6 +46,95 @@ labels:
   bosh_job: my-cool-bosh-job
 ```
 
+#### Configuring scraping for 3rd party releases where there is no Prom Scraper config file
+
+There are some use-cases where one wants to enable scraping of Prometheus based endpoints with the Prom Scraper, but they don't own the release and cannot change it to include a Prom Scraper configuration. The method described here uses a combination of a BOSH runtime config combined with a `pre-start job` defined using the [os-conf-release](https://github.com/cloudfoundry/os-conf-release). The `os-conf-release` is used to configure a script which will run on a job `pre-start` hook and the BOSH runtime config is used to target a specific VM instance group from a specific deployment.
+
+Here are the steps which you have to do to make the whole thing work:
+1. Let's assume:
+- Deployment: my-deployment
+- Instance group: my-instance-group
+- Third-party job: my-monitored-job
+- Metrics endpoint: http://localhost:9090/metrics
+
+The configuration will be created at: `/var/vcap/jobs/my-monitored-job/config/prom_scraper_config.yml`
+
+2. Upload os-conf-release if it's not already uploaded to the BOSH Director
+- Check if the release is already there: `bosh releases|grep os-conf`
+- Upload it if it's not there (adjust the version if needed):
+  ```shell
+  bosh upload-release \
+  "https://bosh.io/d/github.com/cloudfoundry/os-conf-release?v=23.0.1"
+  ```
+
+3. Create a runtime-config file `prom-scraper-runtime.yml`:
+    ```yaml
+    releases:
+    - name: os-conf
+      version: 23.0.1 # set the version to the one deployed on your bosh director
+    addons:
+    - name: custom-prom-scraper-config # adjust the name to your own liking
+      include:
+        deployments:
+        - my-deployment
+        instance_groups:
+        - my-instance-group
+      jobs:
+      - name: pre-start-script
+        release: os-conf
+        properties:
+          script: |
+            #!/bin/bash
+            set -euo pipefail
+
+            CONFIG_DIR="/var/vcap/jobs/my-monitored-job/config"
+            CONFIG_FILE="${CONFIG_DIR}/prom_scraper_config.yml"
+
+            if [ ! -d "${CONFIG_DIR}" ]; then
+              echo "Job config directory not found: ${CONFIG_DIR}" >&2
+              exit 1
+            fi
+
+            TMP_FILE="$(mktemp "${CONFIG_DIR}/.prom_scraper_config.XXXXXX")"
+            trap 'rm -f "${TMP_FILE}"' EXIT
+
+            cat > "${TMP_FILE}" <<'EOF'
+            # adjust the config to your own needs
+            port: "9090"
+            source_id: my-monitored-job
+            instance_id: "0"
+            scheme: http
+            path: /metrics
+            scrape_interval: 15s
+            EOF
+
+            chmod 0644 "${TMP_FILE}"
+            mv "${TMP_FILE}" "${CONFIG_FILE}"
+
+            echo "Created Prom Scraper config: ${CONFIG_FILE}"
+    ```
+    **NOTE:** The script will overwrite any local prom scraper changes at each job restart. Adjust the script to your own needs.
+
+4. Update the BOSH runtime config
+    ```shell
+    bosh update-runtime-config \
+    --name=custom-prom-scraper-config \
+    prom-scraper-runtime.yml
+    ```
+    **NOTE:** Check if your BOSH Director supports runtime configs with `bosh update-runtime-config --help|grep name`. The command should give have a `--name` parameter. If it doesn't you will have to download the bosh runtime config with `bosh runtime-config`, merge your changes manually and re-upload them.
+
+5. Redeploy your deployment
+    ```shell
+    bosh -d my-deployment deploy path/to/manifest.yml
+    ```
+    **NOTE:** You should see that the defined job is being re-deployed in the deployment log 
+6. Verify the configuration
+    SSH to a VM in the target instance group and check the file:
+    ```shell
+    sudo cat /var/vcap/jobs/my-monitored-job/config/prom_scraper_config.yml
+    ```
+7. Needlessly to say, document your setup, because the configuration with the runtime config is not that obvious.
+
 ### Output
 - Prom Scraper will scrape the endpoint defined in the scrape config file.
 - It will add the `source_id` and `instance_id` values as tags to all metrics
