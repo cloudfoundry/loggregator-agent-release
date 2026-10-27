@@ -104,10 +104,16 @@ func (*HTTPSWriter) Close() error {
 	return nil
 }
 
+// maxResponseBodySize bounds the response body fasthttp will buffer for
+// tenant-controlled drains across Content-Length, chunked, and read-to-EOF
+// paths. StreamResponseBody must not be enabled because it ignores this limit.
+const maxResponseBodySize = 4096
+
 func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
 	return &fasthttp.Client{
 		MaxConnsPerHost:     5,
 		MaxIdleConnDuration: 90 * time.Second,
+		MaxResponseBodySize: maxResponseBodySize,
 		TLSConfig:           tlsConf,
 		ReadTimeout:         20 * time.Second,
 		WriteTimeout:        20 * time.Second,
