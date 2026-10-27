@@ -2,10 +2,13 @@ package syslog_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"sync"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
@@ -135,6 +138,74 @@ var _ = Describe("HTTPS_batch", func() {
 			time.Sleep((sendInterval * 2) + (sendInterval / 5)) // this sleeps at least 2 ticks, to trigger once without events
 		}
 		Eventually(drain.getMessagesSize, sendInterval+waitTime).Should(Equal(5))
+	})
+
+	Describe("response body limit", func() {
+		It("caps the response body of the batch client", func() {
+			client := syslog.HTTPBatchClient(netConf, skipSSLTLSConfig)
+			Expect(client.MaxResponseBodySize).To(Equal(syslog.MaxResponseBodySize))
+		})
+
+		It("treats an oversized response as a failure and drops the connection", func() {
+			var (
+				mu          sync.Mutex
+				remoteAddrs []string
+			)
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				remoteAddrs = append(remoteAddrs, r.RemoteAddr)
+				first := len(remoteAddrs) == 1
+				mu.Unlock()
+
+				_, _ = io.Copy(io.Discard, r.Body)
+				_ = r.Body.Close()
+
+				if first {
+					body := bytes.Repeat([]byte("a"), syslog.MaxResponseBodySize+1)
+					w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write(body)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			oversizedBinding := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+			oversizedBinding.Context = context.Background()
+			oversizedWriter := syslog.NewHTTPSBatchWriter(
+				oversizedBinding,
+				netConf,
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+				syslog.WithBatchSize(1000),
+				syslog.WithSendInterval(sendInterval),
+			)
+			defer oversizedWriter.Close()
+			oversizedWriter.(syslog.InternalRetryWriter).ConfigureRetry(
+				func(i int) time.Duration { return 0 },
+				0) // No retries
+
+			env := buildLogEnvelope("APP", "1", "message", loggregator_v2.Log_OUT)
+			Expect(oversizedWriter.Write(env)).To(Succeed())
+			Eventually(func() int {
+				mu.Lock()
+				defer mu.Unlock()
+				return len(remoteAddrs)
+			}, sendInterval+waitTime).Should(Equal(1))
+
+			Expect(oversizedWriter.Write(env)).To(Succeed())
+			Eventually(func() int {
+				mu.Lock()
+				defer mu.Unlock()
+				return len(remoteAddrs)
+			}, sendInterval+waitTime).Should(Equal(2))
+
+			mu.Lock()
+			defer mu.Unlock()
+			Expect(remoteAddrs[0]).ToNot(Equal(remoteAddrs[1]))
+		})
 	})
 })
 
