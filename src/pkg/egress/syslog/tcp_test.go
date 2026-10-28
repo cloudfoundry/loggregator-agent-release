@@ -2,8 +2,10 @@ package syslog_test
 
 import (
 	"bufio"
+	"errors"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/internal/testhelper"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/bindingfakes"
 
 	"fmt"
 	"io"
@@ -268,6 +270,91 @@ var _ = Describe("TCPWriter", func() {
 				_, err := conn.Read(b)
 				Expect(err).To(Equal(io.EOF))
 			})
+		})
+	})
+
+	Describe("IP blacklist enforcement", func() {
+		var (
+			fakeChecker   *bindingfakes.FakeIPChecker
+			egressCounter *metricsHelpers.SpyMetric
+		)
+
+		BeforeEach(func() {
+			fakeChecker = &bindingfakes.FakeIPChecker{}
+			egressCounter = &metricsHelpers.SpyMetric{}
+		})
+
+		It("fails write/dial with ErrBlockedAddress when IPChecker blocks loopback", func() {
+			fakeChecker.CheckBlacklistReturns(errors.New("blacklisted"))
+
+			writer := syslog.NewTCPWriter(
+				binding,
+				syslog.NetworkTimeoutConfig{
+					WriteTimeout: time.Second,
+					DialTimeout:  100 * time.Millisecond,
+					IPChecker:    fakeChecker,
+				},
+				egressCounter,
+				syslog.NewConverter(),
+				testhelper.NewSpyLogClient(),
+			)
+			defer writer.Close()
+
+			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
+			err := writer.Write(env)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
+		})
+
+		It("connects and delivers the message when IPChecker allows loopback", func() {
+			fakeChecker.CheckBlacklistReturns(nil)
+
+			writer := syslog.NewTCPWriter(
+				binding,
+				syslog.NetworkTimeoutConfig{
+					WriteTimeout: time.Second,
+					DialTimeout:  100 * time.Millisecond,
+					IPChecker:    fakeChecker,
+				},
+				egressCounter,
+				syslog.NewConverter(),
+				testhelper.NewSpyLogClient(),
+			)
+			defer writer.Close()
+
+			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
+			Expect(writer.Write(env)).To(Succeed())
+
+			conn, err := listener.Accept()
+			Expect(err).ToNot(HaveOccurred())
+			defer conn.Close()
+
+			buf := bufio.NewReader(conn)
+			actual, err := buf.ReadString('\n')
+			Expect(err).ToNot(HaveOccurred())
+
+			expected := fmt.Sprintf(`118 <14>1 1970-01-01T00:00:00.012345+00:00 test-hostname test-app-id [APP/2] - [tags@47450 source_type="APP"] just a test` + "\n")
+			Expect(actual).To(Equal(expected))
+		})
+
+		It("connects when NetworkTimeoutConfig is zero-value (nil checker)", func() {
+			writer := syslog.NewTCPWriter(
+				binding,
+				syslog.NetworkTimeoutConfig{},
+				egressCounter,
+				syslog.NewConverter(),
+				testhelper.NewSpyLogClient(),
+			)
+			defer writer.Close()
+
+			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
+			go func() {
+				_ = writer.Write(env)
+			}()
+
+			conn, err := listener.Accept()
+			Expect(err).ToNot(HaveOccurred())
+			defer conn.Close()
 		})
 	})
 })

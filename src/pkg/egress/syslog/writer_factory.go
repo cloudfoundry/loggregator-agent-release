@@ -42,14 +42,16 @@ type WriterFactory struct {
 	externalTlsConfig *tls.Config
 	netConf           NetworkTimeoutConfig
 	m                 metricClient
+	ipChecker         IPChecker
 }
 
-func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient) WriterFactory {
+func NewWriterFactory(internalTlsConfig *tls.Config, externalTlsConfig *tls.Config, netConf NetworkTimeoutConfig, m metricClient, ipChecker IPChecker) WriterFactory {
 	return WriterFactory{
 		internalTlsConfig: internalTlsConfig,
 		externalTlsConfig: externalTlsConfig,
 		netConf:           netConf,
 		m:                 m,
+		ipChecker:         ipChecker,
 	}
 }
 
@@ -73,6 +75,13 @@ func (f WriterFactory) NewWriter(ub *URLBinding, appLogClient v2.LogClient) (egr
 			err := NewWriterFactoryErrorf(ub.URL, "failed to load root CA")
 			return nil, err
 		}
+	}
+
+	netConf := f.netConf
+	if ub.AppID != "" {
+		netConf.IPChecker = f.ipChecker
+	} else {
+		netConf.IPChecker = nil
 	}
 
 	drainScope := "app"
@@ -101,7 +110,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, appLogClient v2.LogClient) (egr
 	case "https":
 		w = NewHTTPSWriter(
 			ub,
-			f.netConf,
+			netConf,
 			tlsCfg,
 			egressMetric,
 			converter,
@@ -109,7 +118,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, appLogClient v2.LogClient) (egr
 	case "https-batch":
 		w = NewHTTPSBatchWriter(
 			ub,
-			f.netConf,
+			netConf,
 			tlsCfg,
 			egressMetric,
 			converter,
@@ -117,7 +126,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, appLogClient v2.LogClient) (egr
 	case "syslog":
 		w = NewTCPWriter(
 			ub,
-			f.netConf,
+			netConf,
 			egressMetric,
 			converter,
 			appLogClient,
@@ -125,7 +134,7 @@ func (f WriterFactory) NewWriter(ub *URLBinding, appLogClient v2.LogClient) (egr
 	case "syslog-tls":
 		w = NewTLSWriter(
 			ub,
-			f.netConf,
+			netConf,
 			tlsCfg,
 			egressMetric,
 			converter,
