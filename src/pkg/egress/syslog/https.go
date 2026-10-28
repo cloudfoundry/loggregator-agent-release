@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -109,8 +110,8 @@ func (*HTTPSWriter) Close() error {
 // paths. StreamResponseBody must not be enabled because it ignores this limit.
 const maxResponseBodySize = 4096
 
-func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
-	return &fasthttp.Client{
+func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
+	client := &fasthttp.Client{
 		MaxConnsPerHost:     5,
 		MaxIdleConnDuration: 90 * time.Second,
 		MaxResponseBodySize: maxResponseBodySize,
@@ -118,4 +119,12 @@ func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
 		ReadTimeout:         20 * time.Second,
 		WriteTimeout:        20 * time.Second,
 	}
+
+	if netConf.IPChecker != nil {
+		client.Dial = func(addr string) (net.Conn, error) {
+			return checkedDialer(netConf).Dial("tcp", addr)
+		}
+	}
+
+	return client
 }
