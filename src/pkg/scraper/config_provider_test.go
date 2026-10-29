@@ -139,6 +139,63 @@ var _ = Describe("PromScraper", func() {
 		Expect(ps).To(HaveLen(0))
 		Expect(buffer.String()).To(MatchRegexp("Prom scraper config at /.*/prom_scraper_config.yml[0-9]* does not have a valid port - skipping this config file"))
 	})
+
+	Describe("list format (static targets)", func() {
+		It("parses a file containing a list of targets", func() {
+			writeScrapeConfigFile(metricConfigDir, metricConfigListTemplate, "prom_scraper_config.yml")
+
+			ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, testLogger).Configs()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ps).To(ConsistOf(
+				scraper.PromScraperConfig{
+					Port:           "8080",
+					SourceID:       "first",
+					Scheme:         "http",
+					Path:           "/metrics",
+					ScrapeInterval: defaultScrapeInterval,
+				},
+				scraper.PromScraperConfig{
+					Port:           "8081",
+					SourceID:       "second",
+					Scheme:         "https",
+					ServerName:     "some-server",
+					Path:           "/other",
+					ScrapeInterval: 10 * time.Second,
+				},
+			))
+		})
+
+		It("applies defaults to list entries missing scheme, path, and scrape_interval", func() {
+			writeScrapeConfigFile(metricConfigDir, metricConfigListMinimal, "prom_scraper_config.yml")
+
+			ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, testLogger).Configs()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ps).To(HaveLen(1))
+			Expect(ps[0].Scheme).To(Equal("http"))
+			Expect(ps[0].Path).To(Equal("/metrics"))
+			Expect(ps[0].ScrapeInterval).To(Equal(defaultScrapeInterval))
+		})
+
+		It("skips list entries with invalid ports and continues", func() {
+			writeScrapeConfigFile(metricConfigDir, metricConfigListWithBadPort, "prom_scraper_config.yml")
+
+			var buffer bytes.Buffer
+			assertableLogger := log.New(&buffer, "", log.LstdFlags)
+			ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, assertableLogger).Configs()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ps).To(HaveLen(1))
+			Expect(ps[0].Port).To(Equal("8080"))
+			Expect(buffer.String()).To(ContainSubstring("does not have a valid port - skipping this config file"))
+		})
+
+		It("returns no targets for an empty list", func() {
+			writeScrapeConfigFile(metricConfigDir, metricConfigEmptyList, "prom_scraper_config.yml")
+
+			ps, err := scraper.NewConfigProvider([]string{configGlobs}, defaultScrapeInterval, testLogger).Configs()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ps).To(BeEmpty())
+		})
+	})
 })
 
 const (
@@ -168,6 +225,28 @@ headers:
   Header2: value2
 labels:
   label: value`
+
+	metricConfigListTemplate = `---
+- port: "8080"
+  source_id: first
+- port: "8081"
+  source_id: second
+  scheme: https
+  server_name: some-server
+  path: /other
+  scrape_interval: 10s`
+
+	metricConfigListMinimal = `---
+- port: "9090"
+  source_id: minimal`
+
+	metricConfigListWithBadPort = `---
+- port: "8080"
+  source_id: good
+- port: "bad"
+  source_id: invalid`
+
+	metricConfigEmptyList = `--- []`
 )
 
 func metricPortConfigDir() string {
