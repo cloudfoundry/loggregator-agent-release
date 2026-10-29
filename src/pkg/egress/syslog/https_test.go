@@ -1,16 +1,20 @@
 package syslog_test
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sync"
+	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/bindingfakes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -242,6 +246,136 @@ var _ = Describe("HTTPWriter", func() {
 		Expect(writer.Write(counterEnv)).To(Succeed())
 		Expect(writer.Write(logEnv)).To(Succeed())
 	})
+
+	Describe("IP blacklist enforcement", func() {
+		var (
+			fakeChecker *bindingfakes.FakeIPChecker
+			env         *loggregator_v2.Envelope
+		)
+
+		BeforeEach(func() {
+			fakeChecker = &bindingfakes.FakeIPChecker{}
+			env = buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+		})
+
+		It("fails write/dial with ErrBlockedAddress when IPChecker blocks loopback (HTTPS)", func() {
+			drain := newMockOKDrain()
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+			fakeChecker.CheckBlacklistReturns(errors.New("blacklisted"))
+
+			writer := syslog.NewHTTPSWriter(
+				b,
+				syslog.NetworkTimeoutConfig{
+					DialTimeout: 100 * time.Millisecond,
+					IPChecker:   fakeChecker,
+				},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+			)
+			defer writer.Close()
+
+			err := writer.Write(env)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
+			Expect(drain.getMessagesSize()).To(Equal(0))
+		})
+
+		It("fails write/dial with ErrBlockedAddress when IPChecker blocks loopback (plain HTTP)", func() {
+			drain := newMockPlainOKDrain()
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+			fakeChecker.CheckBlacklistReturns(errors.New("blacklisted"))
+
+			writer := syslog.NewHTTPSWriter(
+				b,
+				syslog.NetworkTimeoutConfig{
+					DialTimeout: 100 * time.Millisecond,
+					IPChecker:   fakeChecker,
+				},
+				nil,
+				&metricsHelpers.SpyMetric{},
+				c,
+			)
+			defer writer.Close()
+
+			err := writer.Write(env)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
+			Expect(drain.getMessagesSize()).To(Equal(0))
+		})
+
+		It("connects and delivers the message when IPChecker allows loopback", func() {
+			drain := newMockOKDrain()
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+			fakeChecker.CheckBlacklistReturns(nil)
+
+			writer := syslog.NewHTTPSWriter(
+				b,
+				syslog.NetworkTimeoutConfig{
+					DialTimeout: 100 * time.Millisecond,
+					IPChecker:   fakeChecker,
+				},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+			)
+			defer writer.Close()
+
+			Expect(writer.Write(env)).To(Succeed())
+			Expect(drain.getMessagesSize()).To(Equal(1))
+		})
+
+		It("connects when NetworkTimeoutConfig is zero-value (nil checker)", func() {
+			drain := newMockOKDrain()
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+
+			writer := syslog.NewHTTPSWriter(
+				b,
+				syslog.NetworkTimeoutConfig{},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+			)
+			defer writer.Close()
+
+			Expect(writer.Write(env)).To(Succeed())
+			Expect(drain.getMessagesSize()).To(Equal(1))
+		})
+
+		It("does not follow 302 redirects to a second listener", func() {
+			targetDrain := newMockOKDrain()
+			defer targetDrain.Close()
+
+			redirectServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Location", targetDrain.URL)
+				w.WriteHeader(http.StatusFound)
+			}))
+			defer redirectServer.Close()
+
+			b := buildURLBinding(redirectServer.URL, "test-app-id", "test-hostname")
+
+			writer := syslog.NewHTTPSWriter(
+				b,
+				syslog.NetworkTimeoutConfig{},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+			)
+			defer writer.Close()
+
+			err := writer.Write(env)
+			Expect(err).To(HaveOccurred())
+			Expect(targetDrain.getRequestCount()).To(Equal(0))
+		})
+	})
 })
 
 type SpyDrain struct {
@@ -253,6 +387,8 @@ type SpyDrain struct {
 }
 
 func (d *SpyDrain) Reset() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.messages = nil
 	d.headers = nil
 	d.requestCount = 0
@@ -277,6 +413,8 @@ func (d *SpyDrain) getMessagesSize() int {
 }
 
 func (d *SpyDrain) getRequestCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	return d.requestCount
 }
 func newMockOKDrain() *SpyDrain {
@@ -285,9 +423,37 @@ func newMockOKDrain() *SpyDrain {
 func newMockErrorDrain() *SpyDrain {
 	return newMockDrain(http.StatusBadRequest)
 }
+func newMockPlainOKDrain() *SpyDrain {
+	drain := &SpyDrain{}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		drain.mu.Lock()
+		drain.requestCount++
+		drain.mu.Unlock()
+
+		message := &rfc5424.Message{}
+
+		body, err := io.ReadAll(r.Body)
+		Expect(err).ToNot(HaveOccurred())
+		defer r.Body.Close()
+
+		err = message.UnmarshalBinary(body)
+		Expect(err).ToNot(HaveOccurred())
+
+		drain.appendMessage(message)
+		drain.appendHeader(r.Header)
+		w.WriteHeader(http.StatusOK)
+	})
+	server := httptest.NewServer(handler)
+	drain.Server = server
+	return drain
+}
 func newMockDrain(status int) *SpyDrain {
 	drain := &SpyDrain{}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		drain.mu.Lock()
+		drain.requestCount++
+		drain.mu.Unlock()
+
 		message := &rfc5424.Message{}
 
 		body, err := io.ReadAll(r.Body)
@@ -313,5 +479,6 @@ func buildURLBinding(u, appID, hostname string) *syslog.URLBinding {
 		URL:      parsedURL,
 		AppID:    appID,
 		Hostname: hostname,
+		Context:  context.Background(),
 	}
 }

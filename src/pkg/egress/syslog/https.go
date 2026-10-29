@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -104,12 +105,20 @@ func (*HTTPSWriter) Close() error {
 	return nil
 }
 
-func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
-	return &fasthttp.Client{
+func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
+	client := &fasthttp.Client{
 		MaxConnsPerHost:     5,
 		MaxIdleConnDuration: 90 * time.Second,
 		TLSConfig:           tlsConf,
 		ReadTimeout:         20 * time.Second,
 		WriteTimeout:        20 * time.Second,
 	}
+
+	if netConf.IPChecker != nil {
+		client.Dial = func(addr string) (net.Conn, error) {
+			return checkedDialer(netConf).Dial("tcp", addr)
+		}
+	}
+
+	return client
 }

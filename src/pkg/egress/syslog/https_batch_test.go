@@ -3,6 +3,7 @@ package syslog_test
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
 	metricsHelpers "code.cloudfoundry.org/go-metric-registry/testhelpers"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/bindingfakes"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo/v2"
@@ -136,12 +138,139 @@ var _ = Describe("HTTPS_batch", func() {
 		}
 		Eventually(drain.getMessagesSize, sendInterval+waitTime).Should(Equal(5))
 	})
+
+	Describe("IP blacklist enforcement", func() {
+		var (
+			fakeChecker *bindingfakes.FakeIPChecker
+			env         *loggregator_v2.Envelope
+		)
+
+		BeforeEach(func() {
+			fakeChecker = &bindingfakes.FakeIPChecker{}
+			env = buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+		})
+
+		It("fails write with ErrBlockedAddress when IPChecker blocks loopback", func() {
+			drain := newBatchMockDrain(http.StatusOK)
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+			fakeChecker.CheckBlacklistReturns(errors.New("blacklisted"))
+
+			writer := syslog.NewHTTPSBatchWriter(
+				b,
+				syslog.NetworkTimeoutConfig{
+					DialTimeout: 100 * time.Millisecond,
+					IPChecker:   fakeChecker,
+				},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+				syslog.WithSendInterval(10*time.Millisecond),
+			)
+			defer writer.Close()
+
+			rw := writer.(syslog.InternalRetryWriter)
+			rw.ConfigureRetry(func(i int) time.Duration { return 0 }, 0)
+
+			batchWriter := writer.(*syslog.HTTPSBatchWriter)
+			err := batchWriter.HTTPSWriter.Write(env)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
+
+			Expect(writer.Write(env)).To(Succeed())
+			Consistently(drain.getMessagesSize, 50*time.Millisecond).Should(Equal(0))
+		})
+
+		It("delivers messages when IPChecker allows loopback", func() {
+			drain := newBatchMockDrain(http.StatusOK)
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+			fakeChecker.CheckBlacklistReturns(nil)
+
+			writer := syslog.NewHTTPSBatchWriter(
+				b,
+				syslog.NetworkTimeoutConfig{
+					DialTimeout: 100 * time.Millisecond,
+					IPChecker:   fakeChecker,
+				},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+				syslog.WithSendInterval(10*time.Millisecond),
+			)
+			defer writer.Close()
+
+			rw := writer.(syslog.InternalRetryWriter)
+			rw.ConfigureRetry(func(i int) time.Duration { return 0 }, 0)
+
+			Expect(writer.Write(env)).To(Succeed())
+			Eventually(drain.getMessagesSize, 500*time.Millisecond).Should(Equal(1))
+		})
+
+		It("delivers messages when NetworkTimeoutConfig is zero-value (nil checker)", func() {
+			drain := newBatchMockDrain(http.StatusOK)
+			defer drain.Close()
+
+			b := buildURLBinding(drain.URL, "test-app-id", "test-hostname")
+
+			writer := syslog.NewHTTPSBatchWriter(
+				b,
+				syslog.NetworkTimeoutConfig{},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+				syslog.WithSendInterval(10*time.Millisecond),
+			)
+			defer writer.Close()
+
+			rw := writer.(syslog.InternalRetryWriter)
+			rw.ConfigureRetry(func(i int) time.Duration { return 0 }, 0)
+
+			Expect(writer.Write(env)).To(Succeed())
+			Eventually(drain.getMessagesSize, 500*time.Millisecond).Should(Equal(1))
+		})
+
+		It("does not follow 302 redirects to a second listener", func() {
+			targetDrain := newBatchMockDrain(http.StatusOK)
+			defer targetDrain.Close()
+
+			redirectServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Location", targetDrain.URL)
+				w.WriteHeader(http.StatusFound)
+			}))
+			defer redirectServer.Close()
+
+			b := buildURLBinding(redirectServer.URL, "test-app-id", "test-hostname")
+
+			writer := syslog.NewHTTPSBatchWriter(
+				b,
+				syslog.NetworkTimeoutConfig{},
+				skipSSLTLSConfig,
+				&metricsHelpers.SpyMetric{},
+				c,
+				syslog.WithSendInterval(10*time.Millisecond),
+			)
+			defer writer.Close()
+
+			rw := writer.(syslog.InternalRetryWriter)
+			rw.ConfigureRetry(func(i int) time.Duration { return 0 }, 0)
+
+			batchWriter := writer.(*syslog.HTTPSBatchWriter)
+			err := batchWriter.HTTPSWriter.Write(env)
+			Expect(err).To(HaveOccurred())
+			Expect(targetDrain.getRequestCount()).To(Equal(0))
+		})
+	})
 })
 
 func newBatchMockDrain(status int) *SpyDrain {
 	drain := &SpyDrain{}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		drain.mu.Lock()
 		drain.requestCount++
+		drain.mu.Unlock()
 		body, err := io.ReadAll(r.Body)
 		Expect(err).ToNot(HaveOccurred())
 		defer r.Body.Close()
