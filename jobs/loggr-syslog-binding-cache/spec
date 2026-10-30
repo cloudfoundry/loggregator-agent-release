@@ -103,8 +103,10 @@ properties:
       api.url.
   api.polling_interval:
     description: |
-      The interval at which the syslog will poll the Cloud Controller for
-      bindings.
+      The target interval between successive polls of the Cloud Controller for
+      bindings. Fetching, validation, and cache publication count toward this
+      interval. If a poll takes longer than the interval, the next poll starts
+      immediately after it completes. Polls do not overlap.
     default: 1m
   api.batch_size:
     description: |
