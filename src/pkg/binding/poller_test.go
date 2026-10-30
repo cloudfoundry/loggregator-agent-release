@@ -48,6 +48,49 @@ var _ = Describe("Poller", func() {
 		Eventually(apiClient.called).Should(BeNumerically(">=", 2))
 	})
 
+	Describe("pollAndWait", func() {
+		var (
+			currentTime time.Time
+			sleptFor    time.Duration
+			sleepCalled bool
+			now         func() time.Time
+			sleep       func(time.Duration)
+		)
+
+		BeforeEach(func() {
+			currentTime = time.Unix(0, 0)
+			sleptFor = 0
+			sleepCalled = false
+			now = func() time.Time { return currentTime }
+			sleep = func(d time.Duration) {
+				sleepCalled = true
+				sleptFor = d
+			}
+		})
+
+		It("sleeps for the remaining polling interval", func() {
+			poll := func() {
+				currentTime = currentTime.Add(300 * time.Millisecond)
+			}
+
+			pollAndWait(poll, time.Second, now, sleep)
+
+			Expect(sleepCalled).To(BeTrue())
+			Expect(sleptFor).To(Equal(700 * time.Millisecond))
+		})
+
+		It("does not sleep when polling takes longer than the interval", func() {
+			poll := func() {
+				currentTime = currentTime.Add(1200 * time.Millisecond)
+			}
+
+			pollAndWait(poll, time.Second, now, sleep)
+
+			Expect(sleepCalled).To(BeFalse())
+			Expect(sleptFor).To(BeZero())
+		})
+	})
+
 	It("calls the api client and stores the result", func() {
 		apiClient.bindings <- response{
 			Results: []Binding{

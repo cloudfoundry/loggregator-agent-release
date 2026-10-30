@@ -134,8 +134,15 @@ func NewPoller(
 
 func (p *Poller) Poll() {
 	for {
-		p.poll()
-		time.Sleep(p.pollingInterval)
+		pollAndWait(p.poll, p.pollingInterval, time.Now, time.Sleep)
+	}
+}
+
+func pollAndWait(poll func(), interval time.Duration, now func() time.Time, sleep func(time.Duration)) {
+	started := now()
+	poll()
+	if remaining := interval - now().Sub(started); remaining > 0 {
+		sleep(remaining)
 	}
 }
 
