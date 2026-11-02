@@ -345,11 +345,16 @@ var _ = Describe("TCPWriter", func() {
 				syslog.NewConverter(),
 				testhelper.NewSpyLogClient(),
 			)
-			defer writer.Close()
-
 			env := buildLogEnvelope("APP", "2", "just a test", loggregator_v2.Log_OUT)
+			done := make(chan struct{})
 			go func() {
+				defer close(done)
 				_ = writer.Write(env)
+			}()
+			// Close only after Write returns; the writer is not safe for concurrent use.
+			defer func() {
+				<-done
+				_ = writer.Close()
 			}()
 
 			conn, err := listener.Accept()
