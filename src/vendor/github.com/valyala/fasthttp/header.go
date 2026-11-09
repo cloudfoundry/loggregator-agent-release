@@ -1055,10 +1055,13 @@ func VisitHeaderParams(b []byte, f func(key, value []byte) bool) {
 // from 'multipart/form-data; boundary=...' Content-Type.
 func (h *RequestHeader) MultipartFormBoundary() []byte {
 	b := h.ContentType()
-	if !bytes.HasPrefix(b, strMultipartFormData) {
+	if !caseInsensitiveHasPrefix(b, strMultipartFormData) {
 		return nil
 	}
 	b = b[len(strMultipartFormData):]
+	for len(b) > 0 && (b[0] == ' ' || b[0] == '\t') {
+		b = b[1:]
+	}
 	if len(b) == 0 || b[0] != ';' {
 		return nil
 	}
@@ -1066,12 +1069,25 @@ func (h *RequestHeader) MultipartFormBoundary() []byte {
 	var n int
 	for len(b) > 0 {
 		n++
-		for len(b) > n && b[n] == ' ' {
+		for len(b) > n && (b[n] == ' ' || b[n] == '\t') {
 			n++
 		}
 		b = b[n:]
-		if !bytes.HasPrefix(b, strBoundary) {
-			if n = bytes.IndexByte(b, ';'); n < 0 {
+		if !caseInsensitiveHasPrefix(b, strBoundary) {
+			// Skip to the ';' ending this parameter, stepping over quoted
+			// strings, since a ';' inside one doesn't end the parameter.
+			n = 0
+			for n < len(b) && b[n] != ';' {
+				if b[n] == '"' {
+					for n++; n < len(b) && b[n] != '"'; n++ {
+						if b[n] == '\\' {
+							n++
+						}
+					}
+				}
+				n++
+			}
+			if n >= len(b) {
 				return nil
 			}
 			continue
@@ -1085,6 +1101,7 @@ func (h *RequestHeader) MultipartFormBoundary() []byte {
 		if n = bytes.IndexByte(b, ';'); n >= 0 {
 			b = b[:n]
 		}
+		b = trimTrailingSpace(b)
 		if len(b) > 1 && b[0] == '"' && b[len(b)-1] == '"' {
 			b = b[1 : len(b)-1]
 		}
@@ -4083,29 +4100,19 @@ func getHeaderKeyBytes(bufK []byte, key string, disableNormalizing bool) []byte 
 }
 
 func normalizeHeaderKey(b []byte, disableNormalizing bool) {
-	// Neutralise any CR/LF in the key so a header name can't break the
-	// message framing, mirroring the value handling in initHeaderValueBytes.
-	// This runs before the early returns below because a key carrying a space
-	// or an otherwise invalid byte skips normalization entirely.
-	b = removeNewLines(b)
-
-	if disableNormalizing {
-		return
-	}
-
-	n := len(b)
-	if n == 0 {
-		return
-	}
-
 	// If the header isn't valid, we don't normalize it.
 	for _, c := range b {
 		if !validHeaderFieldByte(c) {
+			// Neutralise any CR/LF in the key so a header name can't break
+			// the message framing, mirroring the value handling in
+			// initHeaderValueBytes. A valid key holds neither, so only a key
+			// carrying a space or an otherwise invalid byte needs it.
+			removeNewLines(b)
 			return
 		}
 	}
 
-	normalizeHeaderKeyValidated(b, false)
+	normalizeHeaderKeyValidated(b, disableNormalizing)
 }
 
 func normalizeHeaderKeyValidated(b []byte, disableNormalizing bool) {
@@ -4132,6 +4139,19 @@ func normalizeHeaderKeyValidated(b []byte, disableNormalizing bool) {
 
 // removeNewLines will replace `\r` and `\n` with an empty space.
 func removeNewLines(raw []byte) []byte {
+	if len(raw) < 64 {
+		// Most values are short, and skipping the words that hold no control
+		// byte checks them faster than the two scans below, which win only
+		// once a value is longer than this.
+		b := skipCleanWords(raw)
+		for i, c := range b {
+			if c == rChar || c == nChar {
+				b[i] = ' '
+			}
+		}
+		return raw
+	}
+
 	// check if a `\r` is present and save the position.
 	// if no `\r` is found, check if a `\n` is present.
 	foundR := bytes.IndexByte(raw, rChar)

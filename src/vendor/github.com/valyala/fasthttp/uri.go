@@ -115,6 +115,8 @@ func (u *URI) SetHashBytes(hash []byte) {
 
 // Username returns URI username
 //
+// Parse decodes percent-encoded characters in it.
+//
 // The returned bytes are valid until the next URI method call.
 func (u *URI) Username() []byte {
 	return u.username
@@ -131,6 +133,8 @@ func (u *URI) SetUsernameBytes(username []byte) {
 }
 
 // Password returns URI password.
+//
+// Parse decodes percent-encoded characters in it.
 //
 // The returned bytes are valid until the next URI method call.
 func (u *URI) Password() []byte {
@@ -336,12 +340,13 @@ func (u *URI) parse(host, uri []byte, isTLS bool) error {
 		}
 		host = host[n+1:]
 
-		if before, after, ok := bytes.Cut(auth, []byte{':'}); ok {
-			u.username = append(u.username[:0], before...)
-			u.password = append(u.password[:0], after...)
+		username, password, _ := bytes.Cut(auth, strColon)
+		if bytes.IndexByte(auth, '%') < 0 {
+			u.username = append(u.username[:0], username...)
+			u.password = append(u.password[:0], password...)
 		} else {
-			u.username = append(u.username[:0], auth...)
-			u.password = u.password[:0]
+			u.username = decodeArgAppendNoPlus(u.username[:0], username)
+			u.password = decodeArgAppendNoPlus(u.password[:0], password)
 		}
 	}
 
@@ -505,7 +510,12 @@ func parseHost(host []byte) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			return append(host1, append(host2, host3...)...), nil
+			host1 = append(host1, host2...)
+			host1 = append(host1, host3...)
+			if err = validateIPv6Literal(host1); err != nil {
+				return nil, err
+			}
+			return host1, nil
 		}
 	} else {
 		if bytes.IndexByte(host, '[') >= 0 || bytes.IndexByte(host, ']') >= 0 {
@@ -748,11 +758,23 @@ func normalizePath(dst, src []byte) []byte {
 	// remove duplicate slashes
 	b := removeSegments(dst, strSlashSlash)
 
-	// No '.' means no "/./", "/../" or "/.." to remove.
-	if bytes.IndexByte(b, '.') < 0 {
+	// Every dot segment starts with a separator followed by a dot, so a path
+	// without one has none to remove. A dot elsewhere, as in "/file.txt",
+	// doesn't need the scans for segments that cannot be there.
+	i := bytes.IndexByte(b, '.')
+	if i < 0 {
 		return b
 	}
+	if rest := b[max(i-1, 0):]; !bytes.Contains(rest, strSlashDot) &&
+		(filepath.Separator != '\\' || !bytes.Contains(rest, strBackSlashDot)) {
+		return b
+	}
+	return removeDotSegments(b)
+}
 
+// removeDotSegments removes the "." and ".." segments from path b and returns
+// the result written over b.
+func removeDotSegments(b []byte) []byte {
 	// remove /./ parts
 	b = removeSegments(b, strSlashDotSlash)
 
@@ -764,7 +786,7 @@ func normalizePath(dst, src []byte) []byte {
 	if n >= 0 && n+len(strSlashDotDot) == len(b) {
 		nn := bytes.LastIndexByte(b[:n], '/')
 		if nn < 0 {
-			return append(dst[:0], strSlash...)
+			return append(b[:0], strSlash...)
 		}
 		b = b[:nn+1]
 	}
@@ -783,14 +805,20 @@ func normalizePath(dst, src []byte) []byte {
 		b = removeParentSegments(b, strSlashDotDotBackSlash, 0)
 
 		// remove /foo\..\ parts
+		rooted := len(b) > 0 && b[0] == '/'
 		b = removeParentSegments(b, strBackSlashDotDotBackSlash, '\\')
+		if rooted {
+			// Collapsing a segment at the root can replace the URI's leading
+			// slash with a backslash. Keep the slash in the normalized path.
+			b[0] = '/'
+		}
 
 		// remove trailing \foo\..
 		n := bytes.LastIndex(b, strBackSlashDotDot)
 		if n >= 0 && n+len(strSlashDotDot) == len(b) {
 			nn := bytes.LastIndexByte(b[:n], '/')
 			if nn < 0 {
-				return append(dst[:0], strSlash...)
+				return append(b[:0], strSlash...)
 			}
 			b = b[:nn+1]
 		}
@@ -878,13 +906,34 @@ func (u *URI) Update(newURI string) {
 //     of the original uri is replaced.
 //   - Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
 //     is updated according to the new relative path.
+//
+// A newURI that can't be parsed is not reported and leaves u in an
+// unspecified state. Use UpdateBytesErr to get the error.
 func (u *URI) UpdateBytes(newURI []byte) {
-	u.requestURI = u.updateBytes(newURI, u.requestURI)
+	u.requestURI, _ = u.updateBytes(newURI, u.requestURI)
 }
 
-func (u *URI) updateBytes(newURI, buf []byte) []byte {
+// UpdateBytesErr is like UpdateBytes, but returns the error that makes newURI
+// unusable instead of dropping it.
+//
+// The error is the one Parse returns for the uri newURI resolves to. A newURI
+// holding a control character is rejected with ErrorInvalidURI whichever of
+// the forms listed on UpdateBytes it has, including the ones that only change
+// the query string or the hash.
+//
+// As with Parse, u holds no usable uri after an error.
+func (u *URI) UpdateBytesErr(newURI []byte) error {
+	if stringContainsCTLByte(newURI) {
+		return ErrorInvalidURI
+	}
+	var err error
+	u.requestURI, err = u.updateBytes(newURI, u.requestURI)
+	return err
+}
+
+func (u *URI) updateBytes(newURI, buf []byte) ([]byte, error) {
 	if len(newURI) == 0 {
-		return buf
+		return buf, nil
 	}
 
 	n := bytes.Index(newURI, strSlashSlash)
@@ -896,12 +945,23 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 			schemeOriginal = append([]byte(nil), u.scheme...)
 		}
 		if err := u.Parse(nil, newURI); err != nil {
-			return nil
+			return nil, err
 		}
 		if len(schemeOriginal) > 0 && len(u.scheme) == 0 {
 			u.scheme = append(u.scheme[:0], schemeOriginal...)
 		}
-		return buf
+		return buf, nil
+	}
+
+	// A reference with the same scheme as the base and no "//", e.g. "http:g",
+	// is relative. That's the non-strict mode of RFC 3986, section 5.2.2,
+	// which browsers follow too.
+	if scheme := u.Scheme(); len(newURI) > len(scheme) && newURI[len(scheme)] == ':' &&
+		bytes.EqualFold(newURI[:len(scheme)], scheme) {
+		newURI = newURI[len(scheme)+1:]
+		if len(newURI) == 0 {
+			return buf, nil
+		}
 	}
 
 	if newURI[0] == '/' {
@@ -909,9 +969,9 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 		buf = u.appendSchemeHost(buf[:0])
 		buf = append(buf, newURI...)
 		if err := u.Parse(nil, buf); err != nil {
-			return nil
+			return nil, err
 		}
-		return buf
+		return buf, nil
 	}
 
 	// relative path
@@ -919,11 +979,11 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 	case '?':
 		// query string only update
 		u.SetQueryStringBytes(newURI[1:])
-		return append(buf[:0], u.FullURI()...)
+		return append(buf[:0], u.FullURI()...), nil
 	case '#':
 		// update only hash
 		u.SetHashBytes(newURI[1:])
-		return append(buf[:0], u.FullURI()...)
+		return append(buf[:0], u.FullURI()...), nil
 	default:
 		// update the last path part after the slash
 		path := u.Path()
@@ -935,9 +995,9 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 		buf = appendQuotedPath(buf, path[:n+1])
 		buf = append(buf, newURI...)
 		if err := u.Parse(nil, buf); err != nil {
-			return nil
+			return nil, err
 		}
-		return buf
+		return buf, nil
 	}
 }
 

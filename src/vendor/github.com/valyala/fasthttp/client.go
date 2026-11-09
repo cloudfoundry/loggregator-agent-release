@@ -330,7 +330,6 @@ type Client struct {
 	ConnPoolStrategy ConnPoolStrategyType
 
 	mLock sync.RWMutex
-	mOnce sync.Once
 
 	// NoDefaultUserAgentHeader when set to true, causes the default
 	// User-Agent header to be excluded from the Request.
@@ -565,10 +564,6 @@ func (c *Client) Do(req *Request, resp *Response) error {
 		return fmt.Errorf("unsupported protocol %q. http and https are supported", uri.Scheme())
 	}
 
-	c.mOnce.Do(func() {
-		c.m = make(map[string]*HostClient)
-		c.ms = make(map[string]*HostClient)
-	})
 	hc, err := c.hostClient(host, isTLS)
 	if err != nil {
 		return err
@@ -580,19 +575,25 @@ func (c *Client) Do(req *Request, resp *Response) error {
 }
 
 func (c *Client) hostClient(host []byte, isTLS bool) (*HostClient, error) {
-	m := c.m
+	mp := &c.m
 	if isTLS {
-		m = c.ms
+		mp = &c.ms
 	}
 
 	c.mLock.RLock()
-	hc, exist := m[string(host)]
+	hc, exist := (*mp)[string(host)]
 	c.mLock.RUnlock()
 	if exist {
 		return hc, nil
 	}
 	c.mLock.Lock()
 	defer c.mLock.Unlock()
+	// The map is made here rather than through a sync.Once, whose state
+	// every request would read from a cache line that mLock keeps changing.
+	if *mp == nil {
+		*mp = make(map[string]*HostClient)
+	}
+	m := *mp
 	hc, exist = m[string(host)]
 	if exist {
 		return hc, nil
@@ -851,8 +852,6 @@ type HostClient struct {
 	// Upstream information is a <host>:<port> format.
 	RetryIfErrUpstream RetryIfErrUpstreamFunc
 
-	connsWait *wantConnQueue
-
 	tlsConfigMap map[string]*tls.Config
 
 	clientReaderPool *sync.Pool
@@ -872,7 +871,6 @@ type HostClient struct {
 	// Client name. Used in User-Agent request header.
 	Name string
 
-	conns []*clientConn
 	addrs []string
 
 	// Maximum number of connections which may be established to all hosts
@@ -956,22 +954,6 @@ type HostClient struct {
 	// Connection pool strategy. Can be either LIFO or FIFO (default).
 	ConnPoolStrategy ConnPoolStrategyType
 
-	connsCount int
-
-	connsLock sync.Mutex
-
-	addrsLock        sync.Mutex
-	tlsConfigMapLock sync.Mutex
-
-	addrIdx     uint32
-	lastUseTime uint32
-
-	pendingRequests int32
-
-	// pendingClientRequests counts the number of requests that a Client is currently running using this HostClient.
-	// It will be incremented earlier than pendingRequests and will be used by Client to see if the HostClient is still in use.
-	pendingClientRequests int32
-
 	// NoDefaultUserAgentHeader when set to true, causes the default
 	// User-Agent header to be excluded from the Request.
 	NoDefaultUserAgentHeader bool
@@ -1039,8 +1021,36 @@ type HostClient struct {
 	// known-length bodies for connection reuse and closes other body streams.
 	StreamResponseBody bool
 
+	// The fields below change while requests run, many of them on every
+	// request. The padding keeps them off the cache lines of the fields above,
+	// which every request reads, so that requests running on other CPUs don't
+	// have to fetch those lines again after each change.
+	_ cacheLinePad
+
+	connsLock       sync.Mutex
+	conns           []*clientConn
+	connsWait       *wantConnQueue
+	connsCount      int
 	connsCleanerRun bool
+
+	addrsLock        sync.Mutex
+	tlsConfigMapLock sync.Mutex
+	addrIdx          uint32
+
+	lastUseTime     uint32
+	pendingRequests int32
+
+	// pendingClientRequests counts the number of requests that a Client is currently running using this HostClient.
+	// It will be incremented earlier than pendingRequests and will be used by Client to see if the HostClient is still in use.
+	pendingClientRequests int32
+
+	_ cacheLinePad
 }
+
+// cacheLinePad keeps the fields on either side of it off each other's cache
+// lines. 128 bytes covers the 64-byte lines of most CPUs, the pairs of them
+// that Intel CPUs prefetch together, and the 128-byte lines of others.
+type cacheLinePad struct{ _ [128]byte }
 
 type clientConn struct {
 	c net.Conn
@@ -1342,8 +1352,20 @@ func doRequestFollowRedirects(
 			err = ErrMissingLocation
 			break
 		}
+		if isNonHTTPRedirect(location) {
+			// There is nothing to fetch for mailto:, tel: or an app callback
+			// such as com.example.app:/cb, so return the redirect response
+			// as is and leave the location to the caller.
+			break
+		}
 		redirectURI := AcquireURI()
-		url = getRedirectURL(url, location, req.DisableRedirectPathNormalizing, redirectURI)
+		url, err = getRedirectURL(url, location, req.DisableRedirectPathNormalizing, redirectURI)
+		if err != nil {
+			// A location that can't be parsed leaves an empty uri behind, and
+			// following that would send the next request without a host.
+			ReleaseURI(redirectURI)
+			break
+		}
 		stripSensitiveHeadersOnRedirect(req, initialHost, redirectURI)
 		ReleaseURI(redirectURI)
 
@@ -1392,11 +1414,24 @@ func doRequestFollowRedirects(
 	return statusCode, body, err
 }
 
-func getRedirectURL(baseURL string, location []byte, disablePathNormalizing bool, dst *URI) string {
+// isNonHTTPRedirect reports whether location has a scheme other than http
+// or https and no authority, e.g. mailto:user@example.com.
+// URI can't hold such a location and would resolve it as a relative path.
+func isNonHTTPRedirect(location []byte) bool {
+	if !hasSchemeWithoutAuthority(b2s(location)) {
+		return false
+	}
+	scheme := location[:bytes.IndexByte(location, ':')]
+	return !bytes.EqualFold(scheme, strHTTP) && !bytes.EqualFold(scheme, strHTTPS)
+}
+
+func getRedirectURL(baseURL string, location []byte, disablePathNormalizing bool, dst *URI) (string, error) {
 	dst.Update(baseURL)
-	dst.UpdateBytes(location)
+	if err := dst.UpdateBytesErr(location); err != nil {
+		return "", err
+	}
 	dst.DisablePathNormalizing = disablePathNormalizing
-	return dst.String()
+	return dst.String(), nil
 }
 
 // Redirect handling reuses the original Request, so sensitive request
@@ -1769,7 +1804,11 @@ func (c *HostClient) doNonNilReqResp(req *Request, resp *Response) (bool, error)
 		return false, ErrHostClientRedirectToDifferentScheme
 	}
 
-	atomic.StoreUint32(&c.lastUseTime, uint32(time.Now().Unix()-startTimeUnix)) // #nosec G115
+	// The time only changes once a second, and storing it unchanged would
+	// still make every other CPU running a request fetch its cache line again.
+	if now := uint32(time.Now().Unix() - startTimeUnix); atomic.LoadUint32(&c.lastUseTime) != now { // #nosec G115
+		atomic.StoreUint32(&c.lastUseTime, now)
+	}
 
 	// Free up resources occupied by response before sending the request,
 	// so the GC may reclaim these resources (e.g. response body).

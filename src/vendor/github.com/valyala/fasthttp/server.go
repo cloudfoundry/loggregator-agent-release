@@ -1560,12 +1560,20 @@ func (ctx *RequestCtx) SuccessString(contentType, body string) {
 //
 // The redirect uri may be either absolute or relative to the current
 // request uri. Fasthttp will always send an absolute uri back to the client.
+// A uri with a scheme but no authority, such as mailto:user@example.com
+// or com.example.app:/callback, is sent as is.
 // To send a relative uri you can use the following code:
 //
 //	strLocation = []byte("Location") // Put this with your top level var () declarations.
 //	ctx.Response.Header.SetCanonical(strLocation, "/relative?uri")
 //	ctx.Response.SetStatusCode(fasthttp.StatusMovedPermanently)
 func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
+	if hasSchemeWithoutAuthority(uri) {
+		// URI can only hold scheme://host/path, so resolving this
+		// against the request uri would turn it into a relative path.
+		ctx.redirect(s2b(uri), statusCode)
+		return
+	}
 	u := AcquireURI()
 	ctx.URI().CopyTo(u)
 	u.Update(uri)
@@ -1596,6 +1604,16 @@ func (ctx *RequestCtx) Redirect(uri string, statusCode int) {
 func (ctx *RequestCtx) RedirectBytes(uri []byte, statusCode int) {
 	s := b2s(uri)
 	ctx.Redirect(s, statusCode)
+}
+
+// hasSchemeWithoutAuthority reports whether uri starts with a valid scheme
+// that isn't followed by "//", e.g. mailto:user@example.com.
+func hasSchemeWithoutAuthority(uri string) bool {
+	n := strings.IndexByte(uri, ':')
+	if n <= 0 || !isValidScheme(s2b(uri[:n])) {
+		return false
+	}
+	return !strings.HasPrefix(uri[n+1:], "//")
 }
 
 func (ctx *RequestCtx) redirect(uri []byte, statusCode int) {
@@ -2600,7 +2618,11 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 		ctx.Response.secureErrorLogMessage = s.SecureErrorLogMessage
 
 		if err == nil {
-			idleConnTime.Store(0)
+			if idleConnTime.Swap(0) == idleConnClaimedByShutdown {
+				// Shutdown claimed this idle connection and is closing it, so the
+				// request that just arrived can't be answered: drop it silently.
+				break
+			}
 			s.setState(c, StateActive)
 
 			// ReadTimeout restarts at the first byte after an idle wait or a
@@ -3030,8 +3052,14 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 			ctx.deadlineMu.Unlock()
 		}
 
-		idleConnTime.Store(reqSecond)
+		// A response held back for the next pipelined request hasn't been sent,
+		// so Shutdown's sweep must not treat the connection as idle.
+		if bw == nil || bw.Buffered() == 0 {
+			idleConnTime.Store(reqSecond)
+		}
 		s.setState(c, StateIdle)
+		ctx.Request.KeepBodyBuffer = false
+		ctx.Response.KeepBodyBuffer = false
 		ctx.Request.Reset()
 		ctx.Response.Reset()
 		if ctx.s != nil {
@@ -3039,11 +3067,14 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 			ctx.Request.keepBodyBuffer = keepBodyBuffer
 			ctx.Response.keepBodyBuffer = keepBodyBuffer
 		}
-		ctx.Request.KeepBodyBuffer = false
-		ctx.Response.KeepBodyBuffer = false
 
 		if s.stop.Load() == 1 {
 			err = nil
+			// The loop won't serve the next pipelined request, so send the
+			// response held back for it.
+			if bw != nil && bw.Buffered() > 0 {
+				err = bw.Flush()
+			}
 			break
 		}
 	}
@@ -3512,12 +3543,18 @@ func (s *Server) writeErrorResponse(bw *bufio.Writer, ctx *RequestCtx, serverNam
 
 var idleConnTimePool sync.Pool
 
+// idleConnClaimedByShutdown is the idle timestamp closeIdleConns swaps in
+// for a connection it closes.
+const idleConnClaimedByShutdown = -1
+
 func (s *Server) closeIdleConns() {
 	s.idleConnsMu.Lock()
 	now := time.Now().Unix()
 	for c, ict := range s.idleConns {
 		t := ict.Load()
-		if t != 0 && now-t >= 0 {
+		// Claim the connection before closing it: serveConn claims it by
+		// swapping in 0 when a request arrives, and the first claim wins.
+		if t != 0 && now-t >= 0 && ict.CompareAndSwap(t, idleConnClaimedByShutdown) {
 			_ = c.Close()
 			// Don't recycle ict: the connection's own goroutine still holds it
 			// and stores into it, so only that goroutine may return it.

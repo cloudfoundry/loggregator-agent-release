@@ -791,16 +791,18 @@ func (req *Request) BodyUncompressed() ([]byte, error) {
 //
 // If maxBodySize <= 0, then no limit is applied.
 func (req *Request) BodyUncompressedWithLimit(maxBodySize int) ([]byte, error) {
-	switch string(req.Header.ContentEncoding()) {
-	case "":
+	// Content codings are case-insensitive, see RFC 9110, section 8.4.1.
+	ce := req.Header.ContentEncoding()
+	switch {
+	case len(ce) == 0:
 		return req.Body(), nil
-	case "deflate":
+	case caseInsensitiveCompare(ce, strDeflate):
 		return req.BodyInflateWithLimit(maxBodySize)
-	case "gzip":
+	case caseInsensitiveCompare(ce, strGzip):
 		return req.BodyGunzipWithLimit(maxBodySize)
-	case "br":
+	case caseInsensitiveCompare(ce, strBr):
 		return req.BodyUnbrotliWithLimit(maxBodySize)
-	case "zstd":
+	case caseInsensitiveCompare(ce, strZstd):
 		return req.BodyUnzstdWithLimit(maxBodySize)
 	default:
 		return nil, ErrContentEncodingUnsupported
@@ -827,16 +829,18 @@ func (resp *Response) BodyUncompressed() ([]byte, error) {
 //
 // If maxBodySize <= 0, then no limit is applied.
 func (resp *Response) BodyUncompressedWithLimit(maxBodySize int) ([]byte, error) {
-	switch string(resp.Header.ContentEncoding()) {
-	case "":
+	// Content codings are case-insensitive, see RFC 9110, section 8.4.1.
+	ce := resp.Header.ContentEncoding()
+	switch {
+	case len(ce) == 0:
 		return resp.Body(), nil
-	case "deflate":
+	case caseInsensitiveCompare(ce, strDeflate):
 		return resp.BodyInflateWithLimit(maxBodySize)
-	case "gzip":
+	case caseInsensitiveCompare(ce, strGzip):
 		return resp.BodyGunzipWithLimit(maxBodySize)
-	case "br":
+	case caseInsensitiveCompare(ce, strBr):
 		return resp.BodyUnbrotliWithLimit(maxBodySize)
-	case "zstd":
+	case caseInsensitiveCompare(ce, strZstd):
 		return resp.BodyUnzstdWithLimit(maxBodySize)
 	default:
 		return nil, ErrContentEncodingUnsupported
@@ -1100,6 +1104,12 @@ func (req *Request) ResetBody() {
 }
 
 // CopyTo copies req contents to dst except of body stream.
+//
+// A multipart/form-data body that was parsed as it was read, as the server
+// does by default, is held as a form and has no bytes of its own. dst gets
+// it as the form marshaled again, which is what Body returns, and parses its
+// own form on the first call to MultipartForm. dst has no body if the form
+// can't be marshaled, e.g. when the temporary file of one of its parts is gone.
 func (req *Request) CopyTo(dst *Request) {
 	req.copyToSkipBody(dst)
 	switch {
@@ -1107,6 +1117,11 @@ func (req *Request) CopyTo(dst *Request) {
 		dst.bodyRaw = append(dst.bodyRaw[:0], req.bodyRaw...)
 		if dst.body != nil {
 			dst.body.Reset()
+		}
+	case req.onlyMultipartForm():
+		buf := dst.bodyBuffer()
+		if err := WriteMultipartForm(buf, req.multipartForm, req.multipartFormBoundary); err != nil {
+			buf.Reset()
 		}
 	case req.body != nil:
 		dst.bodyBuffer().Set(req.body.B)
@@ -1224,7 +1239,7 @@ func (req *Request) parsePostArgs() {
 	}
 	req.parsedPostArgs = true
 
-	if !bytes.HasPrefix(req.Header.ContentType(), strPostArgsContentType) {
+	if !caseInsensitiveHasPrefix(req.Header.ContentType(), strPostArgsContentType) {
 		return
 	}
 	req.postArgs.ParseBytes(req.bodyBytes())
@@ -1308,7 +1323,7 @@ func (req *Request) MultipartFormWithLimit(maxBodySize int) (*multipart.Form, er
 	if req.bodyStream != nil {
 		bodyStream := req.bodyStream
 		var lr *io.LimitedReader
-		if bytes.Equal(ce, strGzip) {
+		if caseInsensitiveCompare(ce, strGzip) {
 			if bodyStream, err = gzip.NewReader(bodyStream); err != nil {
 				return nil, fmt.Errorf("cannot gunzip request body: %w", err)
 			}
@@ -1361,7 +1376,7 @@ func (req *Request) MultipartFormWithLimit(maxBodySize int) (*multipart.Form, er
 		}
 	} else {
 		body := req.bodyBytes()
-		if bytes.Equal(ce, strGzip) {
+		if caseInsensitiveCompare(ce, strGzip) {
 			if body, err = gunzipData(body, maxBodySize); err != nil {
 				return nil, fmt.Errorf("cannot gunzip request body: %w", err)
 			}
@@ -1386,10 +1401,13 @@ func (req *Request) MultipartFormWithLimit(maxBodySize int) (*multipart.Form, er
 // match would also take media types such as multipart/form-data-alt, whose
 // body the multipart parser never reads.
 func isMultipartFormData(contentType []byte) bool {
-	if !bytes.HasPrefix(contentType, strMultipartFormData) {
+	if !caseInsensitiveHasPrefix(contentType, strMultipartFormData) {
 		return false
 	}
 	rest := contentType[len(strMultipartFormData):]
+	for len(rest) > 0 && (rest[0] == ' ' || rest[0] == '\t') {
+		rest = rest[1:]
+	}
 	return len(rest) == 0 || rest[0] == ';'
 }
 
@@ -2016,7 +2034,9 @@ func (req *Request) Write(w *bufio.Writer) error {
 		}
 		req.Header.SetRequestURIBytes(req.requestURIFromURI())
 
-		if len(uri.username) > 0 {
+		// Like net/http, only fill in Authorization from the userinfo
+		// if it hasn't been set already.
+		if len(uri.username) > 0 && len(req.Header.peek(strAuthorization)) == 0 {
 			// RequestHeader.SetBytesKV only uses RequestHeader.bufKV.key
 			// So we are free to use RequestHeader.bufKV.value as a scratch pad for
 			// the base64 encoding.
