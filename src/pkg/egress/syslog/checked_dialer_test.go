@@ -144,4 +144,39 @@ var _ = Describe("CheckedDialer", func() {
 			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
 		})
 	})
+
+	Describe("checkedTCPDialer (fasthttp)", func() {
+		It("refuses to dial when every resolved address is blacklisted", func() {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(listener.Close)
+			fakeChecker.CheckBlacklistReturns(errors.New("blacklisted"))
+
+			for _, host := range []string{"localhost", "127.0.0.1"} {
+				_, err = syslog.CheckedTCPDialer(netConf).Dial(net.JoinHostPort(host, portOf(listener)))
+				Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue(), host)
+			}
+		})
+
+		It("dials only allowed addresses and caches the lookup", func() {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(listener.Close)
+
+			dialer := syslog.CheckedTCPDialer(netConf)
+			for range 3 {
+				conn, err := dialer.Dial(net.JoinHostPort("localhost", portOf(listener)))
+				Expect(err).ToNot(HaveOccurred())
+				_ = conn.Close()
+			}
+			// one blacklist pass over the resolved addresses, not one per dial
+			Expect(fakeChecker.CheckBlacklistCallCount()).To(BeNumerically("<=", 2))
+		})
+	})
 })
+
+func portOf(l net.Listener) string {
+	_, port, err := net.SplitHostPort(l.Addr().String())
+	Expect(err).ToNot(HaveOccurred())
+	return port
+}

@@ -121,8 +121,16 @@ func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Cli
 	}
 
 	if netConf.IPChecker != nil {
-		client.Dial = func(addr string) (net.Conn, error) {
-			return checkedDialer(netConf).Dial("tcp", addr)
+		// Keep fasthttp's dialer (DNS cache, round-robin, concurrency limit)
+		// and enforce the blacklist inside its resolver.
+		dialer := checkedTCPDialer(netConf)
+		client.DialTimeout = func(addr string, timeout time.Duration) (net.Conn, error) {
+			// Mirrors fasthttp's default dial selection (callDialFunc). addr
+			// already carries a port: Client.Do adds it before dialing.
+			if timeout > 0 {
+				return dialer.DialTimeout(addr, timeout)
+			}
+			return dialer.Dial(addr)
 		}
 	}
 
