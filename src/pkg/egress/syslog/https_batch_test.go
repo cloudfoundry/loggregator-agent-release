@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"sync"
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
@@ -146,21 +145,9 @@ var _ = Describe("HTTPS_batch", func() {
 			Expect(client.MaxResponseBodySize).To(Equal(syslog.MaxResponseBodySize))
 		})
 
-		It("treats an oversized response as a failure and drops the connection", func() {
-			var (
-				mu          sync.Mutex
-				remoteAddrs []string
-			)
-			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				mu.Lock()
-				remoteAddrs = append(remoteAddrs, r.RemoteAddr)
-				first := len(remoteAddrs) == 1
-				mu.Unlock()
-
-				_, _ = io.Copy(io.Discard, r.Body)
-				_ = r.Body.Close()
-
-				if first {
+		It("drops the connection after an oversized response", func() {
+			server := newConnTrackingServer(func(w http.ResponseWriter, requestNum int) {
+				if requestNum == 1 {
 					body := bytes.Repeat([]byte("a"), syslog.MaxResponseBodySize+1)
 					w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 					w.WriteHeader(http.StatusOK)
@@ -168,7 +155,7 @@ var _ = Describe("HTTPS_batch", func() {
 					return
 				}
 				w.WriteHeader(http.StatusOK)
-			}))
+			})
 			defer server.Close()
 
 			oversizedBinding := buildURLBinding(server.URL, "test-app-id", "test-hostname")
@@ -190,21 +177,18 @@ var _ = Describe("HTTPS_batch", func() {
 			env := buildLogEnvelope("APP", "1", "message", loggregator_v2.Log_OUT)
 			Expect(oversizedWriter.Write(env)).To(Succeed())
 			Eventually(func() int {
-				mu.Lock()
-				defer mu.Unlock()
-				return len(remoteAddrs)
+				return len(server.RemoteAddrs())
 			}, sendInterval+waitTime).Should(Equal(1))
 
 			Expect(oversizedWriter.Write(env)).To(Succeed())
 			Eventually(func() int {
-				mu.Lock()
-				defer mu.Unlock()
-				return len(remoteAddrs)
+				return len(server.RemoteAddrs())
 			}, sendInterval+waitTime).Should(Equal(2))
 
-			mu.Lock()
-			defer mu.Unlock()
-			Expect(remoteAddrs[0]).ToNot(Equal(remoteAddrs[1]))
+			addrs := server.RemoteAddrs()
+			// Different client addr => the first connection was closed, not reused via keep-alive.
+			Expect(addrs[0]).ToNot(Equal(addrs[1]),
+				"expected a new connection after an oversized response, but the old one was reused")
 		})
 	})
 })
