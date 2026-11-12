@@ -23,10 +23,9 @@ properties:
     default: 3458
   downstream_ingress_port_glob:
     description: |
-      Files matching the glob are expected to contain ports of downstream
-      consumers that will be bound to 127.0.0.1:{port} with the provided
-      mTLS configuration. The forwarder assumes the downstream server is
-      serving Loggregator's V2 IngressService. See code.cloudfoundry.org/loggregator-api.
+      Files matching the glob are expected to contain an ingress port and may
+      contain a host and protocol for downstream consumers. The host defaults
+      to 127.0.0.1. See code.cloudfoundry.org/loggregator-api.
     default: /var/vcap/jobs/*/config/ingress_port.yml
 
   deployment:

@@ -13,9 +13,9 @@ Accepts the Loggregator v1 api over UDP and forwards it to a downstream Loggrega
 This is available for backwards compatibility between the v1 API and the Forwarder, Syslog, or Loggregator agents.
 
 ### Forwarder Agent
-A Loggregator v2 api multiplexer. This Agent Accepts Loggregator v2 and forwards to other agents colocated on the same VM
-that accept Loggregator v2. To configure downstream agents, simply place a file named `ingress_port.yml` in the job's config
-directory. [example][ingress-port]
+A Loggregator v2 API multiplexer. Downstream registration files supply an ingress port and may specify a host and protocol.
+The host defaults to `127.0.0.1`; set it in the registration file for remote or IPv6 destinations.
+To configure downstream agents, place an `ingress_port.yml` file in the job's config directory. [example][ingress-port]
 
 ### Syslog Agent
 An agent that forwards app logs to a syslog drain. Drains are registered by binding User Provided Services to apps. 
