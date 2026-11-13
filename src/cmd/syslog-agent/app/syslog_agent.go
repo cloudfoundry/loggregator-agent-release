@@ -62,7 +62,7 @@ func NewSyslogAgent(
 		Keepalive:    10 * time.Second,
 		DialTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
-	}, m)
+	}, m, &cfg.Cache.Blacklist)
 	ingressTLSConfig, err := loggregator.NewIngressTLSConfig(
 		cfg.GRPC.CAFile,
 		cfg.GRPC.CertFile,

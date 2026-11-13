@@ -45,10 +45,7 @@ func NewTCPWriter(
 	c *Converter,
 	appLogClient v2.LogClient,
 ) egress.WriteCloser {
-	dialer := &net.Dialer{
-		Timeout:   netConf.DialTimeout,
-		KeepAlive: netConf.Keepalive,
-	}
+	dialer := checkedDialer(netConf)
 	df := func(addr string) (net.Conn, error) {
 		return dialer.Dial("tcp", addr)
 	}
