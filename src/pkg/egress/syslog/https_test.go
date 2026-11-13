@@ -1,12 +1,15 @@
 package syslog_test
 
 import (
+	"bytes"
 	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"sync"
+	"time"
 
 	"code.cloudfoundry.org/go-loggregator/v10/rfc5424"
 	"code.cloudfoundry.org/go-loggregator/v10/rpc/loggregator_v2"
@@ -14,6 +17,7 @@ import (
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/valyala/fasthttp"
 )
 
 var _ = Describe("HTTPWriter", func() {
@@ -242,6 +246,212 @@ var _ = Describe("HTTPWriter", func() {
 		Expect(writer.Write(counterEnv)).To(Succeed())
 		Expect(writer.Write(logEnv)).To(Succeed())
 	})
+
+	Describe("response body limit", func() {
+		It("succeeds when response body is exactly MaxResponseBodySize with Content-Length and reuses the connection", func() {
+			server := newConnTrackingServer(func(w http.ResponseWriter, _ int) {
+				w.Header().Set("Content-Length", strconv.Itoa(syslog.MaxResponseBodySize))
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(bytes.Repeat([]byte("a"), syslog.MaxResponseBodySize))
+			})
+			defer server.Close()
+
+			b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+			writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+			env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+			Expect(writer.Write(env)).To(Succeed())
+			Expect(writer.Write(env)).To(Succeed())
+
+			addrs := server.RemoteAddrs()
+			Expect(addrs).To(HaveLen(2))
+			// Same client addr => both requests went over one keep-alive connection.
+			Expect(addrs[0]).To(Equal(addrs[1]),
+				"expected the connection to be reused for a response of exactly MaxResponseBodySize, but a new one was opened")
+		})
+
+		It("errors when Content-Length is MaxResponseBodySize+1 and uses a new connection for the next write", func() {
+			server := newConnTrackingServer(func(w http.ResponseWriter, requestNum int) {
+				if requestNum == 1 {
+					body := bytes.Repeat([]byte("a"), syslog.MaxResponseBodySize+1)
+					w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write(body)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			})
+			defer server.Close()
+
+			b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+			writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+			env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+			Expect(writer.Write(env)).To(HaveOccurred())
+			Expect(writer.Write(env)).To(Succeed())
+
+			addrs := server.RemoteAddrs()
+			Expect(addrs).To(HaveLen(2))
+			// Different client addr => the first connection was closed, not reused via keep-alive.
+			Expect(addrs[0]).ToNot(Equal(addrs[1]),
+				"expected a new connection after an oversized response, but the old one was reused")
+		})
+
+		It("errors with ErrBodyTooLarge when a 10 MiB Content-Length is declared without sending a body", func() {
+			release := make(chan struct{})
+			server := newResponseServer(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Length", strconv.Itoa(10*1024*1024))
+				w.WriteHeader(http.StatusOK)
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
+				// Keep the handler alive without sending the promised body, so the
+				// client is left waiting. Returning would make the server close the
+				// connection on a short body, which is a different scenario.
+				// Unblock when the client disconnects (r.Context() is cancelled; the
+				// expected outcome) or on test cleanup via release, so server.Close()
+				// does not hang waiting for this handler.
+				select {
+				case <-r.Context().Done():
+				case <-release:
+				}
+			})
+			defer func() {
+				close(release)
+				server.Close()
+			}()
+
+			b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+			writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+			env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+			err := writer.Write(env)
+
+			Expect(err).To(MatchError(fasthttp.ErrBodyTooLarge))
+		})
+
+		Describe("chunked transfer encoding", func() {
+			It("succeeds when total chunked body is exactly MaxResponseBodySize", func() {
+				server := newResponseServer(func(w http.ResponseWriter, r *http.Request) {
+					flusher, ok := w.(http.Flusher)
+					Expect(ok).To(BeTrue())
+
+					w.WriteHeader(http.StatusOK)
+					flusher.Flush()
+
+					half := syslog.MaxResponseBodySize / 2
+					_, _ = w.Write(bytes.Repeat([]byte("a"), half))
+					flusher.Flush()
+					_, _ = w.Write(bytes.Repeat([]byte("b"), syslog.MaxResponseBodySize-half))
+					flusher.Flush()
+				})
+				defer server.Close()
+
+				b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+				writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+				Expect(writer.Write(env)).To(Succeed())
+			})
+
+			It("errors when total chunked body exceeds MaxResponseBodySize split across multiple chunks", func() {
+				server := newResponseServer(func(w http.ResponseWriter, r *http.Request) {
+					flusher, ok := w.(http.Flusher)
+					Expect(ok).To(BeTrue())
+
+					w.WriteHeader(http.StatusOK)
+					flusher.Flush()
+
+					_, _ = w.Write(bytes.Repeat([]byte("a"), syslog.MaxResponseBodySize))
+					flusher.Flush()
+					_, _ = w.Write([]byte("b"))
+					flusher.Flush()
+				})
+				defer server.Close()
+
+				b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+				writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+				Expect(writer.Write(env)).To(HaveOccurred())
+			})
+
+			It("errors when receiving an endless chunked body", func() {
+				release := make(chan struct{})
+				server := newResponseServer(func(w http.ResponseWriter, r *http.Request) {
+					flusher, ok := w.(http.Flusher)
+					Expect(ok).To(BeTrue())
+
+					w.WriteHeader(http.StatusOK)
+					flusher.Flush()
+
+					chunk := bytes.Repeat([]byte("c"), 512)
+					for {
+						select {
+						case <-r.Context().Done():
+							return
+						case <-release:
+							return
+						default:
+							if _, err := w.Write(chunk); err != nil {
+								return
+							}
+							flusher.Flush()
+						}
+					}
+				})
+				defer func() {
+					close(release)
+					server.Close()
+				}()
+
+				b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+				writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+				env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+				Expect(writer.Write(env)).To(MatchError(fasthttp.ErrBodyTooLarge))
+			})
+		})
+
+		It("errors after the cap on an endless stream with no Content-Length and not chunked", func() {
+			release := make(chan struct{})
+			server := newResponseServer(func(w http.ResponseWriter, r *http.Request) {
+				hj, ok := w.(http.Hijacker)
+				Expect(ok).To(BeTrue())
+				conn, bufrw, err := hj.Hijack()
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+
+				_, _ = bufrw.WriteString("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n")
+				_ = bufrw.Flush()
+
+				chunk := bytes.Repeat([]byte("d"), 512)
+				for {
+					select {
+					case <-release:
+						return
+					default:
+						_ = conn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
+						if _, err := conn.Write(chunk); err != nil {
+							return
+						}
+					}
+				}
+			})
+			defer func() {
+				close(release)
+				server.Close()
+			}()
+
+			b := buildURLBinding(server.URL, "test-app-id", "test-hostname")
+			writer := syslog.NewHTTPSWriter(b, netConf, skipSSLTLSConfig, &metricsHelpers.SpyMetric{}, c)
+			env := buildLogEnvelope("APP", "1", "just a test", loggregator_v2.Log_OUT)
+
+			Expect(writer.Write(env)).To(MatchError(fasthttp.ErrBodyTooLarge))
+		})
+	})
 })
 
 type SpyDrain struct {
@@ -279,6 +489,46 @@ func (d *SpyDrain) getMessagesSize() int {
 func (d *SpyDrain) getRequestCount() int {
 	return d.requestCount
 }
+
+// newResponseServer starts a TLS server that fully consumes each request body
+// before calling respond, so tests only need to describe the response under test.
+func newResponseServer(respond http.HandlerFunc) *httptest.Server {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		respond(w, r)
+	}))
+}
+
+// connTrackingServer is a response server that records the client address
+// (ip:ephemeral port, unique per TCP connection) of every request it serves.
+// Comparing addresses across requests shows whether a connection was reused.
+type connTrackingServer struct {
+	*httptest.Server
+	mu          sync.Mutex
+	remoteAddrs []string
+}
+
+// newConnTrackingServer calls respond with the 1-based number of the request
+// being served.
+func newConnTrackingServer(respond func(w http.ResponseWriter, requestNum int)) *connTrackingServer {
+	s := &connTrackingServer{}
+	s.Server = newResponseServer(func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		s.remoteAddrs = append(s.remoteAddrs, r.RemoteAddr)
+		n := len(s.remoteAddrs)
+		s.mu.Unlock()
+		respond(w, n)
+	})
+	return s
+}
+
+func (s *connTrackingServer) RemoteAddrs() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.remoteAddrs...)
+}
+
 func newMockOKDrain() *SpyDrain {
 	return newMockDrain(http.StatusOK)
 }
