@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1419,8 +1420,43 @@ func marshalMultipartForm(f *multipart.Form, boundary string) ([]byte, error) {
 	return buf.B, nil
 }
 
+var errMultipartBoundaryInContent = errors.New("multipart boundary in part content")
+
+// multipartFileWriter checks for delimiter lines, including delimiters split
+// across writes. matched is -1 between the start of a line and the next LF
+// once the delimiter can no longer match.
+type multipartFileWriter struct {
+	w         io.Writer
+	delimiter []byte
+	matched   int
+}
+
+func (w *multipartFileWriter) Write(p []byte) (int, error) {
+	for rest := p; len(rest) > 0; {
+		if w.matched >= 0 {
+			n := min(len(rest), len(w.delimiter)-w.matched)
+			if bytes.Equal(rest[:n], w.delimiter[w.matched:w.matched+n]) {
+				w.matched += n
+				if w.matched == len(w.delimiter) {
+					return 0, errMultipartBoundaryInContent
+				}
+				break
+			}
+			w.matched = -1
+		}
+		i := bytes.IndexByte(rest, '\n')
+		if i < 0 {
+			break
+		}
+		w.matched = 0
+		rest = rest[i+1:]
+	}
+	return w.w.Write(p)
+}
+
 // WriteMultipartForm writes the given multipart form f with the given
-// boundary to w.
+// boundary to w. It returns an error if a line in a field or file starts
+// with the boundary delimiter.
 func WriteMultipartForm(w io.Writer, f *multipart.Form, boundary string) error {
 	// Do not care about memory allocations here, since multipart
 	// form processing is slow.
@@ -1433,9 +1469,15 @@ func WriteMultipartForm(w io.Writer, f *multipart.Form, boundary string) error {
 		return fmt.Errorf("cannot use form boundary %q: %w", boundary, err)
 	}
 
+	delimiter := "--" + boundary
+	lineDelimiter := "\n" + delimiter
+
 	// marshal values
 	for k, vv := range f.Value {
 		for _, v := range vv {
+			if strings.HasPrefix(v, delimiter) || strings.Contains(v, lineDelimiter) {
+				return fmt.Errorf("cannot write form field %q: %w", k, errMultipartBoundaryInContent)
+			}
 			if err := mw.WriteField(k, v); err != nil {
 				return fmt.Errorf("cannot write form field %q value %q: %w", k, v, err)
 			}
@@ -1453,7 +1495,8 @@ func WriteMultipartForm(w io.Writer, f *multipart.Form, boundary string) error {
 			if err != nil {
 				return fmt.Errorf("cannot open form file %q (%q): %w", k, fv.Filename, err)
 			}
-			if _, err = copyZeroAlloc(vw, fh); err != nil {
+			fw := multipartFileWriter{w: vw, delimiter: []byte(delimiter)}
+			if _, err = copyZeroAlloc(&fw, fh); err != nil {
 				_ = fh.Close()
 				return fmt.Errorf("error when copying form file %q (%q): %w", k, fv.Filename, err)
 			}
@@ -1759,12 +1802,12 @@ func (req *Request) ReadBody(r *bufio.Reader, contentLength, maxBodySize int) (e
 //
 // The caller must send StatusContinue response before calling this method.
 //
-// If maxBodySize > 0 and the body size exceeds maxBodySize,
-// then ErrBodyTooLarge is returned.
+// A body larger than a positive maxBodySize is made available through
+// BodyStream, including multipart forms that would otherwise be pre-parsed.
 func (req *Request) ContinueReadBodyStream(r *bufio.Reader, maxBodySize int, preParseMultipartForm ...bool) error {
 	var err error
 	contentLength := req.Header.ContentLength()
-	if contentLength > 0 {
+	if contentLength > 0 && (maxBodySize <= 0 || contentLength <= maxBodySize) {
 		if len(preParseMultipartForm) == 0 || preParseMultipartForm[0] {
 			// Pre-read multipart form data of known length.
 			// This way we limit memory usage for large file uploads, since their contents
@@ -2083,7 +2126,7 @@ func (req *Request) Write(w *bufio.Writer) error {
 		if err = req.Header.setRawBodyFraming(contentLength, hasBody); err != nil {
 			return err
 		}
-	} else if hasBody {
+	} else if hasBody || req.Header.contentLength > 0 || len(peekArgBytes(req.Header.h, strTransferEncoding)) > 0 {
 		req.Header.SetContentLength(contentLength)
 	}
 	if chunked {
@@ -2417,6 +2460,13 @@ func (s *compressedBodyStream) closeOriginal(wErr error) error {
 }
 
 func (s *compressedBodyStream) closeOriginalForDiscard() error {
+	// FS readers return to their pool on Close. Only the compression
+	// goroutine can release them once it has finished reading.
+	switch s.bodyStream.(type) {
+	case *fsSmallFileReader, *bigFileReader:
+		return nil
+	}
+
 	s.originalLock.Lock()
 	defer s.originalLock.Unlock()
 
@@ -2452,7 +2502,7 @@ func compressBrotliBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int)
 		bw: sw,
 	}
 	_, wErr := copyBodyStream(fw, bodyStream)
-	releaseStacklessBrotliWriter(zw, level)
+	_ = releaseStacklessBrotliWriter(zw, level)
 	return wErr
 }
 
@@ -2463,7 +2513,7 @@ func compressGzipBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int) e
 		bw: sw,
 	}
 	_, wErr := copyBodyStream(fw, bodyStream)
-	releaseStacklessGzipWriter(zw, level)
+	_ = releaseStacklessGzipWriter(zw, level)
 	return wErr
 }
 
@@ -2474,7 +2524,7 @@ func compressDeflateBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int
 		bw: sw,
 	}
 	_, wErr := copyBodyStream(fw, bodyStream)
-	releaseStacklessDeflateWriter(zw, level)
+	_ = releaseStacklessDeflateWriter(zw, level)
 	return wErr
 }
 
@@ -2485,7 +2535,7 @@ func compressZstdBodyStream(sw *bufio.Writer, bodyStream io.Reader, level int) e
 		bw: sw,
 	}
 	_, wErr := copyBodyStream(fw, bodyStream)
-	releaseStacklessZstdWriter(zw, level)
+	_ = releaseStacklessZstdWriter(zw, level)
 	return wErr
 }
 
@@ -2939,19 +2989,16 @@ func writeBodyChunked(w *bufio.Writer, r io.Reader) error {
 	var n int
 	for {
 		n, err = r.Read(buf)
-		if n == 0 {
-			if err == nil {
-				continue
+		if n > 0 {
+			if writeErr := writeChunk(w, buf[:n]); writeErr != nil {
+				err = writeErr
+				break
 			}
-			if err == io.EOF {
-				if err = writeChunkNoFlush(w, nil); err != nil {
-					break
-				}
-				err = nil
-			}
-			break
 		}
-		if err = writeChunk(w, buf[:n]); err != nil {
+		if err != nil {
+			if err == io.EOF {
+				err = writeChunkNoFlush(w, nil)
+			}
 			break
 		}
 	}
@@ -3375,8 +3422,9 @@ func readBodyChunked(r *bufio.Reader, maxBodySize int, dst []byte) ([]byte, erro
 	}
 
 	strCRLFLen := len(strCRLF)
+	var excess int
 	for {
-		chunkSize, err := parseChunkSize(r)
+		chunkSize, err := parseChunkSize(r, &excess)
 		if err != nil {
 			return dst, err
 		}
@@ -3399,13 +3447,24 @@ func readBodyChunked(r *bufio.Reader, maxBodySize int, dst []byte) ([]byte, erro
 	}
 }
 
-func parseChunkSize(r *bufio.Reader) (int, error) {
+// Limit both a single unterminated chunk extension and the cumulative overhead
+// of many small chunks. As in net/http, allow 16 bytes per chunk plus twice
+// the chunk size before charging the body-wide allowance.
+const maxChunkOverhead = 16 * 1024
+
+func parseChunkSize(r *bufio.Reader, excess *int) (int, error) {
 	n, err := readHexInt(r)
 	if err != nil {
 		return -1, err
 	}
+	if b, _ := r.Peek(min(2, r.Buffered())); len(b) == 2 && b[0] == '\r' && b[1] == '\n' {
+		_, _ = r.Discard(2)
+		*excess = max(0, *excess-16-2*n)
+		return n, nil
+	}
 	inExt := false
 	afterSizeOWS := false
+	extra := 0
 	for {
 		c, err := r.ReadByte()
 		if err != nil {
@@ -3427,6 +3486,10 @@ func parseChunkSize(r *bufio.Reader) (int, error) {
 			return -1, ErrBrokenChunk{
 				error: errors.New("invalid character '\\n' after chunk size"),
 			}
+		}
+		extra++
+		if extra > maxChunkOverhead {
+			return -1, ErrBrokenChunk{error: errors.New("chunk size line too long")}
 		}
 		if inExt {
 			continue
@@ -3452,6 +3515,10 @@ func parseChunkSize(r *bufio.Reader) (int, error) {
 	err = readCrLf(r)
 	if err != nil {
 		return -1, err
+	}
+	*excess = max(0, *excess+extra-16-2*n)
+	if *excess > maxChunkOverhead {
+		return -1, ErrBrokenChunk{error: errors.New("too much chunk extension overhead")}
 	}
 	return n, nil
 }
