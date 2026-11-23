@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"mime/multipart"
 	"net"
 	"os"
@@ -191,6 +192,13 @@ type Response struct {
 
 	preserveBodyBuffer    bool
 	secureErrorLogMessage bool
+
+	// headResponse and connectResponse are set by the clients when the
+	// response answers a HEAD or CONNECT request. Unlike SkipBody they are
+	// cleared by Reset, Read and ReadLimitBody, so they don't leak into the
+	// next response read into the same Response.
+	headResponse    bool
+	connectResponse bool
 }
 
 // SetHost sets host for the request.
@@ -725,10 +733,15 @@ func (req *Request) BodyUnzstd() ([]byte, error) {
 // BodyUnzstdWithLimit returns un-zstd body data and limits the size
 // of uncompressed body data to maxBodySize bytes.
 //
-// The limit also caps the zstd decoder window. The cap is rounded up to an
-// 8 MiB boundary and uses the format's 1 KiB minimum window when maxBodySize
-// is smaller. A valid stream that requires a larger window returns
-// ErrBodyTooLarge.
+// The limit also caps the zstd decoder window, in steps of 8 MiB: the cap is
+// maxBodySize rounded up to a multiple of 8 MiB, and the 1 KiB minimum window
+// of the format is rounded up in the same way, so it is never below 8 MiB. The
+// zstd decoder has its own window limit of 512 MiB, which the cap doesn't
+// raise. With maxBodySize > 0, a valid frame that requires a window larger
+// than the cap or than 512 MiB returns ErrBodyTooLarge. Without a limit, a
+// frame that requires a window larger than 512 MiB returns the decoder's own
+// error, zstd.ErrWindowSizeExceeded or zstd.ErrDecoderSizeExceeded, which is
+// no ErrBodyTooLarge.
 //
 // If maxBodySize <= 0, then no limit is applied.
 func (req *Request) BodyUnzstdWithLimit(maxBodySize int) ([]byte, error) {
@@ -742,10 +755,15 @@ func (resp *Response) BodyUnzstd() ([]byte, error) {
 // BodyUnzstdWithLimit returns un-zstd body data and limits the size
 // of uncompressed body data to maxBodySize bytes.
 //
-// The limit also caps the zstd decoder window. The cap is rounded up to an
-// 8 MiB boundary and uses the format's 1 KiB minimum window when maxBodySize
-// is smaller. A valid stream that requires a larger window returns
-// ErrBodyTooLarge.
+// The limit also caps the zstd decoder window, in steps of 8 MiB: the cap is
+// maxBodySize rounded up to a multiple of 8 MiB, and the 1 KiB minimum window
+// of the format is rounded up in the same way, so it is never below 8 MiB. The
+// zstd decoder has its own window limit of 512 MiB, which the cap doesn't
+// raise. With maxBodySize > 0, a valid frame that requires a window larger
+// than the cap or than 512 MiB returns ErrBodyTooLarge. Without a limit, a
+// frame that requires a window larger than 512 MiB returns the decoder's own
+// error, zstd.ErrWindowSizeExceeded or zstd.ErrDecoderSizeExceeded, which is
+// no ErrBodyTooLarge.
 //
 // If maxBodySize <= 0, then no limit is applied.
 func (resp *Response) BodyUnzstdWithLimit(maxBodySize int) ([]byte, error) {
@@ -785,10 +803,15 @@ func (req *Request) BodyUncompressed() ([]byte, error) {
 // BodyUncompressedWithLimit returns body data and if needed decompresses it from gzip,
 // deflate, brotli or zstd. The size of uncompressed data is limited to maxBodySize bytes.
 //
-// For zstd bodies, the limit also caps the decoder window. The cap is rounded
-// up to an 8 MiB boundary and uses the format's 1 KiB minimum window when
-// maxBodySize is smaller. A valid stream that requires a larger window
-// returns ErrBodyTooLarge.
+// For zstd bodies, the limit also caps the decoder window, in steps of 8 MiB:
+// the cap is maxBodySize rounded up to a multiple of 8 MiB, and the 1 KiB
+// minimum window of the format is rounded up in the same way, so it is never
+// below 8 MiB. The zstd decoder has its own window limit of 512 MiB, which the
+// cap doesn't raise. With maxBodySize > 0, a valid frame that requires a window
+// larger than the cap or than 512 MiB returns ErrBodyTooLarge. Without a limit,
+// a frame that requires a window larger than 512 MiB returns the decoder's own
+// error, zstd.ErrWindowSizeExceeded or zstd.ErrDecoderSizeExceeded, which is no
+// ErrBodyTooLarge.
 //
 // If maxBodySize <= 0, then no limit is applied.
 func (req *Request) BodyUncompressedWithLimit(maxBodySize int) ([]byte, error) {
@@ -823,10 +846,15 @@ func (resp *Response) BodyUncompressed() ([]byte, error) {
 // BodyUncompressedWithLimit returns body data and if needed decompresses it from gzip,
 // deflate, brotli or zstd. The size of uncompressed data is limited to maxBodySize bytes.
 //
-// For zstd bodies, the limit also caps the decoder window. The cap is rounded
-// up to an 8 MiB boundary and uses the format's 1 KiB minimum window when
-// maxBodySize is smaller. A valid stream that requires a larger window
-// returns ErrBodyTooLarge.
+// For zstd bodies, the limit also caps the decoder window, in steps of 8 MiB:
+// the cap is maxBodySize rounded up to a multiple of 8 MiB, and the 1 KiB
+// minimum window of the format is rounded up in the same way, so it is never
+// below 8 MiB. The zstd decoder has its own window limit of 512 MiB, which the
+// cap doesn't raise. With maxBodySize > 0, a valid frame that requires a window
+// larger than the cap or than 512 MiB returns ErrBodyTooLarge. Without a limit,
+// a frame that requires a window larger than 512 MiB returns the decoder's own
+// error, zstd.ErrWindowSizeExceeded or zstd.ErrDecoderSizeExceeded, which is no
+// ErrBodyTooLarge.
 //
 // If maxBodySize <= 0, then no limit is applied.
 func (resp *Response) BodyUncompressedWithLimit(maxBodySize int) ([]byte, error) {
@@ -1172,6 +1200,8 @@ func (resp *Response) copyToSkipBody(dst *Response) {
 	dst.Reset()
 	resp.Header.CopyTo(&dst.Header)
 	dst.SkipBody = resp.SkipBody
+	dst.headResponse = resp.headResponse
+	dst.connectResponse = resp.connectResponse
 	dst.raddr = resp.raddr
 	dst.laddr = resp.laddr
 }
@@ -1591,6 +1621,8 @@ func (resp *Response) Reset() {
 	resp.resetSkipHeader()
 	resp.Header.Reset()
 	resp.SkipBody = false
+	resp.headResponse = false
+	resp.connectResponse = false
 	resp.raddr = nil
 	resp.laddr = nil
 	resp.ImmediateHeaderFlush = false
@@ -1601,7 +1633,11 @@ func (resp *Response) resetSkipHeader() {
 	resp.ResetBody()
 }
 
-// Read reads request (including body) from the given r.
+// Read reads a request (including the body) from r.
+//
+// If the request arrives in fragments, supply them through one reader to
+// the same call. Each call starts a fresh parse. To read only the request
+// header, use [RequestHeader.Read].
 //
 // Read does not limit the request body size. Use ReadLimitBody with a positive
 // maxBodySize when reading requests from untrusted sources.
@@ -1898,6 +1934,15 @@ var errTooManyInterimResponses = errors.New("fasthttp: too many 1xx informationa
 //
 // io.EOF is returned if r is closed before reading the first header byte.
 func (resp *Response) ReadLimitBody(r *bufio.Reader, maxBodySize int) error {
+	return resp.readLimitBody(r, maxBodySize, false, false)
+}
+
+// readLimitBody is ReadLimitBody for a response to a known request. head and
+// connect tell whether that request was HEAD or CONNECT; they replace
+// whatever the previous request that used resp left behind.
+func (resp *Response) readLimitBody(r *bufio.Reader, maxBodySize int, head, connect bool) error {
+	resp.headResponse = head
+	resp.connectResponse = connect
 	resp.resetSkipHeader()
 	err := resp.Header.Read(r)
 	if err != nil {
@@ -1969,8 +2014,123 @@ func (resp *Response) ReadBody(r *bufio.Reader, maxBodySize int) (err error) {
 	return err
 }
 
+// discardBody reads the response body that follows resp.Header from r and
+// drops it without storing it anywhere, so r is left at the start of the next
+// response. It enforces the same framing and maxBodySize rules as ReadBody,
+// and reads the trailer of a chunked body.
+func (resp *Response) discardBody(r *bufio.Reader, maxBodySize int) error {
+	if resp.headResponse || resp.isConnectTunnel() || resp.Header.mustSkipContentLength() {
+		return nil
+	}
+	contentLength := resp.Header.ContentLength()
+	switch {
+	case contentLength >= 0:
+		if maxBodySize > 0 && contentLength > maxBodySize {
+			return ErrBodyTooLarge
+		}
+		return discardFixedSize(r, contentLength)
+	case contentLength == -1:
+		if err := discardBodyChunked(r, maxBodySize); err != nil {
+			return err
+		}
+		err := resp.Header.ReadTrailer(r)
+		if err == io.EOF {
+			return ErrBrokenChunk{error: io.ErrUnexpectedEOF}
+		}
+		return err
+	default:
+		return discardBodyIdentity(r, maxBodySize)
+	}
+}
+
+func discardFixedSize(r *bufio.Reader, n int) error {
+	// bufio.Reader.Discard reuses the reader's own buffer, so this doesn't
+	// allocate no matter how large n is.
+	if _, err := r.Discard(n); err != nil {
+		if errors.Is(err, io.EOF) {
+			return io.ErrUnexpectedEOF
+		}
+		return err
+	}
+	return nil
+}
+
+func discardBodyChunked(r *bufio.Reader, maxBodySize int) error {
+	size := 0
+	// One overhead counter for the whole body, as in readBodyChunked, so
+	// many small chunks can't hide unbounded extension bytes.
+	var excess int
+	for {
+		chunkSize, err := parseChunkSize(r, &excess)
+		if err != nil {
+			return err
+		}
+		if chunkSize == 0 {
+			return nil
+		}
+		size += chunkSize
+		if maxBodySize > 0 && size > maxBodySize {
+			return ErrBodyTooLarge
+		}
+		if err = discardFixedSize(r, chunkSize); err != nil {
+			return err
+		}
+		crlf, err := r.Peek(len(strCRLF))
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return io.ErrUnexpectedEOF
+			}
+			return err
+		}
+		if !bytes.Equal(crlf, strCRLF) {
+			return ErrBrokenChunk{
+				error: errors.New("cannot find crlf at the end of chunk"),
+			}
+		}
+		if _, err = r.Discard(len(strCRLF)); err != nil {
+			return err
+		}
+	}
+}
+
+func discardBodyIdentity(r *bufio.Reader, maxBodySize int) error {
+	size := 0
+	for {
+		// Discard blocks until it has skipped all requested bytes, so never
+		// ask for more than the remaining allowance plus one byte. Otherwise
+		// a body that is already over the limit but shorter than the reader
+		// buffer would wait for more data (or EOF) instead of failing.
+		toDiscard := r.Size()
+		if maxBodySize > 0 {
+			// Compare before adding one so that a limit of math.MaxInt
+			// doesn't overflow.
+			if remaining := maxBodySize - size; remaining < toDiscard {
+				toDiscard = remaining + 1
+			}
+		}
+		n, err := r.Discard(toDiscard)
+		size += n
+		if maxBodySize > 0 && size > maxBodySize {
+			return ErrBodyTooLarge
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
 func (resp *Response) mustSkipBody() bool {
-	return resp.SkipBody || resp.Header.mustSkipContentLength()
+	return resp.SkipBody || resp.headResponse || resp.isConnectTunnel() || resp.Header.mustSkipContentLength()
+}
+
+// isConnectTunnel reports whether resp is a 2xx response to CONNECT. Such a
+// response ends at its header: the connection becomes a tunnel afterwards
+// (RFC 9110 section 9.3.6).
+func (resp *Response) isConnectTunnel() bool {
+	return resp.connectResponse && resp.Header.StatusCode() >= 200 && resp.Header.StatusCode() < 300
 }
 
 var errRequestHostRequired = errors.New("missing required host header in request")
@@ -3292,9 +3452,17 @@ func copyZeroAllocWithLimit(w io.Writer, r io.Reader, maxBodySize int) (int64, e
 		return copyZeroAlloc(w, r)
 	}
 
+	// One byte more than the limit is let through, to tell a body of exactly
+	// that size from a larger one. The largest limit is left as it is, since
+	// one more would overflow and make every body too large, and no body is
+	// that large.
+	limit := int64(maxBodySize)
+	if limit < math.MaxInt64 {
+		limit++
+	}
 	lr := &io.LimitedReader{
 		R: r,
-		N: int64(maxBodySize) + 1,
+		N: limit,
 	}
 	n, err := copyZeroAlloc(w, lr)
 	if err != nil {

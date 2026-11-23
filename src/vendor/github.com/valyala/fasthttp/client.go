@@ -763,10 +763,10 @@ type DialFuncWithTimeout func(addr string, timeout time.Duration) (net.Conn, err
 // Request argument passed to RetryIfFunc, if there are any request errors.
 type RetryIfFunc func(request *Request) bool
 
-// RetryIfErrFunc defines an interface used for implementing the following functionality:
-// When the client encounters an error during a request, the behavior—whether to retry
-// and whether to reset the request timeout—should be determined
-// based on the return value of this interface.
+// RetryIfErrFunc decides whether to retry a failed request and whether to reset its timeout.
+// The retry loop calls it after a retryable failure while another attempt remains.
+// A request carrying a streaming body uses a single attempt. An eligible retry starts
+// as soon as this function returns, subject to the request timeout.
 //
 // attempt indicates which attempt the current retry is due to a failure of.
 // The first request counts as the first attempt.
@@ -1266,7 +1266,13 @@ var (
 		" please use client instead")
 )
 
-const defaultMaxRedirectsCount = 16
+// DefaultMaxRedirectsCount is the number of redirects that Get, GetTimeout,
+// GetDeadline and Post follow, on a Client, a HostClient and as package
+// functions, before they return ErrTooManyRedirects.
+//
+// DoRedirects follows as many redirects as its caller asks for, and none
+// when that is zero or less.
+const DefaultMaxRedirectsCount = 16
 
 // Only drain response streams that are known to be small. Reading an unknown
 // length stream can block forever (for example, on an event stream), while
@@ -1293,6 +1299,7 @@ func responseBodyDrainSize(maxBodySize int) int {
 }
 
 func doRequestFollowRedirectsBuffer(req *Request, dst []byte, url string, c clientDoer) (statusCode int, body []byte, err error) {
+	req.SetRequestURI(url)
 	resp := AcquireResponse()
 	bodyBuf := resp.bodyBuffer()
 	resp.KeepBodyBuffer = true
@@ -1302,7 +1309,7 @@ func doRequestFollowRedirectsBuffer(req *Request, dst []byte, url string, c clie
 	forceResponseBodyBuffering := req.forceResponseBodyBuffering
 	req.forceResponseBodyBuffering = true
 
-	statusCode, _, err = doRequestFollowRedirects(req, resp, url, defaultMaxRedirectsCount, c)
+	statusCode, _, err = doRequestFollowRedirects(req, resp, url, DefaultMaxRedirectsCount, c)
 	req.forceResponseBodyBuffering = forceResponseBodyBuffering
 
 	body = bodyBuf.B
@@ -1329,10 +1336,14 @@ func doRequestFollowRedirects(
 	hasBodyStream := req.IsBodyStream()
 
 	for {
-		req.SetRequestURI(url)
 		if err := req.parseURI(); err != nil {
 			return 0, nil, err
 		}
+
+		// Write builds Authorization from the userinfo when the request
+		// doesn't have one. Like net/http, that header is only for this URI:
+		// it is built again from the userinfo of the next one on a redirect.
+		authFromUserinfo := len(req.uri.username) > 0 && len(req.Header.peek(strAuthorization)) == 0
 
 		if err = c.Do(req, resp); err != nil {
 			break
@@ -1352,7 +1363,7 @@ func doRequestFollowRedirects(
 			err = ErrMissingLocation
 			break
 		}
-		if isNonHTTPRedirect(location) {
+		if HasNonHTTPSchemeWithoutAuthority(location) {
 			// There is nothing to fetch for mailto:, tel: or an app callback
 			// such as com.example.app:/cb, so return the redirect response
 			// as is and leave the location to the caller.
@@ -1367,7 +1378,15 @@ func doRequestFollowRedirects(
 			break
 		}
 		stripSensitiveHeadersOnRedirect(req, initialHost, redirectURI)
-		ReleaseURI(redirectURI)
+		if authFromUserinfo {
+			req.Header.del(strAuthorization)
+		}
+		// A relative location keeps the userinfo of the current URI, while
+		// an absolute one only has its own, as with url.URL.ResolveReference.
+		if !hasAuthority(location) {
+			redirectURI.SetUsernameBytes(req.uri.username)
+			redirectURI.SetPasswordBytes(req.uri.password)
+		}
 
 		// A 303, or a POST rewritten to GET on 301/302, retrieves the target
 		// without the original body (RFC 9110 section 15.4).
@@ -1385,27 +1404,56 @@ func doRequestFollowRedirects(
 			hasBodyStream = false
 		} else if hasBodyStream {
 			// The previous hop consumed the stream this redirect would replay.
+			ReleaseURI(redirectURI)
 			err = ErrRedirectBodyStream
 			break
 		}
 
 		if err = closeOrDrainResponseBody(resp, maxResponseBodyDrainSize); err != nil {
+			ReleaseURI(redirectURI)
 			break
 		}
+
+		// Set the URI here and not at the top of the loop: DoRedirects
+		// passes req.URI().String() as url, which leaves out the userinfo,
+		// so the first request has to go out with the URI the caller set.
+		req.SetRequestURI(url)
+		if len(redirectURI.username) > 0 {
+			uri := req.URI()
+			uri.SetUsernameBytes(redirectURI.username)
+			uri.SetPasswordBytes(redirectURI.password)
+		}
+		ReleaseURI(redirectURI)
 	}
 
 	return statusCode, body, err
 }
 
-// isNonHTTPRedirect reports whether location has a scheme other than http
-// or https and no authority, e.g. mailto:user@example.com.
-// URI can't hold such a location and would resolve it as a relative path.
-func isNonHTTPRedirect(location []byte) bool {
+// HasNonHTTPSchemeWithoutAuthority reports whether location, the value of a
+// Location header, has a scheme other than http or https and no authority, e.g.
+// mailto:user@example.com or com.example.app:/callback.
+//
+// There is nothing to fetch at such a location, and URI can't hold it: Update
+// and UpdateBytes would resolve it as a relative path. Client and HostClient
+// return the redirect response as it is instead of following it, and so
+// should code that follows redirects itself, before it resolves location
+// against the uri it requested.
+//
+// A location with an authority, such as ftp://example.com/, has a scheme other
+// than http or https too, but URI can hold it, so the result is false for it.
+func HasNonHTTPSchemeWithoutAuthority(location []byte) bool {
 	if !hasSchemeWithoutAuthority(b2s(location)) {
 		return false
 	}
 	scheme := location[:bytes.IndexByte(location, ':')]
 	return !bytes.EqualFold(scheme, strHTTP) && !bytes.EqualFold(scheme, strHTTPS)
+}
+
+// hasAuthority reports whether location replaces the authority of the URI
+// it is resolved against, the same way URI.UpdateBytes decides it.
+func hasAuthority(location []byte) bool {
+	n := bytes.Index(location, strSlashSlash)
+	return n >= 0 && isAuthorityDelimiter(location, n)
 }
 
 func getRedirectURL(baseURL string, location []byte, disablePathNormalizing bool, dst *URI) (string, error) {
@@ -2514,6 +2562,13 @@ func AddMissingPort(addr string, isTLS bool) string {
 		return addr
 	}
 
+	// An empty port ("host:", "[::1]:") is a missing one, see RFC 3986, section 3.2.3.
+	// An unbracketed IPv6 address such as "::" has more than one colon and is kept as is.
+	if addrLen > 1 && addr[addrLen-1] == ':' && (addr[addrLen-2] == ']' || strings.IndexByte(addr, ':') == addrLen-1) {
+		addr = addr[:addrLen-1]
+		addrLen--
+	}
+
 	isIP6 := addr[0] == '['
 	if isIP6 {
 		// if the IPv6 has opening bracket but closing bracket is the last char then it doesn't have a port
@@ -2933,6 +2988,9 @@ func (c *pipelineConnClient) DoDeadline(req *Request, resp *Response, deadline t
 	w.respCopy.Header.disableNormalizing = c.DisableHeaderNamesNormalizing
 	streamBody := resp != nil && resp.StreamBody
 	w.respCopy.StreamBody = streamBody
+	// The reader goroutine only sees respCopy, so it needs the caller's
+	// SkipBody too. copyToSkipBody copies it back to resp afterwards.
+	w.respCopy.SkipBody = resp != nil && resp.SkipBody
 	w.req = &w.reqCopy
 	w.resp = &w.respCopy
 
@@ -2983,7 +3041,7 @@ func (c *pipelineConnClient) DoDeadline(req *Request, resp *Response, deadline t
 			if resp.KeepBodyBuffer && resp.body != nil {
 				w.respCopy.copyToSkipBody(resp)
 				resp.SetBody(w.respCopy.bodyBytes())
-				if streamBody && !resp.mustSkipBody() {
+				if streamBody && !resp.mustSkipBody() && !req.Header.IsHead() {
 					resp.bodyStream = bytes.NewReader(resp.bodyBytes())
 				}
 			} else {
@@ -3269,16 +3327,18 @@ func (c *pipelineConnClient) worker(chs *pipelineConnChannels) (bool, error) {
 		return false, err
 	}
 
-	// Start reader and writer
+	// Start reader and writer. After sending CONNECT the writer waits on
+	// connectCh until the reader knows the connection is still HTTP.
+	connectCh := make(chan struct{}, 1)
 	stopW := make(chan struct{})
 	doneW := make(chan error)
 	go func() {
-		doneW <- c.writer(conn, stopW, chs)
+		doneW <- c.writer(conn, stopW, chs, connectCh)
 	}()
 	stopR := make(chan struct{})
 	doneR := make(chan error)
 	go func() {
-		doneR <- c.reader(conn, stopR, chs)
+		doneR <- c.reader(conn, stopR, chs, connectCh)
 	}()
 
 	// Wait until reader and writer are stopped
@@ -3328,7 +3388,9 @@ func (c *pipelineConnClient) ensureTLSConfig() error {
 	return err
 }
 
-func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}, chs *pipelineConnChannels) error {
+func (c *pipelineConnClient) writer(
+	conn net.Conn, stopCh <-chan struct{}, chs *pipelineConnChannels, connectCh <-chan struct{},
+) error {
 	writeBufferSize := c.WriteBufferSize
 	if writeBufferSize <= 0 {
 		writeBufferSize = defaultWriteBufferSize
@@ -3388,6 +3450,9 @@ func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}, chs *
 		}
 
 		w.resp.ParseNetConn(conn)
+		// w.req belongs to the caller once w reaches the reader, so check it
+		// now.
+		isConnect := w.req.Header.IsConnect()
 
 		if writeTimeout > 0 {
 			// Set Deadline every time, since golang has fixed the performance issue
@@ -3435,6 +3500,22 @@ func (c *pipelineConnClient) writer(conn net.Conn, stopCh <-chan struct{}, chs *
 				goto againChR
 			}
 		}
+
+		if isConnect {
+			// A 2xx response turns the connection into a tunnel, so nothing
+			// may follow CONNECT until its response is known. Otherwise
+			// queued requests, credentials included, would reach the tunnel
+			// target.
+			if err = bw.Flush(); err != nil {
+				return err
+			}
+			flushTimerCh = nil
+			select {
+			case <-connectCh:
+			case <-stopCh:
+				return nil
+			}
+		}
 	}
 }
 
@@ -3445,7 +3526,9 @@ func (c *pipelineConnClient) canStopPipelineConn(chs *pipelineConnChannels) bool
 	return canStop && len(chs.chR) == 0 && len(chs.chW) == 0
 }
 
-func (c *pipelineConnClient) reader(conn net.Conn, stopCh <-chan struct{}, chs *pipelineConnChannels) error {
+func (c *pipelineConnClient) reader(
+	conn net.Conn, stopCh <-chan struct{}, chs *pipelineConnChannels, connectCh chan<- struct{},
+) error {
 	readBufferSize := c.ReadBufferSize
 	if readBufferSize <= 0 {
 		readBufferSize = defaultReadBufferSize
@@ -3482,19 +3565,27 @@ func (c *pipelineConnClient) reader(conn net.Conn, stopCh <-chan struct{}, chs *
 			}
 		}
 		// A response to HEAD carries no body no matter what Content-Length
-		// or Transfer-Encoding announce (RFC 9112 section 6.3). Reading one
-		// here would consume the following pipelined responses as the body,
-		// the same reason transport.RoundTrip skips it.
-		if w.req.Header.IsHead() {
-			w.resp.SkipBody = true
-		}
+		// or Transfer-Encoding announce (RFC 9112 section 6.3), and neither
+		// does a 2xx response to CONNECT. Reading one here would consume the
+		// following pipelined responses as the body, the same reason
+		// transport.RoundTrip skips it.
+		isConnect := w.req.Header.IsConnect()
 		// PipelineClient must consume each response body before reading the
 		// next response from the shared connection. Preserve StreamBody's
 		// reader API with a buffered stream instead of leaving bytes in br.
 		streamBody := w.resp.StreamBody
 		w.resp.StreamBody = false
-		err = w.resp.ReadLimitBody(br, c.MaxResponseBodySize)
+		err = w.resp.readLimitBody(br, c.MaxResponseBodySize, w.req.Header.IsHead(), isConnect)
 		w.resp.StreamBody = streamBody
+		// A body skipped by the caller still has to be consumed: left on the
+		// connection, it would be read as the start of the next pipelined
+		// response. Drain it without buffering it.
+		if err == nil && w.resp.SkipBody {
+			err = w.resp.discardBody(br, c.MaxResponseBodySize)
+		}
+		if err == nil && streamBody && !w.resp.mustSkipBody() {
+			w.resp.bodyStream = bytes.NewReader(w.resp.bodyBytes())
+		}
 		if err != nil {
 			w.err = err
 			w.done <- struct{}{}
@@ -3507,11 +3598,22 @@ func (c *pipelineConnClient) reader(conn net.Conn, stopCh <-chan struct{}, chs *
 			w.done <- struct{}{}
 			return nil
 		}
-		if streamBody && !w.resp.mustSkipBody() {
-			w.resp.bodyStream = bytes.NewReader(w.resp.bodyBytes())
-		}
 
+		// After a 2xx response to CONNECT the connection is a tunnel, so no
+		// further pipelined response can be read from it. Check before
+		// signaling done: w may be reused as soon as the caller wakes up.
+		//
+		// The writer waits after sending CONNECT. Let it go on only if the
+		// connection is still HTTP; for a tunnel the worker stops it, and the
+		// queued requests are sent on a new connection.
+		tunnel := w.resp.isConnectTunnel()
+		if isConnect && !tunnel {
+			connectCh <- struct{}{}
+		}
 		w.done <- struct{}{}
+		if tunnel {
+			return nil
+		}
 	}
 }
 
@@ -3685,15 +3787,13 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		cc.readDeadlineSet = !readDeadline.IsZero()
 	}
 
-	if customSkipBody || req.Header.IsHead() {
-		resp.SkipBody = true
-	}
+	isHead := req.Header.IsHead()
 	if hc.DisableHeaderNamesNormalizing {
 		resp.Header.DisableNormalizing()
 	}
 
 	br := hc.AcquireReader(conn)
-	err = resp.ReadLimitBody(br, hc.MaxResponseBodySize)
+	err = resp.readLimitBody(br, hc.MaxResponseBodySize, isHead, req.Header.IsConnect())
 	if err != nil {
 		hc.ReleaseReader(br)
 		hc.CloseConn(cc)
@@ -3702,7 +3802,13 @@ func (t *transport) RoundTrip(hc *HostClient, req *Request, resp *Response) (ret
 		return needRetry, err
 	}
 
-	closeConn := resetConnection || req.ConnectionClose() || resp.ConnectionClose() || resp.StatusCode() == StatusSwitchingProtocols
+	closeConn := resetConnection || req.ConnectionClose() || resp.ConnectionClose() ||
+		resp.StatusCode() == StatusSwitchingProtocols || resp.isConnectTunnel()
+	if customSkipBody && !isHead && !resp.Header.mustSkipContentLength() && resp.Header.ContentLength() != 0 {
+		// The body of this response was left unread on the connection,
+		// so the next response read from it would start inside that body.
+		closeConn = true
+	}
 	if customStreamBody && resp.bodyStream != nil {
 		// releaseConn runs when the caller closes the body stream, so it has to
 		// re-check resp.ConnectionClose(): a caller may only decide that the
