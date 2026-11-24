@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -12,6 +13,8 @@ import (
 )
 
 var MaxTTL = time.Minute
+
+const maxCounterTotals = 10000
 
 type MessageAggregator struct {
 	mu            sync.Mutex
@@ -42,6 +45,11 @@ func (m *MessageAggregator) handleCounter(envelope *events.Envelope) *events.Env
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if len(m.counterTotals) > maxCounterTotals {
+		log.Printf("v1 message aggregator: counterTotals exceeded %d entries (%d); resetting counter totals", maxCounterTotals, len(m.counterTotals))
+		m.counterTotals = make(map[counterID]uint64)
+	}
 
 	if envelope.GetCounterEvent().GetTotal() != 0 {
 		m.counterTotals[countID] = envelope.GetCounterEvent().GetTotal()

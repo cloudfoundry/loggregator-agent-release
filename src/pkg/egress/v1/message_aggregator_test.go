@@ -1,6 +1,11 @@
 package v1_test
 
 import (
+	"bytes"
+	"fmt"
+	"log"
+	"os"
+	"sync"
 	"time"
 
 	egress "code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/v1"
@@ -210,6 +215,96 @@ var _ = Describe("MessageAggregator", func() {
 			Expect(e.GetOrigin()).To(Equal("fake-origin-4"))
 			expectCorrectCounterNameDeltaAndTotal(e, "counter1", 4, 8)
 		})
+
+		Describe("counter totals cap", func() {
+			lastTotal := func() uint64 {
+				return mockWriter.WriteArgsForCall(mockWriter.WriteCallCount() - 1).GetCounterEvent().GetTotal()
+			}
+			writeFillers := func(from, to int) {
+				for i := from; i < to; i++ {
+					messageAggregator.Write(createDeltaOneCounter(fmt.Sprintf("filler-%d", i)))
+				}
+			}
+
+			It("resets counter totals once more than 10000 identities are tracked", func() {
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				Expect(lastTotal()).To(Equal(uint64(1)))
+				writeFillers(0, 10000)
+
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				Expect(lastTotal()).To(Equal(uint64(1)))
+			})
+
+			It("keeps totals at exactly 10000 identities and resets above it", func() {
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				writeFillers(0, 9999)
+
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				Expect(lastTotal()).To(Equal(uint64(2)))
+
+				writeFillers(9999, 10000)
+
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				Expect(lastTotal()).To(Equal(uint64(1)))
+			})
+
+			It("bounds the map when envelopes carry explicit totals", func() {
+				messageAggregator.Write(createExplicitTotalCounter("sentinel", 5))
+				for i := 0; i < 10000; i++ {
+					messageAggregator.Write(createExplicitTotalCounter(fmt.Sprintf("filler-%d", i), 5))
+				}
+
+				messageAggregator.Write(createExplicitTotalCounter("x", 5))
+				messageAggregator.Write(createDeltaOneCounter("x"))
+				Expect(lastTotal()).To(Equal(uint64(6)))
+
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				Expect(lastTotal()).To(Equal(uint64(1)))
+			})
+
+			It("logs when counter totals are reset", func() {
+				var buf bytes.Buffer
+				log.SetOutput(&buf)
+				DeferCleanup(func() { log.SetOutput(os.Stderr) })
+
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+				writeFillers(0, 10000)
+				messageAggregator.Write(createDeltaOneCounter("sentinel"))
+
+				Expect(buf.String()).To(ContainSubstring("exceeded 10000 entries (10001)"))
+			})
+
+			It("handles concurrent counter writes across resets", func() {
+				const goroutines, perGoroutine = 8, 100
+
+				var wg sync.WaitGroup
+				for g := 0; g < goroutines; g++ {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						for i := 0; i < perGoroutine; i++ {
+							messageAggregator.Write(createDeltaOneCounter("shared"))
+						}
+					}()
+				}
+				wg.Wait()
+
+				messageAggregator.Write(createDeltaOneCounter("shared"))
+				Expect(lastTotal()).To(Equal(uint64(goroutines*perGoroutine + 1)))
+
+				const perUnique = 2000
+				for g := 0; g < goroutines; g++ {
+					wg.Add(1)
+					go func(g int) {
+						defer wg.Done()
+						for i := 0; i < perUnique; i++ {
+							messageAggregator.Write(createDeltaOneCounter(fmt.Sprintf("unique-%d-%d", g, i)))
+						}
+					}(g)
+				}
+				wg.Wait()
+			})
+		})
 	})
 })
 
@@ -253,4 +348,21 @@ func expectCorrectCounterNameDeltaAndTotal(outputMessage *events.Envelope, name 
 	Expect(outputMessage.GetCounterEvent().GetName()).To(Equal(name))
 	Expect(outputMessage.GetCounterEvent().GetDelta()).To(Equal(delta))
 	Expect(outputMessage.GetCounterEvent().GetTotal()).To(Equal(total))
+}
+
+func createDeltaOneCounter(name string) *events.Envelope {
+	return &events.Envelope{
+		Origin:    proto.String("o"),
+		EventType: events.Envelope_CounterEvent.Enum(),
+		CounterEvent: &events.CounterEvent{
+			Name:  proto.String(name),
+			Delta: proto.Uint64(1),
+		},
+	}
+}
+
+func createExplicitTotalCounter(name string, total uint64) *events.Envelope {
+	e := createDeltaOneCounter(name)
+	e.CounterEvent.Total = proto.Uint64(total)
+	return e
 }
