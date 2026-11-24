@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -109,8 +110,8 @@ func (*HTTPSWriter) Close() error {
 // paths. StreamResponseBody must not be enabled because it ignores this limit.
 const maxResponseBodySize = 4096
 
-func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
-	return &fasthttp.Client{
+func httpClient(netConf NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
+	client := &fasthttp.Client{
 		MaxConnsPerHost:     5,
 		MaxIdleConnDuration: 90 * time.Second,
 		MaxResponseBodySize: maxResponseBodySize,
@@ -118,4 +119,20 @@ func httpClient(_ NetworkTimeoutConfig, tlsConf *tls.Config) *fasthttp.Client {
 		ReadTimeout:         20 * time.Second,
 		WriteTimeout:        20 * time.Second,
 	}
+
+	if netConf.IPChecker != nil {
+		// Keep fasthttp's dialer (DNS cache, round-robin, concurrency limit)
+		// and enforce the blacklist inside its resolver.
+		dialer := checkedTCPDialer(netConf)
+		client.DialTimeout = func(addr string, timeout time.Duration) (net.Conn, error) {
+			// Mirrors fasthttp's default dial selection (callDialFunc). addr
+			// already carries a port: Client.Do adds it before dialing.
+			if timeout > 0 {
+				return dialer.DialTimeout(addr, timeout)
+			}
+			return dialer.Dial(addr)
+		}
+	}
+
+	return client
 }

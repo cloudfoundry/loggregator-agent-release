@@ -15,11 +15,16 @@ type TLSWriter struct {
 	TCPWriter
 }
 
+type IPChecker interface {
+	CheckBlacklist(ip net.IP) error
+}
+
 // NetworkTimeoutConfig stores various timeout values.
 type NetworkTimeoutConfig struct {
 	Keepalive    time.Duration
 	DialTimeout  time.Duration
 	WriteTimeout time.Duration
+	IPChecker    IPChecker
 }
 
 func NewTLSWriter(
@@ -31,10 +36,7 @@ func NewTLSWriter(
 	appLogClient v2.LogClient,
 ) egress.WriteCloser {
 
-	dialer := &net.Dialer{
-		Timeout:   netConf.DialTimeout,
-		KeepAlive: netConf.Keepalive,
-	}
+	dialer := checkedDialer(netConf)
 
 	df := func(addr string) (net.Conn, error) {
 		return tls.DialWithDialer(dialer, "tcp", addr, tlsConf)
