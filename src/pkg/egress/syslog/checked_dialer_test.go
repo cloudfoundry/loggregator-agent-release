@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/bindingfakes"
+	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/binding/blacklist"
 	"code.cloudfoundry.org/loggregator-agent-release/src/pkg/egress/syslog"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -142,6 +143,75 @@ var _ = Describe("CheckedDialer", func() {
 			_, err = dialer.DialContext(context.Background(), "tcp", net.JoinHostPort("localhost", port))
 			Expect(err).To(HaveOccurred())
 			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
+		})
+	})
+
+	Describe("with a real BlacklistRanges", func() {
+		var ranges *blacklist.BlacklistRanges
+
+		BeforeEach(func() {
+			var err error
+			ranges, err = blacklist.NewBlacklistRanges(
+				blacklist.BlacklistRange{Start: "10.0.0.0", End: "10.255.255.255"},
+				blacklist.BlacklistRange{Start: "127.0.0.1", End: "127.0.0.1"},
+				// "localhost" can also resolve to ::1 (it does on CI runners)
+				blacklist.BlacklistRange{Start: "::1", End: "::1"},
+				blacklist.BlacklistRange{Start: "169.254.169.254", End: "169.254.169.254"},
+				blacklist.BlacklistRange{Start: "fd00::", End: "fd00::ffff"},
+			)
+			Expect(err).ToNot(HaveOccurred())
+			netConf.IPChecker = ranges
+		})
+
+		DescribeTable("Control enforces the ranges on the 16-byte form of the address",
+			func(address string, blocked bool) {
+				err := syslog.CheckedDialer(netConf).Control("tcp", address, nil)
+				if blocked {
+					Expect(err).To(MatchError(syslog.ErrBlockedAddress))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+				}
+			},
+			Entry("IPv4 inside a range", "10.1.2.3:514", true),
+			Entry("IPv4 range start", "10.0.0.0:514", true),
+			Entry("IPv4 range end", "10.255.255.255:514", true),
+			Entry("IPv4 just below a range", "9.255.255.255:514", false),
+			Entry("IPv4 just above a range", "11.0.0.0:514", false),
+			Entry("single-address range (metadata service)", "169.254.169.254:80", true),
+			Entry("neighbour of a single-address range", "169.254.169.253:80", false),
+			Entry("public IPv4", "203.0.113.7:514", false),
+			Entry("IPv4-mapped IPv6 of a blocked IPv4", "[::ffff:10.1.2.3]:514", true),
+			Entry("IPv4-mapped IPv6 of an allowed IPv4", "[::ffff:203.0.113.7]:514", false),
+			Entry("IPv6 inside a range", "[fd00::1]:514", true),
+			Entry("IPv6 outside a range", "[fd01::1]:514", false),
+			Entry("zoned IPv6 inside a range", "[fd00::1%eth0]:514", true),
+		)
+
+		It("refuses a dial to a blocked loopback listener and allows one outside the ranges", func() {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(listener.Close)
+
+			_, err = syslog.CheckedDialer(netConf).Dial("tcp", listener.Addr().String())
+			Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue())
+
+			allowed, err := blacklist.NewBlacklistRanges(blacklist.BlacklistRange{Start: "10.0.0.0", End: "10.255.255.255"})
+			Expect(err).ToNot(HaveOccurred())
+			netConf.IPChecker = allowed
+			conn, err := syslog.CheckedDialer(netConf).Dial("tcp", listener.Addr().String())
+			Expect(err).ToNot(HaveOccurred())
+			_ = conn.Close()
+		})
+
+		It("makes the fasthttp dialer refuse a blocked loopback hostname and IP literal", func() {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(listener.Close)
+
+			for _, host := range []string{"localhost", "127.0.0.1"} {
+				_, err = syslog.CheckedTCPDialer(netConf).Dial(net.JoinHostPort(host, portOf(listener)))
+				Expect(errors.Is(err, syslog.ErrBlockedAddress)).To(BeTrue(), host)
+			}
 		})
 	})
 
